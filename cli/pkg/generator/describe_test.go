@@ -182,6 +182,17 @@ var _ = Describe("RenderWorkload", func() {
 				Expect(out).NotTo(ContainSubstring("Phase:"))
 				Expect(out).NotTo(ContainSubstring("age:"), "a manifest has no age")
 			})
+
+			// "0/4 ready" would read as four pods that failed to start, where
+			// the truth is that there are no pods to be ready yet.
+			It("reports the desired scale rather than a readiness of zero", func() {
+				view := detailView()
+				view.FileMode = true
+
+				out := renderWorkload(view, DescribeOptions{})
+				Expect(out).To(ContainSubstring("replicas: 4"))
+				Expect(out).NotTo(ContainSubstring("ready"))
+			})
 		})
 	})
 

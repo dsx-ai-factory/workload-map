@@ -7,13 +7,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/yaml"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
@@ -23,9 +28,12 @@ import (
 
 const (
 	flagPodLimit = "pod-limit"
+	flagFile     = "file"
 
 	usagePodLimit = "Maximum pod rows per component; the default shows every pod. " +
 		"When set, unhealthy pods are shown first. Table output only"
+	usageFile = "Describe a manifest that has not been submitted; \"-\" reads stdin. " +
+		"No cluster is needed, and no TYPE/NAME is accepted"
 
 	describeUse   = "describe TYPE[/NAME] [NAME]"
 	describeShort = "Show one workload in full"
@@ -39,7 +47,11 @@ names all resolve.
 
 Pods are attributed by ownership, so only the pods of this workload are shown, and
 by the definition's own pod selectors, so a pod lands under the component whose
-role it plays rather than under the object that happens to own it.`
+role it plays rather than under the object that happens to own it.
+
+With -f, the same view is built from a manifest alone, with no cluster and no
+pods: the structure and the desired scale are real, everything live is absent.
+It answers what a workload would look like before it is submitted.`
 
 	describeExample = `  # Describe a workload, kubectl-style
   kli describe pytorchjob/llama-finetune
@@ -49,6 +61,9 @@ role it plays rather than under the object that happens to own it.`
 
   # Large workloads: cap the pod rows, unhealthy pods first
   kli describe pytorchjob/llama-finetune --pod-limit 10
+
+  # Validate a manifest before submitting it, no cluster needed
+  kli describe -f jobset.yaml
 
   # Machine output for scripting or agents
   kli describe pytorchjob/llama-finetune -o json`
@@ -67,6 +82,7 @@ var errNoDefinitions = errors.New("no Karta definitions available (catalog empty
 type describeOptions struct {
 	getOptions
 	podLimit int
+	file     string
 }
 
 // newDescribeCommand builds the "kli describe" command: one workload in full.
@@ -79,18 +95,28 @@ func newDescribeCommand() *cobra.Command {
 		Short:   describeShort,
 		Long:    describeLong,
 		Example: describeExample,
-		Args: usageArgs(cobra.MatchAll(
-			cobra.RangeArgs(1, 2),
-			func(_ *cobra.Command, args []string) error {
-				if err := parseArgs(&opts.getOptions, args); err != nil {
-					return err
-				}
-				if opts.name == "" {
-					return errNameRequired
+		// The range applies to the positional form only: -f reads the kind from
+		// the manifest, so it takes no arguments at all.
+		Args: usageArgs(func(cmd *cobra.Command, args []string) error {
+			if opts.file != "" {
+				if len(args) > 0 {
+					return fmt.Errorf(
+						"--%s reads the kind from the manifest, so it cannot be combined with %q",
+						flagFile, strings.Join(args, " "))
 				}
 				return nil
-			},
-		)),
+			}
+			if err := cobra.RangeArgs(1, 2)(cmd, args); err != nil {
+				return err
+			}
+			if err := parseArgs(&opts.getOptions, args); err != nil {
+				return err
+			}
+			if opts.name == "" {
+				return errNameRequired
+			}
+			return nil
+		}),
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			// A negative limit collides with the ShowAllPods sentinel.
 			if opts.podLimit < 0 {
@@ -109,6 +135,7 @@ func newDescribeCommand() *cobra.Command {
 	// Zero is the default rather than ShowAllPods: both mean no limit, and only
 	// zero keeps pflag from advertising a value the flag then rejects.
 	cmd.Flags().IntVar(&opts.podLimit, flagPodLimit, 0, usagePodLimit)
+	cmd.Flags().StringVarP(&opts.file, flagFile, "f", "", usageFile)
 
 	return cmd
 }
@@ -116,36 +143,185 @@ func newDescribeCommand() *cobra.Command {
 func runDescribe(cmd *cobra.Command, opts *describeOptions, format generator.Output) error {
 	ctx := cmd.Context()
 
-	look, err := resolveLookup(cmd, &opts.getOptions)
+	view, err := resolveView(ctx, cmd, opts)
 	if err != nil {
-		return err
-	}
-
-	obj, err := getOne(ctx, look.dyn, look.mapper, look.definition, look.namespace, opts.name)
-	if err != nil {
-		return err
-	}
-
-	// Pods are created beside the workload, so the list stays in its namespace.
-	// A cluster-scoped root has none, so there it is cluster-wide.
-	pods, err := workload.ListPods(ctx, look.dyn, obj.GetNamespace())
-	if err != nil {
-		return fmt.Errorf("list pods: %w", err)
-	}
-	owned, err := workload.NewPodAttributor(look.dyn, look.mapper).Filter(ctx, pods, obj.GetUID())
-	if err != nil {
-		return fmt.Errorf("attribute pods: %w", err)
-	}
-
-	view, err := workload.ResolveDescribe(ctx, obj, look.definition, owned)
-	if err != nil {
-		return fmt.Errorf("describe %s %q: %w", obj.GetKind(), obj.GetName(), err)
+		return reportNoDefinition(cmd, format, err)
 	}
 
 	return generator.RenderWorkload(cmd.OutOrStdout(), view, generator.DescribeOptions{
 		Output:   format,
 		PodLimit: opts.podLimit,
 	})
+}
+
+func resolveView(
+	ctx context.Context, cmd *cobra.Command, opts *describeOptions,
+) (*workload.DescribeView, error) {
+	if opts.file != "" {
+		return describeManifest(ctx, cmd, opts)
+	}
+	return describeLive(ctx, cmd, opts)
+}
+
+// describeLive reads the named workload and its pods from the cluster.
+func describeLive(
+	ctx context.Context, cmd *cobra.Command, opts *describeOptions,
+) (*workload.DescribeView, error) {
+	look, err := resolveLookup(cmd, &opts.getOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	obj, err := getOne(ctx, look.dyn, look.mapper, look.definition, look.namespace, opts.name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pods are created beside the workload, so the list stays in its namespace.
+	// A cluster-scoped root has none, so there it is cluster-wide.
+	pods, err := workload.ListPods(ctx, look.dyn, obj.GetNamespace())
+	if err != nil {
+		return nil, fmt.Errorf("list pods: %w", err)
+	}
+	owned, err := workload.NewPodAttributor(look.dyn, look.mapper).Filter(ctx, pods, obj.GetUID())
+	if err != nil {
+		return nil, fmt.Errorf("attribute pods: %w", err)
+	}
+
+	view, err := workload.ResolveDescribe(ctx, obj, look.definition, owned)
+	if err != nil {
+		return nil, fmt.Errorf("describe %s %q: %w", obj.GetKind(), obj.GetName(), err)
+	}
+	return view, nil
+}
+
+// describeManifest builds the view from a manifest alone. The kind comes from
+// the manifest, so no discovery is involved and no cluster is required.
+func describeManifest(
+	ctx context.Context, cmd *cobra.Command, opts *describeOptions,
+) (*workload.DescribeView, error) {
+	obj, err := readManifest(cmd, opts.file)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read best-effort: an unreachable cluster degrades to the embedded catalog,
+	// which is what lets file mode work with no cluster at all.
+	resolver, warnings := loadDefinitions(ctx, clusterAccess())
+	if err := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err != nil {
+		return nil, err
+	}
+
+	gvk := obj.GroupVersionKind()
+	if gvk.Kind == "" || gvk.Version == "" {
+		return nil, usageError(cmd, fmt.Errorf(
+			"%s declares no apiVersion and kind, so there is nothing to resolve it by", opts.file))
+	}
+
+	target, err := resolver.Resolve(gvk)
+	switch {
+	case err == nil:
+	case errors.Is(err, definitions.ErrAmbiguous):
+		return nil, exitError{code: ExitUsage, err: err}
+	default:
+		return nil, noDefinitionFor(gvk)
+	}
+
+	// No pods: a manifest that never reached the cluster has none, and inventing
+	// zeroes would read as a workload whose pods have all gone.
+	view, err := workload.ResolveDescribe(ctx, obj, target, nil)
+	if err != nil {
+		return nil, fmt.Errorf("describe %s: %w", opts.file, err)
+	}
+	view.FileMode = true
+	return view, nil
+}
+
+// readManifest decodes one workload manifest, from stdin when path is "-".
+func readManifest(cmd *cobra.Command, path string) (*unstructured.Unstructured, error) {
+	var (
+		raw []byte
+		err error
+	)
+	if path == "-" {
+		raw, err = io.ReadAll(cmd.InOrStdin())
+	} else {
+		raw, err = os.ReadFile(path)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+
+	// A plain map, not Unstructured: its unmarshal rejects a missing kind with a
+	// message about JSON internals rather than the field that is absent.
+	var fields map[string]any
+	if err := yaml.Unmarshal(raw, &fields); err != nil {
+		return nil, usageError(cmd, fmt.Errorf("parse %s: %w", path, err))
+	}
+	return &unstructured.Unstructured{Object: fields}, nil
+}
+
+// machineError is the shape a failure takes in the machine formats. Only the
+// no-definition case uses it, being the one an agent handles differently.
+type machineError struct {
+	Error   string `json:"error"`
+	GVK     string `json:"gvk,omitempty"`
+	Type    string `json:"type,omitempty"`
+	Message string `json:"message"`
+	Hint    string `json:"hint"`
+}
+
+const (
+	noDefinitionReason  = "no_definition_for_type"
+	noDefinitionMessage = "no Karta definition covers this workload type"
+	noDefinitionHint    = `"kli definitions" lists the types Karta covers; ` +
+		"apply a Karta definition to the cluster to cover this one"
+)
+
+// noDefinitionNotFound marks a failure reportNoDefinition should also emit as a
+// machine error, carrying the identity the payload names.
+type noDefinitionNotFound struct {
+	exitError
+	subject machineError
+}
+
+func noDefinitionFor(gvk schema.GroupVersionKind) error {
+	return noDefinitionNotFound{
+		exitError: exitError{code: ExitNotFound,
+			err: fmt.Errorf("%s: %s", noDefinitionMessage, gvk)},
+		subject: machineError{
+			Error: noDefinitionReason, GVK: gvk.String(),
+			Message: noDefinitionMessage, Hint: noDefinitionHint,
+		},
+	}
+}
+
+// reportNoDefinition puts the machine error on stdout, where an agent reads,
+// and leaves the human message on stderr, where a reader does.
+func reportNoDefinition(cmd *cobra.Command, format generator.Output, err error) error {
+	if format != generator.OutputJSON && format != generator.OutputYAML {
+		return err
+	}
+
+	var structured noDefinitionNotFound
+	if !errors.As(err, &structured) {
+		// A type token that matched no definition carries no GVK to name, so
+		// the payload names the token the caller used instead.
+		var coded exitError
+		if !errors.As(err, &coded) || coded.code != ExitNotFound {
+			return err
+		}
+		structured.subject = machineError{
+			Error: noDefinitionReason, Type: coded.Error(),
+			Message: noDefinitionMessage, Hint: noDefinitionHint,
+		}
+	}
+
+	if writeErr := generator.RenderOne(cmd.OutOrStdout(), format, structured.subject,
+		func(io.Writer) error { return nil }); writeErr != nil {
+		return writeErr
+	}
+	return err
 }
 
 // getOne fetches the single named object of target's type, reporting a miss the

@@ -98,27 +98,36 @@ func writeTree(out io.Writer, view *workload.DescribeView, limit int) error {
 	}
 
 	writer := printers.GetNewTabWriter(out)
-	writeComponents(writer, view.Components, "", limit)
+	writeComponents(writer, view.Components, "", limit, view.FileMode)
 	if err := writer.Flush(); err != nil {
 		return fmt.Errorf("write tree: %w", err)
 	}
 	return nil
 }
 
-func writeComponents(out io.Writer, components []workload.ComponentView, prefix string, limit int) {
+func writeComponents(out io.Writer, components []workload.ComponentView, prefix string, limit int, fileMode bool) {
 	for i, component := range components {
 		last := i == len(components)-1
-		fmt.Fprintln(out, strings.Join([]string{
-			prefix + branch(last) + component.Name,
-			readiness(component.Replicas),
+		fmt.Fprintln(out, row(
+			prefix+branch(last)+component.Name,
+			scale(component.Replicas, fileMode),
 			resourceCell(component.Resources),
 			strings.Join(component.Nodes, ","),
-		}, "\t"))
+		))
 
 		childPrefix := prefix + indent(last)
 		writePods(out, component.Pods, childPrefix, limit, len(component.Children) > 0)
-		writeComponents(out, component.Children, childPrefix, limit)
+		writeComponents(out, component.Children, childPrefix, limit, fileMode)
 	}
+}
+
+// row joins cells for the tab writer, dropping the empty ones at the end: a
+// trailing tab pads the line with spaces no reader sees but every diff does.
+func row(cells ...string) string {
+	for len(cells) > 0 && cells[len(cells)-1] == "" {
+		cells = cells[:len(cells)-1]
+	}
+	return strings.Join(cells, "\t")
 }
 
 // writePods draws a component's pods. childComponents says whether component
@@ -128,12 +137,12 @@ func writePods(out io.Writer, pods []workload.PodView, prefix string, limit int,
 
 	for i, pod := range shown {
 		last := i == len(shown)-1 && hidden == 0 && !childComponents
-		fmt.Fprintln(out, strings.Join([]string{
-			prefix + branch(last) + pod.Name,
+		fmt.Fprintln(out, row(
+			prefix+branch(last)+pod.Name,
 			podStatus(pod),
 			resourceCell(pod.Resources),
 			orNone(deref(pod.Node)),
-		}, "\t"))
+		))
 	}
 
 	if hidden > 0 {
@@ -292,7 +301,12 @@ func indent(last bool) string {
 	return "|   "
 }
 
-func readiness(replicas workload.Replicas) string {
+// scale reports readiness against the desired count. File mode has no pods, so
+// it reports the count alone; "0/9 ready" would read as nine that failed.
+func scale(replicas workload.Replicas, fileMode bool) string {
+	if fileMode {
+		return fmt.Sprintf("replicas: %d", replicas.Desired)
+	}
 	return fmt.Sprintf("%d/%d ready", replicas.Ready, replicas.Desired)
 }
 

@@ -15,7 +15,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
-	"github.com/run-ai/karta/cli/pkg/workload"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
 )
 
 // decodeYAML reads yaml through json, so one struct tag set serves both.

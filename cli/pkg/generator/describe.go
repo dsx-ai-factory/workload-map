@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/cli-runtime/pkg/printers"
 
-	"github.com/run-ai/karta/cli/pkg/workload"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
 )
 
 // ShowAllPods is the --pod-limit default: a hidden pod is the one a reader most

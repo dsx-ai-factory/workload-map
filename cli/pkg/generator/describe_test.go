@@ -199,6 +199,22 @@ var _ = Describe("RenderWorkload", func() {
 				To(ContainSubstring("and 3 more (1 unhealthy shown)"))
 		})
 
+		// A completed pod is not ready either, so ranking it unhealthy would let
+		// it take the row truncation reserves for the failing one.
+		It("ranks a failing pod above one that ran to completion", func() {
+			view := detailView()
+			view.Components[1].Pods = []workload.PodView{
+				{Name: "worker-0", Phase: "Succeeded", Reason: "PodCompleted"},
+				{Name: "worker-1", Phase: "Succeeded", Reason: "PodCompleted"},
+				{Name: "worker-2", Phase: "Pending", Reason: "Unschedulable"},
+			}
+
+			lines := treeLines(renderWorkload(view, DescribeOptions{PodLimit: 1}))
+
+			Expect(lines[3]).To(ContainSubstring("worker-2"), "the failing pod keeps the only row")
+			Expect(lines[4]).To(ContainSubstring("and 2 more (1 unhealthy shown)"))
+		})
+
 		It("leaves a component alone when its pods fit", func() {
 			Expect(renderWorkload(detailView(), DescribeOptions{PodLimit: 4})).
 				NotTo(ContainSubstring("and 0 more"))

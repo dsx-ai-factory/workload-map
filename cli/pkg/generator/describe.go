@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/cli-runtime/pkg/printers"
 
@@ -158,22 +159,29 @@ func limitPods(pods []workload.PodView, limit int) (shown []workload.PodView, hi
 	ordered := slices.Clone(pods)
 	slices.SortStableFunc(ordered, func(a, b workload.PodView) int {
 		switch {
-		case a.Ready == b.Ready:
+		case podUnhealthy(a) == podUnhealthy(b):
 			return 0
-		case a.Ready:
-			return 1
-		default:
+		case podUnhealthy(a):
 			return -1
+		default:
+			return 1
 		}
 	})
 
 	shown = ordered[:limit]
 	for _, pod := range shown {
-		if !pod.Ready {
+		if podUnhealthy(pod) {
 			unhealthy++
 		}
 	}
 	return shown, len(ordered) - limit, unhealthy
+}
+
+// podUnhealthy tells a pod that needs attention from one that finished. A
+// completed pod is not ready either, and ranking it as unhealthy would let it
+// take the rows truncation reserves for a failing pod.
+func podUnhealthy(pod workload.PodView) bool {
+	return !pod.Ready && pod.Phase != string(corev1.PodSucceeded)
 }
 
 func writeStatus(out io.Writer, view *workload.DescribeView) error {

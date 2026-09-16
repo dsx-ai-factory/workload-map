@@ -124,7 +124,7 @@ func writeComponents(out io.Writer, components []workload.ComponentView, prefix 
 // writePods draws a component's pods. childComponents says whether component
 // rows follow at this same depth, which decides who owns the closing glyph.
 func writePods(out io.Writer, pods []workload.PodView, prefix string, limit int, childComponents bool) {
-	shown, hidden, unhealthy := limitPods(pods, limit)
+	shown, hidden, shownUnhealthy, allUnhealthy := limitPods(pods, limit)
 
 	for i, pod := range shown {
 		last := i == len(shown)-1 && hidden == 0 && !childComponents
@@ -137,23 +137,34 @@ func writePods(out io.Writer, pods []workload.PodView, prefix string, limit int,
 	}
 
 	if hidden > 0 {
+		// Naming the unhealthy total keeps the note from implying every failing
+		// pod survived the cut, which holds only while they fit.
+		coverage := fmt.Sprintf("%d unhealthy shown", shownUnhealthy)
+		if shownUnhealthy < allUnhealthy {
+			coverage = fmt.Sprintf("%d of %d unhealthy shown", shownUnhealthy, allUnhealthy)
+		}
 		// The note keeps the row's cell count, since a tabwriter ends a column
 		// block at a short line and would realign every row below it. Its prose
 		// sits in the status cell: in the name cell it would set that column's
 		// width for the whole tree.
 		fmt.Fprintln(out, strings.Join([]string{
 			prefix + branch(!childComponents) + "...",
-			fmt.Sprintf("and %d more (%d unhealthy shown)", hidden, unhealthy),
+			fmt.Sprintf("and %d more (%s)", hidden, coverage),
 			"", "",
 		}, "\t"))
 	}
 }
 
-// limitPods applies --pod-limit. Unhealthy pods sort first, so truncation can
-// never hide the failing pod the reader is looking for.
-func limitPods(pods []workload.PodView, limit int) (shown []workload.PodView, hidden, unhealthy int) {
+// limitPods applies --pod-limit. Unhealthy pods sort first, so the rows that
+// survive truncation go to the failing pods before the healthy ones.
+func limitPods(pods []workload.PodView, limit int) (shown []workload.PodView, hidden, shownUnhealthy, allUnhealthy int) {
+	for _, pod := range pods {
+		if podUnhealthy(pod) {
+			allUnhealthy++
+		}
+	}
 	if limit < 0 || len(pods) <= limit {
-		return pods, 0, 0
+		return pods, 0, allUnhealthy, allUnhealthy
 	}
 
 	ordered := slices.Clone(pods)
@@ -171,10 +182,10 @@ func limitPods(pods []workload.PodView, limit int) (shown []workload.PodView, hi
 	shown = ordered[:limit]
 	for _, pod := range shown {
 		if podUnhealthy(pod) {
-			unhealthy++
+			shownUnhealthy++
 		}
 	}
-	return shown, len(ordered) - limit, unhealthy
+	return shown, len(ordered) - limit, shownUnhealthy, allUnhealthy
 }
 
 // podUnhealthy separates a pod needing attention from one that finished: a

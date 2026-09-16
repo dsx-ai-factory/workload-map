@@ -215,6 +215,20 @@ var _ = Describe("RenderWorkload", func() {
 			Expect(lines[4]).To(ContainSubstring("and 2 more (1 unhealthy shown)"))
 		})
 
+		// Sorting the failing pods first only saves them while they fit, so the
+		// note names the total rather than implying it covered them all.
+		It("says how many unhealthy pods the rows could not reach", func() {
+			view := detailView()
+			view.Components[1].Pods = []workload.PodView{
+				{Name: "worker-0", Phase: "Pending", Reason: "Unschedulable"},
+				{Name: "worker-1", Phase: "Pending", Reason: "Unschedulable"},
+				{Name: "worker-2", Phase: "Pending", Reason: "Unschedulable"},
+			}
+
+			Expect(renderWorkload(view, DescribeOptions{PodLimit: 1})).
+				To(ContainSubstring("and 2 more (1 of 3 unhealthy shown)"))
+		})
+
 		It("leaves a component alone when its pods fit", func() {
 			Expect(renderWorkload(detailView(), DescribeOptions{PodLimit: 4})).
 				NotTo(ContainSubstring("and 0 more"))

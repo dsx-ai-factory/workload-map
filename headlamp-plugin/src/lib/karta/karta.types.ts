@@ -10,6 +10,10 @@ export interface Karta {
       rootComponent: {
         kind?: GroupVersionKind;
       };
+      // Only used to count components (root + children) for the workloads
+      // table's "Components" column — not a full mirror of
+      // ComponentDefinition.
+      childComponents?: { name: string }[];
     };
   };
 }
@@ -17,7 +21,13 @@ export interface Karta {
 export interface Workload {
   apiVersion: string;
   kind: string;
-  metadata: { name: string; namespace?: string };
+  metadata: {
+    name: string;
+    namespace?: string;
+    creationTimestamp?: string;
+    uid?: string;
+    resourceVersion?: string;
+  };
   [field: string]: unknown;
 }
 

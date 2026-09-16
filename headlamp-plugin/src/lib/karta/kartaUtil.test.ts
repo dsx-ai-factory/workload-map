@@ -15,7 +15,7 @@ const { getKartaWasm } = vi.hoisted(() => ({ getKartaWasm: vi.fn() }));
 vi.mock('./karta', () => ({ getKartaWasm }));
 
 import type { Karta, Workload } from './karta.types';
-import { buildTree, listCatalog } from './kartaUtil';
+import { buildTree, evaluatePhases, listCatalog } from './kartaUtil';
 
 const KARTA_WASM_DIR = path.resolve(__dirname, '../../../../karta-wasm');
 const WASM_PATH = path.join(KARTA_WASM_DIR, 'karta.wasm');
@@ -93,4 +93,15 @@ describe('against the built-in Pod definition', () => {
     });
   });
 
+  describe('evaluatePhases', () => {
+    it('reads the phases off the tree', async () => {
+      await expect(evaluatePhases(podDefinition, podFixture('Failed'))).resolves.toEqual([
+        'Failed',
+      ]);
+    });
+
+    it('rejects with the real Go error for an invalid definition', async () => {
+      await expect(evaluatePhases({} as Karta, podFixture('Running'))).rejects.toThrow();
+    });
+  });
 });

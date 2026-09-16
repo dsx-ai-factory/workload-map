@@ -2,39 +2,38 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { registerRoute, registerSidebarEntry } from '@kinvolk/headlamp-plugin/lib';
-import { useEffect, useState } from 'react';
 import { getKartaWasm } from './lib/karta';
+import { WorkloadsPage } from './pages';
+
+// Kick off the WASM module load (fetch + instantiate karta.wasm, ~19MB) as
+// soon as the plugin's module loads — i.e. when Headlamp itself starts —
+// instead of waiting for the user to navigate to the Workloads page.
+// getKartaWasm() caches its promise, so useKartaWasm() (called from
+// WorkloadsPage) reuses this same in-flight/resolved load rather than
+// starting a second one. Errors are swallowed here only to avoid an
+// unhandled-rejection log; getKartaWasm() itself resets its cache on
+// failure, so useKartaWasm() still retries and surfaces the real error
+// when the page mounts.
+getKartaWasm().catch(() => {});
 
 registerSidebarEntry({
   parent: null,
   name: 'karta',
   label: 'Karta',
-  url: '/karta/workloads',
   icon: 'mdi:graph-outline',
 });
 
-function WorkloadsPlaceholder() {
-  const [wasmLoaded, setWasmLoaded] = useState(false);
-  const [wasmError, setWasmError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getKartaWasm()
-      .then(() => setWasmLoaded(true))
-      .catch(err => setWasmError(err instanceof Error ? err.message : String(err)));
-  }, []);
-
-  return (
-    <div>
-      <p>Karta workloads — coming soon.</p>
-      <p>WASM engine: {wasmError ? `unavailable (${wasmError})` : wasmLoaded ? 'ready' : 'loading…'}</p>
-    </div>
-  );
-}
+registerSidebarEntry({
+  parent: 'karta',
+  name: 'karta-workloads',
+  label: 'Workloads',
+  url: '/karta/workloads',
+});
 
 registerRoute({
   path: '/karta/workloads',
-  sidebar: 'karta',
+  sidebar: 'karta-workloads',
   name: 'karta-workloads',
   exact: true,
-  component: WorkloadsPlaceholder,
+  component: WorkloadsPage,
 });

@@ -13,7 +13,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/run-ai/karta/cli/pkg/generator"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
 )
 
 type item struct {

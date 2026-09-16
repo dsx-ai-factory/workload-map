@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/run-ai/karta/cli/pkg/definitions"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 )
 
 var errWriteFailed = errors.New("write failed")

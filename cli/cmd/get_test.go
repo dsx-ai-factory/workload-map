@@ -24,10 +24,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/run-ai/karta/cli/pkg/definitions"
-	"github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/catalog"
-	"github.com/run-ai/karta/pkg/catalog/kartas"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
+	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog/kartas"
 )
 
 var (

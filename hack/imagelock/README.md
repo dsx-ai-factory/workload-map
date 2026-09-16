@@ -69,7 +69,7 @@ bits. Install pointing both repositories at their full source path:
 
 ```bash
 helm install karta ./karta-X.Y.Z.tgz \
-  --set image.repository=$INTERNAL_REGISTRY/ghcr.io/run-ai/karta/karta-operator \
+  --set image.repository=$INTERNAL_REGISTRY/ghcr.io/dsx-ai-factory/workload-map/karta-operator \
   --set crdUpgrader.image.repository=$INTERNAL_REGISTRY/registry.k8s.io/kubectl
 ```
 

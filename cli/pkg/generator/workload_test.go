@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/run-ai/karta/cli/pkg/workload"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
 )
 
 var views = []workload.View{{

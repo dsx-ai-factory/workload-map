@@ -3,7 +3,7 @@
 
 // This tool lives in its own module so its registry client (go-containerregistry)
 // never enters Karta's shipped dependency graph or its generated license list.
-module github.com/run-ai/karta/hack/imagelock
+module github.com/dsx-ai-factory/workload-map/hack/imagelock
 
 go 1.26.3
 

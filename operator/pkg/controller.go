@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	kartav1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"

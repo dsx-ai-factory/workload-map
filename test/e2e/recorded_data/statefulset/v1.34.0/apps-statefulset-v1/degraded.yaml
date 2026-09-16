@@ -1,0 +1,223 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      creationTimestamp: "2026-09-09T15:08:52Z"
+      generation: 1
+      name: karta-e2e-sts-degraded
+      namespace: test-wpzh8
+      uid: f1b25743-10ef-475b-a45d-13db47a9857d
+    spec:
+      persistentVolumeClaimRetentionPolicy:
+        whenDeleted: Retain
+        whenScaled: Retain
+      podManagementPolicy: Parallel
+      replicas: 3
+      revisionHistoryLimit: 10
+      selector:
+        matchLabels:
+          app: karta-e2e-sts-degraded
+      serviceName: karta-e2e-sts-degraded
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-sts-degraded
+        spec:
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app: karta-e2e-sts-degraded
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            imagePullPolicy: IfNotPresent
+            name: worker
+            resources:
+              requests:
+                cpu: 50m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        rollingUpdate:
+          partition: 0
+        type: RollingUpdate
+    status:
+      availableReplicas: 0
+      collisionCount: 0
+      currentRevision: karta-e2e-sts-degraded-5fb8d9544d
+      observedGeneration: 1
+      replicas: 0
+      updateRevision: karta-e2e-sts-degraded-5fb8d9544d
+  phases:
+  - Initializing
+  resourceVersion: "340334"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      creationTimestamp: "2026-09-09T15:08:52Z"
+      generation: 1
+      name: karta-e2e-sts-degraded
+      namespace: test-wpzh8
+      uid: f1b25743-10ef-475b-a45d-13db47a9857d
+    spec:
+      persistentVolumeClaimRetentionPolicy:
+        whenDeleted: Retain
+        whenScaled: Retain
+      podManagementPolicy: Parallel
+      replicas: 3
+      revisionHistoryLimit: 10
+      selector:
+        matchLabels:
+          app: karta-e2e-sts-degraded
+      serviceName: karta-e2e-sts-degraded
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-sts-degraded
+        spec:
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app: karta-e2e-sts-degraded
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            imagePullPolicy: IfNotPresent
+            name: worker
+            resources:
+              requests:
+                cpu: 50m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        rollingUpdate:
+          partition: 0
+        type: RollingUpdate
+    status:
+      availableReplicas: 0
+      collisionCount: 0
+      currentReplicas: 3
+      currentRevision: karta-e2e-sts-degraded-5fb8d9544d
+      observedGeneration: 1
+      replicas: 3
+      updateRevision: karta-e2e-sts-degraded-5fb8d9544d
+      updatedReplicas: 3
+  phases:
+  - Initializing
+  resourceVersion: "340340"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      creationTimestamp: "2026-09-09T15:08:52Z"
+      generation: 1
+      name: karta-e2e-sts-degraded
+      namespace: test-wpzh8
+      uid: f1b25743-10ef-475b-a45d-13db47a9857d
+    spec:
+      persistentVolumeClaimRetentionPolicy:
+        whenDeleted: Retain
+        whenScaled: Retain
+      podManagementPolicy: Parallel
+      replicas: 3
+      revisionHistoryLimit: 10
+      selector:
+        matchLabels:
+          app: karta-e2e-sts-degraded
+      serviceName: karta-e2e-sts-degraded
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-sts-degraded
+        spec:
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app: karta-e2e-sts-degraded
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            imagePullPolicy: IfNotPresent
+            name: worker
+            resources:
+              requests:
+                cpu: 50m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        rollingUpdate:
+          partition: 0
+        type: RollingUpdate
+    status:
+      availableReplicas: 1
+      collisionCount: 0
+      currentReplicas: 3
+      currentRevision: karta-e2e-sts-degraded-5fb8d9544d
+      observedGeneration: 1
+      readyReplicas: 1
+      replicas: 3
+      updateRevision: karta-e2e-sts-degraded-5fb8d9544d
+      updatedReplicas: 3
+  phases:
+  - Degraded
+  resourceVersion: "340358"
+  state: Degraded
+flow: degraded
+kartaFile: docs/catalog/apps-statefulset-v1.yaml
+kartaName: apps-statefulset-v1
+operator: statefulset
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Degraded
+version: v1.34.0
+want: Degraded

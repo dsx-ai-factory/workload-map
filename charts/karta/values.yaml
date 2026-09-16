@@ -23,7 +23,7 @@ leaderElection:
   id: karta-operator.run.ai
 
 image:
-  repository: ghcr.io/run-ai/karta/karta-operator
+  repository: ghcr.io/dsx-ai-factory/workload-map/karta-operator
   # When empty, falls back to .Chart.AppVersion so chart and image versions
   # stay in lockstep.
   tag: ""
@@ -85,7 +85,7 @@ resources:
     memory: 64Mi
   limits:
     cpu: 200m
-    memory: 256Mi
+    memory: 2Gi
 
 nodeSelector: {}
 tolerations: []
@@ -116,6 +116,8 @@ crdUpgrader:
     requests:
       cpu: 50m
       memory: 64Mi
+      ephemeral-storage: 64Mi
     limits:
       cpu: 200m
       memory: 128Mi
+      ephemeral-storage: 2Gi

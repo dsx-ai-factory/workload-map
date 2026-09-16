@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 
-	v1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/catalog"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
 )
 
 const (

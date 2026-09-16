@@ -59,7 +59,8 @@ jobs:
 
   dispatch:
     needs: gate
-    if: needs.gate.outputs.run == 'true'
+    # Forks have no dispatch token for saas-configuration; skip there.
+    if: needs.gate.outputs.run == 'true' && github.repository == 'dsx-ai-factory/workload-map'
     name: Dispatch static code analysis to saas-configuration
     runs-on: ubuntu-latest
     timeout-minutes: 5

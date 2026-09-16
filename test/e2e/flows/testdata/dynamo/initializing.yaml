@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A DynamoGraphDeployment whose containers reference a nonexistent image tag, so the pods
+# stay in ImagePullBackOff and never register. The dynamo-operator holds status.state=pending,
+# which the definition reads as Initializing - a graph still coming up (here, permanently).
+# Same Frontend + decode shape as running.yaml so the extraction matches; Karta must read it as
+# Initializing, not Running.
+apiVersion: nvidia.com/v1alpha1
+kind: DynamoGraphDeployment
+metadata:
+  name: karta-e2e-dynamo-initializing
+  namespace: default
+spec:
+  services:
+    Frontend:
+      componentType: frontend
+      replicas: 1
+      extraPodSpec:
+        mainContainer:
+          image: busybox:99.99.99
+          imagePullPolicy: IfNotPresent
+    decode:
+      envFromSecret: hf-token-secret
+      componentType: worker
+      subComponentType: decode
+      replicas: 1
+      extraPodSpec:
+        mainContainer:
+          image: busybox:99.99.99
+          imagePullPolicy: IfNotPresent
+          workingDir: /workspace
+          command: ["python3", "-m", "dynamo.mocker"]
+          args:
+            - --model-path
+            - nvidia/Llama-3.1-8B-Instruct-FP8
+            - --model-name
+            - nvidia/Llama-3.1-8B-Instruct-FP8

@@ -23,17 +23,10 @@ spec:
             - byConditions:
                 - type: Progressing
                   status: "True"
-                - type: Available
-                  status: "False"
           running:
             - byConditions:
                 - type: Available
                   status: "True"
-                  reason: AllGroupsReady
-                - type: Progressing
-                  status: "False"
-                - type: UpdateInProgress
-                  status: "False"
             - byExpression:
                 expression: (.status.replicas // 0) > 0 and .status.readyReplicas == .status.replicas and .status.updatedReplicas == .status.replicas
                 expectedResult: "true"

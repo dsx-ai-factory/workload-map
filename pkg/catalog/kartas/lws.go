@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	v1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
 // LWS returns the built-in Karta for the LeaderWorkerSet workload
@@ -29,15 +29,18 @@ func LWS() *v1alpha1.Karta {
 							MessageFieldName: ptr.To("message"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
+							// The operator toggles Progressing: True while reconciling toward the desired
+							// groups (startup and scale-up), False once settled. Available may not exist yet
+							// at startup, so the matcher reads only the condition the operator guarantees.
 							Initializing: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
 								{Type: "Progressing", Status: ptr.To("True")},
-								{Type: "Available", Status: ptr.To("False")},
 							}}},
+							// Available=True is the operator's authoritative all-groups-ready signal and it
+							// holds through a scale-down while the replica counters lag. The definition does
+							// not extract reason, so the old reason-constrained matcher could never fire.
 							Running: []v1alpha1.StatusMatcher{
 								{ByConditions: []v1alpha1.ExpectedCondition{
-									{Type: "Available", Status: ptr.To("True"), Reason: ptr.To("AllGroupsReady")},
-									{Type: "Progressing", Status: ptr.To("False")},
-									{Type: "UpdateInProgress", Status: ptr.To("False")},
+									{Type: "Available", Status: ptr.To("True")},
 								}},
 								{ByExpression: &v1alpha1.ExpressionMatcher{
 									Expression:     "(.status.replicas // 0) > 0 and .status.readyReplicas == .status.replicas and .status.updatedReplicas == .status.replicas",

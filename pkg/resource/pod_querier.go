@@ -10,8 +10,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/jq/execution"
+	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/jq/execution"
 )
 
 // InstanceNotFoundError is returned when a pod's extracted instance ID doesn't match any valid instance IDs

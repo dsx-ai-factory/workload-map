@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A minimal head-only RayCluster. The head/liveness probes are overridden with a
+# permissive tcpSocket check on the GCS port because KubeRay's default probes do
+# not pass reliably on a small CPU-only kind node; with this override the head
+# becomes Ready and KubeRay sets .status.state=ready. Workers are 0 to keep it
+# light (the worker component is still extracted from the spec). The Ray image is
+# pre-loaded into kind as ray-e2e:local (arch-native) by hack/e2e/up.sh.
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: karta-e2e-ray
+  namespace: default
+spec:
+  rayVersion: "2.40.0"
+  headGroupSpec:
+    rayStartParams: {}
+    template:
+      spec:
+        containers:
+          - name: ray-head
+            image: ray-e2e:local
+            imagePullPolicy: IfNotPresent
+            resources:
+              requests: {cpu: 250m, memory: 1Gi}
+              limits: {cpu: "1", memory: 2Gi}
+            readinessProbe:
+              tcpSocket: {port: 6379}
+              initialDelaySeconds: 10
+              periodSeconds: 5
+              failureThreshold: 30
+            livenessProbe:
+              tcpSocket: {port: 6379}
+              initialDelaySeconds: 30
+              periodSeconds: 10
+              failureThreshold: 30
+  workerGroupSpecs:
+    - groupName: small
+      replicas: 0
+      minReplicas: 0
+      maxReplicas: 1
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+            - name: ray-worker
+              image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests: {cpu: 250m, memory: 512Mi}

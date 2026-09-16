@@ -19,10 +19,18 @@ spec:
           statusFieldName: status
           messageFieldName: message
         statusMappings:
+          initializing:
+            - byConditions:
+                - type: Ready
+                  status: Unknown
           running:
             - byConditions:
                 - type: Ready
                   status: "True"
+          failed:
+            - byConditions:
+                - type: Ready
+                  status: "False"
     childComponents:
       - name: revision
         kind:

@@ -6,7 +6,7 @@ package pkg
 import (
 	"testing"
 
-	kartav1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

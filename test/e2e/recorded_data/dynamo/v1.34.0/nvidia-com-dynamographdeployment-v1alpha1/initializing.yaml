@@ -1,0 +1,186 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: nvidia.com/v1alpha1
+    kind: DynamoGraphDeployment
+    metadata:
+      annotations:
+        nvidia.com/dynamo-operator-origin-version: 1.2.1
+      creationTimestamp: "2026-09-14T07:54:50Z"
+      finalizers:
+      - nvidia.com/finalizer
+      generation: 1
+      name: karta-e2e-dynamo-initializing
+      namespace: test-mg9tk
+      uid: 3135b981-549e-41fb-b3e1-6170b26cd6b2
+    spec:
+      services:
+        Frontend:
+          componentType: frontend
+          extraPodSpec:
+            mainContainer:
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources: {}
+          replicas: 1
+        decode:
+          componentType: worker
+          envFromSecret: hf-token-secret
+          extraPodSpec:
+            mainContainer:
+              args:
+              - --model-path
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              - --model-name
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              command:
+              - python3
+              - -m
+              - dynamo.mocker
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources: {}
+              workingDir: /workspace
+          replicas: 1
+          subComponentType: decode
+    status:
+      state: ""
+  phases:
+  - Undefined
+  resourceVersion: "1322580"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: nvidia.com/v1alpha1
+    kind: DynamoGraphDeployment
+    metadata:
+      annotations:
+        nvidia.com/current-worker-hash: 43fa66e8
+        nvidia.com/current-worker-hash-v2: 36f91917
+        nvidia.com/dynamo-operator-origin-version: 1.2.1
+      creationTimestamp: "2026-09-14T07:54:50Z"
+      finalizers:
+      - nvidia.com/finalizer
+      generation: 1
+      name: karta-e2e-dynamo-initializing
+      namespace: test-mg9tk
+      uid: 3135b981-549e-41fb-b3e1-6170b26cd6b2
+    spec:
+      services:
+        Frontend:
+          componentType: frontend
+          extraPodSpec:
+            mainContainer:
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources: {}
+          replicas: 1
+        decode:
+          componentType: worker
+          envFromSecret: hf-token-secret
+          extraPodSpec:
+            mainContainer:
+              args:
+              - --model-path
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              - --model-name
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              command:
+              - python3
+              - -m
+              - dynamo.mocker
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources: {}
+              workingDir: /workspace
+          replicas: 1
+          subComponentType: decode
+    status:
+      state: ""
+  phases:
+  - Undefined
+  resourceVersion: "1322584"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: nvidia.com/v1alpha1
+    kind: DynamoGraphDeployment
+    metadata:
+      annotations:
+        nvidia.com/current-worker-hash: 43fa66e8
+        nvidia.com/current-worker-hash-v2: 36f91917
+        nvidia.com/dynamo-operator-origin-version: 1.2.1
+      creationTimestamp: "2026-09-14T07:54:50Z"
+      finalizers:
+      - nvidia.com/finalizer
+      generation: 1
+      name: karta-e2e-dynamo-initializing
+      namespace: test-mg9tk
+      uid: 3135b981-549e-41fb-b3e1-6170b26cd6b2
+    spec:
+      services:
+        Frontend:
+          componentType: frontend
+          extraPodSpec:
+            mainContainer:
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources: {}
+          replicas: 1
+        decode:
+          componentType: worker
+          envFromSecret: hf-token-secret
+          extraPodSpec:
+            mainContainer:
+              args:
+              - --model-path
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              - --model-name
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              command:
+              - python3
+              - -m
+              - dynamo.mocker
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources: {}
+              workingDir: /workspace
+          replicas: 1
+          subComponentType: decode
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:54:50Z"
+        message: 'Resources not ready: karta-e2e-dynamo-initializing-decode-43fa66e8:
+          Component deployment not ready - Available condition not true; karta-e2e-dynamo-initializing-frontend:
+          Component deployment not ready - Available condition not true'
+        reason: some_resources_are_not_ready
+        status: "False"
+        type: Ready
+      observedGeneration: 1
+      state: pending
+  phases:
+  - Initializing
+  resourceVersion: "1322617"
+  state: Initializing
+flow: initializing
+kartaFile: docs/catalog/nvidia-com-dynamographdeployment-v1alpha1.yaml
+kartaName: nvidia-com-dynamographdeployment-v1alpha1
+operator: dynamo
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Initializing
+version: v1.34.0
+want: Initializing

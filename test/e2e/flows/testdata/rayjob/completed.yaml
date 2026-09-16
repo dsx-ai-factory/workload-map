@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A real RayJob driven to completion by KubeRay. The submitter runs the trivial
+# entrypoint on a single-node cluster and KubeRay reports .status.jobStatus.
+#
+# Two things make this reliable on local kind (see hack/e2e/up.sh):
+#   - the Ray image is pre-loaded into kind as ray-e2e:local (arch-native: the
+#     amd64 image under qemu crash-loops when running a job), so there is no
+#     ~3GB Docker Hub pull mid-test;
+#   - KubeRay 1.6.2 does not recreate the RayCluster on transient submitter
+#     hiccups the way 1.2.x did.
+# The head keeps num-cpus=1 so the job's driver has somewhere to run; no workers.
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: karta-e2e-rayjob
+  namespace: default
+spec:
+  entrypoint: 'python -c "print(''karta e2e ok'')"'
+  shutdownAfterJobFinishes: false
+  backoffLimit: 12
+  rayClusterSpec:
+    rayVersion: "2.40.0"
+    headGroupSpec:
+      rayStartParams:
+        num-cpus: "1"
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests: {cpu: 500m, memory: 2Gi}
+                limits: {cpu: "2", memory: 3Gi}
+              readinessProbe:
+                tcpSocket: {port: 8265}
+                initialDelaySeconds: 15
+                periodSeconds: 5
+                failureThreshold: 90
+    workerGroupSpecs:
+      - groupName: small
+        replicas: 0
+        minReplicas: 0
+        maxReplicas: 0
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                resources:
+                  requests: {cpu: 250m, memory: 512Mi}

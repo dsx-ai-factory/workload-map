@@ -21,3 +21,4 @@ spec:
       command: ["sh", "-c", "sleep infinity"]
       resources:
         requests: {cpu: 50m, memory: 32Mi}
+        limits: {cpu: 100m, memory: 2Gi}

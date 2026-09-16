@@ -6,7 +6,7 @@ package flows
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/run-ai/karta/test/e2e/recorder"
+	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
 )
 
 // State predicates: each reads a workload's own fields to recognise one state, never Karta.
@@ -68,21 +68,6 @@ func CondStatus(condType, status string) recorder.StateCheck {
 			}
 		}
 		return false
-	}
-}
-
-// CondPending matches when condType is not yet decided: absent, or present with a status other than True
-// or False (typically Unknown while the workload reconciles). Separates "still deploying" from ready or
-// failed, including the early window before the condition is written at all.
-func CondPending(condType string) recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		conds, _, _ := unstructured.NestedSlice(u.Object, "status", "conditions")
-		for _, c := range conds {
-			if m, ok := c.(map[string]any); ok && m["type"] == condType {
-				return m["status"] != "True" && m["status"] != "False"
-			}
-		}
-		return true // absent = pending
 	}
 }
 
@@ -153,21 +138,6 @@ func PhaseAny(wants []string, path ...string) recorder.StateCheck {
 			}
 		}
 		return false
-	}
-}
-
-// PhaseNot matches when the string at the path (empty if absent) is none of unwanted. Useful for a
-// catch-all Initializing that tolerates every intermediate operator phase, keying only off the terminal
-// ones (for example any NIMService state that is not Ready or Failed).
-func PhaseNot(unwanted []string, path ...string) recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		got, _, _ := unstructured.NestedString(u.Object, path...)
-		for _, w := range unwanted {
-			if got == w {
-				return false
-			}
-		}
-		return true
 	}
 }
 
@@ -360,31 +330,15 @@ func RaySuspended() recorder.StateCheck {
 	}
 }
 
-// RayJobInitializing matches a RayJob before its job runs: jobStatus PENDING, or empty while the RayJob
-// brings up its cluster and it is not suspended (jobDeploymentStatus Initializing/Running, or empty).
+// RayJobInitializing matches a RayJob before its job runs, on the operator's own named signals: the
+// submitted job is PENDING, or the operator reports jobDeploymentStatus Initializing while it brings the
+// Ray cluster up.
 func RayJobInitializing() recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {
-		js, _, _ := unstructured.NestedString(u.Object, "status", "jobStatus")
-		if js == "PENDING" {
+		if js, _, _ := unstructured.NestedString(u.Object, "status", "jobStatus"); js == "PENDING" {
 			return true
 		}
-		if js != "" {
-			return false
-		}
 		ds, _, _ := unstructured.NestedString(u.Object, "status", "jobDeploymentStatus")
-		return ds != "Suspended" && ds != "Suspending"
-	}
-}
-
-// RayInitializing matches a RayCluster converging toward ready: not suspended and status.state not yet
-// "ready" or "failed". Covers a fresh provision (state empty) and the resume window where suspend is
-// already false but state still lags at "suspended".
-func RayInitializing() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		if suspend, _, _ := unstructured.NestedBool(u.Object, "spec", "suspend"); suspend {
-			return false
-		}
-		state, _, _ := unstructured.NestedString(u.Object, "status", "state")
-		return state != "ready" && state != "failed"
+		return ds == "Initializing"
 	}
 }

@@ -23,9 +23,9 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
-	"github.com/run-ai/karta/cli/pkg/definitions"
-	"github.com/run-ai/karta/cli/pkg/generator"
-	v1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
 var (

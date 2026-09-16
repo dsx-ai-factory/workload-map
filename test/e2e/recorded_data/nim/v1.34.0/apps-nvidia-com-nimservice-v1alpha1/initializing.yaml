@@ -1,0 +1,184 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: apps.nvidia.com/v1alpha1
+    kind: NIMService
+    metadata:
+      creationTimestamp: "2026-09-14T07:53:21Z"
+      finalizers:
+      - finalizer.nimservice.apps.nvidia.com
+      generation: 2
+      name: karta-e2e-nim-initializing
+      namespace: test-cb2tw
+      uid: ee7653de-685c-431d-909a-8a910bcffb5e
+    spec:
+      authSecret: ngc-secret
+      env:
+      - name: NIM_REQUEST_LATENCY
+        value: "2"
+      expose:
+        ingress:
+          spec: {}
+        service:
+          port: 8000
+          type: ClusterIP
+      image:
+        pullPolicy: IfNotPresent
+        repository: nonexistent-nim
+        tag: bad
+      inferencePlatform: standalone
+      livenessProbe: {}
+      metrics:
+        serviceMonitor: {}
+      readinessProbe: {}
+      replicas: 1
+      scale:
+        hpa:
+          maxReplicas: 0
+          minReplicas: 1
+      startupProbe: {}
+      storage:
+        nimCache: {}
+        pvc:
+          create: true
+          size: 1Gi
+          volumeAccessMode: ReadWriteOnce
+  phases:
+  - Undefined
+  resourceVersion: "1321391"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: apps.nvidia.com/v1alpha1
+    kind: NIMService
+    metadata:
+      creationTimestamp: "2026-09-14T07:53:21Z"
+      finalizers:
+      - finalizer.nimservice.apps.nvidia.com
+      generation: 2
+      name: karta-e2e-nim-initializing
+      namespace: test-cb2tw
+      uid: ee7653de-685c-431d-909a-8a910bcffb5e
+    spec:
+      authSecret: ngc-secret
+      env:
+      - name: NIM_REQUEST_LATENCY
+        value: "2"
+      expose:
+        ingress:
+          spec: {}
+        service:
+          port: 8000
+          type: ClusterIP
+      image:
+        pullPolicy: IfNotPresent
+        repository: nonexistent-nim
+        tag: bad
+      inferencePlatform: standalone
+      livenessProbe: {}
+      metrics:
+        serviceMonitor: {}
+      readinessProbe: {}
+      replicas: 1
+      scale:
+        hpa:
+          maxReplicas: 0
+          minReplicas: 1
+      startupProbe: {}
+      storage:
+        nimCache: {}
+        pvc:
+          create: true
+          size: 1Gi
+          volumeAccessMode: ReadWriteOnce
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:53:21Z"
+        message: The PVC has been created for storing NIM
+        reason: PVCCreated
+        status: "True"
+        type: NIM_CACHE_PVC_CREATED
+      state: PVC-Created
+  phases:
+  - Undefined
+  resourceVersion: "1321402"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: apps.nvidia.com/v1alpha1
+    kind: NIMService
+    metadata:
+      creationTimestamp: "2026-09-14T07:53:21Z"
+      finalizers:
+      - finalizer.nimservice.apps.nvidia.com
+      generation: 2
+      name: karta-e2e-nim-initializing
+      namespace: test-cb2tw
+      uid: ee7653de-685c-431d-909a-8a910bcffb5e
+    spec:
+      authSecret: ngc-secret
+      env:
+      - name: NIM_REQUEST_LATENCY
+        value: "2"
+      expose:
+        ingress:
+          spec: {}
+        service:
+          port: 8000
+          type: ClusterIP
+      image:
+        pullPolicy: IfNotPresent
+        repository: nonexistent-nim
+        tag: bad
+      inferencePlatform: standalone
+      livenessProbe: {}
+      metrics:
+        serviceMonitor: {}
+      readinessProbe: {}
+      replicas: 1
+      scale:
+        hpa:
+          maxReplicas: 0
+          minReplicas: 1
+      startupProbe: {}
+      storage:
+        nimCache: {}
+        pvc:
+          create: true
+          size: 1Gi
+          volumeAccessMode: ReadWriteOnce
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:53:21Z"
+        message: |
+          Waiting for deployment "karta-e2e-nim-initializing" rollout to finish: 0 out of 1 new replicas have been updated...
+        reason: NotReady
+        status: "False"
+        type: Ready
+      - lastTransitionTime: "2026-09-14T07:53:21Z"
+        message: |
+          Waiting for deployment "karta-e2e-nim-initializing" rollout to finish: 0 out of 1 new replicas have been updated...
+        reason: Ready
+        status: "False"
+        type: Failed
+      state: NotReady
+  phases:
+  - Initializing
+  resourceVersion: "1321405"
+  state: Initializing
+flow: initializing
+kartaFile: docs/catalog/apps-nvidia-com-nimservice-v1alpha1.yaml
+kartaName: apps-nvidia-com-nimservice-v1alpha1
+operator: nim
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Initializing
+version: v1.34.0
+want: Initializing

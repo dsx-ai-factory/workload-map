@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/run-ai/karta/cli/pkg/definitions"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 )
 
 // printWarnings writes each message with a warning: prefix. Callers pass stderr,

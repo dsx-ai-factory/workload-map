@@ -89,7 +89,7 @@ spec:
 
 The groups, roles, replica counts, GPU requests, and status conditions are all in there, but nested in fields that only LeaderWorkerSet-aware code knows how to find. RayCluster, JobSet, and every other workload type nests the same information differently.
 
-With the pre-built [LeaderWorkerSet Karta definition](docs/samples/lws.yaml), any tool can resolve that object and its live pods into a uniform structural view:
+With the pre-built [LeaderWorkerSet Karta definition](docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml), any tool can resolve that object and its live pods into a uniform structural view:
 
 ![Workload tree derived from the LeaderWorkerSet: demo (Running, 4 pods, 32 GPUs, gang scheduled per group) with two groups, each 2/2 ready with a leader pod and a worker pod at 8 GPUs each, resolved to their nodes](docs/assets/lws-workload-tree.svg)
 

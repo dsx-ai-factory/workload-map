@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
 // Milvus is a status-only root with pod-bearing StatefulSet children under

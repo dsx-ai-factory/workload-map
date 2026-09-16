@@ -10,8 +10,11 @@ spec:
   replicas: 3
   template:
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: server
           resources:
             limits:
               nvidia.com/gpu: "2"
+              cpu: 200m
+              memory: 2Gi

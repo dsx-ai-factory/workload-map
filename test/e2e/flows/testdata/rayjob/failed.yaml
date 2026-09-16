@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A RayJob whose entrypoint exits non-zero. With backoffLimit 0 KubeRay does not retry,
+# so the driver's failure lands as .status.jobStatus=FAILED, which the definition reads as
+# Failed. Same single-node ray-e2e:local cluster shape as completed.yaml.
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: karta-e2e-rayjob-failed
+  namespace: default
+spec:
+  entrypoint: 'python -c "import sys; sys.exit(1)"'
+  shutdownAfterJobFinishes: false
+  backoffLimit: 0
+  rayClusterSpec:
+    rayVersion: "2.40.0"
+    headGroupSpec:
+      rayStartParams:
+        num-cpus: "1"
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests: {cpu: 500m, memory: 2Gi}
+                limits: {cpu: "2", memory: 3Gi}
+              readinessProbe:
+                tcpSocket: {port: 8265}
+                initialDelaySeconds: 15
+                periodSeconds: 5
+                failureThreshold: 90
+    workerGroupSpecs:
+      - groupName: small
+        replicas: 0
+        minReplicas: 0
+        maxReplicas: 0
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                resources:
+                  requests: {cpu: 250m, memory: 512Mi}

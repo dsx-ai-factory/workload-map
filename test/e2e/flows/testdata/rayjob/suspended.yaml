@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A RayJob created suspended (spec.suspend=true): the operator creates no RayCluster
+# and sets status.jobDeploymentStatus=Suspended. The Karta library reads it as
+# Suspended. Because no cluster is created, this is cleaner than the running fixture.
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: karta-e2e-rayjob-suspended
+  namespace: default
+spec:
+  entrypoint: 'python -c "print(1)"'
+  suspend: true
+  shutdownAfterJobFinishes: true
+  rayClusterSpec:
+    rayVersion: "2.40.0"
+    headGroupSpec:
+      rayStartParams: {num-cpus: "1"}
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests: {cpu: 500m, memory: 2Gi}
+    workerGroupSpecs:
+      - groupName: small
+        replicas: 0
+        minReplicas: 0
+        maxReplicas: 0
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                resources:
+                  requests: {cpu: 250m, memory: 512Mi}

@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/run-ai/karta/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
 )
 
 // outputDir is the catalog directory relative to the repository root, which is

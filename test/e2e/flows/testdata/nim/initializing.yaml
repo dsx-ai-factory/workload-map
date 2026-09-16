@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A NIMService pointing at a nonexistent image, so the operator's Deployment pods stay in
+# ImagePullBackOff and the service never becomes ready. The k8s-nim-operator holds
+# status.state=NotReady, which the definition reads as Initializing - a service still coming
+# up (here, permanently). Karta must read it as Initializing, not Ready.
+apiVersion: apps.nvidia.com/v1alpha1
+kind: NIMService
+metadata:
+  name: karta-e2e-nim-initializing
+  namespace: default
+spec:
+  image:
+    repository: nonexistent-nim
+    tag: bad
+    pullPolicy: IfNotPresent
+  authSecret: ngc-secret
+  storage:
+    pvc:
+      create: true
+      size: 1Gi
+      volumeAccessMode: ReadWriteOnce
+  replicas: 1
+  expose:
+    service:
+      type: ClusterIP
+      port: 8000
+  env:
+    - name: NIM_REQUEST_LATENCY
+      value: "2"

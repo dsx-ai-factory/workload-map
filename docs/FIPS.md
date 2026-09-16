@@ -30,7 +30,7 @@ into the operator image, regardless of `global.fipsMode`. Valid values:
   in production.
 
 ```sh
-helm upgrade --install karta oci://ghcr.io/run-ai/karta/karta \
+helm upgrade --install karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
   -n karta-system --create-namespace --set global.fipsMode=only
 ```
 

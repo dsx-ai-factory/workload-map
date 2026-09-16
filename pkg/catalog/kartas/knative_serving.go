@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	v1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
 // KnativeServing returns the built-in Karta for the Knative Serving Service
@@ -30,6 +30,11 @@ func KnativeServing() *v1alpha1.Karta {
 						},
 						StatusMappings: v1alpha1.StatusMappings{
 							Running: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("True")}}}},
+							// Knative reports the whole deploy through Ready=Unknown (reasons OutOfDate,
+							// RevisionMissing, IngressNotConfigured, Uninitialized) and a broken Service
+							// through Ready=False - both deliberate signals, matched as written.
+							Initializing: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("Unknown")}}}},
+							Failed:       []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("False")}}}},
 						},
 					},
 				},

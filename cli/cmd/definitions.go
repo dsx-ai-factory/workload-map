@@ -14,10 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	"github.com/run-ai/karta/cli/pkg/definitions"
-	"github.com/run-ai/karta/cli/pkg/generator"
-	v1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
 )
 
 const (

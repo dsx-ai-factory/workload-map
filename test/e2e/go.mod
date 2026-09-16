@@ -1,11 +1,11 @@
-module github.com/run-ai/karta/test/e2e
+module github.com/dsx-ai-factory/workload-map/test/e2e
 
 go 1.26.3
 
 require (
 	github.com/onsi/ginkgo/v2 v2.32.2
 	github.com/onsi/gomega v1.43.0
-	github.com/run-ai/karta v0.0.0
+	github.com/dsx-ai-factory/workload-map v0.0.0
 	k8s.io/api v0.37.0
 	k8s.io/apiextensions-apiserver v0.37.0
 	k8s.io/apimachinery v0.37.0
@@ -81,4 +81,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
 
-replace github.com/run-ai/karta => ../..
+replace github.com/dsx-ai-factory/workload-map => ../..

@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A RayJob created suspended (spec.suspend true), then resumed by the e2e action clearing spec.suspend.
+# KubeRay then brings up the cluster and the sleeping entrypoint runs, so jobStatus becomes RUNNING.
+# The resumed flow records Suspended -> Running.
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: karta-e2e-rayjob-resumed
+  namespace: default
+spec:
+  entrypoint: 'python -c "import time; time.sleep(300)"'
+  suspend: true
+  # KubeRay rejects a suspended RayJob unless shutdownAfterJobFinishes is true. The sleeping
+  # entrypoint keeps it RUNNING long enough to record after the resume, well before it would finish.
+  shutdownAfterJobFinishes: true
+  backoffLimit: 0
+  rayClusterSpec:
+    rayVersion: "2.40.0"
+    headGroupSpec:
+      rayStartParams:
+        num-cpus: "1"
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests: {cpu: 500m, memory: 2Gi}
+                limits: {cpu: "2", memory: 3Gi}
+              readinessProbe:
+                tcpSocket: {port: 8265}
+                initialDelaySeconds: 15
+                periodSeconds: 5
+                failureThreshold: 90
+    workerGroupSpecs:
+      - groupName: small
+        replicas: 0
+        minReplicas: 0
+        maxReplicas: 0
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                resources:
+                  requests: {cpu: 250m, memory: 512Mi}

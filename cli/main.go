@@ -13,7 +13,7 @@ import (
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
-	"github.com/run-ai/karta/cli/cmd"
+	"github.com/dsx-ai-factory/workload-map/cli/cmd"
 )
 
 func main() {

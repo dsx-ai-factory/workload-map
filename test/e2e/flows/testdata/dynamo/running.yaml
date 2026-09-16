@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A real DynamoGraphDeployment driven by the dynamo-operator using Dynamo's
+# mocker backend (simulated inference, no GPU and no real model) so it runs
+# CPU-only on kind. A Frontend plus a decode worker running
+# `python3 -m dynamo.mocker`; the operator reports .status.state=successful once
+# both pods are ready and registered (via etcd + NATS). The dynamo-planner image
+# (which ships the mocker) and a dummy hf-token-secret are installed by
+# hack/e2e/up.sh.
+apiVersion: nvidia.com/v1alpha1
+kind: DynamoGraphDeployment
+metadata:
+  name: karta-e2e-dynamo
+  namespace: default
+spec:
+  services:
+    Frontend:
+      componentType: frontend
+      replicas: 1
+      extraPodSpec:
+        mainContainer:
+          image: nvcr.io/nvidia/ai-dynamo/dynamo-planner:1.2.1
+          imagePullPolicy: IfNotPresent
+    decode:
+      envFromSecret: hf-token-secret
+      componentType: worker
+      subComponentType: decode
+      replicas: 1
+      extraPodSpec:
+        mainContainer:
+          image: nvcr.io/nvidia/ai-dynamo/dynamo-planner:1.2.1
+          imagePullPolicy: IfNotPresent
+          workingDir: /workspace
+          command: ["python3", "-m", "dynamo.mocker"]
+          args:
+            - --model-path
+            - nvidia/Llama-3.1-8B-Instruct-FP8
+            - --model-name
+            - nvidia/Llama-3.1-8B-Instruct-FP8
+            - --speedup-ratio
+            - "1.0"
+            - --planner-profile-data
+            - /workspace/components/src/dynamo/planner/tests/data/profiling_results/H200_TP1P_TP1D

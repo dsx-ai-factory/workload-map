@@ -1,0 +1,847 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      creationTimestamp: "2026-09-14T07:49:19Z"
+      generation: 1
+      name: karta-e2e-ray-resumed
+      namespace: test-cb2tw
+      uid: 54a6e980-1209-45a9-8e97-5b182356c0e6
+    spec:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 6379
+              name: ray-head
+              readinessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                tcpSocket:
+                  port: 6379
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+                requests:
+                  cpu: 250m
+                  memory: 1Gi
+      rayVersion: 2.40.0
+      suspend: true
+      workerGroupSpecs:
+      - groupName: small
+        maxReplicas: 1
+        minReplicas: 0
+        numOfHosts: 1
+        rayStartParams: {}
+        replicas: 0
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: Head Pod not found
+        reason: HeadPodNotFound
+        status: "False"
+        type: HeadPodReady
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: RayCluster Pods are being provisioned for first time
+        reason: RayClusterPodsProvisioning
+        status: "False"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "False"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "True"
+        type: RayClusterSuspending
+      desiredCPU: 250m
+      desiredGPU: "0"
+      desiredMemory: 1Gi
+      desiredTPU: "0"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+        metrics: "8080"
+        serve: "8000"
+      head:
+        serviceName: karta-e2e-ray-resumed-head-svc
+      lastUpdateTime: "2026-09-14T07:49:19Z"
+      maxWorkerReplicas: 1
+      observedGeneration: 1
+      state: suspended
+      stateTransitionTimes:
+        suspended: "2026-09-14T07:49:19Z"
+  phases:
+  - Suspended
+  resourceVersion: "1318848"
+  state: Suspended
+- action:
+    name: Resume
+    operation:
+      patchType: application/merge-patch+json
+      payload:
+        spec:
+          suspend: false
+      verb: PATCH
+  kind: ACTION
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      creationTimestamp: "2026-09-14T07:49:19Z"
+      generation: 1
+      name: karta-e2e-ray-resumed
+      namespace: test-cb2tw
+      uid: 54a6e980-1209-45a9-8e97-5b182356c0e6
+    spec:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 6379
+              name: ray-head
+              readinessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                tcpSocket:
+                  port: 6379
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+                requests:
+                  cpu: 250m
+                  memory: 1Gi
+      rayVersion: 2.40.0
+      suspend: true
+      workerGroupSpecs:
+      - groupName: small
+        maxReplicas: 1
+        minReplicas: 0
+        numOfHosts: 1
+        rayStartParams: {}
+        replicas: 0
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: Head Pod not found
+        reason: HeadPodNotFound
+        status: "False"
+        type: HeadPodReady
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: RayCluster has been suspended
+        reason: RayClusterPodsProvisioning
+        status: "False"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "True"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+      desiredCPU: 250m
+      desiredGPU: "0"
+      desiredMemory: 1Gi
+      desiredTPU: "0"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+        metrics: "8080"
+        serve: "8000"
+      head:
+        serviceName: karta-e2e-ray-resumed-head-svc
+      lastUpdateTime: "2026-09-14T07:49:19Z"
+      maxWorkerReplicas: 1
+      observedGeneration: 1
+      state: suspended
+      stateTransitionTimes:
+        suspended: "2026-09-14T07:49:19Z"
+  phases:
+  - Suspended
+  resourceVersion: "1318850"
+  state: Suspended
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      creationTimestamp: "2026-09-14T07:49:19Z"
+      generation: 2
+      name: karta-e2e-ray-resumed
+      namespace: test-cb2tw
+      uid: 54a6e980-1209-45a9-8e97-5b182356c0e6
+    spec:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 6379
+              name: ray-head
+              readinessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                tcpSocket:
+                  port: 6379
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+                requests:
+                  cpu: 250m
+                  memory: 1Gi
+      rayVersion: 2.40.0
+      suspend: false
+      workerGroupSpecs:
+      - groupName: small
+        maxReplicas: 1
+        minReplicas: 0
+        numOfHosts: 1
+        rayStartParams: {}
+        replicas: 0
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: Head Pod not found
+        reason: HeadPodNotFound
+        status: "False"
+        type: HeadPodReady
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: RayCluster has been suspended
+        reason: RayClusterPodsProvisioning
+        status: "False"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "True"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+      desiredCPU: 250m
+      desiredGPU: "0"
+      desiredMemory: 1Gi
+      desiredTPU: "0"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+        metrics: "8080"
+        serve: "8000"
+      head:
+        serviceName: karta-e2e-ray-resumed-head-svc
+      lastUpdateTime: "2026-09-14T07:49:19Z"
+      maxWorkerReplicas: 1
+      observedGeneration: 1
+      state: suspended
+      stateTransitionTimes:
+        suspended: "2026-09-14T07:49:19Z"
+  phases:
+  - Undefined
+  resourceVersion: "1318851"
+  staleObservedGeneration: true
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      creationTimestamp: "2026-09-14T07:49:19Z"
+      generation: 2
+      name: karta-e2e-ray-resumed
+      namespace: test-cb2tw
+      uid: 54a6e980-1209-45a9-8e97-5b182356c0e6
+    spec:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 6379
+              name: ray-head
+              readinessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                tcpSocket:
+                  port: 6379
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+                requests:
+                  cpu: 250m
+                  memory: 1Gi
+      rayVersion: 2.40.0
+      suspend: false
+      workerGroupSpecs:
+      - groupName: small
+        maxReplicas: 1
+        minReplicas: 0
+        numOfHosts: 1
+        rayStartParams: {}
+        replicas: 0
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: Head Pod not found
+        reason: HeadPodNotFound
+        status: "False"
+        type: HeadPodReady
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: RayCluster has been suspended
+        reason: RayClusterPodsProvisioning
+        status: "False"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "False"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+      desiredCPU: 250m
+      desiredGPU: "0"
+      desiredMemory: 1Gi
+      desiredTPU: "0"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+        metrics: "8080"
+        serve: "8000"
+      head:
+        serviceName: karta-e2e-ray-resumed-head-svc
+      lastUpdateTime: "2026-09-14T07:49:19Z"
+      maxWorkerReplicas: 1
+      observedGeneration: 2
+      state: suspended
+      stateTransitionTimes:
+        suspended: "2026-09-14T07:49:19Z"
+  phases:
+  - Undefined
+  resourceVersion: "1318852"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      creationTimestamp: "2026-09-14T07:49:19Z"
+      generation: 2
+      name: karta-e2e-ray-resumed
+      namespace: test-cb2tw
+      uid: 54a6e980-1209-45a9-8e97-5b182356c0e6
+    spec:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 6379
+              name: ray-head
+              readinessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                tcpSocket:
+                  port: 6379
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+                requests:
+                  cpu: 250m
+                  memory: 1Gi
+      rayVersion: 2.40.0
+      suspend: false
+      workerGroupSpecs:
+      - groupName: small
+        maxReplicas: 1
+        minReplicas: 0
+        numOfHosts: 1
+        rayStartParams: {}
+        replicas: 0
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: Unknown
+        status: "False"
+        type: HeadPodReady
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: RayCluster Pods are being provisioned for first time
+        reason: RayClusterPodsProvisioning
+        status: "False"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "False"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+      desiredCPU: 250m
+      desiredGPU: "0"
+      desiredMemory: 1Gi
+      desiredTPU: "0"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+        metrics: "8080"
+        serve: "8000"
+      head:
+        podName: karta-e2e-ray-resumed-head-6hhlv
+        serviceName: karta-e2e-ray-resumed-head-svc
+      lastUpdateTime: "2026-09-14T07:49:21Z"
+      maxWorkerReplicas: 1
+      observedGeneration: 2
+      state: suspended
+      stateTransitionTimes:
+        suspended: "2026-09-14T07:49:19Z"
+  phases:
+  - Undefined
+  resourceVersion: "1318870"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      creationTimestamp: "2026-09-14T07:49:19Z"
+      generation: 2
+      name: karta-e2e-ray-resumed
+      namespace: test-cb2tw
+      uid: 54a6e980-1209-45a9-8e97-5b182356c0e6
+    spec:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 6379
+              name: ray-head
+              readinessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                tcpSocket:
+                  port: 6379
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+                requests:
+                  cpu: 250m
+                  memory: 1Gi
+      rayVersion: 2.40.0
+      suspend: false
+      workerGroupSpecs:
+      - groupName: small
+        maxReplicas: 1
+        minReplicas: 0
+        numOfHosts: 1
+        rayStartParams: {}
+        replicas: 0
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: 'containers with unready status: [ray-head]; ray-head: '
+        reason: ContainerCreating
+        status: "False"
+        type: HeadPodReady
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: RayCluster Pods are being provisioned for first time
+        reason: RayClusterPodsProvisioning
+        status: "False"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "False"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+      desiredCPU: 250m
+      desiredGPU: "0"
+      desiredMemory: 1Gi
+      desiredTPU: "0"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+        metrics: "8080"
+        serve: "8000"
+      head:
+        podName: karta-e2e-ray-resumed-head-6hhlv
+        serviceName: karta-e2e-ray-resumed-head-svc
+      lastUpdateTime: "2026-09-14T07:49:21Z"
+      maxWorkerReplicas: 1
+      observedGeneration: 2
+      state: suspended
+      stateTransitionTimes:
+        suspended: "2026-09-14T07:49:19Z"
+  phases:
+  - Undefined
+  resourceVersion: "1318873"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      creationTimestamp: "2026-09-14T07:49:19Z"
+      generation: 2
+      name: karta-e2e-ray-resumed
+      namespace: test-cb2tw
+      uid: 54a6e980-1209-45a9-8e97-5b182356c0e6
+    spec:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 6379
+              name: ray-head
+              readinessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                tcpSocket:
+                  port: 6379
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+                requests:
+                  cpu: 250m
+                  memory: 1Gi
+      rayVersion: 2.40.0
+      suspend: false
+      workerGroupSpecs:
+      - groupName: small
+        maxReplicas: 1
+        minReplicas: 0
+        numOfHosts: 1
+        rayStartParams: {}
+        replicas: 0
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: 'containers with unready status: [ray-head]'
+        reason: ContainersNotReady
+        status: "False"
+        type: HeadPodReady
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: RayCluster Pods are being provisioned for first time
+        reason: RayClusterPodsProvisioning
+        status: "False"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "False"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+      desiredCPU: 250m
+      desiredGPU: "0"
+      desiredMemory: 1Gi
+      desiredTPU: "0"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+        metrics: "8080"
+        serve: "8000"
+      head:
+        podIP: 10.244.2.25
+        podName: karta-e2e-ray-resumed-head-6hhlv
+        serviceIP: 10.244.2.25
+        serviceName: karta-e2e-ray-resumed-head-svc
+      lastUpdateTime: "2026-09-14T07:49:22Z"
+      maxWorkerReplicas: 1
+      observedGeneration: 2
+      state: suspended
+      stateTransitionTimes:
+        suspended: "2026-09-14T07:49:19Z"
+  phases:
+  - Undefined
+  resourceVersion: "1318883"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      creationTimestamp: "2026-09-14T07:49:19Z"
+      generation: 2
+      name: karta-e2e-ray-resumed
+      namespace: test-cb2tw
+      uid: 54a6e980-1209-45a9-8e97-5b182356c0e6
+    spec:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 6379
+              name: ray-head
+              readinessProbe:
+                failureThreshold: 30
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                tcpSocket:
+                  port: 6379
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+                requests:
+                  cpu: 250m
+                  memory: 1Gi
+      rayVersion: 2.40.0
+      suspend: false
+      workerGroupSpecs:
+      - groupName: small
+        maxReplicas: 1
+        minReplicas: 0
+        numOfHosts: 1
+        rayStartParams: {}
+        replicas: 0
+        template:
+          spec:
+            containers:
+            - image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-14T07:49:33Z"
+        message: ""
+        reason: HeadPodRunningAndReady
+        status: "True"
+        type: HeadPodReady
+      - lastTransitionTime: "2026-09-14T07:49:33Z"
+        message: All Ray Pods are ready for the first time
+        reason: AllPodRunningAndReadyFirstTime
+        status: "True"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "False"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2026-09-14T07:49:19Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+      desiredCPU: 250m
+      desiredGPU: "0"
+      desiredMemory: 1Gi
+      desiredTPU: "0"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+        metrics: "8080"
+        serve: "8000"
+      head:
+        podIP: 10.244.2.25
+        podName: karta-e2e-ray-resumed-head-6hhlv
+        serviceIP: 10.244.2.25
+        serviceName: karta-e2e-ray-resumed-head-svc
+      lastUpdateTime: "2026-09-14T07:49:33Z"
+      maxWorkerReplicas: 1
+      observedGeneration: 2
+      state: ready
+      stateTransitionTimes:
+        ready: "2026-09-14T07:49:33Z"
+        suspended: "2026-09-14T07:49:19Z"
+  phases:
+  - Running
+  resourceVersion: "1318971"
+  state: Running
+flow: resumed
+kartaFile: docs/catalog/ray-io-raycluster-v1.yaml
+kartaName: ray-io-raycluster-v1
+operator: kuberay
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Suspended
+- amount: 5
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Running
+version: v1.34.0
+want: Running

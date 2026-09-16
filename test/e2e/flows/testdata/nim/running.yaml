@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A real, operator-driven NIMService using a fictive CPU NIM image (no GPU, no
+# real NGC token). The k8s-nim-operator creates a Deployment from this image;
+# the fake server answers /v1/health/ready so the operator marks it state=Ready.
+# Prereqs installed by hack/e2e/up.sh: the nim-cpu:e2e image, the k8s-nim-operator,
+# and a dummy "ngc-secret" Secret holding key NGC_API_KEY.
+apiVersion: apps.nvidia.com/v1alpha1
+kind: NIMService
+metadata:
+  name: karta-e2e-nim
+  namespace: default
+spec:
+  image:
+    repository: nim-cpu
+    tag: e2e
+    pullPolicy: IfNotPresent
+  authSecret: ngc-secret
+  storage:
+    pvc:
+      create: true
+      size: 1Gi
+      volumeAccessMode: ReadWriteOnce
+  replicas: 1
+  expose:
+    service:
+      type: ClusterIP
+      port: 8000
+  env:
+    - name: NIM_REQUEST_LATENCY
+      value: "2"

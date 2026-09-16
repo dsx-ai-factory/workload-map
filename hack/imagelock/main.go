@@ -46,8 +46,15 @@ const defaultStabilityReads = 10
 // lock. Classification is fail-closed: a repository missing here stops the
 // release, so every new image must be added on purpose before it can ship.
 var knownImages = map[string]string{
-	"ghcr.io/run-ai/karta/karta-operator": "operator",
-	"registry.k8s.io/kubectl":             "crd-upgrader",
+	"ghcr.io/dsx-ai-factory/workload-map/karta-operator": "operator",
+	"registry.k8s.io/kubectl":                            "crd-upgrader",
+}
+
+// selfImages classifies the project's own images by basename so a fork can
+// publish them under its own registry namespace. Third-party images stay
+// exact-match only.
+var selfImages = map[string]string{
+	"karta-operator": "operator",
 }
 
 var sha256Digest = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
@@ -126,6 +133,7 @@ type options struct {
 	platforms      []platform
 	outDir         string
 	helmBin        string
+	setArgs        []string
 	verifyOnly     bool
 	stabilityReads int
 }
@@ -137,6 +145,11 @@ func parseFlags(args []string) (options, error) {
 	var platformArgs []string
 	flags.Func("platform", "os/arch to lock, repeatable (default linux/amd64, linux/arm64)", func(v string) error {
 		platformArgs = append(platformArgs, v)
+		return nil
+	})
+	var setArgs []string
+	flags.Func("set", "helm --set override, repeatable (applied after the built-in toggles)", func(v string) error {
+		setArgs = append(setArgs, v)
 		return nil
 	})
 	outDir := flags.String("out-dir", "../../dist", "output directory")
@@ -161,6 +174,7 @@ func parseFlags(args []string) (options, error) {
 		platforms:      platforms,
 		outDir:         *outDir,
 		helmBin:        *helmBin,
+		setArgs:        setArgs,
 		verifyOnly:     *verifyOnly,
 		stabilityReads: *stabilityReads,
 	}
@@ -210,6 +224,9 @@ func renderChart(opts options) ([]byte, error) {
 	if opts.version != "" {
 		args = append(args, "--set", "image.tag="+opts.version)
 	}
+	for _, override := range opts.setArgs {
+		args = append(args, "--set", override)
+	}
 
 	helm := exec.Command(opts.helmBin, args...)
 	var stderr strings.Builder
@@ -230,6 +247,11 @@ func imagesFromManifest(manifest []byte) ([]chartImage, error) {
 	for _, ref := range refs {
 		repo := repoOf(ref)
 		imageName, known := knownImages[repo]
+		if !known {
+			if base := repo[strings.LastIndex(repo, "/")+1:]; selfImages[base] != "" {
+				imageName, known = selfImages[base], true
+			}
+		}
 		if !known {
 			return nil, fmt.Errorf("unknown image %q (repo %q): add it to knownImages before releasing", ref, repo)
 		}

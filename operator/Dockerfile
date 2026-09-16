@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 
-# Build from the repository root so the `replace github.com/run-ai/karta => ../`
+# Build from the repository root so the `replace github.com/dsx-ai-factory/workload-map => ../`
 # directive in operator/go.mod resolves against the local pkg/ tree. Prefer
 # `make operator-image`, which supplies GO_LDFLAGS from the root Makefile.
 # Keep GO_VERSION aligned with the `go` directive in operator/go.mod:

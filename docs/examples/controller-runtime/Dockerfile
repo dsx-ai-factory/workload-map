@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 
-# Build from the repository root so the `replace github.com/run-ai/karta => ../../../`
+# Build from the repository root so the `replace github.com/dsx-ai-factory/workload-map => ../../../`
 # directive in go.mod resolves. Keep GO_VERSION aligned with the `go` directive in
 # go.mod by deriving it at build time:
 #

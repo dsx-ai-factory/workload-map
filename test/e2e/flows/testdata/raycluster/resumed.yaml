@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A RayCluster created suspended, then resumed by the e2e action (clearing spec.suspend). KubeRay
+# brings the head up and sets status.state=ready. The resumed flow records Suspended -> Running, the
+# transition an operator will not make on its own. Head-only (workers 0) so it comes up on kind.
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: karta-e2e-ray-resumed
+  namespace: default
+spec:
+  suspend: true
+  rayVersion: "2.40.0"
+  headGroupSpec:
+    rayStartParams: {}
+    template:
+      spec:
+        containers:
+          - name: ray-head
+            image: ray-e2e:local
+            imagePullPolicy: IfNotPresent
+            resources:
+              requests: {cpu: 250m, memory: 1Gi}
+              limits: {cpu: "1", memory: 2Gi}
+            readinessProbe:
+              tcpSocket: {port: 6379}
+              initialDelaySeconds: 10
+              periodSeconds: 5
+              failureThreshold: 30
+            livenessProbe:
+              tcpSocket: {port: 6379}
+              initialDelaySeconds: 30
+              periodSeconds: 10
+              failureThreshold: 30
+  workerGroupSpecs:
+    - groupName: small
+      replicas: 0
+      minReplicas: 0
+      maxReplicas: 1
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+            - name: ray-worker
+              image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests: {cpu: 250m, memory: 512Mi}

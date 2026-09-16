@@ -1,9 +1,9 @@
-module github.com/run-ai/karta/karta-wasm
+module github.com/dsx-ai-factory/workload-map/karta-wasm
 
 go 1.26.3
 
 require (
-	github.com/run-ai/karta v0.0.0
+	github.com/dsx-ai-factory/workload-map v0.0.0
 	k8s.io/apimachinery v0.37.0
 )
 
@@ -32,4 +32,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
 
-replace github.com/run-ai/karta => ../
+replace github.com/dsx-ai-factory/workload-map => ../

@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/printers"
 
-	"github.com/run-ai/karta/cli/pkg/workload"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
 )
 
 // Options controls how a set of workload views is rendered.

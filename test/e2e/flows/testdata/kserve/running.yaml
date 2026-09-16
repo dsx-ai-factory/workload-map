@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A real KServe InferenceService driven by the KServe controller in Serverless
+# mode (on the Knative Serving + Kourier stack installed by hack/e2e/up.sh). The
+# sklearn ServingRuntime serves a small public CPU model; the controller marks
+# the service Ready once the predictor's Knative Service is ready and its routes
+# are admitted. No GPU and no credentials (the model is a public bucket).
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: karta-e2e-kserve
+  namespace: default
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: sklearn
+      storageUri: gs://kfserving-examples/models/sklearn/1.0/model
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi

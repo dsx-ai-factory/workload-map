@@ -13,8 +13,6 @@ permissions:
   contents: write
   packages: write
 
-env:
-  HELM_REGISTRY: "ghcr.io/dsx-ai-factory/karta"
 
 jobs:
   build-and-push:
@@ -48,6 +46,16 @@ jobs:
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
           echo "PACKAGE_VERSION=$PACKAGE_VERSION"
 
+      - name: Set registry namespace
+        run: |
+          # Derive from the repo owner so a fork publishes to its own ghcr
+          # namespace. ghcr requires lowercase, and an owner can be mixed case.
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          REGISTRY_NAMESPACE="ghcr.io/${OWNER}/workload-map"
+          echo "REGISTRY_NAMESPACE=$REGISTRY_NAMESPACE" >> $GITHUB_ENV
+          echo "HELM_REGISTRY=$REGISTRY_NAMESPACE" >> $GITHUB_ENV
+          echo "Publishing artifacts to $REGISTRY_NAMESPACE"
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
         with:
@@ -74,13 +82,14 @@ jobs:
 
       - name: Build and push operator image
         run: |
-          make operator-image-buildx-push VERSION="$PACKAGE_VERSION"
+          make operator-image-buildx-push VERSION="$PACKAGE_VERSION" IMAGE_REGISTRY="$REGISTRY_NAMESPACE"
 
       - name: Generate air-gap image lock
         if: github.ref_type == 'tag'
         run: |
           # After the operator push so its tag resolves; PACKAGE_VERSION has no leading v.
-          make image-lock VERSION="$PACKAGE_VERSION"
+          make image-lock VERSION="$PACKAGE_VERSION" \
+            IMAGE_LOCK_SET="image.repository=$REGISTRY_NAMESPACE/karta-operator"
 
       - name: Build helm chart
         run: |

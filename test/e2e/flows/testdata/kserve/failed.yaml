@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# An InferenceService with a custom predictor container whose image does not exist, so
+# the Knative Configuration fails to create a Revision (RevisionFailed). That drives
+# PredictorConfigurationReady, PredictorReady, and RoutesReady all to False, which the
+# Karta library reads as Failed. (A bad model storageUri only fails the pod and leaves
+# the conditions Unknown, not False, so it does not match the sample's failed mapping.)
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: karta-e2e-kserve-failed
+  namespace: default
+spec:
+  predictor:
+    containers:
+      - name: kserve-container
+        image: karta-e2e-no-such-registry.invalid/nope:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi

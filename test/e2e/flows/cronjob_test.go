@@ -7,8 +7,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	kartav1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/test/e2e/recorder"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
 )
 
 var _ = Describe("CronJob (built-in)", Ordered, Label("cronjob", "builtin"), func() {

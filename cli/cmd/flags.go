@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	"github.com/run-ai/karta/cli/pkg/generator"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
 )
 
 const (

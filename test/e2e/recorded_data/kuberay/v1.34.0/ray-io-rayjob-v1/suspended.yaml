@@ -1,0 +1,295 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayJob
+    metadata:
+      creationTimestamp: "2026-09-14T07:50:48Z"
+      finalizers:
+      - ray.io/rayjob-finalizer
+      generation: 2
+      name: karta-e2e-rayjob-suspended
+      namespace: test-cb2tw
+      uid: 44d052f0-e1c8-43d5-83cd-4f3a8d0203b6
+    spec:
+      backoffLimit: 0
+      entrypoint: python -c "print(1)"
+      rayClusterSpec:
+        headGroupSpec:
+          rayStartParams:
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                name: ray-head
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 2Gi
+        rayVersion: 2.40.0
+        workerGroupSpecs:
+        - groupName: small
+          maxReplicas: 0
+          minReplicas: 0
+          numOfHosts: 1
+          rayStartParams: {}
+          replicas: 0
+          scaleStrategy: {}
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                name: ray-worker
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+      shutdownAfterJobFinishes: true
+      submissionMode: K8sJobMode
+      suspend: true
+      ttlSecondsAfterFinished: 0
+  phases:
+  - Undefined
+  resourceVersion: "1319829"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayJob
+    metadata:
+      creationTimestamp: "2026-09-14T07:50:48Z"
+      finalizers:
+      - ray.io/rayjob-finalizer
+      generation: 2
+      name: karta-e2e-rayjob-suspended
+      namespace: test-cb2tw
+      uid: 44d052f0-e1c8-43d5-83cd-4f3a8d0203b6
+    spec:
+      backoffLimit: 0
+      entrypoint: python -c "print(1)"
+      rayClusterSpec:
+        headGroupSpec:
+          rayStartParams:
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                name: ray-head
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 2Gi
+        rayVersion: 2.40.0
+        workerGroupSpecs:
+        - groupName: small
+          maxReplicas: 0
+          minReplicas: 0
+          numOfHosts: 1
+          rayStartParams: {}
+          replicas: 0
+          scaleStrategy: {}
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                name: ray-worker
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+      shutdownAfterJobFinishes: true
+      submissionMode: K8sJobMode
+      suspend: true
+      ttlSecondsAfterFinished: 0
+    status:
+      failed: 0
+      jobDeploymentStatus: Initializing
+      jobId: karta-e2e-rayjob-suspended-vtfqv
+      rayClusterName: karta-e2e-rayjob-suspended-nx5zz
+      rayClusterStatus:
+        desiredCPU: "0"
+        desiredGPU: "0"
+        desiredMemory: "0"
+        desiredTPU: "0"
+        head: {}
+      rayJobInfo: {}
+      startTime: "2026-09-14T07:50:48Z"
+      succeeded: 0
+  phases:
+  - Initializing
+  resourceVersion: "1319835"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayJob
+    metadata:
+      creationTimestamp: "2026-09-14T07:50:48Z"
+      finalizers:
+      - ray.io/rayjob-finalizer
+      generation: 2
+      name: karta-e2e-rayjob-suspended
+      namespace: test-cb2tw
+      uid: 44d052f0-e1c8-43d5-83cd-4f3a8d0203b6
+    spec:
+      backoffLimit: 0
+      entrypoint: python -c "print(1)"
+      rayClusterSpec:
+        headGroupSpec:
+          rayStartParams:
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                name: ray-head
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 2Gi
+        rayVersion: 2.40.0
+        workerGroupSpecs:
+        - groupName: small
+          maxReplicas: 0
+          minReplicas: 0
+          numOfHosts: 1
+          rayStartParams: {}
+          replicas: 0
+          scaleStrategy: {}
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                name: ray-worker
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+      shutdownAfterJobFinishes: true
+      submissionMode: K8sJobMode
+      suspend: true
+      ttlSecondsAfterFinished: 0
+    status:
+      failed: 0
+      jobDeploymentStatus: Suspending
+      jobId: karta-e2e-rayjob-suspended-vtfqv
+      rayClusterName: karta-e2e-rayjob-suspended-nx5zz
+      rayClusterStatus:
+        desiredCPU: "0"
+        desiredGPU: "0"
+        desiredMemory: "0"
+        desiredTPU: "0"
+        head: {}
+      rayJobInfo: {}
+      startTime: "2026-09-14T07:50:48Z"
+      succeeded: 0
+  phases:
+  - Undefined
+  resourceVersion: "1319840"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayJob
+    metadata:
+      creationTimestamp: "2026-09-14T07:50:48Z"
+      finalizers:
+      - ray.io/rayjob-finalizer
+      generation: 2
+      name: karta-e2e-rayjob-suspended
+      namespace: test-cb2tw
+      uid: 44d052f0-e1c8-43d5-83cd-4f3a8d0203b6
+    spec:
+      backoffLimit: 0
+      entrypoint: python -c "print(1)"
+      rayClusterSpec:
+        headGroupSpec:
+          rayStartParams:
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                name: ray-head
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 2Gi
+        rayVersion: 2.40.0
+        workerGroupSpecs:
+        - groupName: small
+          maxReplicas: 0
+          minReplicas: 0
+          numOfHosts: 1
+          rayStartParams: {}
+          replicas: 0
+          scaleStrategy: {}
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                name: ray-worker
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+      shutdownAfterJobFinishes: true
+      submissionMode: K8sJobMode
+      suspend: true
+      ttlSecondsAfterFinished: 0
+    status:
+      failed: 0
+      jobDeploymentStatus: Suspended
+      rayClusterStatus:
+        desiredCPU: "0"
+        desiredGPU: "0"
+        desiredMemory: "0"
+        desiredTPU: "0"
+        head: {}
+      rayJobInfo: {}
+      startTime: "2026-09-14T07:50:48Z"
+      succeeded: 0
+  phases:
+  - Suspended
+  resourceVersion: "1319841"
+  state: Suspended
+flow: suspended
+kartaFile: docs/catalog/ray-io-rayjob-v1.yaml
+kartaName: ray-io-rayjob-v1
+operator: kuberay
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 1
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Suspended
+version: v1.34.0
+want: Suspended

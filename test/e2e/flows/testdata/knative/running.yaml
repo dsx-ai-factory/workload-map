@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A real Knative Service driven by the Knative Serving controller (installed by
+# hack/e2e/up.sh together with the Kourier networking layer). The controller
+# creates a Revision and a Deployment and marks the Service Ready once the pod is
+# running and the route is admitted; the test waits for that real Ready condition.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: karta-e2e-knative
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+        - image: ghcr.io/knative/helloworld-go:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: TARGET
+              value: karta-e2e
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi

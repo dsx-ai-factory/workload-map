@@ -17,9 +17,11 @@ spec:
       command: ["sh", "-c", "sleep 8"]
       resources:
         requests: {cpu: 10m, memory: 16Mi}
+        limits: {cpu: 20m, memory: 2Gi}
   containers:
     - name: worker
       image: busybox:1.36
       command: ["sh", "-c", "sleep infinity"]
       resources:
         requests: {cpu: 50m, memory: 32Mi}
+        limits: {cpu: 100m, memory: 2Gi}

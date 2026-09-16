@@ -21,10 +21,10 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
-	"github.com/run-ai/karta/cli/pkg/definitions"
-	"github.com/run-ai/karta/cli/pkg/generator"
-	"github.com/run-ai/karta/cli/pkg/workload"
-	"github.com/run-ai/karta/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
 )
 
 const (

@@ -51,12 +51,12 @@ spec:
           kind: Pod
         ownerRef: raycluster
         specDefinition:
-          podTemplateSpecPath: .spec.workerGroupSpecs[].template
+          podTemplateSpecPath: .spec.workerGroupSpecs[]?.template
         scaleDefinition:
-          replicasPath: .spec.workerGroupSpecs[].replicas
-          minReplicasPath: .spec.workerGroupSpecs[].minReplicas
-          maxReplicasPath: .spec.workerGroupSpecs[].maxReplicas
-        instanceIdPath: .spec.workerGroupSpecs[].groupName
+          replicasPath: .spec.workerGroupSpecs[]?.replicas
+          minReplicasPath: .spec.workerGroupSpecs[]?.minReplicas
+          maxReplicasPath: .spec.workerGroupSpecs[]?.maxReplicas
+        instanceIdPath: .spec.workerGroupSpecs[]?.groupName
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["ray.io/node-type"]

@@ -63,10 +63,10 @@ spec:
           kind: Pod
         ownerRef: rayservice
         specDefinition:
-          podTemplateSpecPath: .spec.rayClusterConfig.workerGroupSpecs[].template
+          podTemplateSpecPath: .spec.rayClusterConfig.workerGroupSpecs[]?.template
         scaleDefinition:
-          replicasPath: .spec.rayClusterConfig.workerGroupSpecs[].replicas // 1
-        instanceIdPath: .spec.rayClusterConfig.workerGroupSpecs[].groupName
+          replicasPath: .spec.rayClusterConfig.workerGroupSpecs[]? | (.replicas // 1)
+        instanceIdPath: .spec.rayClusterConfig.workerGroupSpecs[]?.groupName
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["ray.io/node-type"]

@@ -61,10 +61,10 @@ spec:
           kind: Pod
         ownerRef: rayjob
         specDefinition:
-          podTemplateSpecPath: .spec.rayClusterSpec.workerGroupSpecs[].template
+          podTemplateSpecPath: .spec.rayClusterSpec.workerGroupSpecs[]?.template
         scaleDefinition:
-          replicasPath: .spec.rayClusterSpec.workerGroupSpecs[].replicas // 1
-        instanceIdPath: .spec.rayClusterSpec.workerGroupSpecs[].groupName
+          replicasPath: .spec.rayClusterSpec.workerGroupSpecs[]? | (.replicas // 1)
+        instanceIdPath: .spec.rayClusterSpec.workerGroupSpecs[]?.groupName
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["ray.io/node-type"]

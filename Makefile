@@ -220,7 +220,7 @@ test-operator-integration: envtest ## Run the operator envtest suite (downloads 
 test-operator: test-operator-unit test-operator-integration ## Run the operator unit and envtest suites
 
 .PHONY: check-operator
-check-operator: fmt-check-operator vet-operator lint-operator test-operator ## Full operator presubmit
+check-operator: fmt-check-operator vet-operator lint-operator build-operator-e2e test-operator ## Full operator presubmit
 
 .PHONY: build-operator
 build-operator: $(LOCALBIN) ## Build the karta-operator binary for the host OS/arch
@@ -435,6 +435,12 @@ E2E_OPERATOR_TIMEOUT ?= 15m
 
 # Deliberately absent from check-operator: it needs a cluster, and check must not.
 .PHONY: test-operator-e2e
+# The e2e package is behind a build tag, so vet, golangci-lint and the unit tests all
+# skip it. Compiling with no spec selected type checks it without needing a cluster.
+.PHONY: build-operator-e2e
+build-operator-e2e: ## Compile the operator e2e suite without running it (no cluster needed)
+	cd operator && go test -tags e2e -run '^$$' ./test/e2e/...
+
 test-operator-e2e: ## Run the operator e2e against the current cluster (make e2e-up first; CLUSTER_NAME for a named one)
 	CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) ./hack/e2e/karta-operator/test.sh
 

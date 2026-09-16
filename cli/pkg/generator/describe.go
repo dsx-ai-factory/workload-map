@@ -177,9 +177,8 @@ func limitPods(pods []workload.PodView, limit int) (shown []workload.PodView, hi
 	return shown, len(ordered) - limit, unhealthy
 }
 
-// podUnhealthy tells a pod that needs attention from one that finished. A
-// completed pod is not ready either, and ranking it as unhealthy would let it
-// take the rows truncation reserves for a failing pod.
+// podUnhealthy separates a pod needing attention from one that finished: a
+// completed pod is not ready either, and would take a failing pod's row.
 func podUnhealthy(pod workload.PodView) bool {
 	return !pod.Ready && pod.Phase != string(corev1.PodSucceeded)
 }

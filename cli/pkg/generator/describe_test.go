@@ -61,6 +61,30 @@ func detailView() *workload.DescribeView {
 	}
 }
 
+// nestedView is a definition-driven shape the catalog does not produce but a
+// custom Karta does: a pod-bearing component that also owns a child.
+func nestedView() *workload.DescribeView {
+	return &workload.DescribeView{
+		View:      workload.View{Name: "svc", Namespace: "ml-team", Kind: "Deployment", Phases: []string{"Running"}},
+		Resources: workload.Resources{GPUs: 13},
+		Components: []workload.ComponentView{{
+			Name:      "mid",
+			Replicas:  workload.Replicas{Desired: 2, Current: 2, Ready: 2},
+			Resources: workload.Resources{GPUs: 13},
+			Pods: []workload.PodView{
+				{Name: "mid-0", Phase: "Running", Ready: true, Node: ptr.To("node-02")},
+				{Name: "mid-1", Phase: "Running", Ready: true, Node: ptr.To("node-02")},
+			},
+			Children: []workload.ComponentView{{
+				Name:      "leaf",
+				Replicas:  workload.Replicas{Desired: 3, Current: 3, Ready: 3},
+				Resources: workload.Resources{GPUs: 3},
+				Pods:      []workload.PodView{{Name: "leaf-0", Phase: "Running", Ready: true, Node: ptr.To("node-03")}},
+			}},
+		}},
+	}
+}
+
 func renderWorkload(view *workload.DescribeView, opts DescribeOptions) string {
 	GinkgoHelper()
 	var out bytes.Buffer
@@ -166,12 +190,13 @@ var _ = Describe("RenderWorkload", func() {
 			lines := treeLines(renderWorkload(detailView(), DescribeOptions{PodLimit: 2}))
 
 			Expect(lines[3]).To(ContainSubstring("worker-3"), "the first worker row is the failing one")
-			Expect(lines[5]).To(ContainSubstring("... and 2 more (1 unhealthy shown)"))
+			Expect(lines[5]).To(ContainSubstring("`-- ..."))
+			Expect(lines[5]).To(ContainSubstring("and 2 more (1 unhealthy shown)"))
 		})
 
 		It("reports what it hid rather than truncating silently", func() {
 			Expect(renderWorkload(detailView(), DescribeOptions{PodLimit: 1})).
-				To(ContainSubstring("... and 3 more (1 unhealthy shown)"))
+				To(ContainSubstring("and 3 more (1 unhealthy shown)"))
 		})
 
 		It("leaves a component alone when its pods fit", func() {
@@ -184,6 +209,71 @@ var _ = Describe("RenderWorkload", func() {
 		It("treats an unset limit as showing every pod", func() {
 			Expect(treeLines(renderWorkload(detailView(), DescribeOptions{}))).
 				To(Equal(treeLines(renderWorkload(detailView(), DescribeOptions{PodLimit: ShowAllPods}))))
+		})
+
+		// A tabwriter ends a column block at a line with fewer cells, so a note
+		// without them realigns every row below it. The note must land above
+		// another row for that to show.
+		It("keeps one column block across the truncation note", func() {
+			lines := treeLines(renderWorkload(nestedView(), DescribeOptions{PodLimit: 1}))
+
+			column := strings.Index(lines[0], "2/2 ready")
+			Expect(column).To(BeNumerically(">", 0))
+			for _, line := range lines {
+				if status := strings.Index(line, "Running"); status > 0 {
+					Expect(status).To(Equal(column), "status column moved on: "+line)
+				}
+			}
+		})
+	})
+
+	Context("a component that owns both pods and children", func() {
+		// The component's own request is real, and charging only the leaves
+		// drops it from the breakdown while TOTAL still counts it.
+		It("breaks the request down into rows that sum to the total", func() {
+			_, resources, found := strings.Cut(renderWorkload(nestedView(), DescribeOptions{}), "Resources:\n")
+			Expect(found).To(BeTrue())
+
+			Expect(resources).To(ContainSubstring("mid         2          10"))
+			Expect(resources).To(ContainSubstring("leaf        3          3"))
+			Expect(resources).To(ContainSubstring("TOTAL       5          13"))
+		})
+
+		// The children follow the pods at the same depth, so a pod never closes
+		// the branch its siblings continue.
+		It("leaves the closing glyph to the last row at that depth", func() {
+			lines := treeLines(renderWorkload(nestedView(), DescribeOptions{}))
+
+			Expect(lines[2]).To(ContainSubstring("|-- mid-1"))
+			Expect(lines[3]).To(ContainSubstring("`-- leaf"))
+		})
+
+		// Declaring no resources does not make a component grouping, and its
+		// replicas are its own however little it requests.
+		It("keeps a component that requests nothing but runs replicas", func() {
+			view := nestedView()
+			view.Components[0].Resources = workload.Resources{GPUs: 3}
+			view.Resources = workload.Resources{GPUs: 3}
+
+			_, resources, found := strings.Cut(renderWorkload(view, DescribeOptions{}), "Resources:\n")
+			Expect(found).To(BeTrue())
+			Expect(resources).To(ContainSubstring("mid         2          0"))
+			Expect(resources).To(ContainSubstring("TOTAL       5          3"))
+		})
+
+		// A grouping component repeats the rows below it, so a row of its own
+		// would double the workload in the reader's head.
+		It("leaves a grouping component out of the breakdown", func() {
+			view := nestedView()
+			view.Components[0].Pods = nil
+			view.Components[0].Replicas = workload.Replicas{Desired: 3, Current: 3, Ready: 3}
+			view.Components[0].Resources = workload.Resources{GPUs: 3}
+			view.Resources = workload.Resources{GPUs: 3}
+
+			_, resources, found := strings.Cut(renderWorkload(view, DescribeOptions{}), "Resources:\n")
+			Expect(found).To(BeTrue())
+			Expect(resources).NotTo(ContainSubstring("mid"))
+			Expect(resources).To(ContainSubstring("TOTAL       3          3"))
 		})
 	})
 

@@ -17,7 +17,7 @@ import (
 )
 
 // ShowAllPods is the --pod-limit default: a hidden pod is the one a reader most
-// needs to see.
+// needs to see. Zero means the same, so no limit is the only reading of 0.
 const ShowAllPods = -1
 
 // fileModeNote marks output built from a manifest that never reached a cluster,
@@ -29,7 +29,8 @@ type DescribeOptions struct {
 	// Output selects the format. The zero value renders the default table, so
 	// DescribeOptions{} is usable as-is.
 	Output Output
-	// PodLimit caps the pod rows per component. Negative shows every pod.
+	// PodLimit caps the pod rows per component. Zero and negative both show
+	// every pod, so DescribeOptions{} and an explicit --pod-limit 0 agree.
 	PodLimit int
 }
 
@@ -42,9 +43,7 @@ func RenderWorkload(out io.Writer, view *workload.DescribeView, opts DescribeOpt
 	}
 
 	limit := opts.PodLimit
-	if opts.PodLimit == 0 {
-		// Zero pod rows hides the whole point of the command; treat the unset
-		// int as the default rather than as a request for nothing.
+	if limit == 0 {
 		limit = ShowAllPods
 	}
 
@@ -116,18 +115,18 @@ func writeComponents(out io.Writer, components []workload.ComponentView, prefix 
 		}, "\t"))
 
 		childPrefix := prefix + indent(last)
-		writePods(out, component.Pods, childPrefix, limit)
+		writePods(out, component.Pods, childPrefix, limit, len(component.Children) > 0)
 		writeComponents(out, component.Children, childPrefix, limit)
 	}
 }
 
-func writePods(out io.Writer, pods []workload.PodView, prefix string, limit int) {
+// writePods draws a component's pods. childComponents says whether component
+// rows follow at this same depth, which decides who owns the closing glyph.
+func writePods(out io.Writer, pods []workload.PodView, prefix string, limit int, childComponents bool) {
 	shown, hidden, unhealthy := limitPods(pods, limit)
 
 	for i, pod := range shown {
-		// The truncation line is the last row under this component, so a shown
-		// pod is only "last" when nothing follows it.
-		last := i == len(shown)-1 && hidden == 0
+		last := i == len(shown)-1 && hidden == 0 && !childComponents
 		fmt.Fprintln(out, strings.Join([]string{
 			prefix + branch(last) + pod.Name,
 			podStatus(pod),
@@ -137,10 +136,15 @@ func writePods(out io.Writer, pods []workload.PodView, prefix string, limit int)
 	}
 
 	if hidden > 0 {
-		// No tabs: the note is prose, and a cell of it would widen the name
-		// column for every row in the tree.
-		fmt.Fprintf(out, "%s%s... and %d more (%d unhealthy shown)\n",
-			prefix, branch(true), hidden, unhealthy)
+		// The note keeps the row's cell count, since a tabwriter ends a column
+		// block at a short line and would realign every row below it. Its prose
+		// sits in the status cell: in the name cell it would set that column's
+		// width for the whole tree.
+		fmt.Fprintln(out, strings.Join([]string{
+			prefix + branch(!childComponents) + "...",
+			fmt.Sprintf("and %d more (%d unhealthy shown)", hidden, unhealthy),
+			"", "",
+		}, "\t"))
 	}
 }
 
@@ -195,9 +199,9 @@ func writeResources(out io.Writer, view *workload.DescribeView) error {
 	fmt.Fprintln(writer, "COMPONENT\tREPLICAS\tGPU\tCPU\tMEMORY")
 
 	var replicas int32
-	for _, component := range leaves(view.Components) {
-		replicas += component.Replicas.Desired
-		writeResourceRow(writer, component.Name, component.Replicas.Desired, component.Resources)
+	for _, row := range resourceRows(view.Components) {
+		replicas += row.replicas
+		writeResourceRow(writer, row.name, row.replicas, row.request)
 	}
 	writeResourceRow(writer, "TOTAL", replicas, view.Resources)
 
@@ -212,18 +216,49 @@ func writeResourceRow(out io.Writer, name string, replicas int32, request worklo
 		name, replicas, request.GPUs, cpu(request.CPUMillis), memory(request.MemoryBytes))
 }
 
-// leaves flattens the tree to the components that carry pods. A grouping
-// component only repeats the sum of the rows below it.
-func leaves(components []workload.ComponentView) []workload.ComponentView {
-	var out []workload.ComponentView
+type resourceRow struct {
+	name     string
+	replicas int32
+	request  workload.Resources
+}
+
+// resourceRows charges a component only what it requests beyond its children,
+// whose totals already roll up into it, so the rows sum to TOTAL.
+func resourceRows(components []workload.ComponentView) []resourceRow {
+	var rows []resourceRow
 	for _, component := range components {
-		if len(component.Children) == 0 {
-			out = append(out, component)
-			continue
+		if !isGrouping(component) {
+			rows = append(rows, resourceRow{component.Name, component.Replicas.Desired, ownRequest(component)})
 		}
-		out = append(out, leaves(component.Children)...)
+		rows = append(rows, resourceRows(component.Children)...)
 	}
-	return out
+	return rows
+}
+
+// isGrouping reports a component that only repeats its children: it requests
+// nothing of its own and its replicas are their sum. A component that declares
+// no resources is not grouping, so its replicas still reach the breakdown.
+func isGrouping(component workload.ComponentView) bool {
+	if len(component.Children) == 0 {
+		return false
+	}
+	var replicas int32
+	for _, child := range component.Children {
+		replicas += child.Replicas.Desired
+	}
+	return ownRequest(component) == (workload.Resources{}) && component.Replicas.Desired == replicas
+}
+
+// ownRequest subtracts the children a component already rolled up. Replicas
+// need no such correction: only a grouping component counts its children's.
+func ownRequest(component workload.ComponentView) workload.Resources {
+	request := component.Resources
+	for _, child := range component.Children {
+		request.GPUs -= child.Resources.GPUs
+		request.CPUMillis -= child.Resources.CPUMillis
+		request.MemoryBytes -= child.Resources.MemoryBytes
+	}
+	return request
 }
 
 func branch(last bool) string {

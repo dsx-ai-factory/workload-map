@@ -83,6 +83,13 @@ func newDescribeCommand() *cobra.Command {
 				return nil
 			},
 		)),
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			// A negative limit collides with the ShowAllPods sentinel.
+			if cmd.Flags().Changed(flagPodLimit) && opts.podLimit < 0 {
+				return usageError(cmd, fmt.Errorf("--%s must not be negative", flagPodLimit))
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runDescribe(cmd, opts, output.Get())
 		},
@@ -129,8 +136,8 @@ func runDescribe(cmd *cobra.Command, opts *describeOptions, format generator.Out
 		return err
 	}
 
-	// Pods are read from the object's own namespace: a workload's pods are
-	// created beside it, and the request must not widen when -n was omitted.
+	// Pods are created beside the workload, so the list stays in its namespace.
+	// A cluster-scoped root has none, so there it is cluster-wide.
 	pods, err := workload.ListPods(ctx, dyn, obj.GetNamespace())
 	if err != nil {
 		return fmt.Errorf("list pods: %w", err)

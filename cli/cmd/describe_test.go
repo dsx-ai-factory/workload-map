@@ -315,3 +315,16 @@ func TestDescribeShowsEveryPodByDefault(t *testing.T) {
 		t.Errorf("nothing should be truncated by default\n%s", out)
 	}
 }
+
+// A negative limit would otherwise pass through as "show every pod".
+func TestDescribeRejectsANegativePodLimit(t *testing.T) {
+	describeCluster(t, jobSet("preprocess", 3))
+
+	_, errOut, code := runDescribeCmd(t, "jobset/preprocess", "--pod-limit", "-10")
+	if code != ExitUsage {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitUsage, code, errOut)
+	}
+	if !strings.Contains(errOut, "--pod-limit must not be negative") {
+		t.Errorf("message missing the rejected flag\n%s", errOut)
+	}
+}

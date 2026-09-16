@@ -24,6 +24,7 @@ var (
 	replicaSetGVK  = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "ReplicaSet"}
 	daemonSetGVK   = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "DaemonSet"}
 	statefulSetGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "StatefulSet"}
+	cronJobGVK     = schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "CronJob"}
 )
 
 var _ = Describe("Karta operator on a live cluster", Serial, func() {
@@ -110,6 +111,20 @@ var _ = Describe("an invalid Karta, webhook installed", Serial, Label("webhook")
 	})
 
 	// Uniqueness is enforced only at admission, so it is only observable here.
+	// Dry run so only the mutating webhook can stamp the labels; Reconciler.ensureLabels
+	// sets the same keys and would otherwise mask a dead mutator.
+	It("stamps the root GVK index labels at admission", func() {
+		probe := newKarta("e2e-labels-admission", cronJobGVK)
+
+		Expect(k8sClient.Create(testCtx, probe, client.DryRunAll)).To(Succeed())
+
+		Expect(probe.Labels).To(SatisfyAll(
+			HaveKeyWithValue(kartav1alpha1.LabelRootGroup, cronJobGVK.Group),
+			HaveKeyWithValue(kartav1alpha1.LabelRootVersion, cronJobGVK.Version),
+			HaveKeyWithValue(kartav1alpha1.LabelRootKind, cronJobGVK.Kind),
+		))
+	})
+
 	It("refuses a second Karta claiming the same root GVK", func() {
 		first := createKarta(newKarta("e2e-unique-first", statefulSetGVK))
 		expectCondition(first.Name, kartav1alpha1.ConditionReady, metav1.ConditionTrue)

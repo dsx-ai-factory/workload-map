@@ -18,6 +18,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +44,20 @@ const (
 
 var ownedBySuite = client.MatchingLabels{ownerLabelKey: ownerLabelValue}
 
+// The arrangement the harness was asked to install. Selects which half of the
+// invalid-Karta contract the specs assert.
+const (
+	webhookModeAuto        = "auto"
+	webhookModeCertManager = "cert-manager"
+	webhookModeDisabled    = "disabled"
+)
+
+var (
+	webhookMode    = os.Getenv("KARTA_WEBHOOK_MODE")
+	kartaNamespace = envOr("KARTA_NAMESPACE", "karta-system")
+	kartaFullname  = envOr("KARTA_FULLNAME", "karta-operator")
+)
+
 var (
 	k8sClient  client.Client
 	testCtx    context.Context
@@ -66,8 +81,81 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient.List(testCtx, &kartav1alpha1.KartaList{})).To(Succeed(),
 		"cannot list Kartas; run make e2e-up WORKLOADS=none")
 
+	Expect(webhookMode).To(BeElementOf(webhookModeAuto, webhookModeCertManager, webhookModeDisabled),
+		"KARTA_WEBHOOK_MODE must name the arrangement under test; run via make test-operator-e2e")
+	verifyWebhookInstall()
+
 	purgeFixtures()
 })
+
+// Asserts the cluster matches webhookMode, in BeforeSuite so a mismatch stops the run.
+func verifyWebhookInstall() {
+	GinkgoHelper()
+	deploy := &appsv1.Deployment{}
+	Expect(k8sClient.Get(testCtx, types.NamespacedName{Namespace: kartaNamespace, Name: kartaFullname}, deploy)).
+		To(Succeed(), "no %s/%s Deployment; run make e2e-up WORKLOADS=none", kartaNamespace, kartaFullname)
+	Expect(deploy.Spec.Template.Spec.Containers).NotTo(BeEmpty())
+	args := deploy.Spec.Template.Spec.Containers[0].Args
+
+	wantArg := map[string]string{
+		webhookModeAuto:        "--webhook-cert-mode=auto",
+		webhookModeCertManager: "--webhook-cert-mode=manual",
+	}[webhookMode]
+	if wantArg == "" {
+		Expect(args).NotTo(ContainElement(HavePrefix("--webhook-cert-mode")),
+			"mode %q, but the operator is serving a webhook", webhookMode)
+	} else {
+		Expect(args).To(ContainElement(wantArg),
+			"mode %q, but the operator was started with %v", webhookMode, args)
+	}
+
+	validating, mutating := kartaWebhookRegistrations()
+	if webhookMode == webhookModeDisabled {
+		Expect(validating).To(BeEmpty(), "mode %q, but a validating webhook is registered", webhookMode)
+		Expect(mutating).To(BeEmpty(), "mode %q, but a mutating webhook is registered", webhookMode)
+		return
+	}
+	Expect(validating).NotTo(BeEmpty(), "mode %q, but no validating webhook is registered for kartas", webhookMode)
+	Expect(mutating).NotTo(BeEmpty(), "mode %q, but no mutating webhook is registered for kartas", webhookMode)
+}
+
+// Names of the configurations registered against kartas, found by rule rather than
+// by name because KARTA_FULLNAME moves the names.
+func kartaWebhookRegistrations() (validating, mutating []string) {
+	GinkgoHelper()
+	vList := &admissionv1.ValidatingWebhookConfigurationList{}
+	Expect(k8sClient.List(testCtx, vList)).To(Succeed())
+	for _, cfg := range vList.Items {
+		for _, webhook := range cfg.Webhooks {
+			if admitsKartas(webhook.Rules) {
+				validating = append(validating, cfg.Name)
+				break
+			}
+		}
+	}
+	mList := &admissionv1.MutatingWebhookConfigurationList{}
+	Expect(k8sClient.List(testCtx, mList)).To(Succeed())
+	for _, cfg := range mList.Items {
+		for _, webhook := range cfg.Webhooks {
+			if admitsKartas(webhook.Rules) {
+				mutating = append(mutating, cfg.Name)
+				break
+			}
+		}
+	}
+	return validating, mutating
+}
+
+// Both halves matter: cert-manager registers "*/*" resources for its own groups.
+func admitsKartas(rules []admissionv1.RuleWithOperations) bool {
+	for _, rule := range rules {
+		if slices.Contains(rule.APIGroups, kartav1alpha1.GroupVersion.Group) &&
+			slices.Contains(rule.Resources, "kartas") {
+			return true
+		}
+	}
+	return false
+}
 
 // DeferCleanup does not run when a suite is interrupted or times out, and up.sh
 // reuses clusters, so fixtures can outlive the run that made them. Their names are
@@ -100,7 +188,15 @@ func buildScheme() *runtime.Scheme {
 	Expect(kartav1alpha1.AddToScheme(s)).To(Succeed())
 	Expect(apiextensionsv1.AddToScheme(s)).To(Succeed())
 	Expect(admissionv1.AddToScheme(s)).To(Succeed())
+	Expect(appsv1.AddToScheme(s)).To(Succeed())
 	return s
+}
+
+func envOr(key, fallback string) string {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		return v
+	}
+	return fallback
 }
 
 func envDuration(key string, fallback time.Duration) time.Duration {
@@ -143,24 +239,7 @@ func newInvalidKarta(name string, gvk schema.GroupVersionKind) *kartav1alpha1.Ka
 	return k
 }
 
-// Found by what it admits rather than by name, since the chart derives the name from
-// karta.fullname and KARTA_FULLNAME can move it.
-func webhookEnabled() bool {
-	GinkgoHelper()
-	configs := &admissionv1.ValidatingWebhookConfigurationList{}
-	Expect(k8sClient.List(testCtx, configs)).To(Succeed())
-	for _, cfg := range configs.Items {
-		for _, webhook := range cfg.Webhooks {
-			for _, rule := range webhook.Rules {
-				if slices.Contains(rule.APIGroups, kartav1alpha1.GroupVersion.Group) &&
-					slices.Contains(rule.Resources, "kartas") {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
+func webhookEnabled() bool { return webhookMode != webhookModeDisabled }
 
 func createKarta(k *kartav1alpha1.Karta) *kartav1alpha1.Karta {
 	GinkgoHelper()

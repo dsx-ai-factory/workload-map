@@ -441,8 +441,8 @@ E2E_OPERATOR_TIMEOUT ?= 15m
 build-operator-e2e: ## Compile the operator e2e suite without running it (no cluster needed)
 	cd operator && go test -tags e2e -run '^$$' ./test/e2e/...
 
-test-operator-e2e: ## Run the operator e2e against the current cluster (make e2e-up first; CLUSTER_NAME for a named one)
-	CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) ./hack/e2e/karta-operator/test.sh
+test-operator-e2e: ## Run the operator e2e against the current cluster (KARTA_WEBHOOK_MODE must match the one e2e-up installed; CLUSTER_NAME for a named one)
+	CLUSTER_NAME=$(CLUSTER_NAME) KARTA_WEBHOOK_MODE=$(KARTA_WEBHOOK_MODE) $(E2E_KUBECONFIG) ./hack/e2e/karta-operator/test.sh
 
 .PHONY: e2e-down
 e2e-down: ## Tear down the e2e cluster (set CLUSTER_NAME for a named one)

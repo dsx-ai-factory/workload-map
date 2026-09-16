@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -33,6 +34,15 @@ var (
 	pollInterval     = envDuration("KARTA_E2E_POLL_INTERVAL", 500*time.Millisecond)
 )
 
+// Every fixture the suite creates carries this, so a purge can find its own
+// leftovers without touching anything else on a reused cluster.
+const (
+	ownerLabelKey   = "e2e.karta.run.ai/owner"
+	ownerLabelValue = "operator-suite"
+)
+
+var ownedBySuite = client.MatchingLabels{ownerLabelKey: ownerLabelValue}
+
 var (
 	k8sClient  client.Client
 	testCtx    context.Context
@@ -55,7 +65,29 @@ var _ = BeforeSuite(func() {
 
 	Expect(k8sClient.List(testCtx, &kartav1alpha1.KartaList{})).To(Succeed(),
 		"cannot list Kartas; run make e2e-up WORKLOADS=none")
+
+	purgeFixtures()
 })
+
+// DeferCleanup does not run when a suite is interrupted or times out, and up.sh
+// reuses clusters, so fixtures can outlive the run that made them. Their names are
+// fixed and Kartas are cluster scoped, so the next run would fail on AlreadyExists
+// or on the one-Karta-per-root-GVK rule rather than on anything real.
+func purgeFixtures() {
+	GinkgoHelper()
+	Expect(k8sClient.DeleteAllOf(testCtx, &kartav1alpha1.Karta{}, ownedBySuite)).To(Succeed())
+	Expect(k8sClient.DeleteAllOf(testCtx, &apiextensionsv1.CustomResourceDefinition{}, ownedBySuite)).To(Succeed())
+
+	Eventually(func(g Gomega) {
+		kartas := &kartav1alpha1.KartaList{}
+		g.Expect(k8sClient.List(testCtx, kartas, ownedBySuite)).To(Succeed())
+		g.Expect(kartas.Items).To(BeEmpty(), "a stale Karta outlived the purge")
+
+		crds := &apiextensionsv1.CustomResourceDefinitionList{}
+		g.Expect(k8sClient.List(testCtx, crds, ownedBySuite)).To(Succeed())
+		g.Expect(crds.Items).To(BeEmpty(), "a stale CRD outlived the purge")
+	}, reconcileTimeout, pollInterval).Should(Succeed())
+}
 
 var _ = AfterSuite(func() {
 	if testCancel != nil {
@@ -85,7 +117,10 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 
 func newKarta(name string, gvk schema.GroupVersionKind) *kartav1alpha1.Karta {
 	return &kartav1alpha1.Karta{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: map[string]string{ownerLabelKey: ownerLabelValue},
+		},
 		Spec: kartav1alpha1.KartaSpec{
 			StructureDefinition: kartav1alpha1.StructureDefinition{
 				RootComponent: kartav1alpha1.ComponentDefinition{
@@ -108,15 +143,23 @@ func newInvalidKarta(name string, gvk schema.GroupVersionKind) *kartav1alpha1.Ka
 	return k
 }
 
+// Found by what it admits rather than by name, since the chart derives the name from
+// karta.fullname and KARTA_FULLNAME can move it.
 func webhookEnabled() bool {
 	GinkgoHelper()
-	cfg := &admissionv1.ValidatingWebhookConfiguration{}
-	err := k8sClient.Get(testCtx, types.NamespacedName{Name: validatingWebhookName}, cfg)
-	if apierrors.IsNotFound(err) {
-		return false
+	configs := &admissionv1.ValidatingWebhookConfigurationList{}
+	Expect(k8sClient.List(testCtx, configs)).To(Succeed())
+	for _, cfg := range configs.Items {
+		for _, webhook := range cfg.Webhooks {
+			for _, rule := range webhook.Rules {
+				if slices.Contains(rule.APIGroups, kartav1alpha1.GroupVersion.Group) &&
+					slices.Contains(rule.Resources, "kartas") {
+					return true
+				}
+			}
+		}
 	}
-	Expect(err).NotTo(HaveOccurred())
-	return true
+	return false
 }
 
 func createKarta(k *kartav1alpha1.Karta) *kartav1alpha1.Karta {

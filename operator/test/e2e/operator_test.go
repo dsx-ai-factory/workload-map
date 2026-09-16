@@ -26,8 +26,6 @@ var (
 	statefulSetGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "StatefulSet"}
 )
 
-const validatingWebhookName = "karta-operator-validating"
-
 var _ = Describe("Karta operator on a live cluster", Serial, func() {
 	It("drives a valid Karta to Ready", func() {
 		k := createKarta(newKarta("e2e-ready", replicaSetGVK))
@@ -175,7 +173,10 @@ func createCRD(gvk schema.GroupVersionKind) *apiextensionsv1.CustomResourceDefin
 	GinkgoHelper()
 	plural := strings.ToLower(gvk.Kind) + "s"
 	crd := &apiextensionsv1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{Name: plural + "." + gvk.Group},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   plural + "." + gvk.Group,
+			Labels: map[string]string{ownerLabelKey: ownerLabelValue},
+		},
 		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
 			Group: gvk.Group,
 			Scope: apiextensionsv1.NamespaceScoped,

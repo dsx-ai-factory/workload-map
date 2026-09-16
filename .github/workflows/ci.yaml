@@ -59,6 +59,8 @@ jobs:
     name: Operator E2E (${{ matrix.webhook }})
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 30
     strategy:
       fail-fast: false

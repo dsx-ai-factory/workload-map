@@ -79,8 +79,6 @@ jobs:
             go.sum
             operator/go.sum
 
-      # global.env stays the single source of truth for the pins; the action cannot
-      # read it, so hand them over.
       - name: Read pinned tool versions
         run: |
           . ./hack/e2e/global.env
@@ -110,7 +108,8 @@ jobs:
         with:
           name: operator-e2e-artifacts-${{ matrix.webhook }}
           path: .artifacts/
-          if-no-files-found: ignore
+          include-hidden-files: true
+          if-no-files-found: warn
 
       - name: Tear down
         if: always()

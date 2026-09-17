@@ -4,12 +4,12 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,6 +17,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
@@ -104,27 +105,9 @@ func describeCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeD
 	return client
 }
 
-// runDescribeCmd executes "kli describe" with args, returning stdout, stderr
-// and the exit code the binary would produce.
 func runDescribeCmd(t *testing.T, args ...string) (string, string, int) {
 	t.Helper()
-
-	root := NewRootCommand()
-	var out, errOut bytes.Buffer
-	root.SetOut(&out)
-	root.SetErr(&errOut)
-	root.SetArgs(append([]string{"describe"}, args...))
-
-	code := 0
-	if err := root.Execute(); err != nil {
-		code = 1
-		var coded interface{ ExitCode() int }
-		if errors.As(err, &coded) {
-			code = coded.ExitCode()
-		}
-		errOut.WriteString("error: " + err.Error() + "\n")
-	}
-	return out.String(), errOut.String(), code
+	return runCmd(t, "describe", args...)
 }
 
 func TestDescribeRendersEverySection(t *testing.T) {
@@ -313,6 +296,57 @@ func TestDescribeShowsEveryPodByDefault(t *testing.T) {
 	}
 	if strings.Contains(out, "more (") {
 		t.Errorf("nothing should be truncated by default\n%s", out)
+	}
+}
+
+// Zero is what an unset int carries, so it means no limit rather than no rows.
+func TestDescribeZeroPodLimitShowsEveryPod(t *testing.T) {
+	describeCluster(t, jobSet("preprocess", 3),
+		etlPod("preprocess-etl-0", "ml-team/preprocess", "node-01", true),
+		etlPod("preprocess-etl-1", "ml-team/preprocess", "node-02", true))
+
+	out, errOut, code := runDescribeCmd(t, "jobset/preprocess", "--pod-limit", "0")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	for _, name := range []string{"preprocess-etl-0", "preprocess-etl-1"} {
+		if !strings.Contains(out, name) {
+			t.Errorf("output missing %q\n%s", name, out)
+		}
+	}
+	if strings.Contains(out, "more (") {
+		t.Errorf("a zero limit truncated the pods\n%s", out)
+	}
+}
+
+// A definition can cover a type whose CRD was never installed, which is a
+// different miss from a workload that is merely absent.
+func TestDescribeUninstalledTypeIsItsOwnFailure(t *testing.T) {
+	describeCluster(t)
+
+	_, errOut, code := runDescribeCmd(t, "deployment/web")
+	if code != ExitWorkloadNotFound {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitWorkloadNotFound, code, errOut)
+	}
+	if !strings.Contains(errOut, "is not installed in this cluster") {
+		t.Errorf("unexpected message: %s", errOut)
+	}
+}
+
+func TestDescribeForbiddenReadReportsTheDenial(t *testing.T) {
+	client := describeCluster(t, jobSet("preprocess", 3))
+	client.PrependReactor("get", "jobsets",
+		func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, apierrors.NewForbidden(
+				jobSetGVR.GroupResource(), "preprocess", errors.New("rbac denied"))
+		})
+
+	_, errOut, code := runDescribeCmd(t, "jobset/preprocess")
+	if code != ExitError {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitError, code, errOut)
+	}
+	if !strings.Contains(errOut, "not allowed to read JobSet") {
+		t.Errorf("unexpected message: %s", errOut)
 	}
 }
 

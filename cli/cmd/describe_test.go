@@ -30,14 +30,7 @@ var (
 // etlPod builds a pod of the JobSet fixture's "etl" replicated job, owned by
 // the JobSet whose uid is given, so the attributor can claim it.
 func etlPod(name, owner, node string, ready bool) *unstructured.Unstructured {
-	status := map[string]any{
-		"phase": "Running",
-		"conditions": []any{map[string]any{
-			"type": "Ready", "status": "True",
-		}},
-	}
 	spec := map[string]any{
-		"nodeName": node,
 		"containers": []any{map[string]any{
 			"name": "worker",
 			"resources": map[string]any{
@@ -45,14 +38,23 @@ func etlPod(name, owner, node string, ready bool) *unstructured.Unstructured {
 			},
 		}},
 	}
-	if !ready {
+
+	// An unready pod here is one the scheduler could not place, so it names no
+	// node and node is ignored.
+	status := map[string]any{
+		"phase": "Pending",
+		"conditions": []any{map[string]any{
+			"type": "PodScheduled", "status": "False", "reason": "Unschedulable",
+		}},
+	}
+	if ready {
+		spec["nodeName"] = node
 		status = map[string]any{
-			"phase": "Pending",
+			"phase": "Running",
 			"conditions": []any{map[string]any{
-				"type": "PodScheduled", "status": "False", "reason": "Unschedulable",
+				"type": "Ready", "status": "True",
 			}},
 		}
-		delete(spec, "nodeName")
 	}
 
 	return &unstructured.Unstructured{Object: map[string]any{

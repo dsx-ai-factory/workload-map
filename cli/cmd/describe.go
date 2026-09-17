@@ -146,12 +146,12 @@ func runDescribe(cmd *cobra.Command, opts *describeOptions, format generator.Out
 	if err != nil {
 		return fmt.Errorf("list pods: %w", err)
 	}
-	mine, err := workload.NewPodAttributor(dyn, mapper).Filter(ctx, pods, obj.GetUID())
+	owned, err := workload.NewPodAttributor(dyn, mapper).Filter(ctx, pods, obj.GetUID())
 	if err != nil {
 		return fmt.Errorf("attribute pods: %w", err)
 	}
 
-	view, err := workload.ResolveDescribe(ctx, obj, target, mine)
+	view, err := workload.ResolveDescribe(ctx, obj, target, owned)
 	if err != nil {
 		return fmt.Errorf("describe %s %q: %w", obj.GetKind(), obj.GetName(), err)
 	}
@@ -197,10 +197,8 @@ func getOne(
 		return nil, exitError{code: ExitWorkloadNotFound,
 			err: fmt.Errorf("%s %q not found%s", gvk.Kind, name, inNamespace(namespace))}
 	case apierrors.IsForbidden(err):
-		return nil, exitError{code: ExitError,
-			err: fmt.Errorf("not allowed to read %s: %w", gvk.Kind, err)}
+		return nil, fmt.Errorf("not allowed to read %s: %w", gvk.Kind, err)
 	default:
-		return nil, exitError{code: ExitError,
-			err: fmt.Errorf("get %s %q: %w", gvk.Kind, name, err)}
+		return nil, fmt.Errorf("get %s %q: %w", gvk.Kind, name, err)
 	}
 }

@@ -47,8 +47,8 @@ func KnativeServing() *v1alpha1.Karta {
 							PodTemplateSpecPath: ptr.To(".spec.template"),
 						},
 						ScaleDefinition: &v1alpha1.ScaleDefinition{
-							MinReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/min-scale"] // 1`),
-							MaxReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/max-scale"]`),
+							MinReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/min-scale"] // 1 | tonumber`),
+							MaxReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/max-scale"] | tonumber?`),
 						},
 					},
 				},

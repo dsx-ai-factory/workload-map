@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
 	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
@@ -435,6 +436,66 @@ var _ = Describe("Accessor", func() {
 
 				// Verify we got the expected replica counts from all services
 				Expect(replicaCounts).To(ConsistOf(int32(3), int32(5), int32(1))) // api=3, worker=5, cache=1
+			})
+		})
+
+		Context("scale values stored as annotation strings", func() {
+			knativeAccessor := func(annotations map[string]any) *Accessor {
+				object := &unstructured.Unstructured{Object: map[string]any{
+					"apiVersion": "serving.knative.dev/v1",
+					"kind":       "Service",
+					"metadata":   map[string]any{"name": "inference"},
+					"spec": map[string]any{
+						"template": map[string]any{
+							"metadata": map[string]any{"annotations": annotations},
+						},
+					},
+				}}
+				return NewAccessor(execution.NewDefaultRunner(object))
+			}
+
+			definition := v1alpha1.ComponentDefinition{
+				Name: "revision",
+				ScaleDefinition: &v1alpha1.ScaleDefinition{
+					MinReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/min-scale"] // 1`),
+					MaxReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/max-scale"]`),
+				},
+			}
+
+			It("should parse numeric string annotations", func() {
+				accessor := knativeAccessor(map[string]any{
+					"autoscaling.knative.dev/min-scale": "2",
+					"autoscaling.knative.dev/max-scale": "3",
+				})
+
+				result, err := accessor.ExtractScale(ctx, definition)
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result).To(HaveLen(1))
+				Expect(*result[0].MinReplicas).To(Equal(int32(2)))
+				Expect(*result[0].MaxReplicas).To(Equal(int32(3)))
+			})
+
+			It("should apply the jq fallback when the annotation is missing", func() {
+				accessor := knativeAccessor(map[string]any{})
+
+				result, err := accessor.ExtractScale(ctx, definition)
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result).To(HaveLen(1))
+				Expect(*result[0].MinReplicas).To(Equal(int32(1)))
+				Expect(result[0].MaxReplicas).To(BeNil())
+			})
+
+			It("should return a clear error for a non-numeric string", func() {
+				accessor := knativeAccessor(map[string]any{
+					"autoscaling.knative.dev/min-scale": "abc",
+				})
+
+				_, err := accessor.ExtractScale(ctx, definition)
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(`replicas value "abc"`))
 			})
 		})
 

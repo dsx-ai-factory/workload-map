@@ -307,7 +307,7 @@ var _ = Describe("a definition that names no workload type", func() {
 	It("never leaks the table placeholder into a machine format", func() {
 		var stdout bytes.Buffer
 		kartas := []*v1alpha1.Karta{rootless("broken-karta")}
-		Expect(generator.Render(&stdout, generator.OutputJSON, kartas, unusedTable)).To(Succeed())
+		Expect(generator.Render(&stdout, generator.OutputJSON, kartas, false, unusedTable)).To(Succeed())
 
 		// "<none>" is a column affordance, never part of the data.
 		Expect(stdout.String()).NotTo(ContainSubstring("<none>"))
@@ -368,7 +368,7 @@ var _ = Describe("rendering an empty definition list", func() {
 
 	It("emits an empty json envelope with no note", func() {
 		var stdout bytes.Buffer
-		Expect(generator.Render[*v1alpha1.Karta](&stdout, generator.OutputJSON, nil, unusedTable)).To(Succeed())
+		Expect(generator.Render[*v1alpha1.Karta](&stdout, generator.OutputJSON, nil, false, unusedTable)).To(Succeed())
 		Expect(decodeKartas(stdout.String())).To(BeEmpty())
 	})
 })
@@ -388,24 +388,41 @@ var _ = Describe("kli definitions NAME", func() {
 		Expect(tableNames(stdout)).To(Equal([]string{pytorchDefinition}))
 	})
 
-	It("emits that definition itself as a json array of one", func() {
-		stdout, _, err := runDefinitions(noClusterGetter(), []string{pytorchDefinition, "-o", "json"})
+	DescribeTable("emits that definition on its own, with no envelope around it",
+		func(format string) {
+			stdout, _, err := runDefinitions(noClusterGetter(),
+				[]string{pytorchDefinition, "-o", format})
+			Expect(err).NotTo(HaveOccurred())
+
+			karta := decodeKarta(stdout)
+			Expect(karta.Name).To(Equal(pytorchDefinition))
+			Expect(karta.Kind).To(Equal("Karta"))
+			Expect(karta.APIVersion).To(Equal(v1alpha1.GroupVersion.String()))
+			Expect(stdout).NotTo(ContainSubstring("items"))
+		},
+		Entry("json", "json"),
+		Entry("yaml", "yaml"),
+	)
+
+	It("emits the same definition in json and yaml", func() {
+		jsonOut, _, err := runDefinitions(noClusterGetter(),
+			[]string{pytorchDefinition, "-o", "json"})
+		Expect(err).NotTo(HaveOccurred())
+		yamlOut, _, err := runDefinitions(noClusterGetter(),
+			[]string{pytorchDefinition, "-o", "yaml"})
 		Expect(err).NotTo(HaveOccurred())
 
-		kartas := decodeKartas(stdout)
-		Expect(kartas).To(HaveLen(1))
-		Expect(kartas[0].Name).To(Equal(pytorchDefinition))
-		Expect(kartas[0].Kind).To(Equal("Karta"))
+		Expect(decodeKarta(yamlOut)).To(Equal(decodeKarta(jsonOut)))
 	})
 
-	It("emits that definition itself in the yaml envelope", func() {
-		stdout, _, err := runDefinitions(noClusterGetter(), []string{pytorchDefinition, "-o", "yaml"})
+	It("emits a definition that validate accepts as it stands", func() {
+		stdout, _, err := runDefinitions(noClusterGetter(),
+			[]string{pytorchDefinition, "-o", "yaml"})
 		Expect(err).NotTo(HaveOccurred())
 
-		kartas := decodeKartas(stdout)
-		Expect(kartas).To(HaveLen(1))
-		Expect(kartas[0].Name).To(Equal(pytorchDefinition))
-		Expect(kartas[0].Kind).To(Equal("Karta"))
+		var karta v1alpha1.Karta
+		Expect(yaml.Unmarshal([]byte(stdout), &karta)).To(Succeed())
+		Expect(v1alpha1.NewKartaValidator(&karta).Validate()).To(Succeed())
 	})
 
 	It("prefers the cluster definition when a name exists in both sources", func() {
@@ -597,4 +614,13 @@ func decodeKartas(out string) []v1alpha1.Karta {
 	Expect(yaml.Unmarshal([]byte(out), &envelope)).To(Succeed())
 	Expect(envelope.Count).To(Equal(len(envelope.Items)))
 	return envelope.Items
+}
+
+// decodeKarta reads the definition the machine formats emit on their own for a
+// request that named one. yaml decodes through json, so one decoder serves both.
+func decodeKarta(out string) v1alpha1.Karta {
+	GinkgoHelper()
+	var karta v1alpha1.Karta
+	Expect(yaml.Unmarshal([]byte(out), &karta)).To(Succeed())
+	return karta
 }

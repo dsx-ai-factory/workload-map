@@ -38,7 +38,9 @@ catalog definitions.
 
 Give a NAME to address one definition, or use --group, and optionally --kind and
 --version, to narrow the list to one workload type. The table is the human view; json
-and yaml carry the definitions themselves, under an items key.`
+and yaml carry the definitions themselves, under an items key. A NAME addresses one
+definition, so json and yaml emit it on its own instead, and the output applies and
+validates as it stands.`
 
 	definitionsExample = `  # Everything the CLI understands (catalog + cluster)
   kli definitions
@@ -50,7 +52,10 @@ and yaml carry the definitions themselves, under an items key.`
   kli definitions --group jobset.x-k8s.io --kind JobSet
 
   # Dump them as YAML
-  kli definitions -o yaml`
+  kli definitions -o yaml
+
+  # One definition, straight into validate or kubectl
+  kli definitions kubeflow-org-pytorchjob-v1 -o yaml | kli validate -`
 )
 
 const (
@@ -125,9 +130,10 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 			for _, def := range matches {
 				kartas = append(kartas, def.Karta)
 			}
-			return generator.Render(cmd.OutOrStdout(), output.Get(), kartas, func(out io.Writer) error {
+			table := func(out io.Writer) error {
 				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches))
-			})
+			}
+			return generator.Render(cmd.OutOrStdout(), output.Get(), kartas, len(args) == 1, table)
 		},
 	}
 

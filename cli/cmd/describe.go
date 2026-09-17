@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -53,6 +54,10 @@ role it plays rather than under the object that happens to own it.`
   kli describe pytorchjob/llama-finetune -o json`
 )
 
+// errNameRequired names both accepted forms, so a reader sees the one they did
+// not use rather than only the one they did.
+var errNameRequired = errors.New("a NAME is required: give it as TYPE/NAME or as TYPE NAME")
+
 // describeOptions holds one run's inputs. Embedding getOptions is what makes
 // describe accept the same TYPE/NAME forms as get.
 type describeOptions struct {
@@ -77,8 +82,7 @@ func newDescribeCommand() *cobra.Command {
 					return err
 				}
 				if opts.name == "" {
-					return fmt.Errorf(
-						"a NAME is required: give it as %s or as %s", "TYPE/NAME", "TYPE NAME")
+					return errNameRequired
 				}
 				return nil
 			},

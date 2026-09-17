@@ -253,11 +253,10 @@ func resourceRows(components []workload.ComponentView) []resourceRow {
 	return rows
 }
 
-// isGrouping reports a component that only repeats its children: it requests
-// nothing of its own and its replicas are their sum. A component that declares
-// no resources is not grouping, so its replicas still reach the breakdown.
+// isGrouping reports a component that only repeats its children: it runs no pods
+// of its own, requests nothing beyond theirs, and its replicas are their sum.
 func isGrouping(component workload.ComponentView) bool {
-	if len(component.Children) == 0 {
+	if len(component.Children) == 0 || len(component.Pods) > 0 {
 		return false
 	}
 	var replicas int32

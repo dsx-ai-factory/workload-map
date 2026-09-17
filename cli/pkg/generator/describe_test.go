@@ -291,6 +291,20 @@ var _ = Describe("RenderWorkload", func() {
 			Expect(resources).To(ContainSubstring("TOTAL       5          3"))
 		})
 
+		// Matching replica counts do not make a pod-bearing component grouping:
+		// its pods are work no child row accounts for.
+		It("keeps a pod-bearing component whose replicas match its children's", func() {
+			view := nestedView()
+			view.Components[0].Resources = workload.Resources{GPUs: 3}
+			view.Components[0].Children[0].Replicas = workload.Replicas{Desired: 2, Current: 2, Ready: 2}
+			view.Resources = workload.Resources{GPUs: 3}
+
+			_, resources, found := strings.Cut(renderWorkload(view, DescribeOptions{}), "Resources:\n")
+			Expect(found).To(BeTrue())
+			Expect(resources).To(ContainSubstring("mid         2          0"))
+			Expect(resources).To(ContainSubstring("TOTAL       4          3"))
+		})
+
 		// A grouping component repeats the rows below it, so a row of its own
 		// would double the workload in the reader's head.
 		It("leaves a grouping component out of the breakdown", func() {

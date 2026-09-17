@@ -381,6 +381,19 @@ image-lock-verify: ## Fail if the chart renders a container image the lock gener
 image-lock-test: ## Run the image-lock generator unit tests
 	cd hack/imagelock && go test ./...
 
+##@ Commit attribution
+
+COMMIT_BASE ?= origin/main
+COMMIT_HEAD ?= HEAD
+
+.PHONY: commit-attribution-check
+commit-attribution-check: ## Check commit attribution (COMMIT_BASE=origin/main COMMIT_HEAD=HEAD)
+	bash hack/commit-attribution/check-commit-attribution.sh "$(COMMIT_BASE)" "$(COMMIT_HEAD)"
+
+.PHONY: commit-attribution-validate
+commit-attribution-validate: ## Validate the commit attribution checker
+	bash hack/commit-attribution/check-commit-attribution_validate.sh
+
 ##@ E2E
 
 # Cluster name for the e2e targets. Override to run isolated clusters in parallel,
@@ -473,8 +486,8 @@ E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh \
 	$(wildcard hack/e2e/operators/*/verify.sh)
 
 .PHONY: lint-shell
-lint-shell: ## shellcheck the e2e shell scripts (-x follows sourced files)
-	shellcheck -x $(E2E_SHELL)
+lint-shell: ## shellcheck the e2e and commit attribution scripts (-x follows sourced files)
+	shellcheck -x $(E2E_SHELL) hack/commit-attribution/*.sh
 
 ##@ Tools
 

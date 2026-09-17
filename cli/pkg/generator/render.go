@@ -30,7 +30,10 @@ func newList[T any](items []T) list[T] {
 }
 
 // Render writes items in the machine formats and hands the human ones to table.
-func Render[T any](out io.Writer, format Output, items []T, table func(io.Writer) error) error {
+func Render[T any](out io.Writer, format Output, items []T, byName bool, table func(io.Writer) error) error {
+	if byName && len(items) == 1 {
+		return RenderOne(out, format, items[0], table)
+	}
 	return render(out, format, newList(items), table)
 }
 

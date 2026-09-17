@@ -18,7 +18,7 @@ pre-1.0, only the most recent release receives security updates.
 **Please do not report security vulnerabilities through public GitHub issues.**
 
 Instead, please report them via
-[GitHub Security Advisories](https://github.com/run-ai/karta/security/advisories/new).
+[GitHub Security Advisories](https://github.com/dsx-ai-factory/workload-map/security/advisories/new).
 
 Please include a description of the vulnerability, steps to reproduce, affected versions,
 and any potential impact.

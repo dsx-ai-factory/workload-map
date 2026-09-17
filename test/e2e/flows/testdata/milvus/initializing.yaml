@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A Milvus pointed at external etcd and storage endpoints that do not exist, with a
+# nonexistent image. The operator creates no in-cluster dependencies (no etcd/minio helm
+# releases, so nothing to leak) and holds .status.status=Pending because the standalone pod
+# never becomes ready. The definition reads Pending as Initializing. Karta must read it as
+# Initializing, not Running.
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: karta-e2e-milvus-initializing
+  namespace: default
+spec:
+  mode: standalone
+  dependencies:
+    etcd:
+      external: true
+      endpoints: ["nonexistent-etcd:2379"]
+    msgStreamType: rocksmq
+    storage:
+      external: true
+      endpoint: "nonexistent-minio:9000"
+  components:
+    image: milvusdb/milvus:v0.0.0-nonexistent
+    standalone:
+      replicas: 1

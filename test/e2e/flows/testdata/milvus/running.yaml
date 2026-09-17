@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A real standalone Milvus driven by the milvus-operator (installed by
+# hack/e2e/up.sh). The operator brings up the in-cluster dependencies (a
+# single-replica etcd and a standalone MinIO) and the Milvus standalone pod, then
+# sets EtcdReady, StorageReady, MsgStreamReady, and MilvusReady; the test waits
+# for MilvusReady. Kept lightweight (standalone, embedded rocksmq) for local kind.
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: karta-e2e-milvus
+  namespace: default
+spec:
+  mode: standalone
+  dependencies:
+    etcd:
+      inCluster:
+        values:
+          replicaCount: 1
+    storage:
+      inCluster:
+        values:
+          mode: standalone
+          resources:
+            requests:
+              memory: 256Mi
+  components:
+    standalone:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 250m
+          memory: 1Gi

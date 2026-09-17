@@ -215,6 +215,7 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) error
 
 	return generator.RenderWorkloads(cmd.OutOrStdout(), cmd.ErrOrStderr(), views, generator.Options{
 		Output:    format,
+		ByName:    opts.name != "",
 		Namespace: searched,
 		// An empty namespace means the type is cluster-scoped, so the search
 		// spanned the cluster.

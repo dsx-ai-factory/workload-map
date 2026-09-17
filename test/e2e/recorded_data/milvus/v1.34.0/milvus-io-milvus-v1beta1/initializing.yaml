@@ -1,0 +1,236 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: milvus.io/v1beta1
+    kind: Milvus
+    metadata:
+      creationTimestamp: "2026-09-14T07:52:44Z"
+      finalizers:
+      - milvus.milvus.io/finalizer
+      generation: 2
+      name: karta-e2e-milvus-initializing
+      namespace: test-cb2tw
+      uid: 00fdd494-52ff-4bc1-bb50-dc419ed5404e
+    spec:
+      components:
+        disableMetric: false
+        image: milvusdb/milvus:v0.0.0-nonexistent
+        imageUpdateMode: rollingUpgrade
+        metricInterval: ""
+        paused: false
+        probes: null
+        securityContext: null
+        standalone:
+          paused: false
+          probes: null
+          replicas: 1
+          securityContext: null
+          serviceType: ClusterIP
+        targetPortType: string
+      dependencies:
+        customMsgStream: null
+        etcd:
+          endpoints:
+          - nonexistent-etcd:2379
+          external: true
+        kafka:
+          external: false
+        msgStreamType: rocksmq
+        natsmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        pulsar:
+          endpoint: ""
+          external: false
+        rocksmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        storage:
+          endpoint: nonexistent-minio:9000
+          external: true
+          secretRef: ""
+          type: MinIO
+        tei:
+          enabled: false
+        woodpecker:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+      hookConfig: null
+      mode: standalone
+  phases:
+  - Undefined
+  resourceVersion: "1320999"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: milvus.io/v1beta1
+    kind: Milvus
+    metadata:
+      annotations:
+        milvus.io/dependency-values-merged: "true"
+        milvus.io/pod-service-label-added: "true"
+      creationTimestamp: "2026-09-14T07:52:44Z"
+      finalizers:
+      - milvus.milvus.io/finalizer
+      generation: 3
+      labels:
+        milvus.io/operator-version: 1.3.7
+      name: karta-e2e-milvus-initializing
+      namespace: test-cb2tw
+      uid: 00fdd494-52ff-4bc1-bb50-dc419ed5404e
+    spec:
+      components:
+        disableMetric: false
+        enableRollingUpdate: false
+        image: milvusdb/milvus:v0.0.0-nonexistent
+        imageUpdateMode: rollingUpgrade
+        metricInterval: ""
+        paused: false
+        probes: null
+        rollingMode: 2
+        securityContext: null
+        standalone:
+          paused: false
+          probes: null
+          replicas: 1
+          securityContext: null
+          serviceType: ClusterIP
+        targetPortType: string
+        updateConfigMapOnly: true
+      config: {}
+      dependencies:
+        customMsgStream: null
+        etcd:
+          endpoints:
+          - nonexistent-etcd:2379
+          external: true
+        kafka:
+          external: false
+        msgStreamType: rocksmq
+        natsmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        pulsar:
+          endpoint: ""
+          external: false
+        rocksmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        storage:
+          endpoint: nonexistent-minio:9000
+          external: true
+          secretRef: ""
+          type: MinIO
+        tei:
+          enabled: false
+        woodpecker:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+      hookConfig: null
+      mode: standalone
+  phases:
+  - Undefined
+  resourceVersion: "1321000"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: milvus.io/v1beta1
+    kind: Milvus
+    metadata:
+      annotations:
+        milvus.io/dependency-values-merged: "true"
+        milvus.io/pod-service-label-added: "true"
+      creationTimestamp: "2026-09-14T07:52:44Z"
+      finalizers:
+      - milvus.milvus.io/finalizer
+      generation: 3
+      labels:
+        milvus.io/operator-version: 1.3.7
+      name: karta-e2e-milvus-initializing
+      namespace: test-cb2tw
+      uid: 00fdd494-52ff-4bc1-bb50-dc419ed5404e
+    spec:
+      components:
+        disableMetric: false
+        enableRollingUpdate: false
+        image: milvusdb/milvus:v0.0.0-nonexistent
+        imageUpdateMode: rollingUpgrade
+        metricInterval: ""
+        paused: false
+        probes: null
+        rollingMode: 2
+        securityContext: null
+        standalone:
+          paused: false
+          probes: null
+          replicas: 1
+          securityContext: null
+          serviceType: ClusterIP
+        targetPortType: string
+        updateConfigMapOnly: true
+      config: {}
+      dependencies:
+        customMsgStream: null
+        etcd:
+          endpoints:
+          - nonexistent-etcd:2379
+          external: true
+        kafka:
+          external: false
+        msgStreamType: rocksmq
+        natsmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        pulsar:
+          endpoint: ""
+          external: false
+        rocksmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        storage:
+          endpoint: nonexistent-minio:9000
+          external: true
+          secretRef: ""
+          type: MinIO
+        tei:
+          enabled: false
+        woodpecker:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+      hookConfig: null
+      mode: standalone
+    status:
+      currentImage: milvusdb/milvus:v0.0.0-nonexistent
+      ingress:
+        loadBalancer: {}
+      rollingModeVersion: 2
+      status: Pending
+  phases:
+  - Initializing
+  resourceVersion: "1321001"
+  state: Initializing
+flow: initializing
+kartaFile: docs/catalog/milvus-io-milvus-v1beta1.yaml
+kartaName: milvus-io-milvus-v1beta1
+operator: milvus
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Initializing
+version: v1.34.0
+want: Initializing

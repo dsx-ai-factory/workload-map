@@ -338,25 +338,35 @@ func TestGetServiceResolvesToKnative(t *testing.T) {
 	}
 }
 
-func TestGetJSONIsTypedAndAlwaysAnArray(t *testing.T) {
+func TestGetJSONIsTypedAndShapedByTheRequest(t *testing.T) {
 	fakeCluster(t, jobSet("preprocess", 3))
 
-	out, _, code := runGetCmd(t, "jobset/preprocess", "-o", "json")
+	named, _, code := runGetCmd(t, "jobset/preprocess", "-o", "json")
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d", code)
 	}
-	// Unlike kubectl, a single named workload is still wrapped, so consumers
-	// never branch on shape.
-	items, count := decodeEnvelope(t, out)
-	if len(items) != 1 || count != 1 {
-		t.Errorf("expected one wrapped item, got %q", out)
+	if strings.Contains(named, `"items"`) {
+		t.Errorf("expected a bare object for a named workload\n%s", named)
+	}
+	var view map[string]any
+	if err := json.Unmarshal([]byte(named), &view); err != nil {
+		t.Fatalf("decode %q: %v", named, err)
+	}
+	if view["name"] != "preprocess" {
+		t.Errorf("expected the workload name\n%s", named)
 	}
 	// Typed values, not display strings: phases is a list, not a joined cell.
-	if !strings.Contains(out, `"phases": [`) {
-		t.Errorf("expected phases as a list\n%s", out)
+	if !strings.Contains(named, `"phases": [`) {
+		t.Errorf("expected phases as a list\n%s", named)
 	}
-	if !strings.Contains(out, `"name": "preprocess"`) {
-		t.Errorf("expected the workload name\n%s", out)
+
+	listed, _, code := runGetCmd(t, "jobset", "-o", "json")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
+	}
+	items, count := decodeEnvelope(t, listed)
+	if len(items) != 1 || count != 1 {
+		t.Errorf("expected one wrapped item, got %q", listed)
 	}
 }
 

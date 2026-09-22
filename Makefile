@@ -16,6 +16,12 @@ KARTA_CRDS_DIR := $(KARTA_CHART_DIR)/crds
 
 HELM_CHART_VERSION ?= 0.0.1
 
+# Every Go module in the repo. An untidy manifest in a module that ships no
+# binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
+GO_MODULES := . cli operator hack/imagelock \
+	docs/examples/quickstart docs/examples/controller-runtime \
+	hack/e2e/operators/nim/image
+
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 GO_LICENCE_DETECTOR ?= $(LOCALBIN)/go-licence-detector
@@ -59,8 +65,15 @@ vet-go:
 lint: fmt-go vet-go lint-go 
 .PHONY: lint
 
+.PHONY: tidy
+tidy: ## Run go mod tidy in every module (rewrites go.mod and go.sum)
+	@set -e; \
+	for module in $(GO_MODULES); do \
+		(cd $$module && go mod tidy); \
+	done
+
 .PHONY: validate
-validate: generate manifests generate-mocks generate-licenses
+validate: tidy generate manifests generate-mocks generate-licenses
 	@git diff --exit-code 
 
 .PHONY: install-crd
@@ -99,7 +112,7 @@ $(GO_LICENCE_DETECTOR): $(LOCALBIN)
 	}
 
 .PHONY: generate-licenses
-generate-licenses: go-licence-detector download-dependencies ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies.
+generate-licenses: tidy go-licence-detector download-dependencies ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies.
 	@set -eu; \
 	echo "Generating NOTICE and THIRD_PARTY_LICENSES files from current dependencies using go-licence-detector"; \
 	go mod download -json > $(LOCALBIN)/deps.json; \

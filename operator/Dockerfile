@@ -8,7 +8,7 @@
 #   docker build \
 #     --build-arg GO_VERSION=$(awk '/^go /{print $2}' operator/go.mod) \
 #     -f operator/Dockerfile -t karta-operator:latest .
-ARG GO_VERSION=1.26.3
+ARG GO_VERSION=1.26.8
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
 
 ARG TARGETOS

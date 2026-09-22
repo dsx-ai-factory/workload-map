@@ -1,6 +1,6 @@
 {
   "skill_name": "add-workload-type",
-  "notes": "Expectations are chosen to separate a skill-guided run from an unaided one. Each expectation records the pass counts measured over 3 runs per configuration in the 2026-08-18 benchmark, as with_skill/without_skill. Expectations marked floor are correctness minimums that both configurations already satisfy where measured; they are kept to catch regressions, not to show a delta. Expectations with a null measured value come from evals that have not been run, so neither their floor nor their discriminating status is established. The skill was refreshed on 2026-09-22 for the branch between a standalone definition and a built-in contribution, the recorded fixtures under test/e2e/recorded_data/, and state-coverage discipline in status mapping. Every measured value below predates that refresh and describes the 2026-08-18 skill; treat them as the baseline to beat, not as current results. A second pass on 2026-09-22 made the skill standalone: it no longer assumes the working directory is the Karta repository, and leads with the `karta` CLI for validation. The harness assertions below were reworded accordingly, so they now credit `karta validate` and accept `hack/karta-verify` only where a clone is present.",
+  "notes": "Expectations are chosen to separate a skill-guided run from an unaided one. Each expectation records the pass counts measured over 3 runs per configuration in the 2026-08-18 benchmark, as with_skill/without_skill. Expectations marked floor are correctness minimums that both configurations already satisfy where measured; they are kept to catch regressions, not to show a delta. Expectations with a null measured value come from evals that have not been run, so neither their floor nor their discriminating status is established. The skill was refreshed on 2026-09-22 for the branch between a standalone definition and a built-in contribution, the recorded fixtures under test/e2e/recorded_data/, and state-coverage discipline in status mapping. Every measured value below predates that refresh and describes the 2026-08-18 skill; treat them as the baseline to beat, not as current results. A second pass on 2026-09-22 made the skill standalone: it no longer assumes the working directory is the Karta repository, and leads with the `karta` CLI for validation. The harness assertions below were reworded accordingly, so they now credit `karta validate` and accept `hack/karta-verify` only where a clone is present. Reviewer feedback on PR #381 flagged that these two verification expectations assumed a clone, which contradicts the skill's tier model after the standalone refresh. They are now conditioned on step 7 being possible, with explicit disclosure required otherwise. Every run recorded in BENCHMARK.md was tier 2 (clone present), so no recorded score changes.",
   "evals": [
     {
       "id": 1,
@@ -19,7 +19,7 @@
           "kind": "discriminating"
         },
         {
-          "text": "Expected status, replica counts and container names are written to a predictions file before the definition is run, and the run uses --strict. Each distinct workflow state available is exercised as its own run rather than one running CR standing in for all of them",
+          "text": "Where a clone makes step 7 possible, expected status, replica counts and container names are written to a predictions file before the definition is run, the run uses --strict, and each distinct state available is exercised as its own run rather than one running CR standing in for all of them. Where it is not possible, the run says plainly that the definition was never exercised instead of implying it was",
           "measured": "3/3 vs 0/3",
           "kind": "discriminating"
         },
@@ -113,7 +113,7 @@
           "kind": "discriminating"
         },
         {
-          "text": "Expected values are written to a predictions file before the run, and the definition is exercised with go run ./hack/karta-verify --karta <file> --workload <cr> --predict <file> --strict",
+          "text": "Where a clone makes step 7 possible, expected values are written to a predictions file before the run and the definition is exercised against real CRs with --strict, using the project's own harness rather than a bespoke program. Where it is not possible, the run says plainly that the definition was never exercised",
           "measured": null,
           "kind": "discriminating"
         },

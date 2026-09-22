@@ -160,8 +160,10 @@ Matcher semantics (`StatusMatcher`):
   `reason` requires `conditionsDefinition.reasonFieldName` to be declared: the
   accessor populates a condition's reason only when that field name is set, so
   without it the comparison runs against nil and the matcher can never fire. The
-  validator does not catch this; the status just resolves to `Undefined`. Same
-  for `message` and `messageFieldName`.
+  validator does not catch this; the status just resolves to `Undefined`.
+  `messageFieldName` is not a second case of this: an `ExpectedCondition` carries
+  only `type`, `status` and `reason`, so a message can be extracted but never
+  matched on.
 - `byPhase`: matches a single phase string from `phaseDefinition.path`.
 - `byExpression`: a jq `expression` plus an `expectedResult` string. Use it when
   the state lives in status fields (for example replica counts) rather than

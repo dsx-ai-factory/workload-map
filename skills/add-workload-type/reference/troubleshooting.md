@@ -156,8 +156,8 @@ CR's own fields.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `Karta read [] , recorded state was "<state>"` | No matcher fired for that state. Almost always a state-coverage gap, not a broken path. | Find the state in the silent-mistakes list above. Extract that CR from the recording and iterate with `hack/karta-verify` until it resolves. |
+| `Karta read [], recorded state was "<state>"` | No matcher fired for that state. Almost always a state-coverage gap, not a broken path. | Find the state in the silent-mistakes list above. Extract that CR from the recording and iterate with `hack/karta-verify` until it resolves. |
 | `Karta read [<other>], recorded state was "<state>"` | Two statuses overlap and the wrong one matched first, or a rule is under-constrained. | Narrow the rule that should not have fired, usually by adding the field that distinguishes the two states, rather than by reordering. |
-| `Karta could not parse the "<state>" CR` | The definition does not load against a real object, for example an `instanceIdPath` producing a different count from its selector. | Run that CR through `hack/karta-verify --workload` for the fuller message. |
+| `Karta could not parse the "<state>" CR` | The definition does not load against a real object, for example an `instanceIdPath` producing a different count from its selector. | Run that CR through `hack/karta-verify --karta <definition> --workload <recorded-cr>` for the fuller message. |
 | `no recordings under test/e2e/recorded_data` | The type was never recorded. | `make record-e2e WORKLOADS="<name>"` against a cluster with the operator installed. |
 | A recording exists but references a missing catalog file | The recording's `kartaFile` names a `docs/catalog/` file that was renamed or never generated. | Run `make generate-samples` and confirm the slug matches; see `builtin-contribution.md`. |

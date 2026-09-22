@@ -156,7 +156,10 @@ definition cannot replay.
 
 ## When the cluster is not available
 
-Steps 5 and 6 need a live operator, which the user may not have. Do not fake a
+Step 5 and the recording half of step 6 need a live operator, which the user may
+not have. `make test-replay` and `make verify-recordings` are offline and still
+run, so once any recording exists the regression gate applies with no cluster.
+Do not fake a
 recording by hand - the replay suite treats recordings as ground truth, and an
 invented one turns the regression gate into a rubber stamp.
 

@@ -335,9 +335,11 @@ correction to a shipped definition:
 One trap deserves naming here because it fails silently and the validator cannot
 see it: a matcher may only constrain `reason` if `conditionsDefinition` declares
 `reasonFieldName`. Without it the accessor never populates the field, the
-comparison never matches, and the status simply never resolves. The same holds
-for `messageFieldName`. This shipped in the LeaderWorkerSet definition and went
-unnoticed until the recorded fixtures were replayed.
+comparison never matches, and the status simply never resolves. This shipped in
+the LeaderWorkerSet definition and went unnoticed until the recorded fixtures
+were replayed. `messageFieldName` is a different thing and not a second version
+of this trap: a matcher can constrain only `type`, `status` and `reason`, so
+declaring it affects what gets extracted, never what matches.
 
 When adding a matcher, write down in a comment what the controller does that
 makes it fire. The matchers that later needed fixing were the ones nobody could
@@ -484,10 +486,24 @@ and the root has no key, so predicting a root row reports `extracted keys are
 
 Run it once per state, not once. A single `running` CR exercises one branch of
 the status mapping and says nothing about the other five, which is precisely
-where step 5's failures hide. Every CR the user supplied, and every flow file for
-the type under `recorded_data`, is a separate run. Each state that goes
-unexercised is a state the definition is only guessing at, and worth naming as
-such in the final answer.
+where step 5's failures hide.
+
+The unit is a state, not a file. `--workload` takes one extracted CR, while a
+recording holds a `kind: STATE` event per observed step, so one flow file is
+several runs. Loop the events, predicting each one's own `state`:
+
+```bash
+F=test/e2e/recorded_data/batch-job/v1.34.0/batch-job-v1/resumed.yaml
+n=$(yq '[.events[] | select(.kind == "STATE")] | length' "$F")
+for i in $(seq 0 $((n-1))); do
+  yq "[.events[] | select(.kind == \"STATE\")][$i].object" "$F" > /tmp/cr.yaml
+  yq "[.events[] | select(.kind == \"STATE\")][$i].state"  "$F"   # the prediction
+  # then run the harness against /tmp/cr.yaml with that status predicted
+done
+```
+
+Each state that goes unexercised is a state the definition is only guessing at,
+and worth naming as such in the final answer.
 
 Show the user the run output alongside the definition. Keep the predictions file
 and any scratch copies out of the repository. When something comes back empty or

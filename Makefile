@@ -58,8 +58,12 @@ vet-go:
 lint: fmt-go vet-go lint-go 
 .PHONY: lint
 
+.PHONY: tidy
+tidy: ## Run go mod tidy (rewrites go.mod and go.sum)
+	go mod tidy
+
 .PHONY: validate
-validate: generate manifests generate-mocks generate-licenses
+validate: tidy generate manifests generate-mocks generate-licenses
 	@git diff --exit-code 
 
 .PHONY: install-crd
@@ -98,7 +102,7 @@ $(GO_LICENCE_DETECTOR): $(LOCALBIN)
 	}
 
 .PHONY: generate-licenses
-generate-licenses: go-licence-detector download-dependencies ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies.
+generate-licenses: tidy go-licence-detector download-dependencies ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies.
 	@set -eu; \
 	echo "Generating NOTICE and THIRD_PARTY_LICENSES files from current dependencies using go-licence-detector"; \
 	go mod download -json | $(GO_LICENCE_DETECTOR) \

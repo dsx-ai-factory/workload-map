@@ -1,6 +1,6 @@
 module github.com/run-ai/karta
 
-go 1.26.3
+go 1.26.8
 
 require (
 	github.com/itchyny/gojq v0.12.18

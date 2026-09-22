@@ -5,6 +5,16 @@
 
 Model: claude-opus-5
 Date: 2026-08-18
+
+> These numbers describe the 2026-08-18 skill. The skill was refreshed on
+> 2026-09-22 and has not been re-measured since. The refresh added the step 0
+> branch between a standalone definition and a built-in contribution, pointed
+> step 7 at the recorded fixtures under `test/e2e/recorded_data/`, and rewrote
+> step 5 around state coverage. Two assertions in `evals/evals.json` were
+> reworded for the branch, so the pass rates below are not directly comparable
+> to a future run. A second pass the same day made the skill standalone (no
+> assumption of a Karta checkout, `karta validate` as the primary validator),
+> which reworded the harness assertions again. Read this as the baseline to beat.
 Evals: 1, 2, 3 from `evals/evals.json` (3 runs each per configuration, 18 runs total)
 
 Each eval prompt was run by an agent with the skill available and by a baseline

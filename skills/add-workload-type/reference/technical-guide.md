@@ -156,7 +156,12 @@ Normalized statuses (the `ResourceStatus` enum): `Initializing`, `Running`,
 Matcher semantics (`StatusMatcher`):
 
 - `byConditions`: a list of expected conditions, all of which must hold (AND).
-  Each entry sets `type` plus at least one of `status` or `reason`.
+  Each entry sets `type` plus at least one of `status` or `reason`. Constraining
+  `reason` requires `conditionsDefinition.reasonFieldName` to be declared: the
+  accessor populates a condition's reason only when that field name is set, so
+  without it the comparison runs against nil and the matcher can never fire. The
+  validator does not catch this; the status just resolves to `Undefined`. Same
+  for `message` and `messageFieldName`.
 - `byPhase`: matches a single phase string from `phaseDefinition.path`.
 - `byExpression`: a jq `expression` plus an `expectedResult` string. Use it when
   the state lives in status fields (for example replica counts) rather than
@@ -168,6 +173,16 @@ One matcher may combine kinds. A single `StatusMatcher` can set more than one of
 `byPhase`, `byConditions`, and `byExpression` at once, and then all of them must
 hold (AND). Use this when a status needs both a phase and an extra field check.
 This is distinct from listing separate rules under a status, which are OR'd.
+
+A condition's `status` is tri-state. `Unknown` is a deliberate signal and means
+something other than `False`: Knative reports an in-progress deploy as
+`Ready=Unknown` and a broken Service as `Ready=False`, which map to Initializing
+and Failed. Treat a missing `Unknown` rule as a gap, not a detail.
+
+Newer API versions add condition types beside the old ones rather than replacing
+them, so a definition that must work across cluster versions maps both. A
+`batch/v1` Job reports `SuccessCriteriaMet` and `FailureTarget` alongside
+`Complete` and `Failed`; each goes in its own OR'd rule under the same status.
 
 Not every controller has a phase or conditions. Some report only replica counts
 or other status fields (for example Grove PodCliqueSet has no aggregate phase).

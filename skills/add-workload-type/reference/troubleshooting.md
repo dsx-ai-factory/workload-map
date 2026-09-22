@@ -5,8 +5,14 @@
 
 Match the error text to a row and apply the fix. Messages come from the
 validator (`pkg/api/runai/v1alpha1/validation.go`), the jq validator
-(`pkg/jq/validation.go`), or the Go accessor API at runtime. The prose version
-is `docs/Troubleshooting.md`.
+(`pkg/jq/validation.go`), or the Go accessor API at runtime. The same validator
+backs `karta validate` and `hack/karta-verify`, so a message reads identically
+whichever you ran. The prose version is `docs/Troubleshooting.md` in the Karta
+repository.
+
+`karta validate` exits 1 for an invalid definition and 2 when the file will not
+parse as YAML at all. An exit 2 is a syntax problem in the file, so none of the
+rows below apply; fix the YAML first.
 
 ## Structure validation errors
 
@@ -92,6 +98,33 @@ These pass validation but behave incorrectly. Check them first when a definition
   over the real fields instead.
 - Mapping to `Undefined`. It is the implicit no-match result, not a target to
   map. Map only the statuses the workload reports.
+- A matcher constraining `reason` when `conditionsDefinition` declares no
+  `reasonFieldName`. The accessor only populates a condition's reason when that
+  field name is set, so the comparison is against nil and the matcher can never
+  fire. The status silently resolves to `Undefined` instead. The same holds for
+  `message`. Declare `reasonFieldName` alongside `typeFieldName` and
+  `statusFieldName`, or drop the reason constraint. This shipped in the
+  LeaderWorkerSet definition and survived until the recordings were replayed.
+- A status mapping that only describes the workload at rest. Validation and a
+  single `running` CR both pass, and the definition falls to `Undefined` the
+  first time the workload moves. The states that have actually broken shipped
+  definitions: first reconcile before any condition exists (Deployment needed a
+  `NewReplicaSetCreated` matcher), scale-down while extra pods drain
+  (StatefulSet needed `.status.replicas > .spec.replicas`), suspend while the
+  phase still reads `Running`, and `Unknown` on a tri-state condition (Knative's
+  `Ready=Unknown` is Initializing, `Ready=False` is Failed). Walk the workload's
+  life, and exercise each state separately in step 7.
+- A matcher that breaks on the controller's own churn. Controllers briefly zero a
+  counter mid-run, so a conjunction over two counters drops out for an instant.
+  JobSet's `any(.ready > 0 and .active > 0)` went `Undefined` whenever `ready`
+  dipped; `any(.active > 0 or .ready > 0)` holds across it. Prefer the matcher
+  that stays true through a transient, not the one that is most precise at a
+  single instant.
+- Condition types that exist only on some cluster versions. Newer API versions
+  add types beside the old ones rather than replacing them: a `batch/v1` Job
+  reports `SuccessCriteriaMet` and `FailureTarget` alongside `Complete` and
+  `Failed`. Map both as separate OR'd matchers so the definition works across the
+  versions it will meet.
 - A non-assignable jq path in a `fragmentedPodSpecDefinition`. These paths are
   used to mutate the pod spec, not only to read it, so each must be a path jq can
   assign through. A `//` fallback such as
@@ -100,3 +133,17 @@ These pass validation but behave incorrectly. Check them first when a definition
   (navigation, iteration, or `select(...)`); for override semantics, model the
   varying items as a multi-instance component with `instanceIdPath` and target
   one layer.
+
+## Replay failures (built-in contributions, clone required)
+
+`make test-replay` walks every recording under `test/e2e/recorded_data/` and
+asserts the Karta's matched statuses contain the state the recorder read from the
+CR's own fields.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `Karta read [] , recorded state was "<state>"` | No matcher fired for that state. Almost always a state-coverage gap, not a broken path. | Find the state in the silent-mistakes list above. Extract that CR from the recording and iterate with `hack/karta-verify` until it resolves. |
+| `Karta read [<other>], recorded state was "<state>"` | Two statuses overlap and the wrong one matched first, or a rule is under-constrained. | Narrow the rule that should not have fired, usually by adding the field that distinguishes the two states, rather than by reordering. |
+| `Karta could not parse the "<state>" CR` | The definition does not load against a real object, for example an `instanceIdPath` producing a different count from its selector. | Run that CR through `hack/karta-verify --workload` for the fuller message. |
+| `no recordings under test/e2e/recorded_data` | The type was never recorded. | `make record-e2e WORKLOADS="<name>"` against a cluster with the operator installed. |
+| A recording exists but references a missing catalog file | The recording's `kartaFile` names a `docs/catalog/` file that was renamed or never generated. | Run `make generate-samples` and confirm the slug matches; see `builtin-contribution.md`. |

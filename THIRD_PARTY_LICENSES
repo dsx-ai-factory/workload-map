@@ -123,7 +123,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### golang.org/x/mod
 - Name: golang.org/x/mod
-- Version: v0.36.0
+- Version: v0.37.0
 - License: BSD-3-Clause
 
 ### golang.org/x/net
@@ -133,7 +133,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### golang.org/x/sync
 - Name: golang.org/x/sync
-- Version: v0.21.0
+- Version: v0.22.0
 - License: BSD-3-Clause
 
 ### golang.org/x/sys
@@ -143,12 +143,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### golang.org/x/text
 - Name: golang.org/x/text
-- Version: v0.38.0
+- Version: v0.40.0
 - License: BSD-3-Clause
 
 ### golang.org/x/tools
 - Name: golang.org/x/tools
-- Version: v0.45.0
+- Version: v0.47.0
 - License: BSD-3-Clause
 
 ### google.golang.org/protobuf

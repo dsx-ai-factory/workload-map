@@ -25,7 +25,7 @@ const (
 	flagPodLimit = "pod-limit"
 
 	usagePodLimit = "Maximum pod rows per component; the default shows every pod. " +
-		"When set, unhealthy pods are shown first"
+		"When set, unhealthy pods are shown first. Table output only"
 
 	describeUse   = "describe TYPE[/NAME] [NAME]"
 	describeShort = "Show one workload in full"
@@ -58,6 +58,10 @@ role it plays rather than under the object that happens to own it.`
 // not use rather than only the one they did.
 var errNameRequired = errors.New("a NAME is required: give it as TYPE/NAME or as TYPE NAME")
 
+// errNoDefinitions separates "nothing loaded at all" from a type no definition
+// covers, which sends the reader somewhere else entirely.
+var errNoDefinitions = errors.New("no Karta definitions available (catalog empty and no cluster definitions)")
+
 // describeOptions holds one run's inputs. Embedding getOptions is what makes
 // describe accept the same TYPE/NAME forms as get.
 type describeOptions struct {
@@ -67,7 +71,7 @@ type describeOptions struct {
 
 // newDescribeCommand builds the "kli describe" command: one workload in full.
 func newDescribeCommand() *cobra.Command {
-	opts := &describeOptions{podLimit: generator.ShowAllPods}
+	opts := &describeOptions{}
 	var output *Enum[generator.Output]
 
 	cmd := &cobra.Command{
@@ -102,7 +106,9 @@ func newDescribeCommand() *cobra.Command {
 	// A single workload renders no extra columns, so wide is rejected at parse
 	// time rather than silently treated as the table.
 	output = withOutput(cmd, cmd.Flags(), false)
-	cmd.Flags().IntVar(&opts.podLimit, flagPodLimit, generator.ShowAllPods, usagePodLimit)
+	// Zero is the default rather than ShowAllPods: both mean no limit, and only
+	// zero keeps pflag from advertising a value the flag then rejects.
+	cmd.Flags().IntVar(&opts.podLimit, flagPodLimit, 0, usagePodLimit)
 
 	return cmd
 }
@@ -119,6 +125,9 @@ func runDescribe(cmd *cobra.Command, opts *describeOptions, format generator.Out
 	resolver, warnings := loadDefinitions(ctx, access)
 	if err := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err != nil {
 		return err
+	}
+	if len(resolver.List()) == 0 {
+		return exitError{code: ExitNotFound, err: errNoDefinitions}
 	}
 
 	mapper, err := access.ToRESTMapper()

@@ -90,8 +90,6 @@ func fakeCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeDynam
 	return client
 }
 
-// runGetCmd executes "karta get" with args, returning stdout, stderr and the
-// exit code the binary would produce.
 // runCmd executes one kli subcommand with args, returning stdout, stderr and
 // the exit code the binary would produce.
 func runCmd(t *testing.T, sub string, args ...string) (string, string, int) {

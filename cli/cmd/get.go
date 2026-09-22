@@ -179,8 +179,7 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) error
 		return err
 	}
 	if len(resolver.List()) == 0 {
-		return exitError{code: ExitNotFound, err: fmt.Errorf(
-			"no Karta definitions available (catalog empty and no cluster definitions)")}
+		return exitError{code: ExitNotFound, err: errNoDefinitions}
 	}
 
 	mapper, err := access.ToRESTMapper()

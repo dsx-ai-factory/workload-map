@@ -458,9 +458,29 @@ talked away.
    anything, and never edit the prediction just to make the run pass.
 
 The definition is done when the command exits 0 with `--strict`: the status
-resolved, every component declaring a spec pattern extracted a pod spec with
-containers, every `instanceIdPath` produced the instance keys the CR contains,
-and every predicted number matched.
+resolved, every child component declaring a spec pattern extracted a pod spec
+with containers, every `instanceIdPath` produced the instance keys the CR
+contains, and every predicted number matched.
+
+Child is the load-bearing word. `WorkloadTree` documents that it excludes the
+root component, and the harness walks `wt.Children`, so none of its component
+checks see the root: not the extraction, not the replica count, and not the
+"declares a specDefinition but extracted no pod spec" warning. Point a root
+`podTemplateSpecPath` at a field that does not exist and `--strict` still exits 0
+with the status resolved and nothing reported. For a single-component definition
+that is the entire pod-spec check silently doing nothing.
+
+So prove the root's own paths by hand. jq against the CR is enough and needs no
+build:
+
+```bash
+yq '.spec.template.spec.containers[].name' /tmp/cr.yaml   # whatever the root's spec path is
+yq '.spec.replicas' /tmp/cr.yaml                          # and its replicasPath
+```
+
+A predictions file cannot cover this either: predictions are keyed by component
+and the root has no key, so predicting a root row reports `extracted keys are
+<none>` rather than checking anything.
 
 Run it once per state, not once. A single `running` CR exercises one branch of
 the status mapping and says nothing about the other five, which is precisely

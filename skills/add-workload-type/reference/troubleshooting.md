@@ -98,6 +98,20 @@ These pass validation but behave incorrectly. Check them first when a definition
   over the real fields instead.
 - Mapping to `Undefined`. It is the implicit no-match result, not a target to
   map. Map only the statuses the workload reports.
+- A scale or spec path that can yield zero results. Every path must produce
+  exactly one value per instance. A `// empty` fallback produces none when the
+  field is absent, which fails the whole extraction with `instance ids count (1)
+  does not match results count (0)` rather than reporting a missing number. Emit
+  null instead, for example
+  `(.metadata.annotations["x"]) | if . == null then null else tonumber end`.
+- Trusting `--strict` to have checked a root component. `hack/karta-verify` walks
+  `WorkloadTree.Children`, which by documented design excludes the root, so every
+  component-level check it runs skips the root silently. A root
+  `podTemplateSpecPath` aimed at a nonexistent field passes `--strict` with exit 0
+  and no warning, and a predictions row for the root reports `extracted keys are
+  <none>` instead of failing. Single-component definitions get no pod-spec
+  verification at all from the harness. Check the root's paths with jq against the
+  CR directly.
 - A matcher constraining `reason` when `conditionsDefinition` declares no
   `reasonFieldName`. The accessor only populates a condition's reason when that
   field name is set, so the comparison is against nil and the matcher can never

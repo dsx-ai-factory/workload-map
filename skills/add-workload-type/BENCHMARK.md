@@ -169,3 +169,69 @@ figures above for both configurations.
 4. Confirm each asserted path resolves in the produced YAML, rather than reading
    it by eye.
 5. Aggregate the per-run results into this summary.
+
+## Run 2: 2026-09-22, refreshed skill vs the version it replaced
+
+Model: claude-opus-5
+Evals: 1-4 from `evals/evals.json`, one run per cell (8 runs total)
+Baseline: the skill at commit `889b50e`, i.e. the version this refresh replaced.
+Not "no skill", so this measures the refresh, not the skill.
+
+| Configuration | Pass rate | Discriminating | Time | Tokens |
+|---|---|---|---|---|
+| Refreshed | 100.0% (21/21) | 11/11 | 933s | 112,770 |
+| Previous | 84.5% (17/21) | 8/11 | 1651s | 117,075 |
+| Delta | +15.5 pts | +3 | -718s | -4,305 |
+
+Per eval:
+
+| Eval | Refreshed | Previous |
+|---|---|---|
+| 1 Argo Workflow | 7/7 | 5/7 |
+| 2 CronJob | 5/5 | 5/5 |
+| 3 quickstart guard | 3/3 | 3/3 |
+| 4 Volcano Job | 6/6 | 4/6 |
+
+### What actually moved
+
+The entire delta is one behaviour: the step 0 branch between a standalone
+definition and a built-in contribution. Both prompts describe a workload running
+on the user's own cluster, which is the standalone signal. Both previous-version
+runs instead produced Go source for `pkg/catalog/kartas/` plus a catalog
+registration - eval 4's went as far as a `git apply` patch touching
+`catalog.go`, the generated YAML and the README. That is a substantially larger
+change than either prompt asked for. The refreshed runs read the signal and
+stayed standalone; eval 4's offered the built-in path as a question instead.
+
+### What no longer discriminates, and why
+
+The suspend trap in eval 1 passed in both configurations. In the 2026-08-18 run
+it was 2/3 vs 0/3, but that compared skill against no skill; the previous
+version already carried the suspend guidance, so the assertion now measures a
+floor both clear rather than a difference.
+
+The step 7 root-component correction did not discriminate either. The eval 2
+previous-version run discovered the harness blind spot unaided: it hit the
+mismatch, traced it to `pkg/tree/tree.go`, reproduced it against a shipped
+catalog file as a control, and wrote its own probe. The correction documents a
+real defect, verified independently, but on this eval set it saves a detour
+rather than preventing a wrong answer.
+
+Eval 2 behaved exactly as its own `purpose` field predicts: no discrimination,
+because the answer ships in the repo and both configurations verify properly.
+Eval 3 is a guard and was flat by design; neither configuration consulted the
+skill for a read-only question.
+
+### Limits of this run
+
+One run per cell. The +/-18.0 spread quoted for the previous version is across
+evals, not across repeats, so nothing here separates skill effect from run-to-run
+variance. The 2026-08-18 run used three runs per cell; this one does not, and its
+timing and token figures should be read as anecdotes. The eval 4 assertion
+requiring a null-safe replica default is arguably mis-specified: the
+previous-version run omitted the default deliberately and preserved index
+alignment, which is defensible, and it was graded as a failure on the literal
+text.
+
+Assertion wording changed between runs, so these pass rates are not comparable
+with Run 1's.

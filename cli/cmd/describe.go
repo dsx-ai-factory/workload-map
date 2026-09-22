@@ -115,52 +115,29 @@ func newDescribeCommand() *cobra.Command {
 
 func runDescribe(cmd *cobra.Command, opts *describeOptions, format generator.Output) error {
 	ctx := cmd.Context()
-	access := clusterAccess()
 
-	namespace, _, err := ResolvedNamespace(access)
-	if err != nil {
-		return fmt.Errorf("resolve namespace: %w", err)
-	}
-
-	resolver, warnings := loadDefinitions(ctx, access)
-	if err := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err != nil {
-		return err
-	}
-	if len(resolver.List()) == 0 {
-		return exitError{code: ExitNotFound, err: errNoDefinitions}
-	}
-
-	mapper, err := access.ToRESTMapper()
-	if err != nil {
-		return fmt.Errorf("kubernetes discovery: %w", err)
-	}
-	dyn, err := newDynamicClient(access)
+	look, err := resolveLookup(cmd, &opts.getOptions)
 	if err != nil {
 		return err
 	}
 
-	target, err := resolveTarget(&opts.getOptions, resolver, mapper)
-	if err != nil {
-		return err
-	}
-
-	obj, err := getOne(ctx, dyn, mapper, target, namespace, opts.name)
+	obj, err := getOne(ctx, look.dyn, look.mapper, look.definition, look.namespace, opts.name)
 	if err != nil {
 		return err
 	}
 
 	// Pods are created beside the workload, so the list stays in its namespace.
 	// A cluster-scoped root has none, so there it is cluster-wide.
-	pods, err := workload.ListPods(ctx, dyn, obj.GetNamespace())
+	pods, err := workload.ListPods(ctx, look.dyn, obj.GetNamespace())
 	if err != nil {
 		return fmt.Errorf("list pods: %w", err)
 	}
-	owned, err := workload.NewPodAttributor(dyn, mapper).Filter(ctx, pods, obj.GetUID())
+	owned, err := workload.NewPodAttributor(look.dyn, look.mapper).Filter(ctx, pods, obj.GetUID())
 	if err != nil {
 		return fmt.Errorf("attribute pods: %w", err)
 	}
 
-	view, err := workload.ResolveDescribe(ctx, obj, target, owned)
+	view, err := workload.ResolveDescribe(ctx, obj, look.definition, owned)
 	if err != nil {
 		return fmt.Errorf("describe %s %q: %w", obj.GetKind(), obj.GetName(), err)
 	}

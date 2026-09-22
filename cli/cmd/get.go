@@ -167,36 +167,13 @@ func parseArgs(opts *getOptions, args []string) error {
 
 func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) error {
 	ctx := cmd.Context()
-	access := clusterAccess()
 
-	namespace, _, err := ResolvedNamespace(access)
-	if err != nil {
-		return fmt.Errorf("resolve namespace: %w", err)
-	}
-
-	resolver, warnings := loadDefinitions(ctx, access)
-	if err := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err != nil {
-		return err
-	}
-	if len(resolver.List()) == 0 {
-		return exitError{code: ExitNotFound, err: errNoDefinitions}
-	}
-
-	mapper, err := access.ToRESTMapper()
-	if err != nil {
-		return fmt.Errorf("kubernetes discovery: %w", err)
-	}
-	dyn, err := newDynamicClient(access)
+	look, err := resolveLookup(cmd, opts)
 	if err != nil {
 		return err
 	}
 
-	target, err := resolveTarget(opts, resolver, mapper)
-	if err != nil {
-		return err
-	}
-
-	views, searched, listWarnings, err := collect(ctx, dyn, mapper, target, namespace, opts)
+	views, searched, listWarnings, err := collect(ctx, look.dyn, look.mapper, look.definition, look.namespace, opts)
 	if writeErr := printWarnings(cmd.ErrOrStderr(), listWarnings); writeErr != nil {
 		return writeErr
 	}
@@ -220,6 +197,51 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) error
 		// spanned the cluster.
 		AllNamespaces: searched == "",
 	})
+}
+
+// lookup is everything get and describe settle before they read the cluster:
+// where to look, how to reach it, and which definition covers the type asked for.
+type lookup struct {
+	namespace  string
+	dyn        dynamic.Interface
+	mapper     meta.RESTMapper
+	definition definitions.Definition
+}
+
+// resolveLookup runs the prologue both commands share. Warnings are printed
+// before the empty-set check so a cluster whose definitions failed to load still
+// says why.
+func resolveLookup(cmd *cobra.Command, opts *getOptions) (lookup, error) {
+	access := clusterAccess()
+
+	namespace, _, err := ResolvedNamespace(access)
+	if err != nil {
+		return lookup{}, fmt.Errorf("resolve namespace: %w", err)
+	}
+
+	resolver, warnings := loadDefinitions(cmd.Context(), access)
+	if err := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err != nil {
+		return lookup{}, err
+	}
+	if len(resolver.List()) == 0 {
+		return lookup{}, exitError{code: ExitNotFound, err: errNoDefinitions}
+	}
+
+	mapper, err := access.ToRESTMapper()
+	if err != nil {
+		return lookup{}, fmt.Errorf("kubernetes discovery: %w", err)
+	}
+	dyn, err := newDynamicClient(access)
+	if err != nil {
+		return lookup{}, err
+	}
+
+	definition, err := resolveTarget(opts, resolver, mapper)
+	if err != nil {
+		return lookup{}, err
+	}
+
+	return lookup{namespace: namespace, dyn: dyn, mapper: mapper, definition: definition}, nil
 }
 
 // resolveTarget maps the requested type to the definition that covers it.

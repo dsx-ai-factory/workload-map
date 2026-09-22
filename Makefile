@@ -308,7 +308,7 @@ generate-samples: ## Regenerate docs/catalog/ from pkg/catalog
 	go run ./hack/gen-samples
 
 .PHONY: generate-licenses
-generate-licenses: go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies
+generate-licenses: tidy go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies
 	@set -eu; \
 	echo "Generating NOTICE and THIRD_PARTY_LICENSES files from current dependencies using go-licence-detector"; \
 	go mod download -json > $(LOCALBIN)/root-deps.json; \

@@ -173,65 +173,98 @@ figures above for both configurations.
 ## Run 2: 2026-09-22, refreshed skill vs the version it replaced
 
 Model: claude-opus-5
-Evals: 1-4 from `evals/evals.json`, one run per cell (8 runs total)
+Evals: 1-4 from `evals/evals.json`, three runs per cell (24 runs total)
 Baseline: the skill at commit `889b50e`, i.e. the version this refresh replaced.
-Not "no skill", so this measures the refresh, not the skill.
+Not "no skill", so this measures the refresh, not the skill. Both configurations
+got an identical checkout differing only in `skills/add-workload-type/`, and
+neither prompt named a skill or told the agent to use one.
 
 | Configuration | Pass rate | Discriminating | Time | Tokens |
 |---|---|---|---|---|
-| Refreshed | 100.0% (21/21) | 11/11 | 933s | 112,770 |
-| Previous | 84.5% (17/21) | 8/11 | 1651s | 117,075 |
-| Delta | +15.5 pts | +3 | -718s | -4,305 |
+| Refreshed | 100.0% +/- 0.0 | 33/33 (100%) | 680s | 106,270 |
+| Previous | 88.5% +/- 13.2 | 25/33 (76%) | 961s | 110,826 |
+| Delta | +11.5 pts | +24 pts | -281s | -4,556 |
 
-Per eval:
+Per eval, the three runs shown individually:
 
 | Eval | Refreshed | Previous |
 |---|---|---|
-| 1 Argo Workflow | 7/7 | 5/7 |
-| 2 CronJob | 5/5 | 5/5 |
-| 3 quickstart guard | 3/3 | 3/3 |
-| 4 Volcano Job | 6/6 | 4/6 |
+| 1 Argo Workflow | 7/7, 7/7, 7/7 | 5/7, 5/7, 6/7 |
+| 2 CronJob | 5/5, 5/5, 5/5 | 5/5, 5/5, 5/5 |
+| 3 quickstart guard | 3/3, 3/3, 3/3 | 3/3, 3/3, 3/3 |
+| 4 Volcano Job | 6/6, 6/6, 6/6 | 4/6, 5/6, 5/6 |
 
-### What actually moved
+The refreshed skill scored 21/21 in all three runs. Every point of the delta
+comes from the previous version, which varied.
 
-The entire delta is one behaviour: the step 0 branch between a standalone
-definition and a built-in contribution. Both prompts describe a workload running
-on the user's own cluster, which is the standalone signal. Both previous-version
-runs instead produced Go source for `pkg/catalog/kartas/` plus a catalog
-registration - eval 4's went as far as a `git apply` patch touching
-`catalog.go`, the generated YAML and the README. That is a substantially larger
-change than either prompt asked for. The refreshed runs read the signal and
-stayed standalone; eval 4's offered the built-in path as a question instead.
+### What the delta is
 
-### What no longer discriminates, and why
+One behaviour, reproducing 7/7 against 7/7: the step 0 branch between a
+standalone definition and a built-in contribution. Both authoring prompts
+describe a workload running on the user's own cluster, which is the standalone
+signal. Every previous-version run answered with Go source for
+`pkg/catalog/kartas/` plus a catalog registration; four of the six packaged it
+as a `git apply` patch also touching the generated YAML and the README. One
+hedged and shipped both a standalone YAML and a patch. Every refreshed run
+stayed standalone, and two raised the built-in path as a question instead.
 
-The suspend trap in eval 1 passed in both configurations. In the 2026-08-18 run
-it was 2/3 vs 0/3, but that compared skill against no skill; the previous
-version already carried the suspend guidance, so the assertion now measures a
-floor both clear rather than a difference.
+The sharpest evidence is a previous-version run that argued the Go file is the
+source of truth because the catalog YAML is generated, and then added, unasked,
+that the skill "covers only the YAML authoring and does not mention this -
+worth folding into the skill". That is the gap `reference/builtin-contribution.md`
+now fills, identified independently by a run that did not have it.
 
-The step 7 root-component correction did not discriminate either. The eval 2
-previous-version run discovered the harness blind spot unaided: it hit the
-mismatch, traced it to `pkg/tree/tree.go`, reproduced it against a shipped
-catalog file as a control, and wrote its own probe. The correction documents a
-real defect, verified independently, but on this eval set it saves a detour
-rather than preventing a wrong answer.
+### The suspend trap discriminates, but weakly
 
-Eval 2 behaved exactly as its own `purpose` field predicts: no discrimination,
-because the answer ships in the repo and both configurations verify properly.
-Eval 3 is a guard and was flat by design; neither configuration consulted the
-skill for a read-only question.
+Across three runs the previous version passed it twice and failed once, at
+2/3 against 3/3. The failing run left the running rule unguarded, so a Workflow
+with `phase: Running` and `.spec.suspend: true` extracted
+`["Suspended","Running"]` rather than `["Suspended"]`. This was graded by
+executing each produced definition against a fixture carrying exactly that
+shape, not by reading the YAML.
 
-### Limits of this run
+An earlier single-run version of this file claimed the trap "measures a floor
+both clear rather than a difference". Three runs falsify that; it is a real but
+inconsistent discriminator.
 
-One run per cell. The +/-18.0 spread quoted for the previous version is across
-evals, not across repeats, so nothing here separates skill effect from run-to-run
-variance. The 2026-08-18 run used three runs per cell; this one does not, and its
-timing and token figures should be read as anecdotes. The eval 4 assertion
-requiring a null-safe replica default is arguably mis-specified: the
-previous-version run omitted the default deliberately and preserved index
-alignment, which is defensible, and it was graded as a failure on the literal
-text.
+### The step 7 root-component correction does not discriminate
 
-Assertion wording changed between runs, so these pass rates are not comparable
+All three previous-version CronJob runs found the harness blind spot unaided.
+The third traced it to `pkg/tree/tree.go:16-21` and
+`hack/karta-verify/main.go:176`, then recommended exactly the fix already
+committed: that step 7 should say the root is absent from the extraction output
+and root-level paths must be checked with jq directly. The correction documents
+a real defect, independently confirmed three times, and changes no outcome on
+this eval set. It saves a detour rather than preventing a wrong answer.
+
+### Evals that do not discriminate
+
+Eval 2 is 5/5 in all six cells, exactly as its own `purpose` field predicts: the
+answer ships in the repo and both configurations verify properly. Eval 3 is 3/3
+in all six; neither configuration consulted the skill for a read-only question,
+and both cited the description's own exclusion clause, which is unchanged
+between versions.
+
+### Limits
+
+Grading mixes artifact checks with claims from each run's report. Structural
+assertions (GVK, spec pattern, paths, statuses) and the suspend trap were
+verified by running the produced definition; process assertions (predictions
+written first, `--strict`) were taken from the report, since they describe what
+a run did rather than a property of the artifact.
+
+The automated leakage check counts loose `.go` files and therefore missed one
+baseline run whose Go source was inside a patch file. That cell was caught by
+reading the patch, but the check as written would have scored it a pass.
+
+Eval 4's null-safe-default assertion graded one baseline run a failure for
+deliberately omitting a default in a way that preserved index alignment. That is
+defensible authoring graded against literal assertion text; excluding it moves
+the discriminating split to 25/33 against 26/33.
+
+One cell (eval 1, refreshed, run 3) needed three attempts: two agents died on
+infrastructure faults, an `ENOTFOUND` and a stream stall, both after producing a
+valid definition. Only the completed third attempt was graded.
+
+Assertion wording changed after Run 1, so these pass rates are not comparable
 with Run 1's.

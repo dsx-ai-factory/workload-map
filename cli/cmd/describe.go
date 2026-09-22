@@ -93,7 +93,7 @@ func newDescribeCommand() *cobra.Command {
 		)),
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			// A negative limit collides with the ShowAllPods sentinel.
-			if cmd.Flags().Changed(flagPodLimit) && opts.podLimit < 0 {
+			if opts.podLimit < 0 {
 				return usageError(cmd, fmt.Errorf("--%s must not be negative", flagPodLimit))
 			}
 			return nil

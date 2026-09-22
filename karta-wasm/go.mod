@@ -1,6 +1,6 @@
 module github.com/dsx-ai-factory/workload-map/karta-wasm
 
-go 1.26.3
+go 1.26.8
 
 require (
 	github.com/dsx-ai-factory/workload-map v0.0.0

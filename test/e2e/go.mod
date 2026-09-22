@@ -1,6 +1,6 @@
 module github.com/dsx-ai-factory/workload-map/test/e2e
 
-go 1.26.3
+go 1.26.8
 
 require (
 	github.com/onsi/ginkgo/v2 v2.32.2

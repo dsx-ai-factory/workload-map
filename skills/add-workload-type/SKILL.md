@@ -103,9 +103,9 @@ In the Karta repository, so tier 2 only:
 - `hack/karta-verify/` - the offline harness. Validates a definition (step 6)
   and, given a real CR, runs it and checks the extraction against predicted
   values (step 7). Nothing else does the latter.
-- `test/e2e/recorded_data/` - real CRs recorded from live clusters for 16
-  workload types, in every state they reach. Readable at tier 3 too, by fetching
-  the file. Step 1 explains how to use them.
+- `test/e2e/recorded_data/` - real CRs recorded from live clusters for 17 of the
+  20 catalog types, across the states each reaches. Readable at tier 3 too, by
+  fetching the file. Step 1 explains how to use them.
 
 ## Workflow
 
@@ -149,44 +149,56 @@ validated; it just cannot be exercised, which step 7 covers.
 
 The repository already ships real CRs, so "no example available" is rarer than it
 looks. `test/e2e/recorded_data/<operator>/<k8s-version>/<karta-name>/<flow>.yaml`
-holds recordings captured from live clusters for Deployment, StatefulSet, Job,
-CronJob, Pod, JobSet, PyTorchJob, MPIJob, RayCluster, RayJob, LeaderWorkerSet,
-KServe, Knative, NIM, Dynamo, Milvus, and Grove, across flows such as `running`,
-`scaled`, `degraded`, `suspended`, `resumed`, `completed`, and `failed`.
+holds recordings captured from live clusters for 17 of the 20 catalog types.
+Only `ray-io-rayservice-v1`, `apps-nvidia-com-nimcache-v1alpha1`, and
+`nvidia-com-dynamographdeployment-v1beta1` have none.
 
-Each recording is a list of `events`; a `kind: STATE` event carries the observed
-`object` alongside the `state` the recorder independently read from the CR's own
-fields. Extract one CR from a clone with:
-
-```bash
-yq '[.events[] | select(.kind == "STATE")][0].object' \
-  test/e2e/recorded_data/batch-job/v1.34.0/batch-job-v1/suspended.yaml > /tmp/cr.yaml
-```
-
-Without a clone, fetch the same file first. The path is
-`<operator>/<k8s-version>/<karta-name>/<flow>.yaml`, and the `karta-name` segment
-is the catalog file's stem, so a row in `reference/sample-index.md` tells you
-where its recordings are:
+Nothing about that path is guessable, so do not construct it. The `<operator>`
+segment is the e2e suite's name for the operator and often differs from the
+definition (`ray-io-raycluster-v1` sits under `kuberay/`, the two Kubeflow types
+under `kubeflow/`, LeaderWorkerSet under `lws/`, NIMService under `nim/`), and
+`<k8s-version>` is a cluster version nobody can predict. The flows present vary
+per type too: across the suite they are `running`, `scaled`, `degraded`,
+`suspended`, `resumed`, `completed`, `failed`, `initializing`, and
+`born-suspended`, but no type has all of them and some lack the obvious one
+(`apps-deployment-v1` has no `running`). List, then pick:
 
 ```bash
-curl -sL "$KARTA_RAW/test/e2e/recorded_data/batch-job/v1.34.0/batch-job-v1/suspended.yaml" \
-  | yq '[.events[] | select(.kind == "STATE")][0].object' > /tmp/cr.yaml
+find test/e2e/recorded_data -name '*.yaml' | grep <karta-name>      # in a clone
+# or, without one:
+curl -sL "https://api.github.com/repos/dsx-ai-factory/workload-map/git/trees/$KARTA_REF?recursive=1" \
+  | grep -o 'test/e2e/recorded_data/[^"]*\.yaml'
 ```
 
-The version segment is not guessable. List a directory through the GitHub API
-when unsure:
+A recording is the whole flow, not one moment: it holds a `kind: STATE` event per
+observed step, each carrying the `object` and the `state` the recorder read from
+that object's own fields. The flow name is the journey's destination, not the
+state of every event in it. `batch-job/.../resumed.yaml` runs Suspended,
+Suspended, Initializing, Running, Initializing, Completed.
+
+Taking the first event is therefore wrong, and quietly so: it hands back a
+Suspended CR from a file named `resumed`. Select the state you want by name, and
+read the sequence first if unsure:
 
 ```bash
-curl -sL "https://api.github.com/repos/dsx-ai-factory/workload-map/contents/test/e2e/recorded_data/batch-job?ref=$KARTA_REF"
+F=test/e2e/recorded_data/batch-job/v1.34.0/batch-job-v1/resumed.yaml
+yq '[.events[] | select(.kind == "STATE") | .state]' "$F"   # what this flow passes through
+yq '[.events[] | select(.kind == "STATE" and .state == "Running")][-1].object' "$F" > /tmp/cr.yaml
 ```
+
+The same expression works on a fetched file, with `curl -sL "$KARTA_RAW/<path>" |`
+in front of the `yq`. Keep the state you selected: it is the prediction step 7
+checks against, and it is trustworthy only because it was read from the CR rather
+than from any definition.
 
 Two uses, both valuable even when the target type is not recorded:
 
 - Adapting a near neighbour: read a real RayCluster before writing a definition
   for another group-based operator, rather than trusting the CRD schema's account
   of what the controller writes.
-- Calibration: the `state` field is ground truth established without reference to
-  any definition, which makes it a sound prediction to write down in step 7.
+- Calibration: the `state` of the event you selected is ground truth established
+  without reference to any definition, which makes it a sound prediction to write
+  down in step 7.
 
 From those inputs, establish:
 
@@ -216,9 +228,10 @@ karta definitions ray-io-raycluster-v1 -o yaml     # the definition itself
 ```
 
 The table's COMPONENTS column names each definition's component tree, which is a
-fast way to confirm a row's shape matches the target before copying it. The
-command warns and falls back to the built-ins when there is no cluster, which is
-the normal case here; the warning is not an error.
+fast way to confirm a row's shape matches the target before copying it. With no
+reachable cluster it lists the built-ins regardless, usually after a warning that
+it could not read definitions from one. That warning is the expected path here,
+not a failure.
 
 At tier 3, fetch the file instead:
 

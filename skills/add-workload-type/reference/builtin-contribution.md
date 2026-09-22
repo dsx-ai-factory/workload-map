@@ -27,9 +27,16 @@ is specific to adding a workload type.
 
 `docs/catalog/*.yaml` is generated. The typed Go definitions in
 `pkg/catalog/kartas/` are the source of truth, `hack/gen-samples` renders them,
-and `make validate` fails CI on drift via `git diff --exit-code`. Hand-editing a
-catalog YAML produces a change that is silently reverted by the next generation
-run and fails the build in the meantime.
+and `make validate` fails CI on drift. Hand-editing a catalog YAML produces a
+change that is silently reverted by the next generation run and fails the build
+in the meantime.
+
+`validate` tests `git status --porcelain`, not just a diff, so it fails on
+untracked files as readily as on stale generated ones. A scratch predictions file
+or a copied CR left in the tree fails `make check` with "generated files are
+stale or untracked", which reads like a codegen problem and is not one. Keep
+scratch files outside the repository, and check `git status` before blaming the
+generators.
 
 So on this branch the YAML is an output, not the deliverable. Author in Go.
 

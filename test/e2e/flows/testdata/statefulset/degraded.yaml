@@ -20,6 +20,7 @@ spec:
     metadata:
       labels: {app: karta-e2e-sts-degraded}
     spec:
+      automountServiceAccountToken: false
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

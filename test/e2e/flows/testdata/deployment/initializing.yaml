@@ -18,6 +18,7 @@ spec:
     metadata:
       labels: {app: karta-e2e-deploy-initializing}
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: worker
           image: busybox:99.99.99

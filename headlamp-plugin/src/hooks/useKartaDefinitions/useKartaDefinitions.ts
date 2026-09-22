@@ -14,11 +14,17 @@ export interface UseKartaDefinitionsResult {
   error: Error | null;
 }
 
-export function useKartaDefinitions(): UseKartaDefinitionsResult {
+// useKartaDefinitions resolves the definitions that describe workloads on one
+// cluster. The cluster is required rather than optional because useList()
+// defaults to every selected cluster, and definitions merge by root GVK: two
+// clusters each defining Deployment would collapse into one entry, leaving a
+// workload liable to be read through the other cluster's definition.
+export function useKartaDefinitions(cluster: string): UseKartaDefinitionsResult {
+  console.log('useKartaDefinitions', cluster);
   const [catalog, setCatalog] = useState<Karta[]>([]);
   const [catalogError, setCatalogError] = useState<Error | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);
-  const [clusterKartas, clusterError] = KartaCR.useList();
+  const [clusterKartas, clusterError] = KartaCR.useList({ cluster });
 
   useEffect(() => {
     let cancelled = false;
@@ -51,11 +57,23 @@ export function useKartaDefinitions(): UseKartaDefinitionsResult {
   // the whole truth.
   const clusterLoading = clusterKartas === null && clusterError === null;
   const crdMissing = clusterError?.status === 404;
-  const installed = !clusterLoading && clusterError === null;
-  const cluster = installed ? (clusterKartas ?? []).map(item => item.jsonData as Karta) : [];
+
+  // A 5xx says the read failed, not that the definitions are gone, and
+  // useList keeps serving the last successful list through a failed refresh.
+  // Dropping them would silently swap a workload onto a catalog definition
+  // until the API recovered, so they are kept and the error is reported
+  // alongside them.
+  const isTransientError =
+    clusterError !== null && clusterError.status >= 500 && clusterError.status < 600;
+  const clusterReadable = clusterError === null || isTransientError;
+
+  const installed = !clusterLoading && clusterReadable;
+  const clusterDefinitions = clusterReadable
+    ? (clusterKartas ?? []).map(item => item.jsonData as Karta)
+    : [];
 
   return {
-    definitions: mergeDefinitions(catalog, cluster),
+    definitions: mergeDefinitions(catalog, clusterDefinitions),
     installed,
     crdMissing,
     loading: catalogLoading || clusterLoading,

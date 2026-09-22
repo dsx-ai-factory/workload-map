@@ -26,7 +26,11 @@ export const KartaCR = K8s.crd.makeCustomResourceClass({
 // Group is empty for core kinds such as Pod, but pkg/catalog requires a version
 // and a kind: without them the definition names no workload, so it has no key.
 export function rootGVKKey(karta: Karta): string | null {
-  const kind = karta.spec.structureDefinition.rootComponent.kind;
+  // Every step is guarded because the CRD does not require spec: with the
+  // validating webhook disabled the API server accepts a Karta without one,
+  // and reading through it would throw before the missing-kind check, taking
+  // the whole merge down with one incomplete object.
+  const kind = karta.spec?.structureDefinition?.rootComponent?.kind;
   if (!kind?.version || !kind.kind) {
     return null;
   }

@@ -31,6 +31,14 @@ describe('rootGVKKey', () => {
     expect(rootGVKKey(karta('no-kind'))).toBeNull();
   });
 
+  // The CRD does not require spec, so a Karta applied while the validating
+  // webhook is down reaches the plugin without one.
+  it('has no key, rather than throwing, when the Karta has no spec at all', () => {
+    const specless = { apiVersion: 'run.ai/v1alpha1', kind: 'Karta', metadata: { name: 'specless' } };
+
+    expect(rootGVKKey(specless as Karta)).toBeNull();
+  });
+
   it('has no key when the root kind is missing a version', () => {
     expect(rootGVKKey(karta('no-version', { group: 'apps', version: '', kind: 'Deployment' }))).toBeNull();
   });
@@ -55,6 +63,16 @@ describe('mergeDefinitions', () => {
 
     const merged = mergeDefinitions([catalogDeployment], [clusterDeployment]);
 
+    expect(merged).toEqual([{ karta: clusterDeployment, origin: 'cluster' }]);
+  });
+
+  it('skips a spec-less Karta instead of failing the whole merge', () => {
+    const specless = { apiVersion: 'run.ai/v1alpha1', kind: 'Karta', metadata: { name: 'specless' } };
+    const clusterDeployment = karta('cluster-deployment', deploymentGVK);
+
+    const merged = mergeDefinitions([], [specless as Karta, clusterDeployment]);
+
+    // One incomplete object must not take the valid definitions down with it.
     expect(merged).toEqual([{ karta: clusterDeployment, origin: 'cluster' }]);
   });
 

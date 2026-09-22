@@ -17,6 +17,13 @@ LDFLAGS     := -ldflags "$(GO_LDFLAGS)"
 # The component inventory every aggregate fans out over.
 PRIMARY_COMPONENTS := lib cli operator karta-wasm
 
+# Every Go module in the repo. The tidy target fans out over this rather than
+# PRIMARY_COMPONENTS because an untidy manifest in a module that ships no
+# binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
+GO_MODULES := . cli karta-wasm operator test/e2e hack/imagelock \
+	docs/examples/quickstart docs/examples/controller-runtime \
+	hack/e2e/operators/nim/image
+
 KARTA_CHART_DIR := $(PROJECT_DIR)/charts/karta
 KARTA_CRDS_DIR := $(KARTA_CHART_DIR)/crds
 
@@ -301,7 +308,7 @@ generate-samples: ## Regenerate docs/catalog/ from pkg/catalog
 	go run ./hack/gen-samples
 
 .PHONY: generate-licenses
-generate-licenses: go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies
+generate-licenses: tidy go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies
 	@set -eu; \
 	echo "Generating NOTICE and THIRD_PARTY_LICENSES files from current dependencies using go-licence-detector"; \
 	go mod download -json > $(LOCALBIN)/root-deps.json; \
@@ -315,15 +322,22 @@ generate-licenses: go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICE
 		-depsOut=THIRD_PARTY_LICENSES; \
 	echo "Done"
 
+.PHONY: tidy
+tidy: ## Run go mod tidy in every module (rewrites go.mod and go.sum)
+	@set -e; \
+	for module in $(GO_MODULES); do \
+		(cd $$module && go mod tidy); \
+	done
+
 .PHONY: validate
 # status is captured into a variable rather than tested inline, so that a git
 # that cannot run is a hard error. Inline, a failing git yields empty output and
 # the emptiness check passes, reporting success having verified nothing.
-validate: lib-generate lib-manifests lib-generate-mocks generate-licenses generate-samples ## Fail if any generated file is stale or untracked
+validate: tidy lib-generate lib-manifests lib-generate-mocks generate-licenses generate-samples ## Fail if any generated or module manifest is stale or untracked
 	@set -e; \
 	status="$$(git status --porcelain)"; \
 	test -z "$$status" || { echo "$$status"; \
-		echo "generated files are stale or untracked; run the generators and commit"; exit 1; }
+		echo "generated files or module manifests are stale or untracked; run the generators and commit"; exit 1; }
 
 .PHONY: download-dependencies
 download-dependencies: ## Pre-warm the module cache for the library module

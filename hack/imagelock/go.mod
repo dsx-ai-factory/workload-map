@@ -8,7 +8,7 @@ module github.com/dsx-ai-factory/workload-map/hack/imagelock
 go 1.26.8
 
 require (
-	github.com/google/go-containerregistry v0.22.0
+	github.com/google/go-containerregistry v0.22.1
 	sigs.k8s.io/yaml v1.6.0
 )
 

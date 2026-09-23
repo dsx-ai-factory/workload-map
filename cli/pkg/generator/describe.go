@@ -4,6 +4,7 @@
 package generator
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"slices"
@@ -97,10 +98,19 @@ func writeTree(out io.Writer, view *workload.DescribeView, limit int) error {
 		return fmt.Errorf("write tree: %w", err)
 	}
 
-	writer := printers.GetNewTabWriter(out)
+	// Every row keeps the full cell count, since a tabwriter ends a column block
+	// at a short line and would realign every row below it. An empty last cell
+	// still pads its line, so that padding is trimmed once the columns are set.
+	var tree bytes.Buffer
+	writer := printers.GetNewTabWriter(&tree)
 	writeComponents(writer, view.Components, "", limit, view.FileMode)
 	if err := writer.Flush(); err != nil {
 		return fmt.Errorf("write tree: %w", err)
+	}
+	for line := range strings.Lines(tree.String()) {
+		if _, err := fmt.Fprintln(out, strings.TrimRight(line, " \n")); err != nil {
+			return fmt.Errorf("write tree: %w", err)
+		}
 	}
 	return nil
 }
@@ -108,26 +118,17 @@ func writeTree(out io.Writer, view *workload.DescribeView, limit int) error {
 func writeComponents(out io.Writer, components []workload.ComponentView, prefix string, limit int, fileMode bool) {
 	for i, component := range components {
 		last := i == len(components)-1
-		fmt.Fprintln(out, row(
-			prefix+branch(last)+component.Name,
+		fmt.Fprintln(out, strings.Join([]string{
+			prefix + branch(last) + component.Name,
 			scale(component.Replicas, fileMode),
 			resourceCell(component.Resources),
 			strings.Join(component.Nodes, ","),
-		))
+		}, "\t"))
 
 		childPrefix := prefix + indent(last)
 		writePods(out, component.Pods, childPrefix, limit, len(component.Children) > 0)
 		writeComponents(out, component.Children, childPrefix, limit, fileMode)
 	}
-}
-
-// row joins cells for the tab writer, dropping the empty ones at the end: a
-// trailing tab pads the line with spaces no reader sees but every diff does.
-func row(cells ...string) string {
-	for len(cells) > 0 && cells[len(cells)-1] == "" {
-		cells = cells[:len(cells)-1]
-	}
-	return strings.Join(cells, "\t")
 }
 
 // writePods draws a component's pods. childComponents says whether component
@@ -137,12 +138,12 @@ func writePods(out io.Writer, pods []workload.PodView, prefix string, limit int,
 
 	for i, pod := range shown {
 		last := i == len(shown)-1 && hidden == 0 && !childComponents
-		fmt.Fprintln(out, row(
-			prefix+branch(last)+pod.Name,
+		fmt.Fprintln(out, strings.Join([]string{
+			prefix + branch(last) + pod.Name,
 			podStatus(pod),
 			resourceCell(pod.Resources),
 			orNone(deref(pod.Node)),
-		))
+		}, "\t"))
 	}
 
 	if hidden > 0 {
@@ -152,10 +153,9 @@ func writePods(out io.Writer, pods []workload.PodView, prefix string, limit int,
 		if shownUnhealthy < allUnhealthy {
 			coverage = fmt.Sprintf("%d of %d unhealthy shown", shownUnhealthy, allUnhealthy)
 		}
-		// The note keeps the row's cell count, since a tabwriter ends a column
-		// block at a short line and would realign every row below it. Its prose
-		// sits in the status cell: in the name cell it would set that column's
-		// width for the whole tree.
+		// The note keeps the row's cell count, like every row. Its prose sits in
+		// the status cell: in the name cell it would set that column's width for
+		// the whole tree.
 		fmt.Fprintln(out, strings.Join([]string{
 			prefix + branch(!childComponents) + "...",
 			fmt.Sprintf("and %d more (%s)", hidden, coverage),

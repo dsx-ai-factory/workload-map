@@ -268,6 +268,38 @@ var _ = Describe("RenderWorkload", func() {
 		})
 	})
 
+	// A component with no GPUs and no nodes has empty trailing cells, and a
+	// line cut short there would end the column block for every row below it.
+	Context("a component with empty trailing cells", func() {
+		view := func() *workload.DescribeView {
+			view := detailView()
+			view.Components[1].Resources = workload.Resources{}
+			view.Components[1].Nodes = nil
+			return view
+		}
+
+		It("keeps one column block across the tree", func() {
+			column := -1
+			for _, line := range treeLines(renderWorkload(view(), DescribeOptions{})) {
+				index := strings.Index(line, "node-0")
+				if index < 0 {
+					continue
+				}
+				if column < 0 {
+					column = index
+				}
+				Expect(index).To(Equal(column), "node column moved on: "+line)
+			}
+			Expect(column).To(BeNumerically(">", 0))
+		})
+
+		It("leaves no trailing whitespace on any row", func() {
+			for _, line := range treeLines(renderWorkload(view(), DescribeOptions{PodLimit: 1})) {
+				Expect(line).To(Equal(strings.TrimRight(line, " \t")), "trailing whitespace: "+line)
+			}
+		})
+	})
+
 	Context("a component that owns both pods and children", func() {
 		// The component's own request is real, and charging only the leaves
 		// drops it from the breakdown while TOTAL still counts it.

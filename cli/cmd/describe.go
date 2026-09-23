@@ -4,6 +4,8 @@
 package cmd
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -17,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/yaml"
 
@@ -224,7 +227,22 @@ func describeManifest(
 	case errors.Is(err, definitions.ErrAmbiguous):
 		return nil, exitError{code: ExitUsage, err: err}
 	default:
-		return nil, noDefinitionFor(gvk)
+		// A CRD serves several versions, and a definition covers the kind at
+		// one of them, so a manifest written at another still resolves.
+		var matches []definitions.Definition
+		for _, match := range resolver.ByRootKind(gvk.Kind) {
+			if strings.EqualFold(catalog.RootKey(match.Karta).Group, gvk.Group) {
+				matches = append(matches, match)
+			}
+		}
+		switch len(matches) {
+		case 0:
+			return nil, noDefinitionFor(gvk)
+		case 1:
+			target = matches[0]
+		default:
+			return nil, exitError{code: ExitUsage, err: ambiguous(gvk.GroupKind().String(), matches)}
+		}
 	}
 
 	// No pods: a manifest that never reached the cluster has none, and inventing
@@ -252,11 +270,34 @@ func readManifest(cmd *cobra.Command, path string) (*unstructured.Unstructured, 
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
 
-	// A plain map, not Unstructured: its unmarshal rejects a missing kind with a
-	// message about JSON internals rather than the field that is absent.
+	// Unmarshal reads only the first document, so a stream is split first: a
+	// leading ConfigMap would otherwise be described in place of the workload.
 	var fields map[string]any
-	if err := yaml.Unmarshal(raw, &fields); err != nil {
-		return nil, usageError(cmd, fmt.Errorf("parse %s: %w", path, err))
+	reader := utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(raw)))
+	for {
+		doc, err := reader.Read()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, usageError(cmd, fmt.Errorf("parse %s: %w", path, err))
+		}
+
+		// A plain map, not Unstructured: its unmarshal rejects a missing kind
+		// with a message about JSON internals rather than the field that is absent.
+		var next map[string]any
+		if err := yaml.Unmarshal(doc, &next); err != nil {
+			return nil, usageError(cmd, fmt.Errorf("parse %s: %w", path, err))
+		}
+		switch {
+		case len(next) == 0:
+			// An empty or comment-only document separates, it describes nothing.
+		case fields != nil:
+			return nil, usageError(cmd, fmt.Errorf(
+				"%s holds more than one document; describe reads one workload", path))
+		default:
+			fields = next
+		}
 	}
 	return &unstructured.Unstructured{Object: fields}, nil
 }
@@ -285,6 +326,19 @@ type noDefinitionNotFound struct {
 	subject machineError
 }
 
+// noDefinitionForType is the miss for a type token that matched no definition.
+// Without discovery there is no GVK, so the payload names the token instead.
+func noDefinitionForType(token string) error {
+	return noDefinitionNotFound{
+		exitError: exitError{code: ExitNotFound,
+			err: fmt.Errorf("no Karta definition covers %q", token)},
+		subject: machineError{
+			Error: noDefinitionReason, Type: token,
+			Message: noDefinitionMessage, Hint: noDefinitionHint,
+		},
+	}
+}
+
 func noDefinitionFor(gvk schema.GroupVersionKind) error {
 	return noDefinitionNotFound{
 		exitError: exitError{code: ExitNotFound,
@@ -303,18 +357,11 @@ func reportNoDefinition(cmd *cobra.Command, format generator.Output, err error) 
 		return err
 	}
 
+	// An empty definition set shares the exit code but not the payload: it
+	// says nothing about this type, and the payload would claim it does.
 	var structured noDefinitionNotFound
 	if !errors.As(err, &structured) {
-		// A type token that matched no definition carries no GVK to name, so
-		// the payload names the token the caller used instead.
-		var coded exitError
-		if !errors.As(err, &coded) || coded.code != ExitNotFound {
-			return err
-		}
-		structured.subject = machineError{
-			Error: noDefinitionReason, Type: coded.Error(),
-			Message: noDefinitionMessage, Hint: noDefinitionHint,
-		}
+		return err
 	}
 
 	if writeErr := generator.RenderOne(cmd.OutOrStdout(), format, structured.subject,

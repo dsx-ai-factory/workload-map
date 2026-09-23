@@ -271,8 +271,7 @@ func resolveTarget(
 	// absent must still resolve, including the qualified form suggested below.
 	switch matches := matchDefinitions(resolver, opts.typeToken); len(matches) {
 	case 0:
-		return definitions.Definition{}, exitError{code: ExitNotFound,
-			err: fmt.Errorf("no Karta definition covers %q", opts.typeToken)}
+		return definitions.Definition{}, noDefinitionForType(opts.typeToken)
 	case 1:
 		return matches[0], nil
 	default:

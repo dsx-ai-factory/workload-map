@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -23,6 +24,8 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 )
 
 var (
@@ -574,6 +577,104 @@ func TestDescribeFileModeReportsAnUnreadableFile(t *testing.T) {
 		t.Fatalf("expected exit %d, got %d\n%s", ExitError, code, errOut)
 	}
 	if !strings.Contains(errOut, "read ") {
+		t.Errorf("unexpected message: %s", errOut)
+	}
+}
+
+// A CRD serves several versions and a definition names one, so a manifest
+// written at another version of the same kind is still covered.
+func TestDescribeFileModeResolvesAnotherServedVersion(t *testing.T) {
+	noCluster(t)
+
+	manifest := strings.Replace(jobSetManifest, "jobset.x-k8s.io/v1alpha2", "jobset.x-k8s.io/v1beta1", 1)
+	out, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, manifest))
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if !strings.Contains(out, "JobSet/preprocess") {
+		t.Errorf("output missing the workload\n%s", out)
+	}
+}
+
+// The same kind in another group is a different type, not another version.
+func TestDescribeFileModeKeepsTheGroupStrict(t *testing.T) {
+	noCluster(t)
+
+	manifest := strings.Replace(jobSetManifest, "jobset.x-k8s.io/v1alpha2", "example.com/v1", 1)
+	_, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, manifest))
+	if code != ExitNotFound {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitNotFound, code, errOut)
+	}
+}
+
+// Unmarshal reads only the first document, so rendered chart output that leads
+// with a ConfigMap would otherwise be described in place of the workload.
+func TestDescribeFileModeRejectsSeveralDocuments(t *testing.T) {
+	noCluster(t)
+
+	manifest := "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: settings\n---\n" + jobSetManifest
+	_, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, manifest))
+	if code != ExitUsage {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitUsage, code, errOut)
+	}
+	if !strings.Contains(errOut, "more than one document") {
+		t.Errorf("unexpected message: %s", errOut)
+	}
+}
+
+// An empty or comment-only document is a separator, not a second workload.
+func TestDescribeFileModeSkipsEmptyDocuments(t *testing.T) {
+	noCluster(t)
+
+	manifest := "---\n# rendered by a chart\n---\n" + jobSetManifest + "---\n"
+	out, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, manifest))
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if !strings.Contains(out, "JobSet/preprocess") {
+		t.Errorf("output missing the workload\n%s", out)
+	}
+}
+
+// The payload names the type as the caller wrote it, not the error message.
+func TestDescribeStructuredNoDefinitionNamesTheTypeToken(t *testing.T) {
+	describeCluster(t)
+
+	out, errOut, code := runDescribeCmd(t, "flinkdeployment/etl", "-o", "json")
+	if code != ExitNotFound {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitNotFound, code, errOut)
+	}
+
+	var reported struct {
+		Error string `json:"error"`
+		Type  string `json:"type"`
+	}
+	if err := json.Unmarshal([]byte(out), &reported); err != nil {
+		t.Fatalf("decode json: %v\n%s", err, out)
+	}
+	if reported.Error != "no_definition_for_type" || reported.Type != "flinkdeployment" {
+		t.Errorf("expected the type token in the payload, got %+v", reported)
+	}
+}
+
+// With nothing loaded no single type is uncovered, so the payload that claims
+// one is left out and the plain message stands alone.
+func TestDescribeEmptyDefinitionSetEmitsNoPayload(t *testing.T) {
+	describeCluster(t)
+	restore := loadDefinitions
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+		return definitions.New(nil, nil), nil
+	}
+	t.Cleanup(func() { loadDefinitions = restore })
+
+	out, errOut, code := runDescribeCmd(t, "jobset/preprocess", "-o", "json")
+	if code != ExitNotFound {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitNotFound, code, errOut)
+	}
+	if out != "" {
+		t.Errorf("nothing should reach stdout\n%s", out)
+	}
+	if !strings.Contains(errOut, "no Karta definitions available") {
 		t.Errorf("unexpected message: %s", errOut)
 	}
 }

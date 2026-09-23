@@ -35,7 +35,7 @@ const (
 
 	usagePodLimit = "Maximum pod rows per component; the default shows every pod. " +
 		"When set, unhealthy pods are shown first. Table output only"
-	usageFile = "Describe a manifest that has not been submitted; \"-\" reads stdin. " +
+	usageFile = "Describe a workload that has not been submitted; \"-\" reads stdin. " +
 		"No cluster is needed, and no TYPE/NAME is accepted"
 
 	describeUse   = "describe TYPE[/NAME] [NAME]"

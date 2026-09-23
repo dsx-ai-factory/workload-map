@@ -70,6 +70,11 @@ It answers what a workload would look like before it is submitted.`
 
   # Machine output for scripting or agents
   kli describe pytorchjob/llama-finetune -o json`
+
+	noDefinitionReason  = "no_definition_for_type"
+	noDefinitionMessage = "no Karta definition covers this workload type"
+	noDefinitionHint    = `"kli definitions" lists the types Karta covers; ` +
+		"apply a Karta definition to the cluster to cover this one"
 )
 
 // errNameRequired names both accepted forms, so a reader sees the one they did
@@ -86,6 +91,23 @@ type describeOptions struct {
 	getOptions
 	podLimit int
 	file     string
+}
+
+// machineError is the shape a failure takes in the machine formats. Only the
+// no-definition case uses it, being the one an agent handles differently.
+type machineError struct {
+	Error   string `json:"error"`
+	GVK     string `json:"gvk,omitempty"`
+	Type    string `json:"type,omitempty"`
+	Message string `json:"message"`
+	Hint    string `json:"hint"`
+}
+
+// noDefinitionNotFound is the no-definition failure, with the payload the
+// machine formats emit for it.
+type noDefinitionNotFound struct {
+	exitError
+	subject machineError
 }
 
 // newDescribeCommand builds the "kli describe" command: one workload in full.
@@ -300,30 +322,6 @@ func readManifest(cmd *cobra.Command, path string) (*unstructured.Unstructured, 
 	return &unstructured.Unstructured{Object: fields}, nil
 }
 
-// machineError is the shape a failure takes in the machine formats. Only the
-// no-definition case uses it, being the one an agent handles differently.
-type machineError struct {
-	Error   string `json:"error"`
-	GVK     string `json:"gvk,omitempty"`
-	Type    string `json:"type,omitempty"`
-	Message string `json:"message"`
-	Hint    string `json:"hint"`
-}
-
-const (
-	noDefinitionReason  = "no_definition_for_type"
-	noDefinitionMessage = "no Karta definition covers this workload type"
-	noDefinitionHint    = `"kli definitions" lists the types Karta covers; ` +
-		"apply a Karta definition to the cluster to cover this one"
-)
-
-// noDefinitionNotFound is the no-definition failure, with the payload the
-// machine formats emit for it.
-type noDefinitionNotFound struct {
-	exitError
-	subject machineError
-}
-
 // noDefinitionForType is the miss for a type token that matched no definition.
 // Without discovery there is no GVK, so the payload names the token instead.
 func noDefinitionForType(token string) error {
@@ -337,6 +335,7 @@ func noDefinitionForType(token string) error {
 	}
 }
 
+// noDefinitionFor is the miss for a manifest's GVK that no definition covers.
 func noDefinitionFor(gvk schema.GroupVersionKind) error {
 	return noDefinitionNotFound{
 		exitError: exitError{code: ExitNotFound,

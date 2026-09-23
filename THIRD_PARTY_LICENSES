@@ -13,12 +13,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/onsi/ginkgo/v2
 - Name: github.com/onsi/ginkgo/v2
-- Version: v2.32.2
+- Version: v2.33.0
 - License: MIT
 
 ### github.com/onsi/gomega
 - Name: github.com/onsi/gomega
-- Version: v1.43.0
+- Version: v1.43.1
 - License: MIT
 
 ### github.com/samber/lo

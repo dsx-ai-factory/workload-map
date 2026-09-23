@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# Dependabot cannot run repo scripts, so rerun the generators from
+# `make validate` (deepcopy, CRDs, mocks, license files) and push any
+# drift back to its PR branch.
+name: Dependabot Codegen
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "v[0-9]+.[0-9]+"
+      - "release-[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dependabot-codegen-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          # Codegen executes dependency code (go generate); keep the write
+          # token out of its reach and inject it only in the push step.
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Regenerate generated files
+        run: make generate manifests generate-mocks generate-licenses
+
+      - name: Check for drift
+        id: drift
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A plain `git push` commit is unsigned and blocked by the
+      # required-signatures rule. Committing through the GitHub API
+      # (GraphQL createCommitOnBranch) makes GitHub sign the commit, so it
+      # is marked verified. The Signed-off-by trailer replaces `commit -s`.
+      - name: Commit and push if changed
+        if: steps.drift.outputs.changed == 'true'
+        uses: planetscale/ghcommit-action@a6b150b81dca5dd027baa898604418eec9e11465 # v0.2.22
+        with:
+          commit_message: |-
+            build: regenerate files for dependency bump
+            Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          repo: ${{ github.repository }}
+          branch: ${{ github.head_ref }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

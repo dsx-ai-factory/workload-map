@@ -182,6 +182,17 @@ var _ = Describe("RenderWorkload", func() {
 				Expect(out).NotTo(ContainSubstring("Phase:"))
 				Expect(out).NotTo(ContainSubstring("age:"), "a manifest has no age")
 			})
+
+			// "0/4 ready" would read as four pods that failed to start, where
+			// the truth is that there are no pods to be ready yet.
+			It("reports the desired scale rather than a readiness of zero", func() {
+				view := detailView()
+				view.FileMode = true
+
+				out := renderWorkload(view, DescribeOptions{})
+				Expect(out).To(ContainSubstring("replicas: 4"))
+				Expect(out).NotTo(ContainSubstring("ready"))
+			})
 		})
 	})
 
@@ -253,6 +264,38 @@ var _ = Describe("RenderWorkload", func() {
 				if status := strings.Index(line, "Running"); status > 0 {
 					Expect(status).To(Equal(column), "status column moved on: "+line)
 				}
+			}
+		})
+	})
+
+	// A component with no GPUs and no nodes has empty trailing cells, and a
+	// line cut short there would end the column block for every row below it.
+	Context("a component with empty trailing cells", func() {
+		view := func() *workload.DescribeView {
+			view := detailView()
+			view.Components[1].Resources = workload.Resources{}
+			view.Components[1].Nodes = nil
+			return view
+		}
+
+		It("keeps one column block across the tree", func() {
+			column := -1
+			for _, line := range treeLines(renderWorkload(view(), DescribeOptions{})) {
+				index := strings.Index(line, "node-0")
+				if index < 0 {
+					continue
+				}
+				if column < 0 {
+					column = index
+				}
+				Expect(index).To(Equal(column), "node column moved on: "+line)
+			}
+			Expect(column).To(BeNumerically(">", 0))
+		})
+
+		It("leaves no trailing whitespace on any row", func() {
+			for _, line := range treeLines(renderWorkload(view(), DescribeOptions{PodLimit: 1})) {
+				Expect(line).To(Equal(strings.TrimRight(line, " \t")), "trailing whitespace: "+line)
 			}
 		})
 	})

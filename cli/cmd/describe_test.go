@@ -4,8 +4,12 @@
 package cmd
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -20,6 +24,8 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 )
 
 var (
@@ -362,5 +368,313 @@ func TestDescribeRejectsANegativePodLimit(t *testing.T) {
 	}
 	if !strings.Contains(errOut, "--pod-limit must not be negative") {
 		t.Errorf("message missing the rejected flag\n%s", errOut)
+	}
+}
+
+// noCluster points the command tree at a kubeconfig-less environment, which is
+// what file mode is for and what keeps these tests off any real cluster.
+func noCluster(t *testing.T) {
+	t.Helper()
+
+	restore := clusterAccess
+	clusterAccess = noClusterGetter
+	t.Cleanup(func() { clusterAccess = restore })
+}
+
+// writeManifest puts a manifest in a temp file and returns its path.
+func writeManifest(t *testing.T, manifest string) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "workload.yaml")
+	if err := os.WriteFile(path, []byte(manifest), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	return path
+}
+
+const jobSetManifest = `apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: preprocess
+  namespace: ml-team
+spec:
+  replicatedJobs:
+    - name: etl
+      replicas: 1
+      template:
+        spec:
+          parallelism: 3
+          template:
+            spec:
+              containers:
+                - name: worker
+                  resources:
+                    requests:
+                      nvidia.com/gpu: "2"
+`
+
+// File mode is for a manifest that has not been submitted, so it must not need
+// a cluster to answer.
+func TestDescribeFileModeNeedsNoCluster(t *testing.T) {
+	noCluster(t)
+
+	out, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, jobSetManifest))
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	for _, want := range []string{
+		"JobSet/preprocess", "(file mode: no live status)", "replicatedjob", "Resources:", "TOTAL",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Phase:") {
+		t.Errorf("a manifest that never reached the cluster has no phase\n%s", out)
+	}
+}
+
+func TestDescribeFileModeReadsStdin(t *testing.T) {
+	noCluster(t)
+
+	root := NewRootCommand()
+	var out, errOut bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errOut)
+	root.SetIn(strings.NewReader(jobSetManifest))
+	root.SetArgs([]string{"describe", "-f", "-"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("expected success, got %v\n%s", err, errOut.String())
+	}
+	if !strings.Contains(out.String(), "JobSet/preprocess") {
+		t.Errorf("expected the workload header\n%s", out.String())
+	}
+}
+
+// Live mode and file mode answer the same question, so they must answer it in
+// the same shape; only the live fields differ.
+func TestDescribeFileModeSharesTheLiveShape(t *testing.T) {
+	describeCluster(t, jobSet("preprocess", 3))
+	live, _, code := runDescribeCmd(t, "jobset/preprocess", "-o", "json")
+	if code != 0 {
+		t.Fatalf("live: expected exit 0, got %d\n%s", code, live)
+	}
+
+	fromFile, _, code := runDescribeCmd(t, "-f", writeManifest(t, jobSetManifest), "-o", "json")
+	if code != 0 {
+		t.Fatalf("file: expected exit 0, got %d\n%s", code, fromFile)
+	}
+
+	var liveKeys, fileKeys map[string]any
+	if err := json.Unmarshal([]byte(live), &liveKeys); err != nil {
+		t.Fatalf("decode live: %v", err)
+	}
+	if err := json.Unmarshal([]byte(fromFile), &fileKeys); err != nil {
+		t.Fatalf("decode file: %v", err)
+	}
+	for key := range liveKeys {
+		if _, ok := fileKeys[key]; !ok {
+			t.Errorf("file mode dropped the %q field instead of leaving it empty", key)
+		}
+	}
+	if fileKeys["fileMode"] != true {
+		t.Errorf("expected fileMode to be marked, got %v", fileKeys["fileMode"])
+	}
+}
+
+// The no-definition case is the one an agent handles differently from every
+// other failure, so with a machine format it is emitted as a parseable object.
+func TestDescribeFileModeStructuredNoDefinitionError(t *testing.T) {
+	noCluster(t)
+
+	path := writeManifest(t, `apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: etl
+`)
+
+	out, errOut, code := runDescribeCmd(t, "-f", path, "-o", "json")
+	if code != ExitNotFound {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitNotFound, code, errOut)
+	}
+
+	var reported struct {
+		Error   string `json:"error"`
+		GVK     string `json:"gvk"`
+		Message string `json:"message"`
+		Hint    string `json:"hint"`
+	}
+	if err := json.Unmarshal([]byte(out), &reported); err != nil {
+		t.Fatalf("decode json: %v\n%s", err, out)
+	}
+	if reported.Error != "no_definition_for_type" {
+		t.Errorf("unexpected reason %q", reported.Error)
+	}
+	if !strings.Contains(reported.GVK, "FlinkDeployment") {
+		t.Errorf("the payload must name the type it could not cover, got %q", reported.GVK)
+	}
+	if reported.Message == "" || reported.Hint == "" {
+		t.Errorf("expected a message and a hint, got %+v", reported)
+	}
+	// A human watching stderr must be told too.
+	if !strings.Contains(errOut, "no Karta definition covers") {
+		t.Errorf("expected the human message on stderr\n%s", errOut)
+	}
+}
+
+// The table is for a reader, who is served by the plain message.
+func TestDescribeNoDefinitionStaysPlainForTheTable(t *testing.T) {
+	noCluster(t)
+
+	path := writeManifest(t, `apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: etl
+`)
+
+	out, errOut, code := runDescribeCmd(t, "-f", path)
+	if code != ExitNotFound {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitNotFound, code, errOut)
+	}
+	if out != "" {
+		t.Errorf("nothing should reach stdout\n%s", out)
+	}
+	if !strings.Contains(errOut, "no Karta definition covers") {
+		t.Errorf("unexpected message: %s", errOut)
+	}
+}
+
+func TestDescribeFileModeRejectsAPositionalArgument(t *testing.T) {
+	noCluster(t)
+
+	_, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, jobSetManifest), "jobset/preprocess")
+	if code != ExitUsage {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitUsage, code, errOut)
+	}
+	if !strings.Contains(errOut, "cannot be combined") {
+		t.Errorf("unexpected message: %s", errOut)
+	}
+}
+
+func TestDescribeFileModeRejectsAManifestWithNoKind(t *testing.T) {
+	noCluster(t)
+
+	_, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, "metadata:\n  name: etl\n"))
+	if code != ExitUsage {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitUsage, code, errOut)
+	}
+	if !strings.Contains(errOut, "apiVersion and kind") {
+		t.Errorf("unexpected message: %s", errOut)
+	}
+}
+
+func TestDescribeFileModeReportsAnUnreadableFile(t *testing.T) {
+	noCluster(t)
+
+	_, errOut, code := runDescribeCmd(t, "-f", filepath.Join(t.TempDir(), "absent.yaml"))
+	if code != ExitError {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitError, code, errOut)
+	}
+	if !strings.Contains(errOut, "read ") {
+		t.Errorf("unexpected message: %s", errOut)
+	}
+}
+
+// A CRD serves several versions and a definition names one, so a manifest
+// written at another version of the same kind is still covered.
+func TestDescribeFileModeResolvesAnotherServedVersion(t *testing.T) {
+	noCluster(t)
+
+	manifest := strings.Replace(jobSetManifest, "jobset.x-k8s.io/v1alpha2", "jobset.x-k8s.io/v1beta1", 1)
+	out, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, manifest))
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if !strings.Contains(out, "JobSet/preprocess") {
+		t.Errorf("output missing the workload\n%s", out)
+	}
+}
+
+// The same kind in another group is a different type, not another version.
+func TestDescribeFileModeKeepsTheGroupStrict(t *testing.T) {
+	noCluster(t)
+
+	manifest := strings.Replace(jobSetManifest, "jobset.x-k8s.io/v1alpha2", "example.com/v1", 1)
+	_, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, manifest))
+	if code != ExitNotFound {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitNotFound, code, errOut)
+	}
+}
+
+// Unmarshal reads only the first document, so rendered chart output that leads
+// with a ConfigMap would otherwise be described in place of the workload.
+func TestDescribeFileModeRejectsSeveralDocuments(t *testing.T) {
+	noCluster(t)
+
+	manifest := "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: settings\n---\n" + jobSetManifest
+	_, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, manifest))
+	if code != ExitUsage {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitUsage, code, errOut)
+	}
+	if !strings.Contains(errOut, "more than one document") {
+		t.Errorf("unexpected message: %s", errOut)
+	}
+}
+
+// An empty or comment-only document is a separator, not a second workload.
+func TestDescribeFileModeSkipsEmptyDocuments(t *testing.T) {
+	noCluster(t)
+
+	manifest := "---\n# rendered by a chart\n---\n" + jobSetManifest + "---\n"
+	out, errOut, code := runDescribeCmd(t, "-f", writeManifest(t, manifest))
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if !strings.Contains(out, "JobSet/preprocess") {
+		t.Errorf("output missing the workload\n%s", out)
+	}
+}
+
+// The payload names the type as the caller wrote it, not the error message.
+func TestDescribeStructuredNoDefinitionNamesTheTypeToken(t *testing.T) {
+	describeCluster(t)
+
+	out, errOut, code := runDescribeCmd(t, "flinkdeployment/etl", "-o", "json")
+	if code != ExitNotFound {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitNotFound, code, errOut)
+	}
+
+	var reported struct {
+		Error string `json:"error"`
+		Type  string `json:"type"`
+	}
+	if err := json.Unmarshal([]byte(out), &reported); err != nil {
+		t.Fatalf("decode json: %v\n%s", err, out)
+	}
+	if reported.Error != "no_definition_for_type" || reported.Type != "flinkdeployment" {
+		t.Errorf("expected the type token in the payload, got %+v", reported)
+	}
+}
+
+// With nothing loaded no single type is uncovered, so the payload that claims
+// one is left out and the plain message stands alone.
+func TestDescribeEmptyDefinitionSetEmitsNoPayload(t *testing.T) {
+	describeCluster(t)
+	restore := loadDefinitions
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+		return definitions.New(nil, nil), nil
+	}
+	t.Cleanup(func() { loadDefinitions = restore })
+
+	out, errOut, code := runDescribeCmd(t, "jobset/preprocess", "-o", "json")
+	if code != ExitNotFound {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitNotFound, code, errOut)
+	}
+	if out != "" {
+		t.Errorf("nothing should reach stdout\n%s", out)
+	}
+	if !strings.Contains(errOut, "no Karta definitions available") {
+		t.Errorf("unexpected message: %s", errOut)
 	}
 }

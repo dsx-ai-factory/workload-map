@@ -98,9 +98,7 @@ func writeTree(out io.Writer, view *workload.DescribeView, limit int) error {
 		return fmt.Errorf("write tree: %w", err)
 	}
 
-	// Every row keeps the full cell count, since a tabwriter ends a column block
-	// at a short line and would realign every row below it. An empty last cell
-	// still pads its line, so that padding is trimmed once the columns are set.
+	// Every row keeps all its cells so the columns stay aligned down the tree.
 	var tree bytes.Buffer
 	writer := printers.GetNewTabWriter(&tree)
 	writeComponents(writer, view.Components, "", limit, view.FileMode)
@@ -153,9 +151,7 @@ func writePods(out io.Writer, pods []workload.PodView, prefix string, limit int,
 		if shownUnhealthy < allUnhealthy {
 			coverage = fmt.Sprintf("%d of %d unhealthy shown", shownUnhealthy, allUnhealthy)
 		}
-		// The note keeps the row's cell count, like every row. Its prose sits in
-		// the status cell: in the name cell it would set that column's width for
-		// the whole tree.
+		// The prose sits in the status cell so it cannot widen the name column.
 		fmt.Fprintln(out, strings.Join([]string{
 			prefix + branch(!childComponents) + "...",
 			fmt.Sprintf("and %d more (%s)", hidden, coverage),

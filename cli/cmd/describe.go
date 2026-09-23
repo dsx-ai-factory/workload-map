@@ -98,8 +98,6 @@ func newDescribeCommand() *cobra.Command {
 		Short:   describeShort,
 		Long:    describeLong,
 		Example: describeExample,
-		// The range applies to the positional form only: -f reads the kind from
-		// the manifest, so it takes no arguments at all.
 		Args: usageArgs(func(cmd *cobra.Command, args []string) error {
 			if opts.file != "" {
 				if len(args) > 0 {
@@ -291,7 +289,7 @@ func readManifest(cmd *cobra.Command, path string) (*unstructured.Unstructured, 
 		}
 		switch {
 		case len(next) == 0:
-			// An empty or comment-only document separates, it describes nothing.
+			// An empty or comment-only document is only a separator.
 		case fields != nil:
 			return nil, usageError(cmd, fmt.Errorf(
 				"%s holds more than one document; describe reads one workload", path))
@@ -319,8 +317,8 @@ const (
 		"apply a Karta definition to the cluster to cover this one"
 )
 
-// noDefinitionNotFound marks a failure reportNoDefinition should also emit as a
-// machine error, carrying the identity the payload names.
+// noDefinitionNotFound is the no-definition failure, with the payload the
+// machine formats emit for it.
 type noDefinitionNotFound struct {
 	exitError
 	subject machineError

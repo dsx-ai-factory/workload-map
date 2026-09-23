@@ -8,17 +8,17 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/itchyny/gojq
 - Name: github.com/itchyny/gojq
-- Version: v0.12.18
+- Version: v0.12.19
 - License: MIT
 
 ### github.com/onsi/ginkgo/v2
 - Name: github.com/onsi/ginkgo/v2
-- Version: v2.28.1
+- Version: v2.28.3
 - License: MIT
 
 ### github.com/onsi/gomega
 - Name: github.com/onsi/gomega
-- Version: v1.39.1
+- Version: v1.40.0
 - License: MIT
 
 ### github.com/samber/lo
@@ -33,12 +33,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### k8s.io/api
 - Name: k8s.io/api
-- Version: v0.35.1
+- Version: v0.35.8
 - License: Apache-2.0
 
 ### k8s.io/apimachinery
 - Name: k8s.io/apimachinery
-- Version: v0.35.1
+- Version: v0.35.8
 - License: Apache-2.0
 
 ### k8s.io/utils
@@ -78,12 +78,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/google/pprof
 - Name: github.com/google/pprof
-- Version: v0.0.0-20260202012954-cb029daf43ef
+- Version: v0.0.0-20260402051712-545e8a4df936
 - License: Apache-2.0
 
 ### github.com/itchyny/timefmt-go
 - Name: github.com/itchyny/timefmt-go
-- Version: v0.1.7
+- Version: v0.1.8
 - License: MIT
 
 ### github.com/json-iterator/go
@@ -123,7 +123,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### golang.org/x/mod
 - Name: golang.org/x/mod
-- Version: v0.36.0
+- Version: v0.37.0
 - License: BSD-3-Clause
 
 ### golang.org/x/net
@@ -143,17 +143,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### golang.org/x/text
 - Name: golang.org/x/text
-- Version: v0.38.0
+- Version: v0.39.0
 - License: BSD-3-Clause
 
 ### golang.org/x/tools
 - Name: golang.org/x/tools
-- Version: v0.45.0
-- License: BSD-3-Clause
-
-### google.golang.org/protobuf
-- Name: google.golang.org/protobuf
-- Version: v1.36.11
+- Version: v0.47.0
 - License: BSD-3-Clause
 
 ### gopkg.in/inf.v0

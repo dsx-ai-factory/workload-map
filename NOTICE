@@ -38,7 +38,6 @@ Third-party Dependencies:
 - golang.org/x/sys (BSD-3-Clause)
 - golang.org/x/text (BSD-3-Clause)
 - golang.org/x/tools (BSD-3-Clause)
-- google.golang.org/protobuf (BSD-3-Clause)
 - gopkg.in/inf.v0 (BSD-3-Clause)
 - k8s.io/klog/v2 (Apache-2.0)
 - k8s.io/kube-openapi (Apache-2.0)

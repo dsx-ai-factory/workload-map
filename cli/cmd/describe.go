@@ -65,7 +65,7 @@ It answers what a workload would look like before it is submitted.`
   # Large workloads: cap the pod rows, unhealthy pods first
   kli describe pytorchjob/llama-finetune --pod-limit 10
 
-  # Validate a manifest before submitting it, no cluster needed
+  # Preview a manifest before submitting it, no cluster needed
   kli describe -f jobset.yaml
 
   # Machine output for scripting or agents
@@ -225,7 +225,7 @@ func describeManifest(
 	switch {
 	case err == nil:
 	case errors.Is(err, definitions.ErrAmbiguous):
-		return nil, exitError{code: ExitUsage, err: err}
+		return nil, usageError(cmd, err)
 	default:
 		// A CRD serves several versions, and a definition covers the kind at
 		// one of them, so a manifest written at another still resolves.
@@ -241,7 +241,7 @@ func describeManifest(
 		case 1:
 			target = matches[0]
 		default:
-			return nil, exitError{code: ExitUsage, err: ambiguous(gvk.GroupKind().String(), matches)}
+			return nil, usageError(cmd, ambiguous(gvk.GroupKind().String(), matches))
 		}
 	}
 

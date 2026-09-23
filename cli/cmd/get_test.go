@@ -90,27 +90,28 @@ func fakeCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeDynam
 	return client
 }
 
-// runGetCmd executes "karta get" with args, returning stdout, stderr and the
-// exit code the binary would produce.
-func runGetCmd(t *testing.T, args ...string) (string, string, int) {
+// runCmd executes one kli subcommand with args, returning stdout, stderr and
+// the exit code the binary would produce.
+func runCmd(t *testing.T, sub string, args ...string) (string, string, int) {
 	t.Helper()
 
 	root := NewRootCommand()
 	var out, errOut bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&errOut)
-	root.SetArgs(append([]string{"get"}, args...))
+	root.SetArgs(append([]string{sub}, args...))
 
 	code := 0
 	if err := root.Execute(); err != nil {
-		code = 1
-		var coded interface{ ExitCode() int }
-		if errors.As(err, &coded) {
-			code = coded.ExitCode()
-		}
+		code = exitStatus(err)
 		errOut.WriteString("error: " + err.Error() + "\n")
 	}
 	return out.String(), errOut.String(), code
+}
+
+func runGetCmd(t *testing.T, args ...string) (string, string, int) {
+	t.Helper()
+	return runCmd(t, "get", args...)
 }
 
 func TestGetListsWorkloadsOfAType(t *testing.T) {

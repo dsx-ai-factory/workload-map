@@ -66,6 +66,7 @@ func NewRootCommand() *cobra.Command {
 	withConfig(cmd)
 
 	cmd.AddCommand(newGetCommand())
+	cmd.AddCommand(newDescribeCommand())
 	cmd.AddCommand(newDefinitionsCommand(kubeFlags))
 	cmd.AddCommand(newValidateCommand())
 

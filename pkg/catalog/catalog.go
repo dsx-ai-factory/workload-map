@@ -47,6 +47,8 @@ var definitions = []func() *v1alpha1.Karta{
 	kartas.RayService,
 	kartas.LWS,
 	kartas.KServe,
+	kartas.LLMInferenceService,
+	kartas.LLMInferenceServiceV1alpha2,
 	kartas.KnativeServing,
 	kartas.NIMService,
 	kartas.NIMCache,

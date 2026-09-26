@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+kind: Karta
+apiVersion: run.ai/v1alpha1
+metadata:
+  name: serving-kserve-io-llminferenceservice-v1alpha1
+spec:
+  structureDefinition:
+    rootComponent:
+      name: llminferenceservice
+      kind:
+        group: serving.kserve.io
+        version: v1alpha1
+        kind: LLMInferenceService
+      statusDefinition:
+        conditionsDefinition:
+          path: .status.conditions
+          typeFieldName: type
+          statusFieldName: status
+          messageFieldName: message
+          reasonFieldName: reason
+        statusMappings:
+          initializing:
+            - byConditions:
+                - type: Ready
+                  status: Unknown
+          running:
+            - byConditions:
+                - type: Ready
+                  status: "True"
+          failed:
+            - byConditions:
+                - type: Ready
+                  status: "False"
+    childComponents:
+      - name: main
+        kind:
+          group: apps
+          version: v1
+          kind: Deployment
+        ownerRef: llminferenceservice
+        specDefinition:
+          podSpecPath: .spec.template
+        scaleDefinition:
+          replicasPath: (.spec.replicas // .spec.scaling.minReplicas)
+          minReplicasPath: .spec.scaling.minReplicas
+          maxReplicasPath: .spec.scaling.maxReplicas
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["app.kubernetes.io/component"]
+            value: llminferenceservice-workload
+      - name: prefill
+        kind:
+          group: apps
+          version: v1
+          kind: Deployment
+        ownerRef: llminferenceservice
+        specDefinition:
+          podSpecPath: .spec.prefill.template
+        scaleDefinition:
+          replicasPath: (.spec.prefill.replicas // .spec.prefill.scaling.minReplicas)
+          minReplicasPath: .spec.prefill.scaling.minReplicas
+          maxReplicasPath: .spec.prefill.scaling.maxReplicas
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["app.kubernetes.io/component"]
+            value: llminferenceservice-workload-prefill
+      - name: worker
+        kind:
+          group: leaderworkerset.x-k8s.io
+          version: v1
+          kind: LeaderWorkerSet
+        ownerRef: llminferenceservice
+        specDefinition:
+          podSpecPath: .spec.worker
+        scaleDefinition:
+          replicasPath: .spec.replicas
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["app.kubernetes.io/component"]
+            value: llminferenceservice-workload-worker
+      - name: router-scheduler
+        kind:
+          group: apps
+          version: v1
+          kind: Deployment
+        ownerRef: llminferenceservice
+        specDefinition:
+          podSpecPath: .spec.router.scheduler.template
+        scaleDefinition:
+          replicasPath: .spec.router.scheduler.replicas
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["app.kubernetes.io/component"]
+            value: llminferenceservice-router-scheduler
+    additionalChildKinds:
+      - group: leaderworkerset.x-k8s.io
+        version: v1
+        kind: LeaderWorkerSet
+      - group: inference.networking.k8s.io
+        version: v1
+        kind: InferencePool
+      - group: gateway.networking.k8s.io
+        version: v1
+        kind: HTTPRoute
+      - group: ""
+        version: v1
+        kind: Service
+  optimizationInstructions:
+    gangScheduling:
+      podGroups:
+        - name: service
+          members:
+            - componentName: main
+              groupByKeyPaths:
+                - .metadata.labels["app.kubernetes.io/name"]
+            - componentName: prefill
+              groupByKeyPaths:
+                - .metadata.labels["app.kubernetes.io/name"]
+            - componentName: worker
+              groupByKeyPaths:
+                - .metadata.labels["app.kubernetes.io/name"]
+            - componentName: router-scheduler
+              groupByKeyPaths:
+                - .metadata.labels["app.kubernetes.io/name"]

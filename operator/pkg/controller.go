@@ -188,8 +188,8 @@ func (r *Reconciler) checkCRDExists(ctx context.Context, logger logr.Logger, kar
 	return nil
 }
 
-// ensureLabels stamps the three GVK index labels (run.ai/karta-group,
-// run.ai/karta-version, run.ai/karta-kind) onto the Karta metadata so that
+// ensureLabels stamps the three GVK index labels (karta.run.ai/group,
+// karta.run.ai/version, karta.run.ai/kind) onto the Karta metadata so that
 // consumers can locate a Karta by GVK via a label-selector List.
 func (r *Reconciler) ensureLabels(ctx context.Context, logger logr.Logger, karta *kartav1alpha1.Karta) error {
 	desired := desiredRootLabels(karta)

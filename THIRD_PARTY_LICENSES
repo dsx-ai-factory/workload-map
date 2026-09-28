@@ -33,12 +33,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### k8s.io/api
 - Name: k8s.io/api
-- Version: v0.37.0
+- Version: v0.37.1
 - License: Apache-2.0
 
 ### k8s.io/apimachinery
 - Name: k8s.io/apimachinery
-- Version: v0.37.0
+- Version: v0.37.1
 - License: Apache-2.0
 
 ### k8s.io/utils

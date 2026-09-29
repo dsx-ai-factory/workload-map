@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# An LLMInferenceService whose main container image can never be pulled, so the
+# main Deployment never becomes available and the controller settles
+# MainWorkloadReady=False, which rolls up to Ready=False - the Failed mapping.
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceService
+metadata:
+  name: karta-e2e-llmisvc-failed
+  namespace: default
+spec:
+  model:
+    uri: pvc://karta-e2e-llmisvc-model
+    name: karta-e2e/fake-model
+  replicas: 1
+  template:
+    containers:
+      - name: main
+        image: karta-e2e-no-such-registry.invalid/nope:v1
+        resources:
+          requests: {cpu: 50m, memory: 32Mi}
+          limits: {cpu: 50m, memory: 32Mi}

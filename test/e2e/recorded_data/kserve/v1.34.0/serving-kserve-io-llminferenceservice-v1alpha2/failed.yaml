@@ -1,0 +1,130 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1alpha2
+    kind: LLMInferenceService
+    metadata:
+      creationTimestamp: "2026-09-29T08:17:17Z"
+      finalizers:
+      - serving.kserve.io/llmisvc-finalizer
+      generation: 1
+      name: karta-e2e-llmisvc-failed
+      namespace: test-jlpqx
+      uid: 1dad05db-2c66-4401-9d05-b30a22164a5e
+    spec:
+      model:
+        name: karta-e2e/fake-model
+        uri: pvc://karta-e2e-llmisvc-model
+      replicas: 1
+      template:
+        containers:
+        - image: karta-e2e-no-such-registry.invalid/nope:v1
+          name: main
+          resources:
+            limits:
+              cpu: 50m
+              memory: 32Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+  phases:
+  - Undefined
+  resourceVersion: "1505800"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1alpha2
+    kind: LLMInferenceService
+    metadata:
+      creationTimestamp: "2026-09-29T08:17:17Z"
+      finalizers:
+      - serving.kserve.io/llmisvc-finalizer
+      generation: 1
+      name: karta-e2e-llmisvc-failed
+      namespace: test-jlpqx
+      uid: 1dad05db-2c66-4401-9d05-b30a22164a5e
+    spec:
+      model:
+        name: karta-e2e/fake-model
+        uri: pvc://karta-e2e-llmisvc-model
+      replicas: 1
+      template:
+        containers:
+        - image: karta-e2e-no-such-registry.invalid/nope:v1
+          name: main
+          resources:
+            limits:
+              cpu: 50m
+              memory: 32Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+    status:
+      addresses:
+      - url: http://karta-e2e-llmisvc-failed-kserve-workload-svc.test-jlpqx.svc.cluster.local
+      annotations:
+        serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
+        serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
+        serving.kserve.io/config-llm-prefill-template: kserve-config-llm-prefill-template
+        serving.kserve.io/config-llm-prefill-worker-data-parallel: kserve-config-llm-prefill-worker-data-parallel
+        serving.kserve.io/config-llm-router-route: kserve-config-llm-router-route
+        serving.kserve.io/config-llm-scheduler: kserve-config-llm-scheduler
+        serving.kserve.io/config-llm-scheduler-latency-predictor: kserve-config-llm-scheduler-latency-predictor
+        serving.kserve.io/config-llm-template: kserve-config-llm-template
+        serving.kserve.io/config-llm-tracing: kserve-config-llm-tracing
+        serving.kserve.io/config-llm-worker-data-parallel: kserve-config-llm-worker-data-parallel
+      appliedConfigs:
+      - name: kserve-config-llm-template
+        namespace: kserve
+        source: Preset
+      conditions:
+      - lastTransitionTime: "2026-09-29T08:17:24Z"
+        reason: Progressing
+        severity: Info
+        status: "False"
+        type: MainWorkloadReady
+      - lastTransitionTime: "2026-09-29T08:17:24Z"
+        severity: Info
+        status: "True"
+        type: PresetsCombined
+      - lastTransitionTime: "2026-09-29T08:17:24Z"
+        reason: Progressing
+        status: "False"
+        type: Ready
+      - lastTransitionTime: "2026-09-29T08:17:24Z"
+        status: "True"
+        type: RouterReady
+      - lastTransitionTime: "2026-09-29T08:17:24Z"
+        reason: Progressing
+        status: "False"
+        type: WorkloadsReady
+      observedGeneration: 1
+      workloads:
+        primary:
+          apiGroup: apps
+          kind: Deployment
+          name: karta-e2e-llmisvc-failed-kserve
+          readyReplicas: 0
+        service:
+          kind: Service
+          name: karta-e2e-llmisvc-failed-kserve-workload-svc
+  phases:
+  - Failed
+  resourceVersion: "1505888"
+  state: Failed
+flow: failed
+kartaFile: docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml
+kartaName: serving-kserve-io-llminferenceservice-v1alpha2
+operator: kserve
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 1
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Failed
+version: v1.34.0
+want: Failed

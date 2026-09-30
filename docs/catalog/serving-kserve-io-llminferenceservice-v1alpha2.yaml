@@ -24,14 +24,22 @@ spec:
             - byConditions:
                 - type: Ready
                   status: Unknown
+            - byConditions:
+                - type: Ready
+                  status: "False"
+                  reason: Progressing
+            - byConditions:
+                - type: Ready
+                  status: "False"
+                  reason: MinimumReplicasUnavailable
           running:
             - byConditions:
                 - type: Ready
                   status: "True"
           failed:
-            - byConditions:
-                - type: Ready
-                  status: "False"
+            - byExpression:
+                expression: any(.status.conditions // [] | .[]; .type == "Ready" and .status == "False" and .reason != "Progressing" and .reason != "MinimumReplicasUnavailable")
+                expectedResult: "true"
     childComponents:
       - name: main
         kind:

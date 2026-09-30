@@ -52,14 +52,29 @@ func llmInferenceService(version string) *v1alpha1.Karta {
 							ReasonFieldName:  ptr.To("reason"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
-								{Type: "Ready", Status: ptr.To("Unknown")},
-							}}},
+							// A fresh Deployment reports Ready=False with reason
+							// Progressing and then MinimumReplicasUnavailable before
+							// it turns Ready, so those two reasons are startup, not
+							// failure. Failed keeps every other False reason by
+							// negation, so reasons the controller adds later still
+							// map to Failed.
+							Initializing: []v1alpha1.StatusMatcher{
+								{ByConditions: []v1alpha1.ExpectedCondition{
+									{Type: "Ready", Status: ptr.To("Unknown")},
+								}},
+								{ByConditions: []v1alpha1.ExpectedCondition{
+									{Type: "Ready", Status: ptr.To("False"), Reason: ptr.To("Progressing")},
+								}},
+								{ByConditions: []v1alpha1.ExpectedCondition{
+									{Type: "Ready", Status: ptr.To("False"), Reason: ptr.To("MinimumReplicasUnavailable")},
+								}},
+							},
 							Running: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
 								{Type: "Ready", Status: ptr.To("True")},
 							}}},
-							Failed: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
-								{Type: "Ready", Status: ptr.To("False")},
+							Failed: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression:     `any(.status.conditions // [] | .[]; .type == "Ready" and .status == "False" and .reason != "Progressing" and .reason != "MinimumReplicasUnavailable")`,
+								ExpectedResult: "true",
 							}}},
 						},
 					},

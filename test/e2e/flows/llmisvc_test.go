@@ -11,10 +11,33 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
 )
+
+// readyFalseReason matches Ready=False whose reason is (or is not) one of the given startup reasons,
+// mirroring the definition's split: unavailability while the Deployment progresses is Initializing,
+// any other False reason is Failed.
+func readyFalseReason(within bool, reasons ...string) recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		conds, _, _ := unstructured.NestedSlice(u.Object, "status", "conditions")
+		for _, c := range conds {
+			m, ok := c.(map[string]any)
+			if !ok || m["type"] != "Ready" || m["status"] != "False" {
+				continue
+			}
+			for _, r := range reasons {
+				if m["reason"] == r {
+					return within
+				}
+			}
+			return !within
+		}
+		return false
+	}
+}
 
 var _ = Describe("LLMInferenceService", Ordered, Label("kserve", "llmisvc"), func() {
 	var rec *recorder.Recorder
@@ -38,20 +61,20 @@ var _ = Describe("LLMInferenceService", Ordered, Label("kserve", "llmisvc"), fun
 		Expect(k8sClient.Create(ctx, pvc)).To(Succeed())
 		DeferCleanup(func(ctx SpecContext) { _ = k8sClient.Delete(ctx, pvc) })
 		fx = recorder.Fixture{Operator: "kserve", Version: operatorVersion("kserve"), KartaName: "serving-kserve-io-llminferenceservice-v1alpha2", KartaFile: "docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml"}
+		startupReasons := []string{"Progressing", "MinimumReplicasUnavailable"}
+		initializing := func(u *unstructured.Unstructured) bool {
+			return CondStatus("Ready", "Unknown")(u) || readyFalseReason(true, startupReasons...)(u)
+		}
 		rec = recorder.New(cfg).
 			SetTimeout(6*time.Minute).
-			AddState(kartav1alpha1.InitializingStatus, CondStatus("Ready", "Unknown")).
+			AddState(kartav1alpha1.InitializingStatus, initializing).
 			AddState(kartav1alpha1.RunningStatus, CondTrue("Ready")).
-			AddState(kartav1alpha1.FailedStatus, CondFalse("Ready"))
+			AddState(kartav1alpha1.FailedStatus, readyFalseReason(false, startupReasons...))
 	})
 
 	It("running", func(ctx SpecContext) {
-		// The controller reports Ready=False (MinimumReplicasUnavailable) while
-		// the Deployment comes up, indistinguishable from a real failure, so a
-		// healthy startup passes through Failed before Running.
 		out, err := recorder.NewFlow(rec, "running", "testdata/llmisvc/running.yaml").Through(
 			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
-			recorder.Reaches(kartav1alpha1.FailedStatus).Optional(),
 			recorder.Reaches(kartav1alpha1.RunningStatus),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())

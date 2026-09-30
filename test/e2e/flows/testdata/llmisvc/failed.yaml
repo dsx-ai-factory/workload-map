@@ -1,9 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 #
-# An LLMInferenceService whose main container image can never be pulled, so the
-# main Deployment never becomes available and the controller settles
-# MainWorkloadReady=False, which rolls up to Ready=False - the Failed mapping.
+# An LLMInferenceService whose main container adds a tcpSocket readiness probe.
+# The preset merge keeps the preset's httpGet handler too, so the merged
+# Deployment is invalid ("may not specify more than 1 handler type") and the
+# controller settles Ready=False with a reconcile-error reason - a real failure
+# reason, distinct from the Progressing/MinimumReplicasUnavailable reasons a
+# healthy startup passes through. An unpullable image is NOT a fixture here:
+# the Deployment keeps progressing for its 10 minute deadline, which the
+# definition correctly reads as Initializing.
 apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:
@@ -17,7 +22,13 @@ spec:
   template:
     containers:
       - name: main
-        image: karta-e2e-no-such-registry.invalid/nope:v1
+        image: busybox:1.36
+        command: ["sh", "-c", "mkdir -p /tmp/www && echo ok > /tmp/www/health && exec busybox httpd -f -p 8000 -h /tmp/www"]
+        securityContext:
+          runAsUser: 65532
+        readinessProbe:
+          tcpSocket:
+            port: 8000
         resources:
           requests: {cpu: 50m, memory: 32Mi}
           limits: {cpu: 50m, memory: 32Mi}

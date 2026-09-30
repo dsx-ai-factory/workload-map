@@ -19,8 +19,8 @@ import (
 	yamlv3 "go.yaml.in/yaml/v3"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	v1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/catalog/kartas"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog/kartas"
 )
 
 // yamlHeader is prepended to every generated catalog file.

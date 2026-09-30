@@ -7,7 +7,7 @@
 set -euo pipefail
 MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
-source "${MODULE_DIR}/operators/_common.sh"
+source "${MODULE_DIR}/../operators/_common.sh"
 
 echo "==> smoke: karta/karta-smoke"
 run_smoke "${MODULE_DIR}/smoke.yaml" "karta/karta-smoke" "condition=Ready" "120s" default

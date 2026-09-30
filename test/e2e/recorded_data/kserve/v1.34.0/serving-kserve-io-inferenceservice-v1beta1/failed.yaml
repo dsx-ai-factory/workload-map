@@ -1,0 +1,170 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1beta1
+    kind: InferenceService
+    metadata:
+      creationTimestamp: "2026-09-16T11:09:14Z"
+      finalizers:
+      - inferenceservice.finalizers
+      generation: 1
+      name: karta-e2e-kserve-failed
+      namespace: test-z9n6m
+      uid: 6e80a2eb-1427-4ecc-93cc-276ff75eff3a
+    spec:
+      predictor:
+        containers:
+        - image: karta-e2e-no-such-registry.invalid/nope:latest
+          name: kserve-container
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+  phases:
+  - Undefined
+  resourceVersion: "630207"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1beta1
+    kind: InferenceService
+    metadata:
+      creationTimestamp: "2026-09-16T11:09:14Z"
+      finalizers:
+      - inferenceservice.finalizers
+      generation: 1
+      name: karta-e2e-kserve-failed
+      namespace: test-z9n6m
+      uid: 6e80a2eb-1427-4ecc-93cc-276ff75eff3a
+    spec:
+      predictor:
+        containers:
+        - image: karta-e2e-no-such-registry.invalid/nope:latest
+          name: kserve-container
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+    status:
+      components:
+        predictor: {}
+      conditions:
+      - lastTransitionTime: "2026-09-16T11:09:14Z"
+        reason: PredictorConfigurationReady not ready
+        severity: Info
+        status: Unknown
+        type: LatestDeploymentReady
+      - lastTransitionTime: "2026-09-16T11:09:14Z"
+        reason: PredictorRouteReady not ready
+        severity: Info
+        status: Unknown
+        type: RoutesReady
+      modelStatus:
+        states:
+          activeModelState: ""
+          targetModelState: Pending
+        transitionStatus: InProgress
+  phases:
+  - Undefined
+  resourceVersion: "630210"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1beta1
+    kind: InferenceService
+    metadata:
+      creationTimestamp: "2026-09-16T11:09:14Z"
+      finalizers:
+      - inferenceservice.finalizers
+      generation: 1
+      name: karta-e2e-kserve-failed
+      namespace: test-z9n6m
+      uid: 6e80a2eb-1427-4ecc-93cc-276ff75eff3a
+    spec:
+      predictor:
+        containers:
+        - image: karta-e2e-no-such-registry.invalid/nope:latest
+          name: kserve-container
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+    status:
+      components:
+        predictor:
+          latestCreatedRevision: karta-e2e-kserve-failed-predictor-00001
+      conditions:
+      - lastTransitionTime: "2026-09-16T11:09:14Z"
+        reason: PredictorConfigurationReady not ready
+        severity: Info
+        status: "False"
+        type: LatestDeploymentReady
+      - lastTransitionTime: "2026-09-16T11:09:14Z"
+        message: 'Revision "karta-e2e-kserve-failed-predictor-00001" failed with message:
+          Unable to fetch image "karta-e2e-no-such-registry.invalid/nope:latest":
+          failed to resolve image to digest: Get "https://karta-e2e-no-such-registry.invalid/v2/":
+          dial tcp: lookup karta-e2e-no-such-registry.invalid on 10.96.0.10:53: no
+          such host.'
+        reason: RevisionFailed
+        severity: Info
+        status: "False"
+        type: PredictorConfigurationReady
+      - lastTransitionTime: "2026-09-16T11:09:14Z"
+        message: Configuration "karta-e2e-kserve-failed-predictor" does not have any
+          ready Revision.
+        reason: RevisionMissing
+        status: "False"
+        type: PredictorReady
+      - lastTransitionTime: "2026-09-16T11:09:14Z"
+        message: Configuration "karta-e2e-kserve-failed-predictor" does not have any
+          ready Revision.
+        reason: RevisionMissing
+        severity: Info
+        status: "False"
+        type: PredictorRouteReady
+      - lastTransitionTime: "2026-09-16T11:09:14Z"
+        message: Configuration "karta-e2e-kserve-failed-predictor" does not have any
+          ready Revision.
+        reason: RevisionMissing
+        status: "False"
+        type: Ready
+      - lastTransitionTime: "2026-09-16T11:09:14Z"
+        reason: PredictorRouteReady not ready
+        severity: Info
+        status: "False"
+        type: RoutesReady
+      modelStatus:
+        states:
+          activeModelState: ""
+          targetModelState: Pending
+        transitionStatus: InProgress
+      observedGeneration: 1
+  phases:
+  - Failed
+  resourceVersion: "630245"
+  state: Failed
+flow: failed
+kartaFile: docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml
+kartaName: serving-kserve-io-inferenceservice-v1beta1
+operator: kserve
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Failed
+version: v1.34.0
+want: Failed

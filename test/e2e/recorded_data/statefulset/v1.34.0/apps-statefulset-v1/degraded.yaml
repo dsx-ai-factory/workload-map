@@ -4,11 +4,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:08:52Z"
+      creationTimestamp: "2026-09-16T11:03:48Z"
       generation: 1
       name: karta-e2e-sts-degraded
-      namespace: test-wpzh8
-      uid: f1b25743-10ef-475b-a45d-13db47a9857d
+      namespace: test-ptfjd
+      uid: 0e9e2704-747d-4a1c-b622-3cea15676898
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -41,6 +41,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 50m
+                memory: 32Mi
               requests:
                 cpu: 50m
                 memory: 32Mi
@@ -58,24 +61,24 @@ events:
     status:
       availableReplicas: 0
       collisionCount: 0
-      currentRevision: karta-e2e-sts-degraded-5fb8d9544d
+      currentRevision: karta-e2e-sts-degraded-847895d6d4
       observedGeneration: 1
       replicas: 0
-      updateRevision: karta-e2e-sts-degraded-5fb8d9544d
+      updateRevision: karta-e2e-sts-degraded-847895d6d4
   phases:
   - Initializing
-  resourceVersion: "340334"
+  resourceVersion: "626019"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:08:52Z"
+      creationTimestamp: "2026-09-16T11:03:48Z"
       generation: 1
       name: karta-e2e-sts-degraded
-      namespace: test-wpzh8
-      uid: f1b25743-10ef-475b-a45d-13db47a9857d
+      namespace: test-ptfjd
+      uid: 0e9e2704-747d-4a1c-b622-3cea15676898
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -108,6 +111,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 50m
+                memory: 32Mi
               requests:
                 cpu: 50m
                 memory: 32Mi
@@ -126,25 +132,25 @@ events:
       availableReplicas: 0
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-degraded-5fb8d9544d
+      currentRevision: karta-e2e-sts-degraded-847895d6d4
       observedGeneration: 1
       replicas: 3
-      updateRevision: karta-e2e-sts-degraded-5fb8d9544d
+      updateRevision: karta-e2e-sts-degraded-847895d6d4
       updatedReplicas: 3
   phases:
   - Initializing
-  resourceVersion: "340340"
+  resourceVersion: "626026"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:08:52Z"
+      creationTimestamp: "2026-09-16T11:03:48Z"
       generation: 1
       name: karta-e2e-sts-degraded
-      namespace: test-wpzh8
-      uid: f1b25743-10ef-475b-a45d-13db47a9857d
+      namespace: test-ptfjd
+      uid: 0e9e2704-747d-4a1c-b622-3cea15676898
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -177,6 +183,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 50m
+                memory: 32Mi
               requests:
                 cpu: 50m
                 memory: 32Mi
@@ -195,15 +204,15 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-degraded-5fb8d9544d
+      currentRevision: karta-e2e-sts-degraded-847895d6d4
       observedGeneration: 1
       readyReplicas: 1
       replicas: 3
-      updateRevision: karta-e2e-sts-degraded-5fb8d9544d
+      updateRevision: karta-e2e-sts-degraded-847895d6d4
       updatedReplicas: 3
   phases:
   - Degraded
-  resourceVersion: "340358"
+  resourceVersion: "626046"
   state: Degraded
 flow: degraded
 kartaFile: docs/catalog/apps-statefulset-v1.yaml

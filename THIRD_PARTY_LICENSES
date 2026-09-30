@@ -13,12 +13,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/onsi/ginkgo/v2
 - Name: github.com/onsi/ginkgo/v2
-- Version: v2.32.2
+- Version: v2.33.0
 - License: MIT
 
 ### github.com/onsi/gomega
 - Name: github.com/onsi/gomega
-- Version: v1.43.0
+- Version: v1.44.0
 - License: MIT
 
 ### github.com/samber/lo
@@ -38,12 +38,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### k8s.io/api
 - Name: k8s.io/api
-- Version: v0.37.0
+- Version: v0.37.1
 - License: Apache-2.0
 
 ### k8s.io/apimachinery
 - Name: k8s.io/apimachinery
-- Version: v0.37.0
+- Version: v0.37.1
 - License: Apache-2.0
 
 ### k8s.io/utils
@@ -193,12 +193,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### k8s.io/cli-runtime
 - Name: k8s.io/cli-runtime
-- Version: v0.37.0
+- Version: v0.37.1
 - License: Apache-2.0
 
 ### k8s.io/client-go
 - Name: k8s.io/client-go
-- Version: v0.37.0
+- Version: v0.37.1
 - License: Apache-2.0
 
 ### github.com/Azure/go-ansiterm

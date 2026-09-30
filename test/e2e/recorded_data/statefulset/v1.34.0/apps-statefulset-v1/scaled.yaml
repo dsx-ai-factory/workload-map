@@ -4,11 +4,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 1
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -34,6 +34,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -51,24 +54,24 @@ events:
     status:
       availableReplicas: 0
       collisionCount: 0
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 1
       replicas: 0
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
   phases:
   - Initializing
-  resourceVersion: "339658"
+  resourceVersion: "625347"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 1
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -94,6 +97,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -112,25 +118,25 @@ events:
       availableReplicas: 0
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "339660"
+  resourceVersion: "625349"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 1
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -156,6 +162,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -174,15 +183,15 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 1
       readyReplicas: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "339677"
+  resourceVersion: "625370"
   state: Running
 - action:
     name: Scale
@@ -198,11 +207,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -228,6 +237,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -246,15 +258,15 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 1
       readyReplicas: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "339678"
+  resourceVersion: "625371"
   staleObservedGeneration: true
   state: Initializing
 - kind: STATE
@@ -262,11 +274,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -292,6 +304,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -310,26 +325,26 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 2
       readyReplicas: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "339682"
+  resourceVersion: "625375"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -355,6 +370,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -373,26 +391,26 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 2
       readyReplicas: 1
       replicas: 2
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 2
   phases:
   - Initializing
-  resourceVersion: "339684"
+  resourceVersion: "625379"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -418,6 +436,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -436,26 +457,26 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 2
       readyReplicas: 2
       replicas: 2
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 2
   phases:
   - Initializing
-  resourceVersion: "339697"
+  resourceVersion: "625419"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -481,6 +502,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -499,26 +523,26 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 2
       readyReplicas: 2
       replicas: 3
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 3
   phases:
   - Degraded
-  resourceVersion: "339700"
+  resourceVersion: "625422"
   state: Degraded
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -544,6 +568,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -562,15 +589,15 @@ events:
       availableReplicas: 3
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 2
       readyReplicas: 3
       replicas: 3
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 3
   phases:
   - Running
-  resourceVersion: "339772"
+  resourceVersion: "625445"
   state: Running
 - action:
     name: Scale
@@ -586,11 +613,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -616,6 +643,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -634,15 +664,15 @@ events:
       availableReplicas: 3
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 2
       readyReplicas: 3
       replicas: 3
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 3
   phases:
   - Initializing
-  resourceVersion: "339775"
+  resourceVersion: "625446"
   staleObservedGeneration: true
   state: Initializing
 - kind: STATE
@@ -650,11 +680,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -680,6 +710,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -698,26 +731,26 @@ events:
       availableReplicas: 3
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 3
       readyReplicas: 3
       replicas: 3
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 3
   phases:
   - Initializing
-  resourceVersion: "339778"
+  resourceVersion: "625449"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -743,6 +776,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -761,26 +797,26 @@ events:
       availableReplicas: 3
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 3
       readyReplicas: 3
       replicas: 3
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 2
   phases:
   - Initializing
-  resourceVersion: "339779"
+  resourceVersion: "625450"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -806,6 +842,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -824,26 +863,26 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 3
       readyReplicas: 2
       replicas: 3
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 2
   phases:
   - Initializing
-  resourceVersion: "340061"
+  resourceVersion: "625747"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -869,6 +908,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -887,26 +929,26 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 3
       readyReplicas: 2
       replicas: 2
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 2
   phases:
   - Initializing
-  resourceVersion: "340067"
+  resourceVersion: "625761"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -932,6 +974,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -950,26 +995,26 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 3
       readyReplicas: 2
       replicas: 2
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "340069"
+  resourceVersion: "625763"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -995,6 +1040,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -1013,26 +1061,26 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 3
       readyReplicas: 1
       replicas: 2
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 1
   phases:
-  - Running
-  resourceVersion: "340306"
-  state: Running
+  - Initializing
+  resourceVersion: "625996"
+  state: Initializing
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-09T15:07:47Z"
+      creationTimestamp: "2026-09-16T11:02:36Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-wpzh8
-      uid: f7fa0ab8-e58e-46dd-944e-d8fc1f5d3c50
+      namespace: test-ptfjd
+      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -1058,6 +1106,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -1076,15 +1127,15 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7775b6b476
+      currentRevision: karta-e2e-sts-7b8b4dd995
       observedGeneration: 3
       readyReplicas: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7775b6b476
+      updateRevision: karta-e2e-sts-7b8b4dd995
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "340320"
+  resourceVersion: "626003"
   state: Running
 flow: scaled
 kartaFile: docs/catalog/apps-statefulset-v1.yaml
@@ -1109,10 +1160,10 @@ summary:
 - amount: 1
   phases:
   - Running
-- amount: 6
+- amount: 7
   phases:
   - Initializing
-- amount: 2
+- amount: 1
   phases:
   - Running
 version: v1.34.0

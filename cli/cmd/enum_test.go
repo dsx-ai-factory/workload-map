@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/run-ai/karta/cli/pkg/generator"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
 )
 
 func TestOutputSetValid(t *testing.T) {

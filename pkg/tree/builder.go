@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/resource"
 )
 
 // Build constructs a WorkloadTree describing the desired hierarchy of a workload:

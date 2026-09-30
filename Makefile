@@ -10,12 +10,19 @@ LOCALBIN ?= $(PROJECT_DIR)/bin
 # (tag v1.2.3 -> 1.2.3, main -> 0.0.0-main-<sha>).
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "0.0.0-main")
 
-VERSION_PKG := github.com/run-ai/karta/pkg/version
+VERSION_PKG := github.com/dsx-ai-factory/workload-map/pkg/version
 GO_LDFLAGS  := -X $(VERSION_PKG).version=$(VERSION)
 LDFLAGS     := -ldflags "$(GO_LDFLAGS)"
 
 # The component inventory every aggregate fans out over.
 PRIMARY_COMPONENTS := lib cli operator karta-wasm
+
+# Every Go module in the repo. The tidy target fans out over this rather than
+# PRIMARY_COMPONENTS because an untidy manifest in a module that ships no
+# binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
+GO_MODULES := . cli karta-wasm operator test/e2e hack/imagelock \
+	docs/examples/quickstart docs/examples/controller-runtime \
+	hack/e2e/operators/nim/image
 
 KARTA_CHART_DIR := $(PROJECT_DIR)/charts/karta
 KARTA_CRDS_DIR := $(KARTA_CHART_DIR)/crds
@@ -42,11 +49,11 @@ ENVTEST             ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 
 GOLANGCI_LINT_FLAGS ?= $(if $(VERBOSE),-v)
 
-# Container image settings (defaults for ghcr.io/run-ai/karta OSS publishing).
+# Container image settings (defaults for ghcr.io/dsx-ai-factory/workload-map OSS publishing).
 # Override any component from the command line, e.g.:
 #   make operator-image IMAGE_TAG=v1.2.3
 #   make operator-image IMAGE_REGISTRY=ghcr.io/myorg/karta
-IMAGE_REGISTRY ?= ghcr.io/run-ai/karta
+IMAGE_REGISTRY ?= ghcr.io/dsx-ai-factory/workload-map
 IMAGE_NAME     ?= karta-operator
 IMAGE_TAG      ?= $(VERSION)
 IMAGE          ?= $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
@@ -220,7 +227,7 @@ test-operator-integration: envtest ## Run the operator envtest suite (downloads 
 test-operator: test-operator-unit test-operator-integration ## Run the operator unit and envtest suites
 
 .PHONY: check-operator
-check-operator: fmt-check-operator vet-operator lint-operator test-operator ## Full operator presubmit
+check-operator: fmt-check-operator vet-operator lint-operator build-operator-e2e test-operator ## Full operator presubmit
 
 .PHONY: build-operator
 build-operator: $(LOCALBIN) ## Build the karta-operator binary for the host OS/arch
@@ -301,7 +308,7 @@ generate-samples: ## Regenerate docs/catalog/ from pkg/catalog
 	go run ./hack/gen-samples
 
 .PHONY: generate-licenses
-generate-licenses: go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies
+generate-licenses: tidy go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies
 	@set -eu; \
 	echo "Generating NOTICE and THIRD_PARTY_LICENSES files from current dependencies using go-licence-detector"; \
 	go mod download -json > $(LOCALBIN)/root-deps.json; \
@@ -315,15 +322,22 @@ generate-licenses: go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICE
 		-depsOut=THIRD_PARTY_LICENSES; \
 	echo "Done"
 
+.PHONY: tidy
+tidy: ## Run go mod tidy in every module (rewrites go.mod and go.sum)
+	@set -e; \
+	for module in $(GO_MODULES); do \
+		(cd $$module && go mod tidy); \
+	done
+
 .PHONY: validate
 # status is captured into a variable rather than tested inline, so that a git
 # that cannot run is a hard error. Inline, a failing git yields empty output and
 # the emptiness check passes, reporting success having verified nothing.
-validate: lib-generate lib-manifests lib-generate-mocks generate-licenses generate-samples ## Fail if any generated file is stale or untracked
+validate: tidy lib-generate lib-manifests lib-generate-mocks generate-licenses generate-samples ## Fail if any generated or module manifest is stale or untracked
 	@set -e; \
 	status="$$(git status --porcelain)"; \
 	test -z "$$status" || { echo "$$status"; \
-		echo "generated files are stale or untracked; run the generators and commit"; exit 1; }
+		echo "generated files or module manifests are stale or untracked; run the generators and commit"; exit 1; }
 
 .PHONY: download-dependencies
 download-dependencies: ## Pre-warm the module cache for the library module
@@ -370,6 +384,7 @@ image-lock: ## Generate the per-platform ImageLock for a release (VERSION=vX.Y.Z
 		--chart $(KARTA_CHART_DIR) \
 		--version $(VERSION) \
 		$(foreach p,$(IMAGE_LOCK_PLATFORMS),--platform $(p)) \
+		$(foreach s,$(IMAGE_LOCK_SET),--set $(s)) \
 		--out-dir $(IMAGE_LOCK_OUT_DIR)
 
 .PHONY: image-lock-verify
@@ -428,6 +443,21 @@ e2e-up: ## Provision a kind cluster + operators (WORKLOADS=<list>|all|none; KART
 	CERT_MANAGER=$(CERT_MANAGER) \
 	./hack/e2e/up.sh $(WORKLOADS)
 
+# Overall go-test timeout for the operator suite. Separate from E2E_TIMEOUT, which
+# caps the much longer workload-recording run.
+E2E_OPERATOR_TIMEOUT ?= 15m
+
+# Deliberately absent from check-operator: it needs a cluster, and check must not.
+.PHONY: test-operator-e2e
+# The e2e package is behind a build tag, so vet, golangci-lint and the unit tests all
+# skip it. Compiling with no spec selected type checks it without needing a cluster.
+.PHONY: build-operator-e2e
+build-operator-e2e: ## Compile the operator e2e suite without running it (no cluster needed)
+	cd operator && go test -tags e2e -run '^$$' ./test/e2e/...
+
+test-operator-e2e: ## Run the operator e2e against the current cluster (KARTA_WEBHOOK_MODE must match the one e2e-up installed; CLUSTER_NAME for a named one)
+	CLUSTER_NAME=$(CLUSTER_NAME) KARTA_WEBHOOK_MODE=$(KARTA_WEBHOOK_MODE) $(E2E_KUBECONFIG) ./hack/e2e/karta-operator/test.sh
+
 .PHONY: e2e-down
 e2e-down: ## Tear down the e2e cluster (set CLUSTER_NAME for a named one)
 	CLUSTER_NAME=$(CLUSTER_NAME) ./hack/e2e/down.sh
@@ -448,9 +478,10 @@ verify-recordings: ## Fail if any recorded fixture ended with succeeded false (r
 	if [ -n "$$bad" ]; then echo "recordings that did not succeed:"; echo "$$bad"; exit 1; fi; \
 	echo "all recordings succeeded"
 
-# The e2e shell scripts to shellcheck: the provisioner, teardown, the Karta install,
-# the shared helpers, and every per-operator install.sh/verify.sh.
-E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh hack/e2e/install.sh hack/e2e/verify.sh \
+# The e2e shell scripts to shellcheck: the provisioner, teardown, the karta-operator
+# scripts, the shared helpers, and every per-operator install.sh/verify.sh.
+E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh \
+	$(wildcard hack/e2e/karta-operator/*.sh) \
 	hack/e2e/operators/_common.sh \
 	$(wildcard hack/e2e/operators/*/install.sh) \
 	$(wildcard hack/e2e/operators/*/verify.sh)

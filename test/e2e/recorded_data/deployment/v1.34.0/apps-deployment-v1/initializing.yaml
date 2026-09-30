@@ -6,11 +6,11 @@ events:
     metadata:
       annotations:
         deployment.kubernetes.io/revision: "1"
-      creationTimestamp: "2026-09-10T16:11:01Z"
+      creationTimestamp: "2026-09-16T11:02:19Z"
       generation: 1
       name: karta-e2e-deploy-initializing
-      namespace: test-n2gtz
-      uid: da08f33f-c442-4345-b699-db4cf17e307f
+      namespace: test-n7hmp
+      uid: 1bb16a98-5f37-4f8c-9dfd-a31a7a3bd38a
     spec:
       progressDeadlineSeconds: 600
       replicas: 1
@@ -37,6 +37,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -49,15 +52,15 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastTransitionTime: "2026-09-10T16:11:01Z"
-        lastUpdateTime: "2026-09-10T16:11:01Z"
-        message: Created new replica set "karta-e2e-deploy-initializing-5f5996cdc5"
+      - lastTransitionTime: "2026-09-16T11:02:19Z"
+        lastUpdateTime: "2026-09-16T11:02:19Z"
+        message: Created new replica set "karta-e2e-deploy-initializing-6c4bbc86fc"
         reason: NewReplicaSetCreated
         status: "True"
         type: Progressing
   phases:
   - Initializing
-  resourceVersion: "895239"
+  resourceVersion: "625144"
   state: Initializing
 - kind: STATE
   object:
@@ -66,11 +69,11 @@ events:
     metadata:
       annotations:
         deployment.kubernetes.io/revision: "1"
-      creationTimestamp: "2026-09-10T16:11:01Z"
+      creationTimestamp: "2026-09-16T11:02:19Z"
       generation: 1
       name: karta-e2e-deploy-initializing
-      namespace: test-n2gtz
-      uid: da08f33f-c442-4345-b699-db4cf17e307f
+      namespace: test-n7hmp
+      uid: 1bb16a98-5f37-4f8c-9dfd-a31a7a3bd38a
     spec:
       progressDeadlineSeconds: 600
       replicas: 1
@@ -97,6 +100,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -109,14 +115,14 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastTransitionTime: "2026-09-10T16:11:01Z"
-        lastUpdateTime: "2026-09-10T16:11:01Z"
-        message: Created new replica set "karta-e2e-deploy-initializing-5f5996cdc5"
+      - lastTransitionTime: "2026-09-16T11:02:19Z"
+        lastUpdateTime: "2026-09-16T11:02:19Z"
+        message: Created new replica set "karta-e2e-deploy-initializing-6c4bbc86fc"
         reason: NewReplicaSetCreated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-09-10T16:11:01Z"
-        lastUpdateTime: "2026-09-10T16:11:01Z"
+      - lastTransitionTime: "2026-09-16T11:02:19Z"
+        lastUpdateTime: "2026-09-16T11:02:19Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
@@ -125,7 +131,7 @@ events:
       unavailableReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "895241"
+  resourceVersion: "625150"
   state: Initializing
 flow: initializing
 kartaFile: docs/catalog/apps-deployment-v1.yaml

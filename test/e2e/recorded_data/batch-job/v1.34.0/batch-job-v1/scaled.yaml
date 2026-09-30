@@ -4,16 +4,16 @@ events:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-09T15:07:05Z"
+      creationTimestamp: "2026-09-16T11:01:16Z"
       generation: 1
       labels:
-        batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         batch.kubernetes.io/job-name: karta-e2e-job-scaled
-        controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         job-name: karta-e2e-job-scaled
       name: karta-e2e-job-scaled
-      namespace: test-6ltsx
-      uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+      namespace: test-n88rk
+      uid: ae4d7eee-f438-43d4-994f-192746abc4f6
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -22,14 +22,14 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+          batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             batch.kubernetes.io/job-name: karta-e2e-job-scaled
-            controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             job-name: karta-e2e-job-scaled
         spec:
           containers:
@@ -41,6 +41,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -54,28 +57,28 @@ events:
     status:
       active: 1
       ready: 0
-      startTime: "2026-09-09T15:07:05Z"
+      startTime: "2026-09-16T11:01:16Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
   - Initializing
-  resourceVersion: "339134"
+  resourceVersion: "624270"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-09T15:07:05Z"
+      creationTimestamp: "2026-09-16T11:01:16Z"
       generation: 1
       labels:
-        batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         batch.kubernetes.io/job-name: karta-e2e-job-scaled
-        controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         job-name: karta-e2e-job-scaled
       name: karta-e2e-job-scaled
-      namespace: test-6ltsx
-      uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+      namespace: test-n88rk
+      uid: ae4d7eee-f438-43d4-994f-192746abc4f6
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -84,14 +87,14 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+          batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             batch.kubernetes.io/job-name: karta-e2e-job-scaled
-            controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             job-name: karta-e2e-job-scaled
         spec:
           containers:
@@ -103,6 +106,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -116,13 +122,13 @@ events:
     status:
       active: 1
       ready: 1
-      startTime: "2026-09-09T15:07:05Z"
+      startTime: "2026-09-16T11:01:16Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
   - Initializing
   - Running
-  resourceVersion: "339151"
+  resourceVersion: "624309"
   state: Running
 - action:
     name: Scale
@@ -138,16 +144,16 @@ events:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-09T15:07:05Z"
+      creationTimestamp: "2026-09-16T11:01:16Z"
       generation: 2
       labels:
-        batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         batch.kubernetes.io/job-name: karta-e2e-job-scaled
-        controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         job-name: karta-e2e-job-scaled
       name: karta-e2e-job-scaled
-      namespace: test-6ltsx
-      uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+      namespace: test-n88rk
+      uid: ae4d7eee-f438-43d4-994f-192746abc4f6
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -156,14 +162,14 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+          batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             batch.kubernetes.io/job-name: karta-e2e-job-scaled
-            controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             job-name: karta-e2e-job-scaled
         spec:
           containers:
@@ -175,6 +181,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -188,29 +197,29 @@ events:
     status:
       active: 1
       ready: 1
-      startTime: "2026-09-09T15:07:05Z"
+      startTime: "2026-09-16T11:01:16Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
   - Initializing
   - Running
-  resourceVersion: "339152"
+  resourceVersion: "624310"
   state: Running
 - kind: STATE
   object:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-09T15:07:05Z"
+      creationTimestamp: "2026-09-16T11:01:16Z"
       generation: 2
       labels:
-        batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         batch.kubernetes.io/job-name: karta-e2e-job-scaled
-        controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         job-name: karta-e2e-job-scaled
       name: karta-e2e-job-scaled
-      namespace: test-6ltsx
-      uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+      namespace: test-n88rk
+      uid: ae4d7eee-f438-43d4-994f-192746abc4f6
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -219,14 +228,14 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+          batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             batch.kubernetes.io/job-name: karta-e2e-job-scaled
-            controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             job-name: karta-e2e-job-scaled
         spec:
           containers:
@@ -238,6 +247,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -251,29 +263,29 @@ events:
     status:
       active: 3
       ready: 1
-      startTime: "2026-09-09T15:07:05Z"
+      startTime: "2026-09-16T11:01:16Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
   - Initializing
   - Running
-  resourceVersion: "339159"
+  resourceVersion: "624317"
   state: Running
 - kind: STATE
   object:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-09T15:07:05Z"
+      creationTimestamp: "2026-09-16T11:01:16Z"
       generation: 2
       labels:
-        batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         batch.kubernetes.io/job-name: karta-e2e-job-scaled
-        controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         job-name: karta-e2e-job-scaled
       name: karta-e2e-job-scaled
-      namespace: test-6ltsx
-      uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+      namespace: test-n88rk
+      uid: ae4d7eee-f438-43d4-994f-192746abc4f6
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -282,14 +294,14 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+          batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             batch.kubernetes.io/job-name: karta-e2e-job-scaled
-            controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             job-name: karta-e2e-job-scaled
         spec:
           containers:
@@ -301,6 +313,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -314,13 +329,13 @@ events:
     status:
       active: 3
       ready: 3
-      startTime: "2026-09-09T15:07:05Z"
+      startTime: "2026-09-16T11:01:16Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
   - Initializing
   - Running
-  resourceVersion: "339175"
+  resourceVersion: "624361"
   state: Running
 - action:
     name: Scale
@@ -336,16 +351,16 @@ events:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-09T15:07:05Z"
+      creationTimestamp: "2026-09-16T11:01:16Z"
       generation: 3
       labels:
-        batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         batch.kubernetes.io/job-name: karta-e2e-job-scaled
-        controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         job-name: karta-e2e-job-scaled
       name: karta-e2e-job-scaled
-      namespace: test-6ltsx
-      uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+      namespace: test-n88rk
+      uid: ae4d7eee-f438-43d4-994f-192746abc4f6
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -354,14 +369,14 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+          batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             batch.kubernetes.io/job-name: karta-e2e-job-scaled
-            controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             job-name: karta-e2e-job-scaled
         spec:
           containers:
@@ -373,6 +388,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -386,29 +404,29 @@ events:
     status:
       active: 3
       ready: 3
-      startTime: "2026-09-09T15:07:05Z"
+      startTime: "2026-09-16T11:01:16Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
   - Initializing
   - Running
-  resourceVersion: "339176"
+  resourceVersion: "624362"
   state: Running
 - kind: STATE
   object:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-09T15:07:05Z"
+      creationTimestamp: "2026-09-16T11:01:16Z"
       generation: 3
       labels:
-        batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         batch.kubernetes.io/job-name: karta-e2e-job-scaled
-        controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+        controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
         job-name: karta-e2e-job-scaled
       name: karta-e2e-job-scaled
-      namespace: test-6ltsx
-      uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+      namespace: test-n88rk
+      uid: ae4d7eee-f438-43d4-994f-192746abc4f6
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -417,14 +435,14 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+          batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            batch.kubernetes.io/controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             batch.kubernetes.io/job-name: karta-e2e-job-scaled
-            controller-uid: 9a60627f-cde7-4a00-b4b0-e0e030fafd0b
+            controller-uid: ae4d7eee-f438-43d4-994f-192746abc4f6
             job-name: karta-e2e-job-scaled
         spec:
           containers:
@@ -436,6 +454,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
               requests:
                 cpu: 20m
                 memory: 32Mi
@@ -449,13 +470,13 @@ events:
     status:
       active: 1
       ready: 1
-      startTime: "2026-09-09T15:07:05Z"
+      startTime: "2026-09-16T11:01:16Z"
       terminating: 2
       uncountedTerminatedPods: {}
   phases:
   - Initializing
   - Running
-  resourceVersion: "339184"
+  resourceVersion: "624368"
   state: Running
 flow: scaled
 kartaFile: docs/catalog/batch-job-v1.yaml

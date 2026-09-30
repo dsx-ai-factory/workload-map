@@ -21,10 +21,10 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
-	"github.com/run-ai/karta/cli/pkg/definitions"
-	"github.com/run-ai/karta/cli/pkg/generator"
-	"github.com/run-ai/karta/cli/pkg/workload"
-	"github.com/run-ai/karta/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
 )
 
 const (
@@ -167,37 +167,13 @@ func parseArgs(opts *getOptions, args []string) error {
 
 func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) error {
 	ctx := cmd.Context()
-	access := clusterAccess()
 
-	namespace, _, err := ResolvedNamespace(access)
-	if err != nil {
-		return fmt.Errorf("resolve namespace: %w", err)
-	}
-
-	resolver, warnings := loadDefinitions(ctx, access)
-	if err := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err != nil {
-		return err
-	}
-	if len(resolver.List()) == 0 {
-		return exitError{code: ExitNotFound, err: fmt.Errorf(
-			"no Karta definitions available (catalog empty and no cluster definitions)")}
-	}
-
-	mapper, err := access.ToRESTMapper()
-	if err != nil {
-		return fmt.Errorf("kubernetes discovery: %w", err)
-	}
-	dyn, err := newDynamicClient(access)
+	look, err := resolveLookup(cmd, opts)
 	if err != nil {
 		return err
 	}
 
-	target, err := resolveTarget(opts, resolver, mapper)
-	if err != nil {
-		return err
-	}
-
-	views, searched, listWarnings, err := collect(ctx, dyn, mapper, target, namespace, opts)
+	views, searched, listWarnings, err := collect(ctx, look.dyn, look.mapper, look.definition, look.namespace, opts)
 	if writeErr := printWarnings(cmd.ErrOrStderr(), listWarnings); writeErr != nil {
 		return writeErr
 	}
@@ -215,11 +191,57 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) error
 
 	return generator.RenderWorkloads(cmd.OutOrStdout(), cmd.ErrOrStderr(), views, generator.Options{
 		Output:    format,
+		ByName:    opts.name != "",
 		Namespace: searched,
 		// An empty namespace means the type is cluster-scoped, so the search
 		// spanned the cluster.
 		AllNamespaces: searched == "",
 	})
+}
+
+// lookup is everything get and describe settle before they read the cluster:
+// where to look, how to reach it, and which definition covers the type asked for.
+type lookup struct {
+	namespace  string
+	dyn        dynamic.Interface
+	mapper     meta.RESTMapper
+	definition definitions.Definition
+}
+
+// resolveLookup runs the prologue both commands share. Warnings are printed
+// before the empty-set check so a cluster whose definitions failed to load still
+// says why.
+func resolveLookup(cmd *cobra.Command, opts *getOptions) (lookup, error) {
+	access := clusterAccess()
+
+	namespace, _, err := ResolvedNamespace(access)
+	if err != nil {
+		return lookup{}, fmt.Errorf("resolve namespace: %w", err)
+	}
+
+	resolver, warnings := loadDefinitions(cmd.Context(), access)
+	if err := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err != nil {
+		return lookup{}, err
+	}
+	if len(resolver.List()) == 0 {
+		return lookup{}, exitError{code: ExitNotFound, err: errNoDefinitions}
+	}
+
+	mapper, err := access.ToRESTMapper()
+	if err != nil {
+		return lookup{}, fmt.Errorf("kubernetes discovery: %w", err)
+	}
+	dyn, err := newDynamicClient(access)
+	if err != nil {
+		return lookup{}, err
+	}
+
+	definition, err := resolveTarget(opts, resolver, mapper)
+	if err != nil {
+		return lookup{}, err
+	}
+
+	return lookup{namespace: namespace, dyn: dyn, mapper: mapper, definition: definition}, nil
 }
 
 // resolveTarget maps the requested type to the definition that covers it.
@@ -249,8 +271,7 @@ func resolveTarget(
 	// absent must still resolve, including the qualified form suggested below.
 	switch matches := matchDefinitions(resolver, opts.typeToken); len(matches) {
 	case 0:
-		return definitions.Definition{}, exitError{code: ExitNotFound,
-			err: fmt.Errorf("no Karta definition covers %q", opts.typeToken)}
+		return definitions.Definition{}, noDefinitionForType(opts.typeToken)
 	case 1:
 		return matches[0], nil
 	default:

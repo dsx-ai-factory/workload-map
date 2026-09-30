@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	v1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
 // StatefulSet returns the built-in Karta for the apps/v1 StatefulSet workload.
@@ -29,7 +29,7 @@ func StatefulSet() *v1alpha1.Karta {
 					StatusDefinition: &v1alpha1.StatusDefinition{
 						StatusMappings: v1alpha1.StatusMappings{
 							Running: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								Expression:     "(.status.observedGeneration // 0) == (.metadata.generation // 0) and (.status.readyReplicas // 0) == (.spec.replicas // 1) and (.status.updatedReplicas // 0) == (.spec.replicas // 1) and (.status.currentRevision == .status.updateRevision)",
+								Expression:     "(.status.observedGeneration // 0) == (.metadata.generation // 0) and (.status.replicas // 0) == (.spec.replicas // 1) and (.status.readyReplicas // 0) == (.spec.replicas // 1) and (.status.updatedReplicas // 0) == (.spec.replicas // 1) and (.status.currentRevision == .status.updateRevision)",
 								ExpectedResult: "true",
 							}}},
 							Degraded: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
@@ -38,10 +38,10 @@ func StatefulSet() *v1alpha1.Karta {
 							}}},
 							Initializing: []v1alpha1.StatusMatcher{
 								// Scale-down: the controller has acknowledged the new spec (generation
-								// caught up) while more pods are ready than desired - the extras are
-								// still draining.
+								// caught up) while more pods exist than desired - the extras are
+								// still draining, ready or not.
 								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     ".status.observedGeneration == .metadata.generation and .status.readyReplicas > (.spec.replicas // 1)",
+									Expression:     ".status.observedGeneration == .metadata.generation and (.status.replicas // 0) > (.spec.replicas // 1)",
 									ExpectedResult: "true",
 								}},
 								{ByExpression: &v1alpha1.ExpressionMatcher{

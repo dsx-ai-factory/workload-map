@@ -4,13 +4,13 @@ events:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:49:38Z"
+      creationTimestamp: "2026-09-16T11:05:01Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-running
-      namespace: test-cb2tw
-      uid: 8ef12c7f-e5f7-4afd-8f76-4571c6394230
+      namespace: test-4jj2n
+      uid: 9d7dab78-63c1-4c5d-8b46-68607076a2f5
     spec:
       backoffLimit: 0
       entrypoint: python -c "import time; time.sleep(300)"
@@ -55,6 +55,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
@@ -62,20 +65,20 @@ events:
       ttlSecondsAfterFinished: 0
   phases:
   - Undefined
-  resourceVersion: "1319024"
+  resourceVersion: "627089"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:49:38Z"
+      creationTimestamp: "2026-09-16T11:05:01Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-running
-      namespace: test-cb2tw
-      uid: 8ef12c7f-e5f7-4afd-8f76-4571c6394230
+      namespace: test-4jj2n
+      uid: 9d7dab78-63c1-4c5d-8b46-68607076a2f5
     spec:
       backoffLimit: 0
       entrypoint: python -c "import time; time.sleep(300)"
@@ -120,6 +123,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
@@ -128,8 +134,8 @@ events:
     status:
       failed: 0
       jobDeploymentStatus: Initializing
-      jobId: karta-e2e-rayjob-running-2h8qv
-      rayClusterName: karta-e2e-rayjob-running-v22fl
+      jobId: karta-e2e-rayjob-running-fbf4p
+      rayClusterName: karta-e2e-rayjob-running-rcqkt
       rayClusterStatus:
         desiredCPU: "0"
         desiredGPU: "0"
@@ -137,24 +143,24 @@ events:
         desiredTPU: "0"
         head: {}
       rayJobInfo: {}
-      startTime: "2026-09-14T07:49:38Z"
+      startTime: "2026-09-16T11:05:01Z"
       succeeded: 0
   phases:
   - Initializing
-  resourceVersion: "1319025"
+  resourceVersion: "627090"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:49:38Z"
+      creationTimestamp: "2026-09-16T11:05:01Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-running
-      namespace: test-cb2tw
-      uid: 8ef12c7f-e5f7-4afd-8f76-4571c6394230
+      namespace: test-4jj2n
+      uid: 9d7dab78-63c1-4c5d-8b46-68607076a2f5
     spec:
       backoffLimit: 0
       entrypoint: python -c "import time; time.sleep(300)"
@@ -199,115 +205,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
-                  requests:
-                    cpu: 250m
-                    memory: 512Mi
-      submissionMode: K8sJobMode
-      ttlSecondsAfterFinished: 0
-    status:
-      failed: 0
-      jobDeploymentStatus: Initializing
-      jobId: karta-e2e-rayjob-running-2h8qv
-      rayClusterName: karta-e2e-rayjob-running-v22fl
-      rayClusterStatus:
-        conditions:
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
-          message: Head Pod not found
-          reason: HeadPodNotFound
-          status: "False"
-          type: HeadPodReady
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
-          message: RayCluster Pods are being provisioned for first time
-          reason: RayClusterPodsProvisioning
-          status: "False"
-          type: RayClusterProvisioned
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
-          message: ""
-          reason: RayClusterSuspended
-          status: "False"
-          type: RayClusterSuspended
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
-          message: ""
-          reason: RayClusterSuspending
-          status: "False"
-          type: RayClusterSuspending
-        desiredCPU: 500m
-        desiredGPU: "0"
-        desiredMemory: 2Gi
-        desiredTPU: "0"
-        endpoints:
-          client: "10001"
-          dashboard: "8265"
-          gcs-server: "6379"
-          metrics: "8080"
-          serve: "8000"
-        head:
-          serviceName: karta-e2e-rayjob-running-v22fl-head-svc
-        lastUpdateTime: "2026-09-14T07:49:38Z"
-        observedGeneration: 1
-      rayJobInfo: {}
-      startTime: "2026-09-14T07:49:38Z"
-      succeeded: 0
-  phases:
-  - Initializing
-  resourceVersion: "1319037"
-  state: Initializing
-- kind: STATE
-  object:
-    apiVersion: ray.io/v1
-    kind: RayJob
-    metadata:
-      creationTimestamp: "2026-09-14T07:49:38Z"
-      finalizers:
-      - ray.io/rayjob-finalizer
-      generation: 2
-      name: karta-e2e-rayjob-running
-      namespace: test-cb2tw
-      uid: 8ef12c7f-e5f7-4afd-8f76-4571c6394230
-    spec:
-      backoffLimit: 0
-      entrypoint: python -c "import time; time.sleep(300)"
-      rayClusterSpec:
-        headGroupSpec:
-          rayStartParams:
-            num-cpus: "1"
-          template:
-            metadata: {}
-            spec:
-              containers:
-              - image: ray-e2e:local
-                imagePullPolicy: IfNotPresent
-                name: ray-head
-                readinessProbe:
-                  failureThreshold: 90
-                  initialDelaySeconds: 15
-                  periodSeconds: 5
-                  tcpSocket:
-                    port: 8265
-                resources:
                   limits:
-                    cpu: "2"
-                    memory: 3Gi
-                  requests:
-                    cpu: 500m
-                    memory: 2Gi
-        rayVersion: 2.40.0
-        workerGroupSpecs:
-        - groupName: small
-          maxReplicas: 0
-          minReplicas: 0
-          numOfHosts: 1
-          rayStartParams: {}
-          replicas: 0
-          scaleStrategy: {}
-          template:
-            metadata: {}
-            spec:
-              containers:
-              - image: ray-e2e:local
-                imagePullPolicy: IfNotPresent
-                name: ray-worker
-                resources:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
@@ -316,26 +216,26 @@ events:
     status:
       failed: 0
       jobDeploymentStatus: Initializing
-      jobId: karta-e2e-rayjob-running-2h8qv
-      rayClusterName: karta-e2e-rayjob-running-v22fl
+      jobId: karta-e2e-rayjob-running-fbf4p
+      rayClusterName: karta-e2e-rayjob-running-rcqkt
       rayClusterStatus:
         conditions:
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: Unknown
           status: "False"
           type: HeadPodReady
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: RayCluster Pods are being provisioned for first time
           reason: RayClusterPodsProvisioning
           status: "False"
           type: RayClusterProvisioned
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspended
           status: "False"
           type: RayClusterSuspended
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspending
           status: "False"
@@ -351,29 +251,29 @@ events:
           metrics: "8080"
           serve: "8000"
         head:
-          podName: karta-e2e-rayjob-running-v22fl-head-ncgpk
-          serviceName: karta-e2e-rayjob-running-v22fl-head-svc
-        lastUpdateTime: "2026-09-14T07:49:38Z"
+          podName: karta-e2e-rayjob-running-rcqkt-head-86xjw
+          serviceName: karta-e2e-rayjob-running-rcqkt-head-svc
+        lastUpdateTime: "2026-09-16T11:05:01Z"
         observedGeneration: 1
       rayJobInfo: {}
-      startTime: "2026-09-14T07:49:38Z"
+      startTime: "2026-09-16T11:05:01Z"
       succeeded: 0
   phases:
   - Initializing
-  resourceVersion: "1319040"
+  resourceVersion: "627104"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:49:38Z"
+      creationTimestamp: "2026-09-16T11:05:01Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-running
-      namespace: test-cb2tw
-      uid: 8ef12c7f-e5f7-4afd-8f76-4571c6394230
+      namespace: test-4jj2n
+      uid: 9d7dab78-63c1-4c5d-8b46-68607076a2f5
     spec:
       backoffLimit: 0
       entrypoint: python -c "import time; time.sleep(300)"
@@ -418,6 +318,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
@@ -426,26 +329,26 @@ events:
     status:
       failed: 0
       jobDeploymentStatus: Initializing
-      jobId: karta-e2e-rayjob-running-2h8qv
-      rayClusterName: karta-e2e-rayjob-running-v22fl
+      jobId: karta-e2e-rayjob-running-fbf4p
+      rayClusterName: karta-e2e-rayjob-running-rcqkt
       rayClusterStatus:
         conditions:
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: 'containers with unready status: [ray-head]; ray-head: '
           reason: ContainerCreating
           status: "False"
           type: HeadPodReady
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: RayCluster Pods are being provisioned for first time
           reason: RayClusterPodsProvisioning
           status: "False"
           type: RayClusterProvisioned
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspended
           status: "False"
           type: RayClusterSuspended
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspending
           status: "False"
@@ -461,29 +364,29 @@ events:
           metrics: "8080"
           serve: "8000"
         head:
-          podName: karta-e2e-rayjob-running-v22fl-head-ncgpk
-          serviceName: karta-e2e-rayjob-running-v22fl-head-svc
-        lastUpdateTime: "2026-09-14T07:49:38Z"
+          podName: karta-e2e-rayjob-running-rcqkt-head-86xjw
+          serviceName: karta-e2e-rayjob-running-rcqkt-head-svc
+        lastUpdateTime: "2026-09-16T11:05:01Z"
         observedGeneration: 1
       rayJobInfo: {}
-      startTime: "2026-09-14T07:49:38Z"
+      startTime: "2026-09-16T11:05:01Z"
       succeeded: 0
   phases:
   - Initializing
-  resourceVersion: "1319042"
+  resourceVersion: "627106"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:49:38Z"
+      creationTimestamp: "2026-09-16T11:05:01Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-running
-      namespace: test-cb2tw
-      uid: 8ef12c7f-e5f7-4afd-8f76-4571c6394230
+      namespace: test-4jj2n
+      uid: 9d7dab78-63c1-4c5d-8b46-68607076a2f5
     spec:
       backoffLimit: 0
       entrypoint: python -c "import time; time.sleep(300)"
@@ -528,6 +431,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
@@ -536,26 +442,26 @@ events:
     status:
       failed: 0
       jobDeploymentStatus: Initializing
-      jobId: karta-e2e-rayjob-running-2h8qv
-      rayClusterName: karta-e2e-rayjob-running-v22fl
+      jobId: karta-e2e-rayjob-running-fbf4p
+      rayClusterName: karta-e2e-rayjob-running-rcqkt
       rayClusterStatus:
         conditions:
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: 'containers with unready status: [ray-head]'
           reason: ContainersNotReady
           status: "False"
           type: HeadPodReady
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: RayCluster Pods are being provisioned for first time
           reason: RayClusterPodsProvisioning
           status: "False"
           type: RayClusterProvisioned
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspended
           status: "False"
           type: RayClusterSuspended
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspending
           status: "False"
@@ -571,31 +477,31 @@ events:
           metrics: "8080"
           serve: "8000"
         head:
-          podIP: 10.244.2.26
-          podName: karta-e2e-rayjob-running-v22fl-head-ncgpk
-          serviceIP: 10.244.2.26
-          serviceName: karta-e2e-rayjob-running-v22fl-head-svc
-        lastUpdateTime: "2026-09-14T07:49:38Z"
+          podIP: 10.244.1.90
+          podName: karta-e2e-rayjob-running-rcqkt-head-86xjw
+          serviceIP: 10.244.1.90
+          serviceName: karta-e2e-rayjob-running-rcqkt-head-svc
+        lastUpdateTime: "2026-09-16T11:05:02Z"
         observedGeneration: 1
       rayJobInfo: {}
-      startTime: "2026-09-14T07:49:38Z"
+      startTime: "2026-09-16T11:05:01Z"
       succeeded: 0
   phases:
   - Initializing
-  resourceVersion: "1319065"
+  resourceVersion: "627125"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:49:38Z"
+      creationTimestamp: "2026-09-16T11:05:01Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-running
-      namespace: test-cb2tw
-      uid: 8ef12c7f-e5f7-4afd-8f76-4571c6394230
+      namespace: test-4jj2n
+      uid: 9d7dab78-63c1-4c5d-8b46-68607076a2f5
     spec:
       backoffLimit: 0
       entrypoint: python -c "import time; time.sleep(300)"
@@ -640,35 +546,38 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
       submissionMode: K8sJobMode
       ttlSecondsAfterFinished: 0
     status:
-      dashboardURL: karta-e2e-rayjob-running-v22fl-head-svc.test-cb2tw.svc.cluster.local:8265
+      dashboardURL: karta-e2e-rayjob-running-rcqkt-head-svc.test-4jj2n.svc.cluster.local:8265
       failed: 0
       jobDeploymentStatus: Running
-      jobId: karta-e2e-rayjob-running-2h8qv
-      rayClusterName: karta-e2e-rayjob-running-v22fl
+      jobId: karta-e2e-rayjob-running-fbf4p
+      rayClusterName: karta-e2e-rayjob-running-rcqkt
       rayClusterStatus:
         conditions:
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: 'containers with unready status: [ray-head]'
           reason: ContainersNotReady
           status: "False"
           type: HeadPodReady
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: RayCluster Pods are being provisioned for first time
           reason: RayClusterPodsProvisioning
           status: "False"
           type: RayClusterProvisioned
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspended
           status: "False"
           type: RayClusterSuspended
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspending
           status: "False"
@@ -684,31 +593,31 @@ events:
           metrics: "8080"
           serve: "8000"
         head:
-          podIP: 10.244.2.26
-          podName: karta-e2e-rayjob-running-v22fl-head-ncgpk
-          serviceIP: 10.244.2.26
-          serviceName: karta-e2e-rayjob-running-v22fl-head-svc
-        lastUpdateTime: "2026-09-14T07:49:38Z"
+          podIP: 10.244.1.90
+          podName: karta-e2e-rayjob-running-rcqkt-head-86xjw
+          serviceIP: 10.244.1.90
+          serviceName: karta-e2e-rayjob-running-rcqkt-head-svc
+        lastUpdateTime: "2026-09-16T11:05:02Z"
         observedGeneration: 1
       rayJobInfo: {}
-      startTime: "2026-09-14T07:49:38Z"
+      startTime: "2026-09-16T11:05:01Z"
       succeeded: 0
   phases:
   - Undefined
-  resourceVersion: "1319201"
+  resourceVersion: "627258"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:49:38Z"
+      creationTimestamp: "2026-09-16T11:05:01Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-running
-      namespace: test-cb2tw
-      uid: 8ef12c7f-e5f7-4afd-8f76-4571c6394230
+      namespace: test-4jj2n
+      uid: 9d7dab78-63c1-4c5d-8b46-68607076a2f5
     spec:
       backoffLimit: 0
       entrypoint: python -c "import time; time.sleep(300)"
@@ -753,37 +662,40 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
       submissionMode: K8sJobMode
       ttlSecondsAfterFinished: 0
     status:
-      dashboardURL: karta-e2e-rayjob-running-v22fl-head-svc.test-cb2tw.svc.cluster.local:8265
+      dashboardURL: karta-e2e-rayjob-running-rcqkt-head-svc.test-4jj2n.svc.cluster.local:8265
       failed: 0
       jobDeploymentStatus: Running
-      jobId: karta-e2e-rayjob-running-2h8qv
+      jobId: karta-e2e-rayjob-running-fbf4p
       jobStatus: RUNNING
       message: Job is currently running.
-      rayClusterName: karta-e2e-rayjob-running-v22fl
+      rayClusterName: karta-e2e-rayjob-running-rcqkt
       rayClusterStatus:
         conditions:
-        - lastTransitionTime: "2026-09-14T07:49:54Z"
+        - lastTransitionTime: "2026-09-16T11:05:18Z"
           message: ""
           reason: HeadPodRunningAndReady
           status: "True"
           type: HeadPodReady
-        - lastTransitionTime: "2026-09-14T07:49:54Z"
+        - lastTransitionTime: "2026-09-16T11:05:18Z"
           message: All Ray Pods are ready for the first time
           reason: AllPodRunningAndReadyFirstTime
           status: "True"
           type: RayClusterProvisioned
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspended
           status: "False"
           type: RayClusterSuspended
-        - lastTransitionTime: "2026-09-14T07:49:38Z"
+        - lastTransitionTime: "2026-09-16T11:05:01Z"
           message: ""
           reason: RayClusterSuspending
           status: "False"
@@ -799,22 +711,22 @@ events:
           metrics: "8080"
           serve: "8000"
         head:
-          podIP: 10.244.2.26
-          podName: karta-e2e-rayjob-running-v22fl-head-ncgpk
-          serviceIP: 10.244.2.26
-          serviceName: karta-e2e-rayjob-running-v22fl-head-svc
-        lastUpdateTime: "2026-09-14T07:49:54Z"
+          podIP: 10.244.1.90
+          podName: karta-e2e-rayjob-running-rcqkt-head-86xjw
+          serviceIP: 10.244.1.90
+          serviceName: karta-e2e-rayjob-running-rcqkt-head-svc
+        lastUpdateTime: "2026-09-16T11:05:18Z"
         observedGeneration: 1
         state: ready
         stateTransitionTimes:
-          ready: "2026-09-14T07:49:54Z"
+          ready: "2026-09-16T11:05:18Z"
       rayJobInfo:
-        startTime: "2026-09-14T07:49:58Z"
-      startTime: "2026-09-14T07:49:38Z"
+        startTime: "2026-09-16T11:05:21Z"
+      startTime: "2026-09-16T11:05:01Z"
       succeeded: 0
   phases:
   - Running
-  resourceVersion: "1319248"
+  resourceVersion: "627332"
   state: Running
 flow: running
 kartaFile: docs/catalog/ray-io-rayjob-v1.yaml
@@ -827,7 +739,7 @@ summary:
 - amount: 1
   phases:
   - Undefined
-- amount: 5
+- amount: 4
   phases:
   - Initializing
 - amount: 1

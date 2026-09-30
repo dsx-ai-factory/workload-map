@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A Knative Service whose image can never be pulled (invalid registry), so the revision never
+# becomes ready and the operator settles Ready=False, which the Karta library reads as Failed.
+# progress-deadline is shortened so the controller gives up quickly.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: karta-e2e-knative-failed
+  namespace: default
+spec:
+  template:
+    metadata:
+      annotations:
+        serving.knative.dev/progress-deadline: "30s"
+    spec:
+      containers:
+        - image: karta-e2e-no-such-registry.invalid/nope:v1
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi

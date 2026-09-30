@@ -20,14 +20,14 @@ spec:
         statusMappings:
           initializing:
             - byExpression:
-                expression: .status.observedGeneration == .metadata.generation and .status.readyReplicas > (.spec.replicas // 1)
+                expression: .status.observedGeneration == .metadata.generation and (.status.replicas // 0) > (.spec.replicas // 1)
                 expectedResult: "true"
             - byExpression:
                 expression: (.spec.replicas // 1) > 0 and ((.status.observedGeneration // 0) != (.metadata.generation // 0) or (.status.readyReplicas // 0) == 0 or (.status.updatedReplicas // 0) != (.spec.replicas // 1) or (.status.currentRevision != .status.updateRevision))
                 expectedResult: "true"
           running:
             - byExpression:
-                expression: (.status.observedGeneration // 0) == (.metadata.generation // 0) and (.status.readyReplicas // 0) == (.spec.replicas // 1) and (.status.updatedReplicas // 0) == (.spec.replicas // 1) and (.status.currentRevision == .status.updateRevision)
+                expression: (.status.observedGeneration // 0) == (.metadata.generation // 0) and (.status.replicas // 0) == (.spec.replicas // 1) and (.status.readyReplicas // 0) == (.spec.replicas // 1) and (.status.updatedReplicas // 0) == (.spec.replicas // 1) and (.status.currentRevision == .status.updateRevision)
                 expectedResult: "true"
           degraded:
             - byExpression:

@@ -22,3 +22,4 @@ spec:
               command: ["sh", "-c", "sleep 15; exit 1"]
               resources:
                 requests: {cpu: 50m, memory: 64Mi}
+                limits: {cpu: 50m, memory: 64Mi}

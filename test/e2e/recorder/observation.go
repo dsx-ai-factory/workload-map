@@ -19,7 +19,7 @@ import (
 	watchtools "k8s.io/client-go/tools/watch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	kartav1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
 // observation is one watched run of a flow: the workload being driven, the action steps still to act on, and

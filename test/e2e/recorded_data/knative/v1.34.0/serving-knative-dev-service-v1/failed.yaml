@@ -1,0 +1,290 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    metadata:
+      annotations:
+        serving.knative.dev/creator: kubernetes-admin
+        serving.knative.dev/lastModifier: kubernetes-admin
+      creationTimestamp: "2026-09-16T11:08:02Z"
+      generation: 1
+      name: karta-e2e-knative-failed
+      namespace: test-ffqfb
+      uid: f52249bd-9c0a-4d0f-9545-f46f297f528c
+    spec:
+      template:
+        metadata:
+          annotations:
+            serving.knative.dev/progress-deadline: 30s
+          creationTimestamp: null
+        spec:
+          containerConcurrency: 0
+          containers:
+          - image: karta-e2e-no-such-registry.invalid/nope:v1
+            name: user-container
+            ports:
+            - containerPort: 8080
+              protocol: TCP
+            readinessProbe:
+              successThreshold: 1
+              tcpSocket:
+                port: 0
+            resources:
+              limits:
+                cpu: 50m
+                memory: 64Mi
+              requests:
+                cpu: 50m
+                memory: 64Mi
+          enableServiceLinks: false
+          timeoutSeconds: 300
+      traffic:
+      - latestRevision: true
+        percent: 100
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: The Configuration is still working to reflect the latest desired
+          specification.
+        reason: OutOfDate
+        status: Unknown
+        type: ConfigurationsReady
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
+        status: Unknown
+        type: Ready
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
+        status: Unknown
+        type: RoutesReady
+      observedGeneration: 1
+  phases:
+  - Initializing
+  resourceVersion: "629396"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    metadata:
+      annotations:
+        serving.knative.dev/creator: kubernetes-admin
+        serving.knative.dev/lastModifier: kubernetes-admin
+      creationTimestamp: "2026-09-16T11:08:02Z"
+      generation: 1
+      name: karta-e2e-knative-failed
+      namespace: test-ffqfb
+      uid: f52249bd-9c0a-4d0f-9545-f46f297f528c
+    spec:
+      template:
+        metadata:
+          annotations:
+            serving.knative.dev/progress-deadline: 30s
+          creationTimestamp: null
+        spec:
+          containerConcurrency: 0
+          containers:
+          - image: karta-e2e-no-such-registry.invalid/nope:v1
+            name: user-container
+            ports:
+            - containerPort: 8080
+              protocol: TCP
+            readinessProbe:
+              successThreshold: 1
+              tcpSocket:
+                port: 0
+            resources:
+              limits:
+                cpu: 50m
+                memory: 64Mi
+              requests:
+                cpu: 50m
+                memory: 64Mi
+          enableServiceLinks: false
+          timeoutSeconds: 300
+      traffic:
+      - latestRevision: true
+        percent: 100
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        status: Unknown
+        type: ConfigurationsReady
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
+        status: Unknown
+        type: Ready
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
+        status: Unknown
+        type: RoutesReady
+      latestCreatedRevisionName: karta-e2e-knative-failed-00001
+      observedGeneration: 1
+  phases:
+  - Initializing
+  resourceVersion: "629402"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    metadata:
+      annotations:
+        serving.knative.dev/creator: kubernetes-admin
+        serving.knative.dev/lastModifier: kubernetes-admin
+      creationTimestamp: "2026-09-16T11:08:02Z"
+      generation: 1
+      name: karta-e2e-knative-failed
+      namespace: test-ffqfb
+      uid: f52249bd-9c0a-4d0f-9545-f46f297f528c
+    spec:
+      template:
+        metadata:
+          annotations:
+            serving.knative.dev/progress-deadline: 30s
+          creationTimestamp: null
+        spec:
+          containerConcurrency: 0
+          containers:
+          - image: karta-e2e-no-such-registry.invalid/nope:v1
+            name: user-container
+            ports:
+            - containerPort: 8080
+              protocol: TCP
+            readinessProbe:
+              successThreshold: 1
+              tcpSocket:
+                port: 0
+            resources:
+              limits:
+                cpu: 50m
+                memory: 64Mi
+              requests:
+                cpu: 50m
+                memory: 64Mi
+          enableServiceLinks: false
+          timeoutSeconds: 300
+      traffic:
+      - latestRevision: true
+        percent: 100
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        status: Unknown
+        type: ConfigurationsReady
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: Configuration "karta-e2e-knative-failed" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        status: Unknown
+        type: Ready
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: Configuration "karta-e2e-knative-failed" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        status: Unknown
+        type: RoutesReady
+      latestCreatedRevisionName: karta-e2e-knative-failed-00001
+      observedGeneration: 1
+      url: http://karta-e2e-knative-failed.test-ffqfb.127.0.0.1.sslip.io
+  phases:
+  - Initializing
+  resourceVersion: "629405"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    metadata:
+      annotations:
+        serving.knative.dev/creator: kubernetes-admin
+        serving.knative.dev/lastModifier: kubernetes-admin
+      creationTimestamp: "2026-09-16T11:08:02Z"
+      generation: 1
+      name: karta-e2e-knative-failed
+      namespace: test-ffqfb
+      uid: f52249bd-9c0a-4d0f-9545-f46f297f528c
+    spec:
+      template:
+        metadata:
+          annotations:
+            serving.knative.dev/progress-deadline: 30s
+          creationTimestamp: null
+        spec:
+          containerConcurrency: 0
+          containers:
+          - image: karta-e2e-no-such-registry.invalid/nope:v1
+            name: user-container
+            ports:
+            - containerPort: 8080
+              protocol: TCP
+            readinessProbe:
+              successThreshold: 1
+              tcpSocket:
+                port: 0
+            resources:
+              limits:
+                cpu: 50m
+                memory: 64Mi
+              requests:
+                cpu: 50m
+                memory: 64Mi
+          enableServiceLinks: false
+          timeoutSeconds: 300
+      traffic:
+      - latestRevision: true
+        percent: 100
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: 'Revision "karta-e2e-knative-failed-00001" failed with message: Unable
+          to fetch image "karta-e2e-no-such-registry.invalid/nope:v1": failed to resolve
+          image to digest: Get "https://karta-e2e-no-such-registry.invalid/v2/": dial
+          tcp: lookup karta-e2e-no-such-registry.invalid on 10.96.0.10:53: no such
+          host.'
+        reason: RevisionFailed
+        status: "False"
+        type: ConfigurationsReady
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: 'Revision "karta-e2e-knative-failed-00001" failed with message: Unable
+          to fetch image "karta-e2e-no-such-registry.invalid/nope:v1": failed to resolve
+          image to digest: Get "https://karta-e2e-no-such-registry.invalid/v2/": dial
+          tcp: lookup karta-e2e-no-such-registry.invalid on 10.96.0.10:53: no such
+          host.'
+        reason: RevisionFailed
+        status: "False"
+        type: Ready
+      - lastTransitionTime: "2026-09-16T11:08:02Z"
+        message: Configuration "karta-e2e-knative-failed" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        status: Unknown
+        type: RoutesReady
+      latestCreatedRevisionName: karta-e2e-knative-failed-00001
+      observedGeneration: 1
+      url: http://karta-e2e-knative-failed.test-ffqfb.127.0.0.1.sslip.io
+  phases:
+  - Failed
+  resourceVersion: "629413"
+  state: Failed
+flow: failed
+kartaFile: docs/catalog/serving-knative-dev-service-v1.yaml
+kartaName: serving-knative-dev-service-v1
+operator: knative
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 3
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Failed
+version: v1.34.0
+want: Failed

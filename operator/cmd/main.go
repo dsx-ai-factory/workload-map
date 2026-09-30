@@ -12,9 +12,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/run-ai/karta/operator/pkg"
-	kartav1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/version"
+	"github.com/dsx-ai-factory/workload-map/operator/pkg"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/version"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"

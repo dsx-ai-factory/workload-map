@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/printers"
 
-	"github.com/run-ai/karta/cli/pkg/workload"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
 )
 
 // Options controls how a set of workload views is rendered.
@@ -24,6 +24,8 @@ type Options struct {
 	Namespace string
 	// AllNamespaces drops the namespace from the empty-result message.
 	AllNamespaces bool
+	// ByName reports that the request addressed one workload by name.
+	ByName bool
 }
 
 // RenderWorkloads writes views to out. The machine formats go through Render, so
@@ -35,7 +37,7 @@ func RenderWorkloads(out, errOut io.Writer, views []workload.View, opts Options)
 		format = OutputTable
 	}
 
-	return Render(out, format, views, func(w io.Writer) error {
+	table := func(w io.Writer) error {
 		if len(views) == 0 {
 			notice := fmt.Sprintf("No workloads found in namespace %s.", opts.Namespace)
 			if opts.AllNamespaces {
@@ -48,7 +50,9 @@ func RenderWorkloads(out, errOut io.Writer, views []workload.View, opts Options)
 			return nil
 		}
 		return renderWorkloadTable(w, views, format)
-	})
+	}
+
+	return Render(out, format, views, opts.ByName, table)
 }
 
 func renderWorkloadTable(out io.Writer, views []workload.View, format Output) error {

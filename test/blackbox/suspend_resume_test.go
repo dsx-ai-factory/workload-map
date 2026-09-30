@@ -10,10 +10,10 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/jq/execution"
-	"github.com/run-ai/karta/pkg/resource"
-	"github.com/run-ai/karta/test/types"
+	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/jq/execution"
+	"github.com/dsx-ai-factory/workload-map/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/test/types"
 )
 
 // These tests exercise the full suspend/resume path end-to-end:

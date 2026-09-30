@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cobra"
 
-	"github.com/run-ai/karta/cli/pkg/generator"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
 )
 
 var _ = Describe("config loading", func() {

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 #
-# A JobSet with one long-running replicated Job. The running flow observes it initialize then
-# reach Running (a pod ready), and stops there; the pod sleeps well past the check so Running
-# is stable. A readiness probe gives a distinct Initializing then Running window.
+# A JobSet with one long-running replicated Job. An active pod already reads Running (active or
+# ready counts), and the pod sleeps well past the check so Running is stable. The readiness probe
+# holds ready at 0 briefly so the bring-up window (active pods, none ready) appears in the frames.
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -32,3 +32,4 @@ spec:
                     periodSeconds: 2
                   resources:
                     requests: {cpu: 50m, memory: 32Mi}
+                    limits: {cpu: 50m, memory: 32Mi}

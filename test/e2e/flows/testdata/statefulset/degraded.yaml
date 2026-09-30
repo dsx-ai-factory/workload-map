@@ -20,6 +20,7 @@ spec:
     metadata:
       labels: {app: karta-e2e-sts-degraded}
     spec:
+      automountServiceAccountToken: false
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -32,3 +33,4 @@ spec:
           command: ["sh", "-c", "sleep infinity"]
           resources:
             requests: {cpu: 50m, memory: 32Mi}
+            limits: {cpu: 50m, memory: 32Mi}

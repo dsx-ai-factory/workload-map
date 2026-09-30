@@ -4,11 +4,11 @@ events:
     apiVersion: kubeflow.org/v2beta1
     kind: MPIJob
     metadata:
-      creationTimestamp: "2026-09-09T10:35:19Z"
+      creationTimestamp: "2026-09-16T11:04:39Z"
       generation: 1
       name: karta-e2e-mpi-running
-      namespace: test-dgxjr
-      uid: 6de254ad-660d-4d9f-ab6f-8dbc524f3037
+      namespace: test-sqnpj
+      uid: 41ec030c-909b-4d27-b705-e7cf6b63f6af
     spec:
       launcherCreationPolicy: AtStartup
       mpiImplementation: OpenMPI
@@ -25,6 +25,9 @@ events:
                 image: busybox:1.36
                 name: mpi-launcher
                 resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
                   requests:
                     cpu: 50m
                     memory: 64Mi
@@ -39,6 +42,9 @@ events:
                 image: busybox:1.36
                 name: mpi-worker
                 resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
                   requests:
                     cpu: 50m
                     memory: 64Mi
@@ -50,30 +56,30 @@ events:
       sshAuthMountPath: /root/.ssh
     status:
       conditions:
-      - lastTransitionTime: "2026-09-09T10:35:19Z"
-        lastUpdateTime: "2026-09-09T10:35:19Z"
-        message: MPIJob test-dgxjr/karta-e2e-mpi-running is created.
+      - lastTransitionTime: "2026-09-16T11:04:39Z"
+        lastUpdateTime: "2026-09-16T11:04:39Z"
+        message: MPIJob test-sqnpj/karta-e2e-mpi-running is created.
         reason: MPIJobCreated
         status: "True"
         type: Created
       replicaStatuses:
         Launcher: {}
         Worker: {}
-      startTime: "2026-09-09T10:35:19Z"
+      startTime: "2026-09-16T11:04:39Z"
   phases:
   - Initializing
-  resourceVersion: "281013"
+  resourceVersion: "626647"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: kubeflow.org/v2beta1
     kind: MPIJob
     metadata:
-      creationTimestamp: "2026-09-09T10:35:19Z"
+      creationTimestamp: "2026-09-16T11:04:39Z"
       generation: 1
       name: karta-e2e-mpi-running
-      namespace: test-dgxjr
-      uid: 6de254ad-660d-4d9f-ab6f-8dbc524f3037
+      namespace: test-sqnpj
+      uid: 41ec030c-909b-4d27-b705-e7cf6b63f6af
     spec:
       launcherCreationPolicy: AtStartup
       mpiImplementation: OpenMPI
@@ -90,6 +96,9 @@ events:
                 image: busybox:1.36
                 name: mpi-launcher
                 resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
                   requests:
                     cpu: 50m
                     memory: 64Mi
@@ -104,6 +113,9 @@ events:
                 image: busybox:1.36
                 name: mpi-worker
                 resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
                   requests:
                     cpu: 50m
                     memory: 64Mi
@@ -115,15 +127,87 @@ events:
       sshAuthMountPath: /root/.ssh
     status:
       conditions:
-      - lastTransitionTime: "2026-09-09T10:35:19Z"
-        lastUpdateTime: "2026-09-09T10:35:19Z"
-        message: MPIJob test-dgxjr/karta-e2e-mpi-running is created.
+      - lastTransitionTime: "2026-09-16T11:04:39Z"
+        lastUpdateTime: "2026-09-16T11:04:39Z"
+        message: MPIJob test-sqnpj/karta-e2e-mpi-running is created.
         reason: MPIJobCreated
         status: "True"
         type: Created
-      - lastTransitionTime: "2026-09-09T10:35:19Z"
-        lastUpdateTime: "2026-09-09T10:35:19Z"
-        message: MPIJob test-dgxjr/karta-e2e-mpi-running is running.
+      replicaStatuses:
+        Launcher: {}
+        Worker:
+          active: 1
+      startTime: "2026-09-16T11:04:39Z"
+  phases:
+  - Initializing
+  resourceVersion: "626680"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: kubeflow.org/v2beta1
+    kind: MPIJob
+    metadata:
+      creationTimestamp: "2026-09-16T11:04:39Z"
+      generation: 1
+      name: karta-e2e-mpi-running
+      namespace: test-sqnpj
+      uid: 41ec030c-909b-4d27-b705-e7cf6b63f6af
+    spec:
+      launcherCreationPolicy: AtStartup
+      mpiImplementation: OpenMPI
+      mpiReplicaSpecs:
+        Launcher:
+          replicas: 1
+          template:
+            spec:
+              containers:
+              - command:
+                - sh
+                - -c
+                - sleep 300
+                image: busybox:1.36
+                name: mpi-launcher
+                resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+        Worker:
+          replicas: 1
+          template:
+            spec:
+              containers:
+              - command:
+                - sleep
+                - infinity
+                image: busybox:1.36
+                name: mpi-worker
+                resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+      runLauncherAsWorker: false
+      runPolicy:
+        cleanPodPolicy: None
+        suspend: false
+      slotsPerWorker: 1
+      sshAuthMountPath: /root/.ssh
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-16T11:04:39Z"
+        lastUpdateTime: "2026-09-16T11:04:39Z"
+        message: MPIJob test-sqnpj/karta-e2e-mpi-running is created.
+        reason: MPIJobCreated
+        status: "True"
+        type: Created
+      - lastTransitionTime: "2026-09-16T11:04:41Z"
+        lastUpdateTime: "2026-09-16T11:04:41Z"
+        message: MPIJob test-sqnpj/karta-e2e-mpi-running is running.
         reason: MPIJobRunning
         status: "True"
         type: Running
@@ -132,11 +216,11 @@ events:
           active: 1
         Worker:
           active: 1
-      startTime: "2026-09-09T10:35:19Z"
+      startTime: "2026-09-16T11:04:39Z"
   phases:
   - Initializing
   - Running
-  resourceVersion: "281036"
+  resourceVersion: "626685"
   state: Running
 flow: running
 kartaFile: docs/catalog/kubeflow-org-mpijob-v2beta1.yaml
@@ -146,7 +230,7 @@ result:
   succeeded: true
 schemaVersion: 1
 summary:
-- amount: 1
+- amount: 2
   phases:
   - Initializing
 - amount: 1

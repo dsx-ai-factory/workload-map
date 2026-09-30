@@ -6,7 +6,7 @@ package flows
 import (
 	"fmt"
 
-	"github.com/run-ai/karta/test/e2e/recorder"
+	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
 )
 
 // Flow actions: each builds a recorder.Action, the merge-patch a flow fires to drive a transition the

@@ -4,11 +4,11 @@ events:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:08Z"
+      creationTimestamp: "2026-09-16T11:01:31Z"
       generation: 1
       name: karta-e2e-jobset-completed
-      namespace: test-wgqzp
-      uid: 293574e4-9aa6-4b17-a7df-b878b3a7260f
+      namespace: test-zfhbm
+      uid: 8f464208-db00-408d-abe4-db62fcb65a03
     spec:
       network:
         enableDNSHostnames: true
@@ -41,6 +41,9 @@ events:
                     initialDelaySeconds: 6
                     periodSeconds: 2
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -60,18 +63,18 @@ events:
       restarts: 0
   phases:
   - Undefined
-  resourceVersion: "9422"
+  resourceVersion: "624473"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:08Z"
+      creationTimestamp: "2026-09-16T11:01:31Z"
       generation: 1
       name: karta-e2e-jobset-completed
-      namespace: test-wgqzp
-      uid: 293574e4-9aa6-4b17-a7df-b878b3a7260f
+      namespace: test-zfhbm
+      uid: 8f464208-db00-408d-abe4-db62fcb65a03
     spec:
       network:
         enableDNSHostnames: true
@@ -104,6 +107,9 @@ events:
                     initialDelaySeconds: 6
                     periodSeconds: 2
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -124,18 +130,18 @@ events:
   phases:
   - Initializing
   - Running
-  resourceVersion: "9428"
+  resourceVersion: "624479"
   state: Running
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:08Z"
+      creationTimestamp: "2026-09-16T11:01:31Z"
       generation: 1
       name: karta-e2e-jobset-completed
-      namespace: test-wgqzp
-      uid: 293574e4-9aa6-4b17-a7df-b878b3a7260f
+      namespace: test-zfhbm
+      uid: 8f464208-db00-408d-abe4-db62fcb65a03
     spec:
       network:
         enableDNSHostnames: true
@@ -168,6 +174,9 @@ events:
                     initialDelaySeconds: 6
                     periodSeconds: 2
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -187,18 +196,18 @@ events:
       restarts: 0
   phases:
   - Running
-  resourceVersion: "9498"
+  resourceVersion: "624555"
   state: Running
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:08Z"
+      creationTimestamp: "2026-09-16T11:01:31Z"
       generation: 1
       name: karta-e2e-jobset-completed
-      namespace: test-wgqzp
-      uid: 293574e4-9aa6-4b17-a7df-b878b3a7260f
+      namespace: test-zfhbm
+      uid: 8f464208-db00-408d-abe4-db62fcb65a03
     spec:
       network:
         enableDNSHostnames: true
@@ -231,6 +240,9 @@ events:
                     initialDelaySeconds: 6
                     periodSeconds: 2
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -251,18 +263,18 @@ events:
   phases:
   - Initializing
   - Running
-  resourceVersion: "9601"
+  resourceVersion: "624669"
   state: Running
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:08Z"
+      creationTimestamp: "2026-09-16T11:01:31Z"
       generation: 1
       name: karta-e2e-jobset-completed
-      namespace: test-wgqzp
-      uid: 293574e4-9aa6-4b17-a7df-b878b3a7260f
+      namespace: test-zfhbm
+      uid: 8f464208-db00-408d-abe4-db62fcb65a03
     spec:
       network:
         enableDNSHostnames: true
@@ -295,6 +307,9 @@ events:
                     initialDelaySeconds: 6
                     periodSeconds: 2
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -314,18 +329,18 @@ events:
       restarts: 0
   phases:
   - Running
-  resourceVersion: "9613"
+  resourceVersion: "624682"
   state: Running
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:08Z"
+      creationTimestamp: "2026-09-16T11:01:31Z"
       generation: 1
       name: karta-e2e-jobset-completed
-      namespace: test-wgqzp
-      uid: 293574e4-9aa6-4b17-a7df-b878b3a7260f
+      namespace: test-zfhbm
+      uid: 8f464208-db00-408d-abe4-db62fcb65a03
     spec:
       network:
         enableDNSHostnames: true
@@ -358,6 +373,9 @@ events:
                     initialDelaySeconds: 6
                     periodSeconds: 2
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -368,7 +386,7 @@ events:
         operator: All
     status:
       conditions:
-      - lastTransitionTime: "2026-09-14T10:28:31Z"
+      - lastTransitionTime: "2026-09-16T11:01:54Z"
         message: jobset completed successfully
         reason: AllJobsCompleted
         status: "True"
@@ -384,7 +402,7 @@ events:
       terminalState: Completed
   phases:
   - Completed
-  resourceVersion: "9616"
+  resourceVersion: "624686"
   state: Completed
 flow: completed
 kartaFile: docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml

@@ -97,5 +97,5 @@
   </g>
 
   <!-- footer -->
-  <text x="24" y="446" font-size="11.5" fill="#8b949e">Derived from docs/samples/lws.yaml &#183; no LeaderWorkerSet-specific code</text>
+  <text x="24" y="446" font-size="11.5" fill="#8b949e">Derived from docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml &#183; no LeaderWorkerSet-specific code</text>
 </svg>

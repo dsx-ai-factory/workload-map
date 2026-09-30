@@ -25,6 +25,7 @@ spec:
               command: ["sh", "-c", "sleep 300"]
               resources:
                 requests: {cpu: 50m, memory: 64Mi}
+                limits: {cpu: 50m, memory: 64Mi}
     Worker:
       replicas: 1
       template:
@@ -35,3 +36,4 @@ spec:
               command: ["sleep", "infinity"]
               resources:
                 requests: {cpu: 50m, memory: 64Mi}
+                limits: {cpu: 50m, memory: 64Mi}

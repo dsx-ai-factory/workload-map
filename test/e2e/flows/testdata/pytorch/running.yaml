@@ -22,6 +22,7 @@ spec:
               command: ["sleep", "infinity"]
               resources:
                 requests: {cpu: 50m, memory: 64Mi}
+                limits: {cpu: 50m, memory: 64Mi}
     Worker:
       replicas: 1
       restartPolicy: Never
@@ -33,3 +34,4 @@ spec:
               command: ["sleep", "infinity"]
               resources:
                 requests: {cpu: 50m, memory: 64Mi}
+                limits: {cpu: 50m, memory: 64Mi}

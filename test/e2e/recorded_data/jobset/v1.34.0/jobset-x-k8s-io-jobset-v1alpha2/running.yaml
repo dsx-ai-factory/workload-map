@@ -4,11 +4,11 @@ events:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:08Z"
+      creationTimestamp: "2026-09-16T11:01:30Z"
       generation: 1
       name: karta-e2e-jobset-running
-      namespace: test-wgqzp
-      uid: 9f3aa9ea-d3ac-4d92-99e9-8f8275a12cb6
+      namespace: test-zfhbm
+      uid: 4875a324-bd8e-4eef-8503-9055479b8b0a
     spec:
       network:
         enableDNSHostnames: true
@@ -41,6 +41,9 @@ events:
                     initialDelaySeconds: 6
                     periodSeconds: 2
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -60,18 +63,18 @@ events:
       restarts: 0
   phases:
   - Undefined
-  resourceVersion: "9402"
+  resourceVersion: "624452"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:08Z"
+      creationTimestamp: "2026-09-16T11:01:30Z"
       generation: 1
       name: karta-e2e-jobset-running
-      namespace: test-wgqzp
-      uid: 9f3aa9ea-d3ac-4d92-99e9-8f8275a12cb6
+      namespace: test-zfhbm
+      uid: 4875a324-bd8e-4eef-8503-9055479b8b0a
     spec:
       network:
         enableDNSHostnames: true
@@ -104,6 +107,9 @@ events:
                     initialDelaySeconds: 6
                     periodSeconds: 2
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -124,7 +130,7 @@ events:
   phases:
   - Initializing
   - Running
-  resourceVersion: "9408"
+  resourceVersion: "624458"
   state: Running
 flow: running
 kartaFile: docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml

@@ -4,16 +4,16 @@ events:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-09T15:07:05Z"
+      creationTimestamp: "2026-09-16T11:01:16Z"
       generation: 1
       labels:
-        batch.kubernetes.io/controller-uid: 864496dc-d998-492d-be71-215893fa69c9
+        batch.kubernetes.io/controller-uid: e178447f-cbf1-4bb2-af82-089f89f31a24
         batch.kubernetes.io/job-name: karta-e2e-job-suspended
-        controller-uid: 864496dc-d998-492d-be71-215893fa69c9
+        controller-uid: e178447f-cbf1-4bb2-af82-089f89f31a24
         job-name: karta-e2e-job-suspended
       name: karta-e2e-job-suspended
-      namespace: test-6ltsx
-      uid: 864496dc-d998-492d-be71-215893fa69c9
+      namespace: test-n88rk
+      uid: e178447f-cbf1-4bb2-af82-089f89f31a24
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -23,14 +23,14 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 864496dc-d998-492d-be71-215893fa69c9
+          batch.kubernetes.io/controller-uid: e178447f-cbf1-4bb2-af82-089f89f31a24
       suspend: true
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 864496dc-d998-492d-be71-215893fa69c9
+            batch.kubernetes.io/controller-uid: e178447f-cbf1-4bb2-af82-089f89f31a24
             batch.kubernetes.io/job-name: karta-e2e-job-suspended
-            controller-uid: 864496dc-d998-492d-be71-215893fa69c9
+            controller-uid: e178447f-cbf1-4bb2-af82-089f89f31a24
             job-name: karta-e2e-job-suspended
         spec:
           containers:
@@ -40,6 +40,9 @@ events:
             imagePullPolicy: IfNotPresent
             name: worker
             resources:
+              limits:
+                cpu: 50m
+                memory: 32Mi
               requests:
                 cpu: 50m
                 memory: 32Mi
@@ -52,8 +55,8 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastProbeTime: "2026-09-09T15:07:05Z"
-        lastTransitionTime: "2026-09-09T15:07:05Z"
+      - lastProbeTime: "2026-09-16T11:01:16Z"
+        lastTransitionTime: "2026-09-16T11:01:16Z"
         message: Job suspended
         reason: JobSuspended
         status: "True"
@@ -63,7 +66,7 @@ events:
       uncountedTerminatedPods: {}
   phases:
   - Suspended
-  resourceVersion: "339127"
+  resourceVersion: "624263"
   state: Suspended
 flow: suspended
 kartaFile: docs/catalog/batch-job-v1.yaml

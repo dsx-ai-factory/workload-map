@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"k8s.io/utils/ptr"
@@ -15,8 +16,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/jq/execution"
+	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/jq/execution"
 )
 
 // DefinitionNotFoundError represents an error when a requested definition is not found
@@ -108,17 +109,17 @@ func (a *Accessor) ExtractScale(ctx context.Context, definition v1alpha1.Compone
 
 	scaleCount := 0
 
-	if err := extract(ctx, definition.ScaleDefinition.ReplicasPath, a.jqRunner, &replicas); err != nil {
+	if err := extractReplicas(ctx, definition.ScaleDefinition.ReplicasPath, a.jqRunner, &replicas); err != nil {
 		return nil, err
 	}
 	scaleCount = max(scaleCount, len(replicas))
 
-	if err := extract(ctx, definition.ScaleDefinition.MinReplicasPath, a.jqRunner, &minReplicas); err != nil {
+	if err := extractReplicas(ctx, definition.ScaleDefinition.MinReplicasPath, a.jqRunner, &minReplicas); err != nil {
 		return nil, err
 	}
 	scaleCount = max(scaleCount, len(minReplicas))
 
-	if err := extract(ctx, definition.ScaleDefinition.MaxReplicasPath, a.jqRunner, &maxReplicas); err != nil {
+	if err := extractReplicas(ctx, definition.ScaleDefinition.MaxReplicasPath, a.jqRunner, &maxReplicas); err != nil {
 		return nil, err
 	}
 	scaleCount = max(scaleCount, len(maxReplicas))
@@ -537,6 +538,46 @@ func extract[T any](ctx context.Context, path *string, accessor execution.Runner
 	}
 
 	converted, err := safeConvertSlice[T](results)
+	if err != nil {
+		return err
+	}
+
+	*out = converted
+	return nil
+}
+
+// extractReplicas extracts replica counts, accepting both numbers and numeric
+// strings. Scale paths often point at annotations or labels, whose values are
+// always strings in Kubernetes (e.g. autoscaling.knative.dev/min-scale: "2").
+func extractReplicas(ctx context.Context, path *string, runner execution.Runner, out *[]*int32) error {
+	if path == nil {
+		return nil
+	}
+
+	results, err := runner.Evaluate(ctx, *path)
+	if err != nil {
+		return err
+	}
+	if results == nil {
+		return nil
+	}
+
+	normalized := make([]any, len(results))
+	for i, object := range results {
+		str, ok := object.(string)
+		if !ok {
+			normalized[i] = object
+			continue
+		}
+
+		parsed, err := strconv.ParseInt(str, 10, 32)
+		if err != nil {
+			return fmt.Errorf("replicas value %q at index %d is not a number", str, i)
+		}
+		normalized[i] = parsed
+	}
+
+	converted, err := safeConvertSlice[*int32](normalized)
 	if err != nil {
 		return err
 	}

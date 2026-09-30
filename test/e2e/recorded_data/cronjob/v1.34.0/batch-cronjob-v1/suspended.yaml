@@ -4,11 +4,11 @@ events:
     apiVersion: batch/v1
     kind: CronJob
     metadata:
-      creationTimestamp: "2026-09-08T15:21:50Z"
+      creationTimestamp: "2026-09-16T10:59:00Z"
       generation: 1
       name: karta-e2e-cronjob-suspended
-      namespace: test-mrsft
-      uid: 92527ddf-770a-442a-9ed3-c47412204aa3
+      namespace: test-l6mds
+      uid: 59e005e0-9d9e-43da-8063-c1807012b08f
     spec:
       concurrencyPolicy: Allow
       failedJobsHistoryLimit: 1
@@ -27,6 +27,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: worker
                 resources:
+                  limits:
+                    cpu: 50m
+                    memory: 32Mi
                   requests:
                     cpu: 50m
                     memory: 32Mi
@@ -44,14 +47,14 @@ events:
       active:
       - apiVersion: batch/v1
         kind: Job
-        name: karta-e2e-cronjob-suspended-29814682
-        namespace: test-mrsft
-        resourceVersion: "2005"
-        uid: b404d9ed-7bda-42eb-992b-80057a167ab5
-      lastScheduleTime: "2026-09-08T15:22:00Z"
+        name: karta-e2e-cronjob-suspended-29825940
+        namespace: test-l6mds
+        resourceVersion: "623519"
+        uid: 765726f4-d8e1-4c00-8f41-82050a4f71c7
+      lastScheduleTime: "2026-09-16T11:00:00Z"
   phases:
   - Running
-  resourceVersion: "2007"
+  resourceVersion: "623520"
   state: Running
 - action:
     name: Suspend
@@ -67,11 +70,11 @@ events:
     apiVersion: batch/v1
     kind: CronJob
     metadata:
-      creationTimestamp: "2026-09-08T15:21:50Z"
+      creationTimestamp: "2026-09-16T10:59:00Z"
       generation: 2
       name: karta-e2e-cronjob-suspended
-      namespace: test-mrsft
-      uid: 92527ddf-770a-442a-9ed3-c47412204aa3
+      namespace: test-l6mds
+      uid: 59e005e0-9d9e-43da-8063-c1807012b08f
     spec:
       concurrencyPolicy: Allow
       failedJobsHistoryLimit: 1
@@ -90,6 +93,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: worker
                 resources:
+                  limits:
+                    cpu: 50m
+                    memory: 32Mi
                   requests:
                     cpu: 50m
                     memory: 32Mi
@@ -107,15 +113,15 @@ events:
       active:
       - apiVersion: batch/v1
         kind: Job
-        name: karta-e2e-cronjob-suspended-29814682
-        namespace: test-mrsft
-        resourceVersion: "2005"
-        uid: b404d9ed-7bda-42eb-992b-80057a167ab5
-      lastScheduleTime: "2026-09-08T15:22:00Z"
+        name: karta-e2e-cronjob-suspended-29825940
+        namespace: test-l6mds
+        resourceVersion: "623519"
+        uid: 765726f4-d8e1-4c00-8f41-82050a4f71c7
+      lastScheduleTime: "2026-09-16T11:00:00Z"
   phases:
   - Running
   - Suspended
-  resourceVersion: "2010"
+  resourceVersion: "623526"
   state: Suspended
 flow: suspended
 kartaFile: docs/catalog/batch-cronjob-v1.yaml

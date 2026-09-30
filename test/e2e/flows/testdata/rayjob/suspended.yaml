@@ -25,6 +25,7 @@ spec:
               imagePullPolicy: IfNotPresent
               resources:
                 requests: {cpu: 500m, memory: 2Gi}
+                limits: {cpu: 500m, memory: 2Gi}
     workerGroupSpecs:
       - groupName: small
         replicas: 0
@@ -39,3 +40,4 @@ spec:
                 imagePullPolicy: IfNotPresent
                 resources:
                   requests: {cpu: 250m, memory: 512Mi}
+                  limits: {cpu: 250m, memory: 512Mi}

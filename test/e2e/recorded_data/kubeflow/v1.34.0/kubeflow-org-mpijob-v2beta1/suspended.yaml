@@ -4,11 +4,11 @@ events:
     apiVersion: kubeflow.org/v2beta1
     kind: MPIJob
     metadata:
-      creationTimestamp: "2026-09-09T10:35:26Z"
+      creationTimestamp: "2026-09-16T11:04:51Z"
       generation: 1
       name: karta-e2e-mpi-suspended
-      namespace: test-dgxjr
-      uid: 2055005f-fe44-463c-a6f0-ba0adc0c4fd2
+      namespace: test-sqnpj
+      uid: daf08eed-dca7-4542-8513-5a2fcb50b03b
     spec:
       launcherCreationPolicy: AtStartup
       mpiImplementation: OpenMPI
@@ -23,6 +23,9 @@ events:
                 image: busybox:1.36
                 name: mpi-launcher
                 resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
                   requests:
                     cpu: 50m
                     memory: 64Mi
@@ -37,6 +40,9 @@ events:
                 image: busybox:1.36
                 name: mpi-worker
                 resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
                   requests:
                     cpu: 50m
                     memory: 64Mi
@@ -48,21 +54,21 @@ events:
       sshAuthMountPath: /root/.ssh
     status:
       conditions:
-      - lastTransitionTime: "2026-09-09T10:35:26Z"
-        lastUpdateTime: "2026-09-09T10:35:26Z"
-        message: MPIJob test-dgxjr/karta-e2e-mpi-suspended is created.
+      - lastTransitionTime: "2026-09-16T11:04:51Z"
+        lastUpdateTime: "2026-09-16T11:04:51Z"
+        message: MPIJob test-sqnpj/karta-e2e-mpi-suspended is created.
         reason: MPIJobCreated
         status: "True"
         type: Created
-      - lastTransitionTime: "2026-09-09T10:35:26Z"
-        lastUpdateTime: "2026-09-09T10:35:26Z"
+      - lastTransitionTime: "2026-09-16T11:04:51Z"
+        lastUpdateTime: "2026-09-16T11:04:51Z"
         message: MPIJob suspended
         reason: MPIJobSuspended
         status: "True"
         type: Suspended
-      - lastTransitionTime: "2026-09-09T10:35:26Z"
-        lastUpdateTime: "2026-09-09T10:35:26Z"
-        message: MPIJob test-dgxjr/karta-e2e-mpi-suspended is suspended.
+      - lastTransitionTime: "2026-09-16T11:04:51Z"
+        lastUpdateTime: "2026-09-16T11:04:51Z"
+        message: MPIJob test-sqnpj/karta-e2e-mpi-suspended is suspended.
         reason: MPIJobSuspended
         status: "False"
         type: Running
@@ -72,7 +78,7 @@ events:
   phases:
   - Initializing
   - Suspended
-  resourceVersion: "281248"
+  resourceVersion: "626932"
   state: Suspended
 flow: suspended
 kartaFile: docs/catalog/kubeflow-org-mpijob-v2beta1.yaml

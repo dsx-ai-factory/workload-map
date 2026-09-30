@@ -4,11 +4,11 @@ events:
     apiVersion: v1
     kind: Pod
     metadata:
-      creationTimestamp: "2026-08-18T12:38:21Z"
+      creationTimestamp: "2026-09-16T10:58:42Z"
       generation: 1
       name: karta-e2e-pod-initializing
-      namespace: test-8m4bc
-      uid: 1cf749c3-8a7d-4615-944a-b383a58b4cae
+      namespace: test-n6k2h
+      uid: e920db99-bdc4-4808-8149-8fcc8a9096fd
     spec:
       automountServiceAccountToken: false
       containers:
@@ -20,6 +20,9 @@ events:
         imagePullPolicy: IfNotPresent
         name: worker
         resources:
+          limits:
+            cpu: 100m
+            memory: 2Gi
           requests:
             cpu: 50m
             memory: 32Mi
@@ -51,7 +54,7 @@ events:
       qosClass: Burstable
   phases:
   - Initializing
-  resourceVersion: "14601"
+  resourceVersion: "622878"
   state: Initializing
 flow: initializing
 kartaFile: docs/catalog/core-pod-v1.yaml

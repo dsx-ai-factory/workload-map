@@ -17,9 +17,11 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      automountServiceAccountToken: false
       containers:
         - name: worker
           image: busybox:1.36
           command: ["sh", "-c", "if [ \"$JOB_COMPLETION_INDEX\" = \"0\" ]; then true; else sleep infinity; fi"]
           resources:
             requests: {cpu: 50m, memory: 32Mi}
+            limits: {cpu: 50m, memory: 32Mi}

@@ -1,0 +1,222 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: nvidia.com/v1alpha1
+    kind: DynamoGraphDeployment
+    metadata:
+      annotations:
+        nvidia.com/dynamo-operator-origin-version: 1.2.1
+      creationTimestamp: "2026-09-16T11:24:49Z"
+      finalizers:
+      - nvidia.com/finalizer
+      generation: 1
+      name: karta-e2e-dynamo-initializing
+      namespace: test-xksm5
+      uid: 789d8892-135c-48bf-b8c6-eacf5b45b254
+    spec:
+      services:
+        Frontend:
+          componentType: frontend
+          extraPodSpec:
+            mainContainer:
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+          replicas: 1
+        decode:
+          componentType: worker
+          envFromSecret: hf-token-secret
+          extraPodSpec:
+            mainContainer:
+              args:
+              - --model-path
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              - --model-name
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              command:
+              - python3
+              - -m
+              - dynamo.mocker
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+              workingDir: /workspace
+          replicas: 1
+          subComponentType: decode
+    status:
+      state: ""
+  phases:
+  - Undefined
+  resourceVersion: "631844"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: nvidia.com/v1alpha1
+    kind: DynamoGraphDeployment
+    metadata:
+      annotations:
+        nvidia.com/current-worker-hash: 4c3e387d
+        nvidia.com/current-worker-hash-v2: fb9a81e3
+        nvidia.com/dynamo-operator-origin-version: 1.2.1
+      creationTimestamp: "2026-09-16T11:24:49Z"
+      finalizers:
+      - nvidia.com/finalizer
+      generation: 1
+      name: karta-e2e-dynamo-initializing
+      namespace: test-xksm5
+      uid: 789d8892-135c-48bf-b8c6-eacf5b45b254
+    spec:
+      services:
+        Frontend:
+          componentType: frontend
+          extraPodSpec:
+            mainContainer:
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+          replicas: 1
+        decode:
+          componentType: worker
+          envFromSecret: hf-token-secret
+          extraPodSpec:
+            mainContainer:
+              args:
+              - --model-path
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              - --model-name
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              command:
+              - python3
+              - -m
+              - dynamo.mocker
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+              workingDir: /workspace
+          replicas: 1
+          subComponentType: decode
+    status:
+      state: ""
+  phases:
+  - Undefined
+  resourceVersion: "631855"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: nvidia.com/v1alpha1
+    kind: DynamoGraphDeployment
+    metadata:
+      annotations:
+        nvidia.com/current-worker-hash: 4c3e387d
+        nvidia.com/current-worker-hash-v2: fb9a81e3
+        nvidia.com/dynamo-operator-origin-version: 1.2.1
+      creationTimestamp: "2026-09-16T11:24:49Z"
+      finalizers:
+      - nvidia.com/finalizer
+      generation: 1
+      name: karta-e2e-dynamo-initializing
+      namespace: test-xksm5
+      uid: 789d8892-135c-48bf-b8c6-eacf5b45b254
+    spec:
+      services:
+        Frontend:
+          componentType: frontend
+          extraPodSpec:
+            mainContainer:
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+          replicas: 1
+        decode:
+          componentType: worker
+          envFromSecret: hf-token-secret
+          extraPodSpec:
+            mainContainer:
+              args:
+              - --model-path
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              - --model-name
+              - nvidia/Llama-3.1-8B-Instruct-FP8
+              command:
+              - python3
+              - -m
+              - dynamo.mocker
+              image: busybox:99.99.99
+              imagePullPolicy: IfNotPresent
+              name: ""
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+              workingDir: /workspace
+          replicas: 1
+          subComponentType: decode
+    status:
+      conditions:
+      - lastTransitionTime: "2026-09-16T11:24:49Z"
+        message: 'Resources not ready: karta-e2e-dynamo-initializing-decode-4c3e387d:
+          Component deployment not ready - Available condition not true; karta-e2e-dynamo-initializing-frontend:
+          Component deployment not ready - Available condition not true'
+        reason: some_resources_are_not_ready
+        status: "False"
+        type: Ready
+      observedGeneration: 1
+      state: pending
+  phases:
+  - Initializing
+  resourceVersion: "631881"
+  state: Initializing
+flow: initializing
+kartaFile: docs/catalog/nvidia-com-dynamographdeployment-v1alpha1.yaml
+kartaName: nvidia-com-dynamographdeployment-v1alpha1
+operator: dynamo
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Initializing
+version: v1.34.0
+want: Initializing

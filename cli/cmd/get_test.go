@@ -24,10 +24,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/run-ai/karta/cli/pkg/definitions"
-	"github.com/run-ai/karta/pkg/api/runai/v1alpha1"
-	"github.com/run-ai/karta/pkg/catalog"
-	"github.com/run-ai/karta/pkg/catalog/kartas"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
+	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog/kartas"
 )
 
 var (
@@ -90,27 +90,28 @@ func fakeCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeDynam
 	return client
 }
 
-// runGetCmd executes "karta get" with args, returning stdout, stderr and the
-// exit code the binary would produce.
-func runGetCmd(t *testing.T, args ...string) (string, string, int) {
+// runCmd executes one kli subcommand with args, returning stdout, stderr and
+// the exit code the binary would produce.
+func runCmd(t *testing.T, sub string, args ...string) (string, string, int) {
 	t.Helper()
 
 	root := NewRootCommand()
 	var out, errOut bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&errOut)
-	root.SetArgs(append([]string{"get"}, args...))
+	root.SetArgs(append([]string{sub}, args...))
 
 	code := 0
 	if err := root.Execute(); err != nil {
-		code = 1
-		var coded interface{ ExitCode() int }
-		if errors.As(err, &coded) {
-			code = coded.ExitCode()
-		}
+		code = exitStatus(err)
 		errOut.WriteString("error: " + err.Error() + "\n")
 	}
 	return out.String(), errOut.String(), code
+}
+
+func runGetCmd(t *testing.T, args ...string) (string, string, int) {
+	t.Helper()
+	return runCmd(t, "get", args...)
 }
 
 func TestGetListsWorkloadsOfAType(t *testing.T) {
@@ -338,25 +339,35 @@ func TestGetServiceResolvesToKnative(t *testing.T) {
 	}
 }
 
-func TestGetJSONIsTypedAndAlwaysAnArray(t *testing.T) {
+func TestGetJSONIsTypedAndShapedByTheRequest(t *testing.T) {
 	fakeCluster(t, jobSet("preprocess", 3))
 
-	out, _, code := runGetCmd(t, "jobset/preprocess", "-o", "json")
+	named, _, code := runGetCmd(t, "jobset/preprocess", "-o", "json")
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d", code)
 	}
-	// Unlike kubectl, a single named workload is still wrapped, so consumers
-	// never branch on shape.
-	items, count := decodeEnvelope(t, out)
-	if len(items) != 1 || count != 1 {
-		t.Errorf("expected one wrapped item, got %q", out)
+	if strings.Contains(named, `"items"`) {
+		t.Errorf("expected a bare object for a named workload\n%s", named)
+	}
+	var view map[string]any
+	if err := json.Unmarshal([]byte(named), &view); err != nil {
+		t.Fatalf("decode %q: %v", named, err)
+	}
+	if view["name"] != "preprocess" {
+		t.Errorf("expected the workload name\n%s", named)
 	}
 	// Typed values, not display strings: phases is a list, not a joined cell.
-	if !strings.Contains(out, `"phases": [`) {
-		t.Errorf("expected phases as a list\n%s", out)
+	if !strings.Contains(named, `"phases": [`) {
+		t.Errorf("expected phases as a list\n%s", named)
 	}
-	if !strings.Contains(out, `"name": "preprocess"`) {
-		t.Errorf("expected the workload name\n%s", out)
+
+	listed, _, code := runGetCmd(t, "jobset", "-o", "json")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
+	}
+	items, count := decodeEnvelope(t, listed)
+	if len(items) != 1 || count != 1 {
+		t.Errorf("expected one wrapped item, got %q", listed)
 	}
 }
 

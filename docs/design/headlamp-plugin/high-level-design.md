@@ -267,7 +267,7 @@ Open the Headlamp desktop app — it picks up plugins in development mode automa
 
 ### 8.1 Backwards compatibility
 
-The plugin is versioned independently of the Karta operator. The README carries a compatibility matrix (`plugin x.y supports Karta >= a.b`). The current cluster stamps `run.ai/karta-*` labels on Karta CRs; the planned rename to `karta.run.ai/*` must be handled during transition — the plugin reads both label schemes until the old one is fully retired.
+The plugin is versioned independently of the Karta operator. The README carries a compatibility matrix (`plugin x.y supports Karta >= a.b`). The operator stamps `karta.run.ai/*` labels on Karta CRs, which the plugin reads.
 
 ### 8.2 Upgrade / downgrade procedure
 
@@ -298,11 +298,8 @@ Chips render ALL matched phases in severity order (adverse first). A workload ca
 ### B. CRD label scheme
 
 
-| Label (current)        | Label (planned)        | Value                               |
-| ---------------------- | ---------------------- | ----------------------------------- |
-| `run.ai/karta-group`   | `karta.run.ai/group`   | API group of the root workload kind |
-| `run.ai/karta-version` | `karta.run.ai/version` | API version                         |
-| `run.ai/karta-kind`    | `karta.run.ai/kind`    | Kind name                           |
-
-
-The plugin reads both schemes during the transition period until `run.ai/karta-*` is fully retired.
+| Label                  | Value                               |
+| ---------------------- | ----------------------------------- |
+| `karta.run.ai/group`   | API group of the root workload kind |
+| `karta.run.ai/version` | API version                         |
+| `karta.run.ai/kind`    | Kind name                           |

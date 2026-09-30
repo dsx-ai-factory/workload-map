@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"syscall/js"
 
-	"github.com/run-ai/karta/karta-wasm/core"
+	"github.com/dsx-ai-factory/workload-map/karta-wasm/core"
 )
 
 func jsBuildTree(_ js.Value, arguments []js.Value) any {

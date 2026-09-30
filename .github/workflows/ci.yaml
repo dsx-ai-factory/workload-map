@@ -2,9 +2,19 @@ name: Pull Request
 
 on:
   push:
-    branches: [ main, v0.* ]
+    branches:
+      - main
+      - "v[0-9]+.[0-9]+"
+      - "release-[0-9]+.[0-9]+"
   pull_request:
-    branches: [ main, v0.* ]
+    branches:
+      - main
+      - "v[0-9]+.[0-9]+"
+      - "release-[0-9]+.[0-9]+"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:
@@ -50,6 +60,66 @@ jobs:
 
       - name: Lint shell scripts
         run: make lint-shell
+
+  operator-e2e:
+    name: Operator E2E (${{ matrix.webhook }})
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        webhook: [auto, cert-manager, disabled]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            operator/go.sum
+
+      - name: Read pinned tool versions
+        run: |
+          . ./hack/e2e/global.env
+          echo "KIND_VERSION=$KIND_VERSION" >> "$GITHUB_ENV"
+          echo "KUBECTL_VERSION=$KUBECTL_VERSION" >> "$GITHUB_ENV"
+
+      - name: Install kind and kubectl
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+        with:
+          install_only: true
+          version: ${{ env.KIND_VERSION }}
+          kubectl_version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Provision cluster
+        run: make e2e-up WORKLOADS=none KARTA_WEBHOOK_MODE=${{ matrix.webhook }}
+
+      - name: Run operator e2e
+        run: make test-operator-e2e KARTA_WEBHOOK_MODE=${{ matrix.webhook }}
+
+      - name: Collect diagnostics
+        if: failure()
+        run: kind export logs .artifacts/kind --name karta-e2e || true
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: operator-e2e-artifacts-${{ matrix.webhook }}
+          path: .artifacts/
+          include-hidden-files: true
+          if-no-files-found: warn
+
+      - name: Tear down
+        if: always()
+        run: make e2e-down
 
   headlamp-plugin-ci:
     name: Headlamp Plugin Build

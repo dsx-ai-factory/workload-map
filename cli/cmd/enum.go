@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/run-ai/karta/cli/pkg/generator"
-	"github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
+	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
 // ErrInvalidValue is wrapped by Enum.Set when a value is not one of the allowed

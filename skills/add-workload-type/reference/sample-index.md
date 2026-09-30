@@ -44,13 +44,15 @@ multi-instance or nested pattern (for example Ray worker groups needing
 
 - Single full pod template: `podTemplateSpecPath`. See `batch-job-v1.yaml`.
 - Bare pod spec with separate metadata: `podSpecPath` plus `metadataPath`. See
-  the transformer child in `kserve.yaml`.
-- Scattered fields: `fragmentedPodSpecDefinition`. See `dynamo-v1beta1.yaml`.
+  the transformer child in `serving-kserve-io-inferenceservice-v1beta1.yaml`.
+- Scattered fields: `fragmentedPodSpecDefinition`. See
+  `nvidia-com-dynamographdeployment-v1beta1.yaml`.
 - Conditions status: `conditionsDefinition` plus `byConditions`. See
-  `rayservice.yaml`, which also uses `reason` to separate degraded from failed.
-- Phase status: `phaseDefinition` plus `byPhase`. See `raycluster.yaml`.
+  `ray-io-rayservice-v1.yaml`, which also uses `reason` to separate degraded from
+  failed.
+- Phase status: `phaseDefinition` plus `byPhase`. See `ray-io-raycluster-v1.yaml`.
 - Expression status: `byExpression`. See `batch-job-v1.yaml`.
 - Per-instance identity: `instanceIdPath` plus `componentInstanceSelector`. See
-  `raycluster.yaml`.
+  `ray-io-raycluster-v1.yaml`.
 - Replica identity within identical sub-structures: `replicaSelector`. See
-  `lws.yaml`.
+  `leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml`.

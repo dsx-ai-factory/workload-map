@@ -21,6 +21,11 @@ spec:
       inCluster:
         values:
           mode: standalone
+          # MinIO no longer publishes public images on Docker Hub; the operator's
+          # default docker.io reference fails anonymous pulls. Quay mirrors the
+          # same release tags.
+          image:
+            repository: quay.io/minio/minio
           resources:
             requests:
               memory: 256Mi

@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/run-ai/karta/cli/pkg/workload"
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
 )
 
 var views = []workload.View{{
@@ -119,6 +119,35 @@ var _ = Describe("RenderWorkloads", func() {
 
 			Expect(out.String()).To(ContainSubstring(`"items": []`))
 			Expect(errOut.Len()).To(BeZero())
+		})
+	})
+
+	Describe("a request that named one workload", func() {
+		It("emits the view itself, with no envelope around it", func() {
+			var out, errOut bytes.Buffer
+			Expect(RenderWorkloads(&out, &errOut, views,
+				Options{Output: OutputJSON, Namespace: "ml-team", ByName: true})).To(Succeed())
+
+			Expect(out.String()).NotTo(ContainSubstring(`"items"`))
+			Expect(out.String()).To(ContainSubstring(`"name": "preprocess"`))
+		})
+
+		It("renders the same table as a list does", func() {
+			var named, listed bytes.Buffer
+			Expect(RenderWorkloads(&named, &bytes.Buffer{}, views,
+				Options{Namespace: "ml-team", ByName: true})).To(Succeed())
+			Expect(RenderWorkloads(&listed, &bytes.Buffer{}, views,
+				Options{Namespace: "ml-team"})).To(Succeed())
+
+			Expect(named.String()).To(Equal(listed.String()))
+		})
+
+		It("falls back to the envelope when nothing resolved", func() {
+			var out, errOut bytes.Buffer
+			Expect(RenderWorkloads(&out, &errOut, nil,
+				Options{Output: OutputJSON, Namespace: "ml-team", ByName: true})).To(Succeed())
+
+			Expect(out.String()).To(ContainSubstring(`"items": []`))
 		})
 	})
 })

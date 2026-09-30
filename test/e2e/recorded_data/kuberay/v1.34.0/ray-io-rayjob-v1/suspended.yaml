@@ -4,13 +4,13 @@ events:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:50:48Z"
+      creationTimestamp: "2026-09-16T11:06:10Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-suspended
-      namespace: test-cb2tw
-      uid: 44d052f0-e1c8-43d5-83cd-4f3a8d0203b6
+      namespace: test-4jj2n
+      uid: 41a0c8ad-4db5-4cd3-b97b-dec01e413200
     spec:
       backoffLimit: 0
       entrypoint: python -c "print(1)"
@@ -26,6 +26,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-head
                 resources:
+                  limits:
+                    cpu: 500m
+                    memory: 2Gi
                   requests:
                     cpu: 500m
                     memory: 2Gi
@@ -46,6 +49,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
@@ -55,20 +61,20 @@ events:
       ttlSecondsAfterFinished: 0
   phases:
   - Undefined
-  resourceVersion: "1319829"
+  resourceVersion: "627948"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:50:48Z"
+      creationTimestamp: "2026-09-16T11:06:10Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-suspended
-      namespace: test-cb2tw
-      uid: 44d052f0-e1c8-43d5-83cd-4f3a8d0203b6
+      namespace: test-4jj2n
+      uid: 41a0c8ad-4db5-4cd3-b97b-dec01e413200
     spec:
       backoffLimit: 0
       entrypoint: python -c "print(1)"
@@ -84,6 +90,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-head
                 resources:
+                  limits:
+                    cpu: 500m
+                    memory: 2Gi
                   requests:
                     cpu: 500m
                     memory: 2Gi
@@ -104,6 +113,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
@@ -114,8 +126,8 @@ events:
     status:
       failed: 0
       jobDeploymentStatus: Initializing
-      jobId: karta-e2e-rayjob-suspended-vtfqv
-      rayClusterName: karta-e2e-rayjob-suspended-nx5zz
+      jobId: karta-e2e-rayjob-suspended-sbccj
+      rayClusterName: karta-e2e-rayjob-suspended-cfqw6
       rayClusterStatus:
         desiredCPU: "0"
         desiredGPU: "0"
@@ -123,24 +135,24 @@ events:
         desiredTPU: "0"
         head: {}
       rayJobInfo: {}
-      startTime: "2026-09-14T07:50:48Z"
+      startTime: "2026-09-16T11:06:10Z"
       succeeded: 0
   phases:
   - Initializing
-  resourceVersion: "1319835"
+  resourceVersion: "627949"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:50:48Z"
+      creationTimestamp: "2026-09-16T11:06:10Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-suspended
-      namespace: test-cb2tw
-      uid: 44d052f0-e1c8-43d5-83cd-4f3a8d0203b6
+      namespace: test-4jj2n
+      uid: 41a0c8ad-4db5-4cd3-b97b-dec01e413200
     spec:
       backoffLimit: 0
       entrypoint: python -c "print(1)"
@@ -156,6 +168,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-head
                 resources:
+                  limits:
+                    cpu: 500m
+                    memory: 2Gi
                   requests:
                     cpu: 500m
                     memory: 2Gi
@@ -176,6 +191,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
@@ -186,8 +204,8 @@ events:
     status:
       failed: 0
       jobDeploymentStatus: Suspending
-      jobId: karta-e2e-rayjob-suspended-vtfqv
-      rayClusterName: karta-e2e-rayjob-suspended-nx5zz
+      jobId: karta-e2e-rayjob-suspended-sbccj
+      rayClusterName: karta-e2e-rayjob-suspended-cfqw6
       rayClusterStatus:
         desiredCPU: "0"
         desiredGPU: "0"
@@ -195,24 +213,24 @@ events:
         desiredTPU: "0"
         head: {}
       rayJobInfo: {}
-      startTime: "2026-09-14T07:50:48Z"
+      startTime: "2026-09-16T11:06:10Z"
       succeeded: 0
   phases:
   - Undefined
-  resourceVersion: "1319840"
+  resourceVersion: "627950"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: ray.io/v1
     kind: RayJob
     metadata:
-      creationTimestamp: "2026-09-14T07:50:48Z"
+      creationTimestamp: "2026-09-16T11:06:10Z"
       finalizers:
       - ray.io/rayjob-finalizer
       generation: 2
       name: karta-e2e-rayjob-suspended
-      namespace: test-cb2tw
-      uid: 44d052f0-e1c8-43d5-83cd-4f3a8d0203b6
+      namespace: test-4jj2n
+      uid: 41a0c8ad-4db5-4cd3-b97b-dec01e413200
     spec:
       backoffLimit: 0
       entrypoint: python -c "print(1)"
@@ -228,6 +246,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-head
                 resources:
+                  limits:
+                    cpu: 500m
+                    memory: 2Gi
                   requests:
                     cpu: 500m
                     memory: 2Gi
@@ -248,6 +269,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: ray-worker
                 resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
                   requests:
                     cpu: 250m
                     memory: 512Mi
@@ -265,11 +289,11 @@ events:
         desiredTPU: "0"
         head: {}
       rayJobInfo: {}
-      startTime: "2026-09-14T07:50:48Z"
+      startTime: "2026-09-16T11:06:10Z"
       succeeded: 0
   phases:
   - Suspended
-  resourceVersion: "1319841"
+  resourceVersion: "627951"
   state: Suspended
 flow: suspended
 kartaFile: docs/catalog/ray-io-rayjob-v1.yaml

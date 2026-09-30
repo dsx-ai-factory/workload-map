@@ -35,3 +35,6 @@ config/crd/_.yaml
 /karta-wasm/wasm_exec.js
 
 hack/e2e/operators/.installed-versions*
+
+# Diagnostics collected by hack/e2e/karta-operator/test.sh
+/.artifacts/

@@ -8,7 +8,10 @@ name: Dependabot Codegen
 
 on:
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - "v[0-9]+.[0-9]+"
+      - "release-[0-9]+.[0-9]+"
 
 permissions:
   contents: write

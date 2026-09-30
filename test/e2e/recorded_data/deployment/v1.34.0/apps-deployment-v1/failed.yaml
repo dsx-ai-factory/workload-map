@@ -6,11 +6,11 @@ events:
     metadata:
       annotations:
         deployment.kubernetes.io/revision: "1"
-      creationTimestamp: "2026-09-15T07:05:04Z"
+      creationTimestamp: "2026-09-16T11:02:19Z"
       generation: 1
       name: karta-e2e-deploy-failed
-      namespace: test-wl7wt
-      uid: ff595df7-f164-43b3-bb70-6b409f432262
+      namespace: test-n7hmp
+      uid: 608cc2d7-73b9-4ec3-8159-add151973915
     spec:
       progressDeadlineSeconds: 10
       replicas: 1
@@ -45,6 +45,9 @@ events:
               successThreshold: 1
               timeoutSeconds: 1
             resources:
+              limits:
+                cpu: 50m
+                memory: 32Mi
               requests:
                 cpu: 50m
                 memory: 32Mi
@@ -57,15 +60,15 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastTransitionTime: "2026-09-15T07:05:05Z"
-        lastUpdateTime: "2026-09-15T07:05:05Z"
-        message: Created new replica set "karta-e2e-deploy-failed-7f48d9548d"
+      - lastTransitionTime: "2026-09-16T11:02:19Z"
+        lastUpdateTime: "2026-09-16T11:02:19Z"
+        message: Created new replica set "karta-e2e-deploy-failed-5588d68d66"
         reason: NewReplicaSetCreated
         status: "True"
         type: Progressing
   phases:
   - Initializing
-  resourceVersion: "311778"
+  resourceVersion: "625159"
   state: Initializing
 - kind: STATE
   object:
@@ -74,11 +77,11 @@ events:
     metadata:
       annotations:
         deployment.kubernetes.io/revision: "1"
-      creationTimestamp: "2026-09-15T07:05:04Z"
+      creationTimestamp: "2026-09-16T11:02:19Z"
       generation: 1
       name: karta-e2e-deploy-failed
-      namespace: test-wl7wt
-      uid: ff595df7-f164-43b3-bb70-6b409f432262
+      namespace: test-n7hmp
+      uid: 608cc2d7-73b9-4ec3-8159-add151973915
     spec:
       progressDeadlineSeconds: 10
       replicas: 1
@@ -113,6 +116,9 @@ events:
               successThreshold: 1
               timeoutSeconds: 1
             resources:
+              limits:
+                cpu: 50m
+                memory: 32Mi
               requests:
                 cpu: 50m
                 memory: 32Mi
@@ -125,14 +131,14 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastTransitionTime: "2026-09-15T07:05:05Z"
-        lastUpdateTime: "2026-09-15T07:05:05Z"
-        message: Created new replica set "karta-e2e-deploy-failed-7f48d9548d"
+      - lastTransitionTime: "2026-09-16T11:02:19Z"
+        lastUpdateTime: "2026-09-16T11:02:19Z"
+        message: Created new replica set "karta-e2e-deploy-failed-5588d68d66"
         reason: NewReplicaSetCreated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-09-15T07:05:05Z"
-        lastUpdateTime: "2026-09-15T07:05:05Z"
+      - lastTransitionTime: "2026-09-16T11:02:19Z"
+        lastUpdateTime: "2026-09-16T11:02:19Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
@@ -141,7 +147,7 @@ events:
       unavailableReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "311781"
+  resourceVersion: "625166"
   state: Initializing
 - kind: STATE
   object:
@@ -150,11 +156,11 @@ events:
     metadata:
       annotations:
         deployment.kubernetes.io/revision: "1"
-      creationTimestamp: "2026-09-15T07:05:04Z"
+      creationTimestamp: "2026-09-16T11:02:19Z"
       generation: 1
       name: karta-e2e-deploy-failed
-      namespace: test-wl7wt
-      uid: ff595df7-f164-43b3-bb70-6b409f432262
+      namespace: test-n7hmp
+      uid: 608cc2d7-73b9-4ec3-8159-add151973915
     spec:
       progressDeadlineSeconds: 10
       replicas: 1
@@ -189,6 +195,9 @@ events:
               successThreshold: 1
               timeoutSeconds: 1
             resources:
+              limits:
+                cpu: 50m
+                memory: 32Mi
               requests:
                 cpu: 50m
                 memory: 32Mi
@@ -201,15 +210,15 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastTransitionTime: "2026-09-15T07:05:05Z"
-        lastUpdateTime: "2026-09-15T07:05:05Z"
+      - lastTransitionTime: "2026-09-16T11:02:19Z"
+        lastUpdateTime: "2026-09-16T11:02:19Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
         type: Available
-      - lastTransitionTime: "2026-09-15T07:05:05Z"
-        lastUpdateTime: "2026-09-15T07:05:05Z"
-        message: ReplicaSet "karta-e2e-deploy-failed-7f48d9548d" is progressing.
+      - lastTransitionTime: "2026-09-16T11:02:19Z"
+        lastUpdateTime: "2026-09-16T11:02:19Z"
+        message: ReplicaSet "karta-e2e-deploy-failed-5588d68d66" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
@@ -219,7 +228,7 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "311785"
+  resourceVersion: "625167"
   state: Initializing
 - kind: STATE
   object:
@@ -228,11 +237,11 @@ events:
     metadata:
       annotations:
         deployment.kubernetes.io/revision: "1"
-      creationTimestamp: "2026-09-15T07:05:04Z"
+      creationTimestamp: "2026-09-16T11:02:19Z"
       generation: 1
       name: karta-e2e-deploy-failed
-      namespace: test-wl7wt
-      uid: ff595df7-f164-43b3-bb70-6b409f432262
+      namespace: test-n7hmp
+      uid: 608cc2d7-73b9-4ec3-8159-add151973915
     spec:
       progressDeadlineSeconds: 10
       replicas: 1
@@ -267,6 +276,9 @@ events:
               successThreshold: 1
               timeoutSeconds: 1
             resources:
+              limits:
+                cpu: 50m
+                memory: 32Mi
               requests:
                 cpu: 50m
                 memory: 32Mi
@@ -279,15 +291,15 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastTransitionTime: "2026-09-15T07:05:05Z"
-        lastUpdateTime: "2026-09-15T07:05:05Z"
+      - lastTransitionTime: "2026-09-16T11:02:19Z"
+        lastUpdateTime: "2026-09-16T11:02:19Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
         type: Available
-      - lastTransitionTime: "2026-09-15T07:05:16Z"
-        lastUpdateTime: "2026-09-15T07:05:16Z"
-        message: ReplicaSet "karta-e2e-deploy-failed-7f48d9548d" has timed out progressing.
+      - lastTransitionTime: "2026-09-16T11:02:30Z"
+        lastUpdateTime: "2026-09-16T11:02:30Z"
+        message: ReplicaSet "karta-e2e-deploy-failed-5588d68d66" has timed out progressing.
         reason: ProgressDeadlineExceeded
         status: "False"
         type: Progressing
@@ -297,7 +309,7 @@ events:
       updatedReplicas: 1
   phases:
   - Failed
-  resourceVersion: "311862"
+  resourceVersion: "625269"
   state: Failed
 flow: failed
 kartaFile: docs/catalog/apps-deployment-v1.yaml

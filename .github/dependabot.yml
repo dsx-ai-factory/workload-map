@@ -26,6 +26,51 @@ updates:
           - minor
           - patch
 
+  # Release branch v0.2. Patch updates only: minor bumps of k8s.io and
+  # controller-runtime carry API changes that do not belong on a release branch.
+  # Directory list omits test/e2e and karta-wasm, which do not exist on v0.2.
+  - package-ecosystem: gomod
+    target-branch: v0.2
+    directories:
+      - "/"
+      - "/cli"
+      - "/operator"
+      - "/hack/imagelock"
+      - "/docs/examples/*"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: build
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+    groups:
+      go-patch:
+        update-types:
+          - patch
+
+  # Release branch v0.1. Single root module.
+  - package-ecosystem: gomod
+    target-branch: v0.1
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: build
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+    groups:
+      go-patch:
+        update-types:
+          - patch
+
   # Dockerfiles
   - package-ecosystem: docker
     directories:
@@ -33,6 +78,17 @@ updates:
       - "/docs/examples/controller-runtime"
     schedule:
       interval: weekly
+    commit-message:
+      prefix: build
+
+  - package-ecosystem: docker
+    target-branch: v0.2
+    directories:
+      - "/operator"
+      - "/docs/examples/controller-runtime"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
     commit-message:
       prefix: build
 

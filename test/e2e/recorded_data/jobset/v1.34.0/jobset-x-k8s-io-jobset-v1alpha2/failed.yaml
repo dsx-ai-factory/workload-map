@@ -4,11 +4,11 @@ events:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:31Z"
+      creationTimestamp: "2026-09-16T11:01:54Z"
       generation: 1
       name: karta-e2e-jobset-failed
-      namespace: test-wgqzp
-      uid: bde3a632-6ea3-40d9-af11-51334c79e99e
+      namespace: test-zfhbm
+      uid: fc332789-5557-4908-a7be-4f8b6aedc943
     spec:
       network:
         enableDNSHostnames: true
@@ -35,6 +35,9 @@ events:
                   image: busybox:1.36
                   name: worker
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -54,18 +57,18 @@ events:
       restarts: 0
   phases:
   - Undefined
-  resourceVersion: "9631"
+  resourceVersion: "624700"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:31Z"
+      creationTimestamp: "2026-09-16T11:01:54Z"
       generation: 1
       name: karta-e2e-jobset-failed
-      namespace: test-wgqzp
-      uid: bde3a632-6ea3-40d9-af11-51334c79e99e
+      namespace: test-zfhbm
+      uid: fc332789-5557-4908-a7be-4f8b6aedc943
     spec:
       network:
         enableDNSHostnames: true
@@ -92,6 +95,9 @@ events:
                   image: busybox:1.36
                   name: worker
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -112,18 +118,18 @@ events:
   phases:
   - Initializing
   - Running
-  resourceVersion: "9636"
+  resourceVersion: "624706"
   state: Running
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:31Z"
+      creationTimestamp: "2026-09-16T11:01:54Z"
       generation: 1
       name: karta-e2e-jobset-failed
-      namespace: test-wgqzp
-      uid: bde3a632-6ea3-40d9-af11-51334c79e99e
+      namespace: test-zfhbm
+      uid: fc332789-5557-4908-a7be-4f8b6aedc943
     spec:
       network:
         enableDNSHostnames: true
@@ -150,6 +156,9 @@ events:
                   image: busybox:1.36
                   name: worker
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -169,18 +178,18 @@ events:
       restarts: 0
   phases:
   - Running
-  resourceVersion: "9648"
+  resourceVersion: "624738"
   state: Running
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:31Z"
+      creationTimestamp: "2026-09-16T11:01:54Z"
       generation: 1
       name: karta-e2e-jobset-failed
-      namespace: test-wgqzp
-      uid: bde3a632-6ea3-40d9-af11-51334c79e99e
+      namespace: test-zfhbm
+      uid: fc332789-5557-4908-a7be-4f8b6aedc943
     spec:
       network:
         enableDNSHostnames: true
@@ -207,6 +216,9 @@ events:
                   image: busybox:1.36
                   name: worker
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -227,18 +239,18 @@ events:
   phases:
   - Initializing
   - Running
-  resourceVersion: "9686"
+  resourceVersion: "624799"
   state: Running
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:31Z"
+      creationTimestamp: "2026-09-16T11:01:54Z"
       generation: 1
       name: karta-e2e-jobset-failed
-      namespace: test-wgqzp
-      uid: bde3a632-6ea3-40d9-af11-51334c79e99e
+      namespace: test-zfhbm
+      uid: fc332789-5557-4908-a7be-4f8b6aedc943
     spec:
       network:
         enableDNSHostnames: true
@@ -265,6 +277,9 @@ events:
                   image: busybox:1.36
                   name: worker
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -284,18 +299,18 @@ events:
       restarts: 0
   phases:
   - Undefined
-  resourceVersion: "9707"
+  resourceVersion: "624804"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: jobset.x-k8s.io/v1alpha2
     kind: JobSet
     metadata:
-      creationTimestamp: "2026-09-14T10:28:31Z"
+      creationTimestamp: "2026-09-16T11:01:54Z"
       generation: 1
       name: karta-e2e-jobset-failed
-      namespace: test-wgqzp
-      uid: bde3a632-6ea3-40d9-af11-51334c79e99e
+      namespace: test-zfhbm
+      uid: fc332789-5557-4908-a7be-4f8b6aedc943
     spec:
       network:
         enableDNSHostnames: true
@@ -322,6 +337,9 @@ events:
                   image: busybox:1.36
                   name: worker
                   resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
                     requests:
                       cpu: 50m
                       memory: 32Mi
@@ -332,7 +350,7 @@ events:
         operator: All
     status:
       conditions:
-      - lastTransitionTime: "2026-09-14T10:28:39Z"
+      - lastTransitionTime: "2026-09-16T11:02:03Z"
         message: 'jobset failed due to one or more job failures (first failed job:
           karta-e2e-jobset-failed-workers-0)'
         reason: FailedJobs
@@ -349,7 +367,7 @@ events:
       terminalState: Failed
   phases:
   - Failed
-  resourceVersion: "9710"
+  resourceVersion: "624808"
   state: Failed
 flow: failed
 kartaFile: docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml

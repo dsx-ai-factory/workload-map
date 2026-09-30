@@ -4,11 +4,11 @@ events:
     apiVersion: grove.io/v1alpha1
     kind: PodCliqueSet
     metadata:
-      creationTimestamp: "2026-09-09T11:02:55Z"
+      creationTimestamp: "2026-09-16T11:09:25Z"
       generation: 1
       name: karta-e2e-grove-initializing
-      namespace: test-rsskf
-      uid: 4be6b242-6fbd-4ec1-9357-090ff6c18f43
+      namespace: test-k67f7
+      uid: 2d17c337-5d36-4339-b989-01f430d49964
     spec:
       replicas: 1
       template:
@@ -26,6 +26,9 @@ events:
                 image: busybox:99.99.99
                 name: worker
                 resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
                   requests:
                     cpu: 20m
                     memory: 32Mi
@@ -38,7 +41,7 @@ events:
         terminationDelay: 4h0m0s
   phases:
   - Initializing
-  resourceVersion: "294033"
+  resourceVersion: "630422"
   state: Initializing
 flow: initializing
 kartaFile: docs/catalog/grove-io-podcliqueset-v1alpha1.yaml

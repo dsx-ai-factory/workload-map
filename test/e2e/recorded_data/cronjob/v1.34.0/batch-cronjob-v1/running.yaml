@@ -4,11 +4,11 @@ events:
     apiVersion: batch/v1
     kind: CronJob
     metadata:
-      creationTimestamp: "2026-09-08T15:19:53Z"
+      creationTimestamp: "2026-09-16T10:58:49Z"
       generation: 1
       name: karta-e2e-cronjob-running
-      namespace: test-vg5xp
-      uid: ec26460f-87a3-4d44-a49c-828e175d157b
+      namespace: test-l6mds
+      uid: 5039d78b-eb10-4e21-af71-82d41bfbdb0a
     spec:
       concurrencyPolicy: Allow
       failedJobsHistoryLimit: 1
@@ -27,6 +27,9 @@ events:
                 imagePullPolicy: IfNotPresent
                 name: worker
                 resources:
+                  limits:
+                    cpu: 50m
+                    memory: 32Mi
                   requests:
                     cpu: 50m
                     memory: 32Mi
@@ -44,14 +47,14 @@ events:
       active:
       - apiVersion: batch/v1
         kind: Job
-        name: karta-e2e-cronjob-running-29814680
-        namespace: test-vg5xp
-        resourceVersion: "1670"
-        uid: 83632c44-20f6-402d-8487-c5a5b0c90325
-      lastScheduleTime: "2026-09-08T15:20:00Z"
+        name: karta-e2e-cronjob-running-29825939
+        namespace: test-l6mds
+        resourceVersion: "623050"
+        uid: a4703063-f786-49ca-bbda-4a69cc1ff3d3
+      lastScheduleTime: "2026-09-16T10:59:00Z"
   phases:
   - Running
-  resourceVersion: "1671"
+  resourceVersion: "623051"
   state: Running
 flow: running
 kartaFile: docs/catalog/batch-cronjob-v1.yaml

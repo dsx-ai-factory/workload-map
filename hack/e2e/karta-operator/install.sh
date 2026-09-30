@@ -9,10 +9,10 @@
 set -euo pipefail
 MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
-source "${MODULE_DIR}/operators/_common.sh"
+source "${MODULE_DIR}/../operators/_common.sh"
 
 # REPO_ROOT is exported by up.sh; derive it when this script is run on its own.
-REPO_ROOT="${REPO_ROOT:-$(cd "${MODULE_DIR}/../.." && pwd)}"
+REPO_ROOT="${REPO_ROOT:-$(cd "${MODULE_DIR}/../../.." && pwd)}"
 
 # Suffixes the chart puts on karta.fullname (charts/karta/templates/_helpers.tpl). The
 # service name is also the serving-cert SAN, so the Certificate below has to match it.

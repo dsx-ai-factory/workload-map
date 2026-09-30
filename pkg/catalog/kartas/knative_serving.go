@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	v1alpha1 "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
 // KnativeServing returns the built-in Karta for the Knative Serving Service
@@ -30,6 +30,11 @@ func KnativeServing() *v1alpha1.Karta {
 						},
 						StatusMappings: v1alpha1.StatusMappings{
 							Running: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("True")}}}},
+							// Knative reports the whole deploy through Ready=Unknown (reasons OutOfDate,
+							// RevisionMissing, IngressNotConfigured, Uninitialized) and a broken Service
+							// through Ready=False - both deliberate signals, matched as written.
+							Initializing: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("Unknown")}}}},
+							Failed:       []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("False")}}}},
 						},
 					},
 				},
@@ -42,8 +47,8 @@ func KnativeServing() *v1alpha1.Karta {
 							PodTemplateSpecPath: ptr.To(".spec.template"),
 						},
 						ScaleDefinition: &v1alpha1.ScaleDefinition{
-							MinReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/min-scale"] // 1`),
-							MaxReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/max-scale"]`),
+							MinReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/min-scale"] // 1 | tonumber`),
+							MaxReplicasPath: ptr.To(`.spec.template.metadata.annotations["autoscaling.knative.dev/max-scale"] | tonumber?`),
 						},
 					},
 				},

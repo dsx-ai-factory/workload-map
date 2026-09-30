@@ -28,8 +28,8 @@ if [ -z "${KUBECONFIG:-}" ] && [ "${CLUSTER_NAME}" != "${DEFAULT_CLUSTER}" ]; th
   mkdir -p "$(dirname "${KUBECONFIG}")"
   export KUBECONFIG
 fi
-# operators/<name>/install.sh and verify.sh, and this directory's own install.sh, all
-# run as subprocesses; export what they need (version pins come from global.env).
+# karta-operator/ and operators/<name>/ each run install.sh and verify.sh as
+# subprocesses; export what they need (version pins come from global.env).
 export CLUSTER_NAME IMAGE REPO_ROOT KARTA_WEBHOOK_MODE
 
 # Workload operators selectable on the command line, in canonical install order:
@@ -67,7 +67,7 @@ usage() {
 Usage: $0 [--list] [workload...]
   No workload args (or "all") installs everything. Named args install the base
   plus only those workload operators (and their dependencies). "none" installs
-  the base only, which is what the controller e2e wants.
+  the base only, which is what the operator e2e wants.
   Workloads: ${ALL_WORKLOADS[*]}
   --list    print the resolved install plan and exit
 
@@ -294,8 +294,8 @@ main() {
     for w in "${plan[@]}"; do run_operator "$w"; done
   fi
   group "karta operator"
-  bash "${REPO_ROOT}/hack/e2e/install.sh" || { endgroup; fail "karta install failed"; exit 1; }
-  bash "${REPO_ROOT}/hack/e2e/verify.sh" || { endgroup; fail "karta smoke failed"; exit 1; }
+  bash "${REPO_ROOT}/hack/e2e/karta-operator/install.sh" || { endgroup; fail "karta install failed"; exit 1; }
+  bash "${REPO_ROOT}/hack/e2e/karta-operator/verify.sh" || { endgroup; fail "karta smoke failed"; exit 1; }
   endgroup
 
   echo "==> environment ready (cluster: ${CLUSTER_NAME}, webhook: ${KARTA_WEBHOOK_MODE})."

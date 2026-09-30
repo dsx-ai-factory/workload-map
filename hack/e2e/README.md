@@ -14,10 +14,14 @@ as it installs, so a broken install fails provisioning rather than a later run.
 hack/e2e/
   up.sh                 orchestrator: base + selected operators (install then verify)
   down.sh               tear the cluster down (and its kubeconfig for named clusters)
-  install.sh            standalone: installs the Karta operator (a subprocess)
   global.env            single source of truth for versions and runtime defaults
   kind-config.yaml      kind cluster shape (1 control-plane + 2 workers)
-  operators/
+  karta-operator/       the system under test
+    install.sh          standalone: installs Karta in the selected webhook route
+    verify.sh           standalone: smoke-tests it via run_smoke
+    smoke.yaml          the throwaway Karta the smoke test applies
+    test.sh             runs the operator e2e against the current cluster
+  operators/            the upstream workload operators it exercises
     _common.sh          shared helpers + GitHub Actions logging, sourced by every script
     <name>/
       install.sh        standalone: installs that workload operator (a subprocess)
@@ -40,7 +44,7 @@ make e2e-down                        # tear down
 
 The base is the kind cluster, the fake-gpu-operator, and the Karta operator.
 Selecting a subset keeps a run light, and `none` keeps only the base, which is what
-the controller e2e wants. Dependencies are added automatically: kserve pulls
+the operator e2e wants. Dependencies are added automatically: kserve pulls
 knative, dynamo pulls grove.
 
 ## How up.sh runs an operator

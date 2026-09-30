@@ -4,13 +4,13 @@ events:
     apiVersion: grove.io/v1alpha1
     kind: PodCliqueSet
     metadata:
-      creationTimestamp: "2026-09-09T11:02:54Z"
+      creationTimestamp: "2026-09-16T11:09:21Z"
       finalizers:
       - grove.io/podcliqueset.grove.io
       generation: 1
       name: karta-e2e-grove
-      namespace: test-rsskf
-      uid: fe565981-9362-41ef-8018-039463f179c8
+      namespace: test-k67f7
+      uid: c8a0bf66-942f-41bc-9dd8-12e3557ccf18
     spec:
       replicas: 1
       template:
@@ -28,6 +28,9 @@ events:
                 image: busybox:1.36
                 name: worker
                 resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
                   requests:
                     cpu: 20m
                     memory: 32Mi
@@ -40,20 +43,20 @@ events:
         terminationDelay: 4h0m0s
   phases:
   - Initializing
-  resourceVersion: "293952"
+  resourceVersion: "630312"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: grove.io/v1alpha1
     kind: PodCliqueSet
     metadata:
-      creationTimestamp: "2026-09-09T11:02:54Z"
+      creationTimestamp: "2026-09-16T11:09:21Z"
       finalizers:
       - grove.io/podcliqueset.grove.io
       generation: 1
       name: karta-e2e-grove
-      namespace: test-rsskf
-      uid: fe565981-9362-41ef-8018-039463f179c8
+      namespace: test-k67f7
+      uid: c8a0bf66-942f-41bc-9dd8-12e3557ccf18
     spec:
       replicas: 1
       template:
@@ -71,6 +74,9 @@ events:
                 image: busybox:1.36
                 name: worker
                 resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
                   requests:
                     cpu: 20m
                     memory: 32Mi
@@ -83,24 +89,24 @@ events:
         terminationDelay: 4h0m0s
     status:
       availableReplicas: 0
-      currentGenerationHash: fcd7c86f456f9f449b
+      currentGenerationHash: 597fb4cb557f796875c8
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "293953"
+  resourceVersion: "630313"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: grove.io/v1alpha1
     kind: PodCliqueSet
     metadata:
-      creationTimestamp: "2026-09-09T11:02:54Z"
+      creationTimestamp: "2026-09-16T11:09:21Z"
       finalizers:
       - grove.io/podcliqueset.grove.io
       generation: 1
       name: karta-e2e-grove
-      namespace: test-rsskf
-      uid: fe565981-9362-41ef-8018-039463f179c8
+      namespace: test-k67f7
+      uid: c8a0bf66-942f-41bc-9dd8-12e3557ccf18
     spec:
       replicas: 1
       template:
@@ -118,6 +124,9 @@ events:
                 image: busybox:1.36
                 name: worker
                 resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
                   requests:
                     cpu: 20m
                     memory: 32Mi
@@ -130,31 +139,31 @@ events:
         terminationDelay: 4h0m0s
     status:
       availableReplicas: 0
-      currentGenerationHash: fcd7c86f456f9f449b
+      currentGenerationHash: 597fb4cb557f796875c8
       lastErrors:
       - code: ERR_SYNC_ROLEBINDING
         description: 'failed to sync RoleBinding: [Operation: Sync, Code: ERR_SYNC_ROLEBINDING]
-          message: Error syncing RoleBinding: test-rsskf/grove.io:pcs:karta-e2e-grove
-          for PodCliqueSet: test-rsskf/karta-e2e-grove, cause: rolebindings.rbac.authorization.k8s.io
+          message: Error syncing RoleBinding: test-k67f7/grove.io:pcs:karta-e2e-grove
+          for PodCliqueSet: test-k67f7/karta-e2e-grove, cause: rolebindings.rbac.authorization.k8s.io
           "grove.io:pcs:karta-e2e-grove" not found'
-        observedAt: "2026-09-09T11:02:54Z"
+        observedAt: "2026-09-16T11:09:21Z"
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "293963"
+  resourceVersion: "630322"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: grove.io/v1alpha1
     kind: PodCliqueSet
     metadata:
-      creationTimestamp: "2026-09-09T11:02:54Z"
+      creationTimestamp: "2026-09-16T11:09:21Z"
       finalizers:
       - grove.io/podcliqueset.grove.io
       generation: 1
       name: karta-e2e-grove
-      namespace: test-rsskf
-      uid: fe565981-9362-41ef-8018-039463f179c8
+      namespace: test-k67f7
+      uid: c8a0bf66-942f-41bc-9dd8-12e3557ccf18
     spec:
       replicas: 1
       template:
@@ -172,6 +181,9 @@ events:
                 image: busybox:1.36
                 name: worker
                 resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
                   requests:
                     cpu: 20m
                     memory: 32Mi
@@ -184,32 +196,32 @@ events:
         terminationDelay: 4h0m0s
     status:
       availableReplicas: 0
-      currentGenerationHash: fcd7c86f456f9f449b
+      currentGenerationHash: 597fb4cb557f796875c8
       lastErrors:
       - code: ERR_SYNC_ROLEBINDING
         description: 'failed to sync RoleBinding: [Operation: Sync, Code: ERR_SYNC_ROLEBINDING]
-          message: Error syncing RoleBinding: test-rsskf/grove.io:pcs:karta-e2e-grove
-          for PodCliqueSet: test-rsskf/karta-e2e-grove, cause: rolebindings.rbac.authorization.k8s.io
+          message: Error syncing RoleBinding: test-k67f7/grove.io:pcs:karta-e2e-grove
+          for PodCliqueSet: test-k67f7/karta-e2e-grove, cause: rolebindings.rbac.authorization.k8s.io
           "grove.io:pcs:karta-e2e-grove" not found'
-        observedAt: "2026-09-09T11:02:54Z"
+        observedAt: "2026-09-16T11:09:21Z"
       replicas: 1
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "293964"
+  resourceVersion: "630323"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: grove.io/v1alpha1
     kind: PodCliqueSet
     metadata:
-      creationTimestamp: "2026-09-09T11:02:54Z"
+      creationTimestamp: "2026-09-16T11:09:21Z"
       finalizers:
       - grove.io/podcliqueset.grove.io
       generation: 1
       name: karta-e2e-grove
-      namespace: test-rsskf
-      uid: fe565981-9362-41ef-8018-039463f179c8
+      namespace: test-k67f7
+      uid: c8a0bf66-942f-41bc-9dd8-12e3557ccf18
     spec:
       replicas: 1
       template:
@@ -227,6 +239,9 @@ events:
                 image: busybox:1.36
                 name: worker
                 resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
                   requests:
                     cpu: 20m
                     memory: 32Mi
@@ -239,25 +254,25 @@ events:
         terminationDelay: 4h0m0s
     status:
       availableReplicas: 0
-      currentGenerationHash: fcd7c86f456f9f449b
+      currentGenerationHash: 597fb4cb557f796875c8
       replicas: 1
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "293977"
+  resourceVersion: "630331"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: grove.io/v1alpha1
     kind: PodCliqueSet
     metadata:
-      creationTimestamp: "2026-09-09T11:02:54Z"
+      creationTimestamp: "2026-09-16T11:09:21Z"
       finalizers:
       - grove.io/podcliqueset.grove.io
       generation: 1
       name: karta-e2e-grove
-      namespace: test-rsskf
-      uid: fe565981-9362-41ef-8018-039463f179c8
+      namespace: test-k67f7
+      uid: c8a0bf66-942f-41bc-9dd8-12e3557ccf18
     spec:
       replicas: 1
       template:
@@ -275,6 +290,9 @@ events:
                 image: busybox:1.36
                 name: worker
                 resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
                   requests:
                     cpu: 20m
                     memory: 32Mi
@@ -287,26 +305,26 @@ events:
         terminationDelay: 4h0m0s
     status:
       availableReplicas: 0
-      currentGenerationHash: fcd7c86f456f9f449b
+      currentGenerationHash: 597fb4cb557f796875c8
       observedGeneration: 1
       replicas: 1
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "293992"
+  resourceVersion: "630346"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: grove.io/v1alpha1
     kind: PodCliqueSet
     metadata:
-      creationTimestamp: "2026-09-09T11:02:54Z"
+      creationTimestamp: "2026-09-16T11:09:21Z"
       finalizers:
       - grove.io/podcliqueset.grove.io
       generation: 1
       name: karta-e2e-grove
-      namespace: test-rsskf
-      uid: fe565981-9362-41ef-8018-039463f179c8
+      namespace: test-k67f7
+      uid: c8a0bf66-942f-41bc-9dd8-12e3557ccf18
     spec:
       replicas: 1
       template:
@@ -324,6 +342,9 @@ events:
                 image: busybox:1.36
                 name: worker
                 resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
                   requests:
                     cpu: 20m
                     memory: 32Mi
@@ -336,13 +357,13 @@ events:
         terminationDelay: 4h0m0s
     status:
       availableReplicas: 1
-      currentGenerationHash: fcd7c86f456f9f449b
+      currentGenerationHash: 597fb4cb557f796875c8
       observedGeneration: 1
       replicas: 1
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "294027"
+  resourceVersion: "630406"
   state: Running
 flow: running
 kartaFile: docs/catalog/grove-io-podcliqueset-v1alpha1.yaml

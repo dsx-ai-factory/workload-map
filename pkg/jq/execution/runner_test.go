@@ -8,7 +8,7 @@ import (
 	"errors"
 	"strings"
 
-	testutils "github.com/run-ai/karta/test/types/jsonutils"
+	testutils "github.com/dsx-ai-factory/workload-map/test/types/jsonutils"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

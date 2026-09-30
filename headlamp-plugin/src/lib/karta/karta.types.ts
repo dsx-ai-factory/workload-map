@@ -5,9 +5,14 @@ export interface Karta {
   apiVersion: string;
   kind: string;
   metadata: { name: string };
-  spec: {
-    structureDefinition: {
-      rootComponent: {
+  // Optional at every level because the CRD requires none of it: a Karta
+  // applied while the validating webhook is down can be missing spec
+  // entirely. Note this only documents the shape, it does not enforce it --
+  // the plugin's tsconfig leaves strictNullChecks off, so readers get the
+  // warning but the compiler will not.
+  spec?: {
+    structureDefinition?: {
+      rootComponent?: {
         kind?: GroupVersionKind;
       };
     };

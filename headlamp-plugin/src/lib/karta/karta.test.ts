@@ -82,7 +82,7 @@ describe('getKartaWasm', () => {
   // jsdom never executes injected blob: script content (see getInjectedScript's
   // comment above), so the Go runtime is stubbed directly rather than relying on
   // wasm_exec.js actually running.
-  async function driveToInstantiateStreaming(runSpy: ReturnType<typeof vi.fn>) {
+  async function driveToInstantiateStreaming(runSpy: (instance: WebAssembly.Instance) => Promise<void>) {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:http://localhost/wasm-exec');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
     request.mockImplementation((path: string) => {
@@ -110,7 +110,7 @@ describe('getKartaWasm', () => {
     const instantiateError = new Error('bad content type');
     vi.spyOn(WebAssembly, 'instantiateStreaming').mockRejectedValue(instantiateError);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const runSpy = vi.fn();
+    const runSpy = vi.fn<(instance: WebAssembly.Instance) => Promise<void>>();
 
     const karta = driveToInstantiateStreaming(runSpy);
 

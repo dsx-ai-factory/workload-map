@@ -22,6 +22,14 @@ export async function buildTree(definition: Karta, workload: Workload): Promise<
   });
 }
 
+// evaluatePhases reads the phases off the tree today. It stays its own
+// function so a caller asking only for status does not depend on how the
+// status is reached, and a cheaper path replaces only this body.
+export async function evaluatePhases(definition: Karta, workload: Workload): Promise<string[]> {
+  const tree = await buildTree(definition, workload);
+  return tree.Status?.Phases ?? [];
+}
+
 export async function listCatalog(): Promise<Karta[]> {
   const karta = await getKartaWasm();
   return unwrap(karta.listCatalog(), []);

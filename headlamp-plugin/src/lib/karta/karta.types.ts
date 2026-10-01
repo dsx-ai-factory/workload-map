@@ -15,6 +15,8 @@ export interface Karta {
       rootComponent?: {
         kind?: GroupVersionKind;
       };
+      // Counted, never read: not a full mirror of ComponentDefinition.
+      childComponents?: { name: string }[];
     };
   };
 }
@@ -22,7 +24,13 @@ export interface Karta {
 export interface Workload {
   apiVersion: string;
   kind: string;
-  metadata: { name: string; namespace?: string };
+  metadata: {
+    name: string;
+    namespace?: string;
+    creationTimestamp?: string;
+    uid?: string;
+    resourceVersion?: string;
+  };
   [field: string]: unknown;
 }
 

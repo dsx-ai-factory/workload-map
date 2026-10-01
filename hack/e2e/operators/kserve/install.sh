@@ -33,6 +33,32 @@ main() {
   # the controller pod is Ready; retry briefly in case the webhook is still warming.
   apply_with_retry "https://github.com/kserve/kserve/releases/download/${KSERVE_VERSION}/kserve-cluster-resources.yaml" \
     5 10 --server-side --force-conflicts
+  install_llmisvc
+}
+
+# LLMInferenceService ships as its own controller and charts (releases that
+# publish helm-chart-kserve-llmisvc-resources). Its manager watches HTTPRoute
+# and InferencePool, so the Gateway API and inference-extension CRDs must exist
+# before it starts.
+install_llmisvc() {
+  local base="https://github.com/kserve/kserve/releases/download/${KSERVE_VERSION}"
+  if ! curl -fsIL -o /dev/null "${base}/helm-chart-kserve-llmisvc-resources-${KSERVE_VERSION}.tgz"; then
+    echo "    release ships no llmisvc charts; skipping the LLMInferenceService controller"
+    return 0
+  fi
+  echo "==> KServe llmisvc controller ${KSERVE_VERSION}"
+  kubectl apply --server-side -f \
+    "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
+  kubectl apply --server-side -f \
+    "https://github.com/kubernetes-sigs/gateway-api-inference-extension/releases/download/${GATEWAY_API_INFERENCE_EXTENSION_VERSION}/v1-manifests.yaml"
+  # The minimal CRD chart carries only the llmisvc CRDs; the full one also
+  # packages shared KServe CRDs that kserve.yaml already owns, and helm refuses
+  # to adopt those.
+  helm upgrade -i kserve-llmisvc-crd "${base}/helm-chart-kserve-llmisvc-crd-minimal-${KSERVE_VERSION}.tgz" \
+    -n kserve >/dev/null
+  helm upgrade -i kserve-llmisvc-resources "${base}/helm-chart-kserve-llmisvc-resources-${KSERVE_VERSION}.tgz" \
+    -n kserve >/dev/null
+  rollout_wait kserve deploy/llmisvc-controller-manager 240s
 }
 
 main "$@"

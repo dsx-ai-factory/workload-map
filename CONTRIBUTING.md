@@ -167,6 +167,30 @@ git commit -s -m "fix(api): validate status mapping expressions before applying 
   expected window, please leave a comment to nudge the maintainers, or mention
   it in the related issue.
 
+## Catalog Definitions
+
+A new catalog definition ships with a recorded flow. The recording is how the
+path is seen: it drives a real workload through the states the definition maps
+and stores every CR the operator wrote, and the replay suite then proves the
+definition reads each recorded frame on every CI run. A definition without a
+recording is a claim; the recording is the evidence.
+
+Adding one means, in order:
+
+1. The builder under `pkg/catalog/kartas/`, registered in
+   `pkg/catalog/catalog.go`, then `make generate-samples` for the generated
+   file under `docs/catalog/`. Never hand-edit the generated file.
+2. A flow under `test/e2e/flows/` with its workload manifests under
+   `test/e2e/flows/testdata/<workload>/`, covering at least the states the
+   definition maps that a kind cluster can reach. Manifests pin image tags and
+   declare resource limits. If the operator install needs new pieces, extend
+   the operator's script under `hack/e2e/operators/` so `make e2e-up` still
+   provisions everything.
+3. The recorded fixtures from a live run: `make record-e2e
+   E2E_LABELS="<label>"` against a `make e2e-up` cluster, committed under
+   `test/e2e/recorded_data/`.
+4. `make test-replay` and `make verify-recordings` green.
+
 ## Versioning
 
 `charts/karta/Chart.yaml` keeps `version` and `appVersion` as placeholders (`0.0.0`). The values that actually get published are computed by the [push-artifacts workflow](.github/workflows/push-artifacts.yaml) and overridden at `helm package` time:

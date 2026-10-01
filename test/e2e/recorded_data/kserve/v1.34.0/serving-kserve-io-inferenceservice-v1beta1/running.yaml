@@ -4,13 +4,15 @@ events:
     apiVersion: serving.kserve.io/v1beta1
     kind: InferenceService
     metadata:
-      creationTimestamp: "2026-09-16T11:08:08Z"
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
       finalizers:
       - inferenceservice.finalizers
       generation: 1
       name: karta-e2e-kserve
-      namespace: test-z9n6m
-      uid: 9266a5ca-aaa5-4a44-9a5d-6d59054bea9c
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
     spec:
       predictor:
         model:
@@ -27,20 +29,22 @@ events:
           storageUri: gs://kfserving-examples/models/sklearn/1.0/model
   phases:
   - Undefined
-  resourceVersion: "629480"
+  resourceVersion: "1504847"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1beta1
     kind: InferenceService
     metadata:
-      creationTimestamp: "2026-09-16T11:08:08Z"
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
       finalizers:
       - inferenceservice.finalizers
       generation: 1
       name: karta-e2e-kserve
-      namespace: test-z9n6m
-      uid: 9266a5ca-aaa5-4a44-9a5d-6d59054bea9c
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
     spec:
       predictor:
         model:
@@ -56,40 +60,59 @@ events:
               memory: 256Mi
           storageUri: gs://kfserving-examples/models/sklearn/1.0/model
     status:
+      clusterServingRuntimeName: kserve-sklearnserver
       components:
         predictor: {}
       conditions:
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: IngressReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
         reason: PredictorConfigurationReady not ready
         severity: Info
         status: Unknown
         type: LatestDeploymentReady
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: PredictorReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: Ready
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
         reason: PredictorRouteReady not ready
         severity: Info
         status: Unknown
         type: RoutesReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: "False"
+        type: Stopped
+      deploymentMode: Knative
       modelStatus:
+        copies:
+          failedCopies: 0
         states:
           activeModelState: ""
           targetModelState: Pending
         transitionStatus: InProgress
   phases:
   - Undefined
-  resourceVersion: "629483"
+  resourceVersion: "1504849"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1beta1
     kind: InferenceService
     metadata:
-      creationTimestamp: "2026-09-16T11:08:08Z"
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
       finalizers:
       - inferenceservice.finalizers
       generation: 1
       name: karta-e2e-kserve
-      namespace: test-z9n6m
-      uid: 9266a5ca-aaa5-4a44-9a5d-6d59054bea9c
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
     spec:
       predictor:
         model:
@@ -105,44 +128,54 @@ events:
               memory: 256Mi
           storageUri: gs://kfserving-examples/models/sklearn/1.0/model
     status:
+      clusterServingRuntimeName: kserve-sklearnserver
       components:
-        predictor:
-          latestCreatedRevision: karta-e2e-kserve-predictor-00001
+        predictor: {}
       conditions:
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: IngressReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
         reason: PredictorConfigurationReady not ready
         severity: Info
         status: Unknown
         type: LatestDeploymentReady
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: The Configuration is still working to reflect the latest desired
+          specification.
+        reason: OutOfDate
         severity: Info
         status: Unknown
         type: PredictorConfigurationReady
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
-        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
-          to become ready.
-        reason: RevisionMissing
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
         status: Unknown
         type: PredictorReady
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
-        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
-          to become ready.
-        reason: RevisionMissing
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
         severity: Info
         status: Unknown
         type: PredictorRouteReady
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
-        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
-          to become ready.
-        reason: RevisionMissing
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
         status: Unknown
         type: Ready
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
         reason: PredictorRouteReady not ready
         severity: Info
         status: Unknown
         type: RoutesReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: "False"
+        type: Stopped
+      deploymentMode: Knative
       modelStatus:
+        copies:
+          failedCopies: 0
         states:
           activeModelState: ""
           targetModelState: Pending
@@ -150,20 +183,22 @@ events:
       observedGeneration: 1
   phases:
   - Undefined
-  resourceVersion: "629501"
+  resourceVersion: "1504860"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1beta1
     kind: InferenceService
     metadata:
-      creationTimestamp: "2026-09-16T11:08:08Z"
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
       finalizers:
       - inferenceservice.finalizers
       generation: 1
       name: karta-e2e-kserve
-      namespace: test-z9n6m
-      uid: 9266a5ca-aaa5-4a44-9a5d-6d59054bea9c
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
     spec:
       predictor:
         model:
@@ -179,6 +214,352 @@ events:
               memory: 256Mi
           storageUri: gs://kfserving-examples/models/sklearn/1.0/model
     status:
+      clusterServingRuntimeName: kserve-sklearnserver
+      components:
+        predictor:
+          latestCreatedRevision: karta-e2e-kserve-predictor-00001
+      conditions:
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: IngressReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        reason: PredictorConfigurationReady not ready
+        severity: Info
+        status: Unknown
+        type: LatestDeploymentReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: Unknown
+        type: PredictorConfigurationReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
+        status: Unknown
+        type: PredictorReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
+        severity: Info
+        status: Unknown
+        type: PredictorRouteReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: The Route is still working to reflect the latest desired specification.
+        reason: OutOfDate
+        status: Unknown
+        type: Ready
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        reason: PredictorRouteReady not ready
+        severity: Info
+        status: Unknown
+        type: RoutesReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: "False"
+        type: Stopped
+      deploymentMode: Knative
+      modelStatus:
+        copies:
+          failedCopies: 0
+        states:
+          activeModelState: ""
+          targetModelState: Pending
+        transitionStatus: InProgress
+      observedGeneration: 1
+  phases:
+  - Undefined
+  resourceVersion: "1504865"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1beta1
+    kind: InferenceService
+    metadata:
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
+      finalizers:
+      - inferenceservice.finalizers
+      generation: 1
+      name: karta-e2e-kserve
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
+    spec:
+      predictor:
+        model:
+          modelFormat:
+            name: sklearn
+          name: ""
+          resources:
+            limits:
+              cpu: 100m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          storageUri: gs://kfserving-examples/models/sklearn/1.0/model
+    status:
+      clusterServingRuntimeName: kserve-sklearnserver
+      components:
+        predictor:
+          latestCreatedRevision: karta-e2e-kserve-predictor-00001
+      conditions:
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: IngressReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        reason: PredictorConfigurationReady not ready
+        severity: Info
+        status: Unknown
+        type: LatestDeploymentReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: Unknown
+        type: PredictorConfigurationReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        status: Unknown
+        type: PredictorReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        severity: Info
+        status: Unknown
+        type: PredictorRouteReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        status: Unknown
+        type: Ready
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        reason: PredictorRouteReady not ready
+        severity: Info
+        status: Unknown
+        type: RoutesReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: "False"
+        type: Stopped
+      deploymentMode: Knative
+      modelStatus:
+        copies:
+          failedCopies: 0
+        states:
+          activeModelState: ""
+          targetModelState: Pending
+        transitionStatus: InProgress
+      observedGeneration: 1
+  phases:
+  - Undefined
+  resourceVersion: "1504866"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1beta1
+    kind: InferenceService
+    metadata:
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
+      finalizers:
+      - inferenceservice.finalizers
+      generation: 1
+      name: karta-e2e-kserve
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
+    spec:
+      predictor:
+        model:
+          modelFormat:
+            name: sklearn
+          name: ""
+          resources:
+            limits:
+              cpu: 100m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          storageUri: gs://kfserving-examples/models/sklearn/1.0/model
+    status:
+      clusterServingRuntimeName: kserve-sklearnserver
+      components:
+        predictor:
+          latestCreatedRevision: karta-e2e-kserve-predictor-00001
+      conditions:
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: IngressReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        reason: PredictorConfigurationReady not ready
+        severity: Info
+        status: Unknown
+        type: LatestDeploymentReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: Unknown
+        type: PredictorConfigurationReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        status: Unknown
+        type: PredictorReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        severity: Info
+        status: Unknown
+        type: PredictorRouteReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        status: Unknown
+        type: Ready
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        reason: PredictorRouteReady not ready
+        severity: Info
+        status: Unknown
+        type: RoutesReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: "False"
+        type: Stopped
+      deploymentMode: Knative
+      modelStatus:
+        copies:
+          failedCopies: 0
+        states:
+          activeModelState: ""
+          targetModelState: Loading
+        transitionStatus: InProgress
+      observedGeneration: 1
+  phases:
+  - Undefined
+  resourceVersion: "1504923"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1beta1
+    kind: InferenceService
+    metadata:
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
+      finalizers:
+      - inferenceservice.finalizers
+      generation: 1
+      name: karta-e2e-kserve
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
+    spec:
+      predictor:
+        model:
+          modelFormat:
+            name: sklearn
+          name: ""
+          resources:
+            limits:
+              cpu: 100m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          storageUri: gs://kfserving-examples/models/sklearn/1.0/model
+    status:
+      clusterServingRuntimeName: kserve-sklearnserver
+      components:
+        predictor:
+          latestCreatedRevision: karta-e2e-kserve-predictor-00001
+      conditions:
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: IngressReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        reason: PredictorConfigurationReady not ready
+        severity: Info
+        status: Unknown
+        type: LatestDeploymentReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: Unknown
+        type: PredictorConfigurationReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        status: Unknown
+        type: PredictorReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        severity: Info
+        status: Unknown
+        type: PredictorRouteReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        message: Configuration "karta-e2e-kserve-predictor" is waiting for a Revision
+          to become ready.
+        reason: RevisionMissing
+        status: Unknown
+        type: Ready
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        reason: PredictorRouteReady not ready
+        severity: Info
+        status: Unknown
+        type: RoutesReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: "False"
+        type: Stopped
+      deploymentMode: Knative
+      modelStatus:
+        copies:
+          failedCopies: 0
+        states:
+          activeModelState: ""
+          targetModelState: Pending
+        transitionStatus: InProgress
+      observedGeneration: 1
+  phases:
+  - Undefined
+  resourceVersion: "1505006"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1beta1
+    kind: InferenceService
+    metadata:
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
+      finalizers:
+      - inferenceservice.finalizers
+      generation: 1
+      name: karta-e2e-kserve
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
+    spec:
+      predictor:
+        model:
+          modelFormat:
+            name: sklearn
+          name: ""
+          resources:
+            limits:
+              cpu: 100m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          storageUri: gs://kfserving-examples/models/sklearn/1.0/model
+    status:
+      clusterServingRuntimeName: kserve-sklearnserver
       components:
         predictor:
           latestCreatedRevision: karta-e2e-kserve-predictor-00001
@@ -189,36 +570,47 @@ events:
             percent: 100
             revisionName: karta-e2e-kserve-predictor-00001
       conditions:
-      - lastTransitionTime: "2026-09-16T11:09:13Z"
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: IngressReady
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         severity: Info
         status: "True"
         type: LatestDeploymentReady
-      - lastTransitionTime: "2026-09-16T11:09:13Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         severity: Info
         status: "True"
         type: PredictorConfigurationReady
-      - lastTransitionTime: "2026-09-16T11:09:13Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         message: Ingress has not yet been reconciled.
         reason: IngressNotConfigured
         status: Unknown
         type: PredictorReady
-      - lastTransitionTime: "2026-09-16T11:09:13Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         message: Ingress has not yet been reconciled.
         reason: IngressNotConfigured
         severity: Info
         status: Unknown
         type: PredictorRouteReady
-      - lastTransitionTime: "2026-09-16T11:09:13Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         message: Ingress has not yet been reconciled.
         reason: IngressNotConfigured
         status: Unknown
         type: Ready
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
         reason: PredictorRouteReady not ready
         severity: Info
         status: Unknown
         type: RoutesReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: "False"
+        type: Stopped
+      deploymentMode: Knative
       modelStatus:
+        copies:
+          failedCopies: 0
+          totalCopies: 1
         states:
           activeModelState: ""
           targetModelState: Pending
@@ -226,20 +618,22 @@ events:
       observedGeneration: 1
   phases:
   - Undefined
-  resourceVersion: "630159"
+  resourceVersion: "1505440"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1beta1
     kind: InferenceService
     metadata:
-      creationTimestamp: "2026-09-16T11:08:08Z"
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
       finalizers:
       - inferenceservice.finalizers
       generation: 1
       name: karta-e2e-kserve
-      namespace: test-z9n6m
-      uid: 9266a5ca-aaa5-4a44-9a5d-6d59054bea9c
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
     spec:
       predictor:
         model:
@@ -255,6 +649,7 @@ events:
               memory: 256Mi
           storageUri: gs://kfserving-examples/models/sklearn/1.0/model
     status:
+      clusterServingRuntimeName: kserve-sklearnserver
       components:
         predictor:
           latestCreatedRevision: karta-e2e-kserve-predictor-00001
@@ -265,36 +660,47 @@ events:
             percent: 100
             revisionName: karta-e2e-kserve-predictor-00001
       conditions:
-      - lastTransitionTime: "2026-09-16T11:09:13Z"
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        status: Unknown
+        type: IngressReady
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         severity: Info
         status: "True"
         type: LatestDeploymentReady
-      - lastTransitionTime: "2026-09-16T11:09:13Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         severity: Info
         status: "True"
         type: PredictorConfigurationReady
-      - lastTransitionTime: "2026-09-16T11:09:14Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         message: Waiting for load balancer to be ready
         reason: Uninitialized
         status: Unknown
         type: PredictorReady
-      - lastTransitionTime: "2026-09-16T11:09:14Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         message: Waiting for load balancer to be ready
         reason: Uninitialized
         severity: Info
         status: Unknown
         type: PredictorRouteReady
-      - lastTransitionTime: "2026-09-16T11:09:14Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         message: Waiting for load balancer to be ready
         reason: Uninitialized
         status: Unknown
         type: Ready
-      - lastTransitionTime: "2026-09-16T11:08:09Z"
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
         reason: PredictorRouteReady not ready
         severity: Info
         status: Unknown
         type: RoutesReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: "False"
+        type: Stopped
+      deploymentMode: Knative
       modelStatus:
+        copies:
+          failedCopies: 0
+          totalCopies: 1
         states:
           activeModelState: ""
           targetModelState: Pending
@@ -302,20 +708,22 @@ events:
       observedGeneration: 1
   phases:
   - Undefined
-  resourceVersion: "630162"
+  resourceVersion: "1505444"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1beta1
     kind: InferenceService
     metadata:
-      creationTimestamp: "2026-09-16T11:08:08Z"
+      annotations:
+        modelFormat: sklearn
+      creationTimestamp: "2026-09-29T08:15:59Z"
       finalizers:
       - inferenceservice.finalizers
       generation: 1
       name: karta-e2e-kserve
-      namespace: test-z9n6m
-      uid: 9266a5ca-aaa5-4a44-9a5d-6d59054bea9c
+      namespace: test-jlpqx
+      uid: 6433c29e-c015-4d67-a6cd-b74064306bb9
     spec:
       predictor:
         model:
@@ -332,11 +740,12 @@ events:
           storageUri: gs://kfserving-examples/models/sklearn/1.0/model
     status:
       address:
-        url: http://karta-e2e-kserve-predictor.test-z9n6m.svc.cluster.local
+        url: http://karta-e2e-kserve-predictor.test-jlpqx.svc.cluster.local
+      clusterServingRuntimeName: kserve-sklearnserver
       components:
         predictor:
           address:
-            url: http://karta-e2e-kserve-predictor.test-z9n6m.svc.cluster.local
+            url: http://karta-e2e-kserve-predictor.test-jlpqx.svc.cluster.local
           latestCreatedRevision: karta-e2e-kserve-predictor-00001
           latestReadyRevision: karta-e2e-kserve-predictor-00001
           latestRolledoutRevision: karta-e2e-kserve-predictor-00001
@@ -344,43 +753,51 @@ events:
           - latestRevision: true
             percent: 100
             revisionName: karta-e2e-kserve-predictor-00001
-          url: http://karta-e2e-kserve-predictor.test-z9n6m.127.0.0.1.sslip.io
+          url: http://karta-e2e-kserve-predictor.test-jlpqx.127.0.0.1.sslip.io
       conditions:
-      - lastTransitionTime: "2026-09-16T11:09:14Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         status: "True"
         type: IngressReady
-      - lastTransitionTime: "2026-09-16T11:09:13Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         severity: Info
         status: "True"
         type: LatestDeploymentReady
-      - lastTransitionTime: "2026-09-16T11:09:13Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         severity: Info
         status: "True"
         type: PredictorConfigurationReady
-      - lastTransitionTime: "2026-09-16T11:09:14Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         status: "True"
         type: PredictorReady
-      - lastTransitionTime: "2026-09-16T11:09:14Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         severity: Info
         status: "True"
         type: PredictorRouteReady
-      - lastTransitionTime: "2026-09-16T11:09:14Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         status: "True"
         type: Ready
-      - lastTransitionTime: "2026-09-16T11:09:14Z"
+      - lastTransitionTime: "2026-09-29T08:16:54Z"
         severity: Info
         status: "True"
         type: RoutesReady
+      - lastTransitionTime: "2026-09-29T08:15:59Z"
+        severity: Info
+        status: "False"
+        type: Stopped
+      deploymentMode: Knative
       modelStatus:
+        copies:
+          failedCopies: 0
+          totalCopies: 1
         states:
           activeModelState: ""
           targetModelState: Pending
         transitionStatus: InProgress
       observedGeneration: 1
-      url: http://karta-e2e-kserve-predictor.test-z9n6m.127.0.0.1.sslip.io
+      url: http://karta-e2e-kserve-predictor.test-jlpqx.127.0.0.1.sslip.io
   phases:
   - Running
-  resourceVersion: "630167"
+  resourceVersion: "1505450"
   state: Running
 flow: running
 kartaFile: docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml
@@ -390,7 +807,7 @@ result:
   succeeded: true
 schemaVersion: 1
 summary:
-- amount: 5
+- amount: 9
   phases:
   - Undefined
 - amount: 1

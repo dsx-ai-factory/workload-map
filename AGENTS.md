@@ -16,6 +16,7 @@ Always do:
 - Use Conventional Commits: `feat(scope):`, `fix(scope):`, `refactor(scope):`. Match an existing scope from `git log` when possible.
 - Reference an open GitHub issue in the PR.
 - Regenerate manifests after changing API types: `make lib-generate && make lib-manifests`.
+- Ship a recorded e2e flow with every new catalog definition (see Catalog Definitions in `CONTRIBUTING.md`): the recording is how the mapped states are proven, and the replay suite keeps proving them.
 - Use `git mv` when moving files so history is preserved.
 
 Discuss in the PR description:

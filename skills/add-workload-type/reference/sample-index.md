@@ -4,9 +4,26 @@
 # Sample index
 
 Pick the definition whose shape is closest to the target workload, copy it, and
-adapt the GVK, paths, and status mapping. Every definition below lives in
-`docs/catalog/`, which also holds minimal, suspend-aware definitions for the
-built-in kinds.
+adapt the GVK, paths, and status mapping.
+
+The table names each definition by its catalog file, but the file is only one way
+to reach it. The `karta` CLI embeds the same definitions, so prefer it when it is
+on PATH and fetch the file only as a fallback:
+
+```bash
+karta definitions <name> -o yaml                       # CLI, no cluster needed
+curl -sL "$KARTA_RAW/docs/catalog/<name>.yaml"         # fallback; see SKILL.md for $KARTA_RAW
+```
+
+`karta definitions` with no arguments lists every row below with a COMPONENTS
+column naming its component tree, which is often a faster way to match a shape
+than reading the table.
+
+`docs/catalog/` is generated from the typed Go definitions in
+`pkg/catalog/kartas/` by `make generate-samples`, and `make validate` fails CI on
+drift. Read it freely, but never edit a file there in place: on the standalone
+path the copy belongs outside the repository, and on the built-in path the edit
+belongs in the Go source.
 
 ## How to choose
 
@@ -39,6 +56,9 @@ multi-instance or nested pattern (for example Ray worker groups needing
 | Status reported through both a phase and conditions | `docs/catalog/milvus-io-milvus-v1beta1.yaml` | Declares both `phaseDefinition` and `conditionsDefinition`; maps statuses `byPhase`. |
 | Multi-service inference, each service its own component | `docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml` | Predictor and transformer children mix `fragmentedPodSpecDefinition` and `podSpecPath` plus `metadataPath`; `componentTypeSelector` per service. |
 | Nested pod cliques and scaling groups | `docs/catalog/grove-io-podcliqueset-v1alpha1.yaml` | Multiple multi-instance children (`clique`, `scalinggroup`) each with `instanceIdPath` plus instance and replica selectors. This CRD has no aggregate phase, so status is mapped with `byExpression` over replica counts, not `byPhase`. |
+| Controller-managed replicas with stable identity, status from counters rather than conditions | `docs/catalog/apps-statefulset-v1.yaml` | No conditions at all: every status is a `byExpression` over `.status` counters against `.spec.replicas`, including a scale-down rule that fires while extra pods drain. |
+| A bare Pod, or the simplest possible single-component definition | `docs/catalog/core-pod-v1.yaml` | The one kind allowed to omit the group. Useful as a minimal skeleton when no row above is close. |
+
 
 ## Pattern quick reference
 
@@ -56,3 +76,28 @@ multi-instance or nested pattern (for example Ray worker groups needing
   `ray-io-raycluster-v1.yaml`.
 - Replica identity within identical sub-structures: `replicaSelector`. See
   `leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml`.
+
+## Finding a real CR to test against
+
+`test/e2e/recorded_data/<operator>/<k8s-version>/<karta-name>/<flow>.yaml` holds
+CRs recorded from live clusters for 17 of the 20 definitions in the table above.
+`ray-io-rayservice-v1`, `apps-nvidia-com-nimcache-v1alpha1`, and
+`nvidia-com-dynamographdeployment-v1beta1` have no recordings at all. The
+`karta-name` segment is the catalog file's stem, so the recordings for a row sit
+under the same name as its definition; the rest of the path does not follow from
+the row.
+
+These live in the repository, not in the CLI. Read them from a clone, or fetch
+individual files at the pinned commit; step 1 of `SKILL.md` has both commands.
+Running a definition against one still needs a clone, since that is
+`hack/karta-verify`.
+
+Do not assemble the path from a row here. The `<operator>` segment is the e2e
+suite's own name and frequently differs from the definition (`kuberay`, `lws`,
+`kubeflow`, `nim`), `<k8s-version>` is unpredictable, and the flows present vary
+per type. `SKILL.md` step 1 lists before picking, which is the only reliable
+order.
+
+When the target type is not recorded, the nearest row's recordings are still
+worth reading: they show what the controller genuinely writes to `.status`,
+which a CRD schema does not. Step 1 of `SKILL.md` has the extraction command.

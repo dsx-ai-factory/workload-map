@@ -5,6 +5,16 @@
 
 Model: claude-opus-5
 Date: 2026-08-18
+
+> These numbers describe the 2026-08-18 skill. The skill was refreshed on
+> 2026-09-22 and has not been re-measured since. The refresh added the step 0
+> branch between a standalone definition and a built-in contribution, pointed
+> step 7 at the recorded fixtures under `test/e2e/recorded_data/`, and rewrote
+> step 5 around state coverage. Two assertions in `evals/evals.json` were
+> reworded for the branch, so the pass rates below are not directly comparable
+> to a future run. A second pass the same day made the skill standalone (no
+> assumption of a Karta checkout, `karta validate` as the primary validator),
+> which reworded the harness assertions again. Read this as the baseline to beat.
 Evals: 1, 2, 3 from `evals/evals.json` (3 runs each per configuration, 18 runs total)
 
 Each eval prompt was run by an agent with the skill available and by a baseline
@@ -159,3 +169,102 @@ figures above for both configurations.
 4. Confirm each asserted path resolves in the produced YAML, rather than reading
    it by eye.
 5. Aggregate the per-run results into this summary.
+
+## Run 2: 2026-09-22, refreshed skill vs the version it replaced
+
+Model: claude-opus-5
+Evals: 1-4 from `evals/evals.json`, three runs per cell (24 runs total)
+Baseline: the skill at commit `889b50e`, i.e. the version this refresh replaced.
+Not "no skill", so this measures the refresh, not the skill. Both configurations
+got an identical checkout differing only in `skills/add-workload-type/`, and
+neither prompt named a skill or told the agent to use one.
+
+| Configuration | Pass rate | Discriminating | Time | Tokens |
+|---|---|---|---|---|
+| Refreshed | 100.0% +/- 0.0 | 33/33 (100%) | 680s | 106,270 |
+| Previous | 88.5% +/- 13.2 | 25/33 (76%) | 961s | 110,826 |
+| Delta | +11.5 pts | +24 pts | -281s | -4,556 |
+
+Per eval, the three runs shown individually:
+
+| Eval | Refreshed | Previous |
+|---|---|---|
+| 1 Argo Workflow | 7/7, 7/7, 7/7 | 5/7, 5/7, 6/7 |
+| 2 CronJob | 5/5, 5/5, 5/5 | 5/5, 5/5, 5/5 |
+| 3 quickstart guard | 3/3, 3/3, 3/3 | 3/3, 3/3, 3/3 |
+| 4 Volcano Job | 6/6, 6/6, 6/6 | 4/6, 5/6, 5/6 |
+
+The refreshed skill scored 21/21 in all three runs. Every point of the delta
+comes from the previous version, which varied.
+
+### What the delta is
+
+One behaviour, reproducing 7/7 against 7/7: the step 0 branch between a
+standalone definition and a built-in contribution. Both authoring prompts
+describe a workload running on the user's own cluster, which is the standalone
+signal. Every previous-version run answered with Go source for
+`pkg/catalog/kartas/` plus a catalog registration; four of the six packaged it
+as a `git apply` patch also touching the generated YAML and the README. One
+hedged and shipped both a standalone YAML and a patch. Every refreshed run
+stayed standalone, and two raised the built-in path as a question instead.
+
+The sharpest evidence is a previous-version run that argued the Go file is the
+source of truth because the catalog YAML is generated, and then added, unasked,
+that the skill "covers only the YAML authoring and does not mention this -
+worth folding into the skill". That is the gap `reference/builtin-contribution.md`
+now fills, identified independently by a run that did not have it.
+
+### The suspend trap discriminates, but weakly
+
+Across three runs the previous version passed it twice and failed once, at
+2/3 against 3/3. The failing run left the running rule unguarded, so a Workflow
+with `phase: Running` and `.spec.suspend: true` extracted
+`["Suspended","Running"]` rather than `["Suspended"]`. This was graded by
+executing each produced definition against a fixture carrying exactly that
+shape, not by reading the YAML.
+
+An earlier single-run version of this file claimed the trap "measures a floor
+both clear rather than a difference". Three runs falsify that; it is a real but
+inconsistent discriminator.
+
+### The step 7 root-component correction does not discriminate
+
+All three previous-version CronJob runs found the harness blind spot unaided.
+The third traced it to `pkg/tree/tree.go:16-21` and
+`hack/karta-verify/main.go:176`, then recommended exactly the fix already
+committed: that step 7 should say the root is absent from the extraction output
+and root-level paths must be checked with jq directly. The correction documents
+a real defect, independently confirmed three times, and changes no outcome on
+this eval set. It saves a detour rather than preventing a wrong answer.
+
+### Evals that do not discriminate
+
+Eval 2 is 5/5 in all six cells, exactly as its own `purpose` field predicts: the
+answer ships in the repo and both configurations verify properly. Eval 3 is 3/3
+in all six; neither configuration consulted the skill for a read-only question,
+and both cited the description's own exclusion clause, which is unchanged
+between versions.
+
+### Limits
+
+Grading mixes artifact checks with claims from each run's report. Structural
+assertions (GVK, spec pattern, paths, statuses) and the suspend trap were
+verified by running the produced definition; process assertions (predictions
+written first, `--strict`) were taken from the report, since they describe what
+a run did rather than a property of the artifact.
+
+The automated leakage check counts loose `.go` files and therefore missed one
+baseline run whose Go source was inside a patch file. That cell was caught by
+reading the patch, but the check as written would have scored it a pass.
+
+Eval 4's null-safe-default assertion graded one baseline run a failure for
+deliberately omitting a default in a way that preserved index alignment. That is
+defensible authoring graded against literal assertion text; excluding it moves
+the discriminating split to 25/33 against 26/33.
+
+One cell (eval 1, refreshed, run 3) needed three attempts: two agents died on
+infrastructure faults, an `ENOTFOUND` and a stream stall, both after producing a
+valid definition. Only the completed third attempt was graded.
+
+Assertion wording changed after Run 1, so these pass rates are not comparable
+with Run 1's.

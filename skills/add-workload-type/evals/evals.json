@@ -1,6 +1,6 @@
 {
   "skill_name": "add-workload-type",
-  "notes": "Expectations are chosen to separate a skill-guided run from an unaided one. Each expectation records the pass counts measured over 3 runs per configuration in the 2026-08-18 benchmark, as with_skill/without_skill. Expectations marked floor are correctness minimums that both configurations already satisfy where measured; they are kept to catch regressions, not to show a delta. Expectations with a null measured value come from evals that have not been run, so neither their floor nor their discriminating status is established.",
+  "notes": "Expectations are chosen to separate a skill-guided run from an unaided one. Each expectation records the pass counts measured over 3 runs per configuration in the 2026-08-18 benchmark, as with_skill/without_skill. Expectations marked floor are correctness minimums that both configurations already satisfy where measured; they are kept to catch regressions, not to show a delta. Expectations with a null measured value come from evals that have not been run, so neither their floor nor their discriminating status is established. The skill was refreshed on 2026-09-22 for the branch between a standalone definition and a built-in contribution, the recorded fixtures under test/e2e/recorded_data/, and state-coverage discipline in status mapping. Every measured value below predates that refresh and describes the 2026-08-18 skill; treat them as the baseline to beat, not as current results. A second pass on 2026-09-22 made the skill standalone: it no longer assumes the working directory is the Karta repository, and leads with the `karta` CLI for validation. The harness assertions below were reworded accordingly, so they now credit `karta validate` and accept `hack/karta-verify` only where a clone is present. Reviewer feedback on PR #381 flagged that these two verification expectations assumed a clone, which contradicts the skill's tier model after the standalone refresh. They are now conditioned on step 7 being possible, with explicit disclosure required otherwise. Every run recorded in BENCHMARK.md was tier 2 (clone present), so no recorded score changes.",
   "evals": [
     {
       "id": 1,
@@ -14,17 +14,17 @@
           "kind": "triggering"
         },
         {
-          "text": "The deliverable is a Karta YAML definition only. No Go source file under pkg/catalog/kartas/, no catalog registration, and no hack/e2e module are produced",
+          "text": "The run treats this as a standalone definition, per step 0: the prompt says the workload runs on the user's own cluster and names no catalog, PR or CI, so the deliverable is a Karta YAML only. No Go source under pkg/catalog/kartas/, no entry in the catalog definitions slice, no hack/e2e module. A run that instead asks the user which branch applies, then delivers the YAML, also passes",
           "measured": "3/3 vs 0/3",
           "kind": "discriminating"
         },
         {
-          "text": "Expected status, replica counts and container names are written to a predictions file before the definition is run, and the run uses --strict",
+          "text": "Where a clone makes step 7 possible, expected status, replica counts and container names are written to a predictions file before the definition is run, the run uses --strict, and each distinct state available is exercised as its own run rather than one running CR standing in for all of them. Where it is not possible, the run says plainly that the definition was never exercised instead of implying it was",
           "measured": "3/3 vs 0/3",
           "kind": "discriminating"
         },
         {
-          "text": "The definition is validated with the repository harness, go run ./hack/karta-verify --karta <file>, rather than a purpose-built Go program that calls the library directly",
+          "text": "The definition is checked with the project's own validator rather than a purpose-built Go program that calls the library directly: `karta validate <file>` when the CLI is on PATH, or `go run ./hack/karta-verify --karta <file>` when the run is inside a clone. A run with neither available passes only if it states plainly that the definition was not validated",
           "measured": "3/3 vs 1/3",
           "kind": "discriminating"
         },
@@ -52,7 +52,7 @@
       "expected_output": "A valid Karta definition for batch/v1 CronJob, verified with the repository harness against sample CRs with predictions written first.",
       "expectations": [
         {
-          "text": "The definition is validated with go run ./hack/karta-verify --karta <file> and exercised against sample CronJobs with --strict, with predictions written before the run",
+          "text": "The definition is checked with `karta validate` or `go run ./hack/karta-verify --karta <file>`, and where a clone makes it possible, exercised against sample CronJobs with --strict and predictions written before the run. Absent a clone, the run says which parts remain unproven instead of implying they were checked",
           "measured": "3/3 vs 0/3",
           "kind": "discriminating"
         },
@@ -108,12 +108,12 @@
       "expected_output": "A Karta definition for batch.volcano.sh/v1alpha1 Job with one component instance per entry in .spec.tasks[], replicas read per task, and a status mapping built from the real .status.state.phase values.",
       "expectations": [
         {
-          "text": "The deliverable is a Karta YAML definition only, with no Go source and no catalog registration",
+          "text": "The run treats this as a standalone definition, per step 0: a cluster-local scheduling need with no mention of the catalog, a PR or CI. The deliverable is a Karta YAML only, with no Go source and no catalog registration. Asking which branch applies before delivering the YAML also passes",
           "measured": null,
           "kind": "discriminating"
         },
         {
-          "text": "Expected values are written to a predictions file before the run, and the definition is exercised with go run ./hack/karta-verify --karta <file> --workload <cr> --predict <file> --strict",
+          "text": "Where a clone makes step 7 possible, expected values are written to a predictions file before the run and the definition is exercised against real CRs with --strict, using the project's own harness rather than a bespoke program. Where it is not possible, the run says plainly that the definition was never exercised",
           "measured": null,
           "kind": "discriminating"
         },

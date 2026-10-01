@@ -7,8 +7,8 @@
 # controller settles Ready=False with a reconcile-error reason - a real failure
 # reason, distinct from the Progressing/MinimumReplicasUnavailable reasons a
 # healthy startup passes through. An unpullable image is NOT a fixture here:
-# the Deployment keeps progressing for its 10 minute deadline, which the
-# definition correctly reads as Initializing.
+# the controller keeps forwarding MinimumReplicasUnavailable for a Deployment
+# that never becomes available, so it reads as Initializing indefinitely.
 apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:

@@ -21,25 +21,32 @@ spec:
           reasonFieldName: reason
         statusMappings:
           initializing:
-            - byConditions:
-                - type: Ready
-                  status: Unknown
-            - byConditions:
-                - type: Ready
-                  status: "False"
-                  reason: Progressing
-            - byConditions:
-                - type: Ready
-                  status: "False"
-                  reason: MinimumReplicasUnavailable
+            - byExpression:
+                expression: any(.status.conditions[]?; .type == "Ready" and .status == "Unknown") and (any(.status.conditions[]?; .type == "PresetsCombined" and .status == "False") | not)
+                expectedResult: "true"
+            - byExpression:
+                expression: any(.status.conditions[]?; .type == "Ready" and .status == "False" and (.reason | IN("Progressing", "MinimumReplicasUnavailable", "WaitingForGateway", "GatewaysNotReady", "HTTPRoutesNotReady", "InferencePoolNotReady", "HPAProgressing", "ScaledObjectProgressing", "AllGroupsReady")))
+                expectedResult: "true"
           running:
             - byConditions:
                 - type: Ready
                   status: "True"
           failed:
             - byExpression:
-                expression: any(.status.conditions // [] | .[]; .type == "Ready" and .status == "False" and .reason != "Progressing" and .reason != "MinimumReplicasUnavailable")
+                expression: any(.status.conditions[]?; .type == "Ready" and .status == "False" and (.reason | IN("Progressing", "MinimumReplicasUnavailable", "WaitingForGateway", "GatewaysNotReady", "HTTPRoutesNotReady", "InferencePoolNotReady", "HPAProgressing", "ScaledObjectProgressing", "AllGroupsReady", "Stopped") | not))
                 expectedResult: "true"
+            - byExpression:
+                expression: any(.status.conditions[]?; .type == "Ready" and .status == "Unknown") and (any(.status.conditions[]?; .type == "PresetsCombined" and .status == "False" and .reason != "Stopped"))
+                expectedResult: "true"
+          suspended:
+            - byConditions:
+                - type: Ready
+                  status: "False"
+                  reason: Stopped
+            - byConditions:
+                - type: PresetsCombined
+                  status: "False"
+                  reason: Stopped
     childComponents:
       - name: main
         kind:
@@ -48,11 +55,11 @@ spec:
           kind: Deployment
         ownerRef: llminferenceservice
         specDefinition:
-          podSpecPath: .spec.template
+          podSpecPath: (select(.spec.worker == null) | .spec.template)
         scaleDefinition:
-          replicasPath: (.spec.replicas // .spec.scaling.minReplicas)
-          minReplicasPath: .spec.scaling.minReplicas
-          maxReplicasPath: .spec.scaling.maxReplicas
+          replicasPath: (select(.spec.worker == null) | .spec.replicas)
+          minReplicasPath: (select(.spec.worker == null) | .spec.scaling.minReplicas)
+          maxReplicasPath: (select(.spec.worker == null) | .spec.scaling.maxReplicas)
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["app.kubernetes.io/component"]
@@ -64,11 +71,11 @@ spec:
           kind: Deployment
         ownerRef: llminferenceservice
         specDefinition:
-          podSpecPath: .spec.prefill.template
+          podSpecPath: (select(.spec.prefill.worker == null) | .spec.prefill.template)
         scaleDefinition:
-          replicasPath: (.spec.prefill.replicas // .spec.prefill.scaling.minReplicas)
-          minReplicasPath: .spec.prefill.scaling.minReplicas
-          maxReplicasPath: .spec.prefill.scaling.maxReplicas
+          replicasPath: (select(.spec.prefill.worker == null) | .spec.prefill.replicas)
+          minReplicasPath: (select(.spec.prefill.worker == null) | .spec.prefill.scaling.minReplicas)
+          maxReplicasPath: (select(.spec.prefill.worker == null) | .spec.prefill.scaling.maxReplicas)
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["app.kubernetes.io/component"]
@@ -82,11 +89,61 @@ spec:
         specDefinition:
           podSpecPath: .spec.worker
         scaleDefinition:
-          replicasPath: .spec.replicas
+          replicasPath: (select(.spec.worker != null) | .spec.replicas)
+          minReplicasPath: (select(.spec.worker != null) | .spec.scaling.minReplicas)
+          maxReplicasPath: (select(.spec.worker != null) | .spec.scaling.maxReplicas)
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["app.kubernetes.io/component"]
             value: llminferenceservice-workload-worker
+      - name: leader
+        kind:
+          group: leaderworkerset.x-k8s.io
+          version: v1
+          kind: LeaderWorkerSet
+        ownerRef: llminferenceservice
+        specDefinition:
+          podSpecPath: (select(.spec.worker != null) | .spec.template)
+        scaleDefinition:
+          replicasPath: (select(.spec.worker != null) | .spec.replicas)
+          minReplicasPath: (select(.spec.worker != null) | .spec.scaling.minReplicas)
+          maxReplicasPath: (select(.spec.worker != null) | .spec.scaling.maxReplicas)
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["app.kubernetes.io/component"]
+            value: llminferenceservice-workload-leader
+      - name: prefill-leader
+        kind:
+          group: leaderworkerset.x-k8s.io
+          version: v1
+          kind: LeaderWorkerSet
+        ownerRef: llminferenceservice
+        specDefinition:
+          podSpecPath: (select(.spec.prefill.worker != null) | .spec.prefill.template)
+        scaleDefinition:
+          replicasPath: (select(.spec.prefill.worker != null) | .spec.prefill.replicas)
+          minReplicasPath: (select(.spec.prefill.worker != null) | .spec.prefill.scaling.minReplicas)
+          maxReplicasPath: (select(.spec.prefill.worker != null) | .spec.prefill.scaling.maxReplicas)
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["app.kubernetes.io/component"]
+            value: llminferenceservice-workload-leader-prefill
+      - name: prefill-worker
+        kind:
+          group: leaderworkerset.x-k8s.io
+          version: v1
+          kind: LeaderWorkerSet
+        ownerRef: llminferenceservice
+        specDefinition:
+          podSpecPath: .spec.prefill.worker
+        scaleDefinition:
+          replicasPath: (select(.spec.prefill.worker != null) | .spec.prefill.replicas)
+          minReplicasPath: (select(.spec.prefill.worker != null) | .spec.prefill.scaling.minReplicas)
+          maxReplicasPath: (select(.spec.prefill.worker != null) | .spec.prefill.scaling.maxReplicas)
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["app.kubernetes.io/component"]
+            value: llminferenceservice-workload-worker-prefill
       - name: router-scheduler
         kind:
           group: apps
@@ -128,6 +185,19 @@ spec:
             - componentName: worker
               groupByKeyPaths:
                 - .metadata.labels["app.kubernetes.io/name"]
+                - .metadata.labels["leaderworkerset.sigs.k8s.io/group-index"] // "0"
+            - componentName: leader
+              groupByKeyPaths:
+                - .metadata.labels["app.kubernetes.io/name"]
+                - .metadata.labels["leaderworkerset.sigs.k8s.io/group-index"] // "0"
+            - componentName: prefill-leader
+              groupByKeyPaths:
+                - .metadata.labels["app.kubernetes.io/name"]
+                - .metadata.labels["leaderworkerset.sigs.k8s.io/group-index"] // "0"
+            - componentName: prefill-worker
+              groupByKeyPaths:
+                - .metadata.labels["app.kubernetes.io/name"]
+                - .metadata.labels["leaderworkerset.sigs.k8s.io/group-index"] // "0"
             - componentName: router-scheduler
               groupByKeyPaths:
                 - .metadata.labels["app.kubernetes.io/name"]

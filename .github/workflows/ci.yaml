@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
 name: Pull Request
 
 on:
@@ -19,10 +22,25 @@ concurrency:
 jobs:
   ci:
     name: CI
+    if: github.event.deleted != true
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate attribution checker
+        run: make commit-attribution-validate
+
+      - name: Check incoming commits
+        env:
+          COMMIT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          COMMIT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: make commit-attribution-check
 
       - name: Set up Go
         uses: actions/setup-go@v7

@@ -162,6 +162,12 @@ export function useServedKinds(
     }
     setError(null);
 
+    // Captured once, so a late answer writes into the cache its request was
+    // made against. Reading cache.current in the continuation would let a
+    // previous cluster's answer land in the cache of whatever is current by
+    // the time it resolves.
+    const runCache = cache.current;
+
     if (cluster === '' || requested === '') {
       // Nothing to ask: settle rather than wait on a request never made.
       setLoading(false);
@@ -169,10 +175,10 @@ export function useServedKinds(
     }
 
     const wanted = requested.split(',');
-    const outstanding = wanted.filter(groupVersion => !cache.current.asked.has(groupVersion));
+    const outstanding = wanted.filter(groupVersion => !runCache.asked.has(groupVersion));
     if (outstanding.length === 0) {
-      setServed(new Map(cache.current.served));
-      setFailedGroupVersions(new Set(cache.current.failed));
+      setServed(new Map(runCache.served));
+      setFailedGroupVersions(new Set(runCache.failed));
       setLoading(false);
       return;
     }
@@ -181,47 +187,47 @@ export function useServedKinds(
     (async () => {
       // A rejected promise would otherwise be cached as an answer, so a single
       // hiccup would keep every later wave from ever asking again.
-      cache.current.groupVersions ??= fetchGroupVersions(cluster).catch((err: unknown) => {
-        cache.current.groupVersions = null;
+      runCache.groupVersions ??= fetchGroupVersions(cluster).catch((err: unknown) => {
+        runCache.groupVersions = null;
         throw err;
       });
-      const groupVersions = await cache.current.groupVersions;
+      const groupVersions = await runCache.groupVersions;
 
       await Promise.all(
         outstanding.map(groupVersion => {
-          const inFlight = cache.current.pending.get(groupVersion);
+          const inFlight = runCache.pending.get(groupVersion);
           if (inFlight) {
             return inFlight;
           }
           // A group the cluster does not serve is answered too: it contributes
           // no kinds, and asking would be the 404 this exists to avoid.
           if (!groupVersions.has(groupVersion)) {
-            cache.current.asked.add(groupVersion);
+            runCache.asked.add(groupVersion);
             return Promise.resolve();
           }
           const resolving = fetchResources(cluster, groupVersion).then(resolved => {
-            cache.current.pending.delete(groupVersion);
+            runCache.pending.delete(groupVersion);
             if (resolved.failed) {
               // Retried on the next wave, rather than silence passing for an
               // answer.
-              cache.current.failed.add(groupVersion);
+              runCache.failed.add(groupVersion);
               return;
             }
-            cache.current.failed.delete(groupVersion);
-            cache.current.asked.add(groupVersion);
+            runCache.failed.delete(groupVersion);
+            runCache.asked.add(groupVersion);
             for (const [key, value] of resolved.served) {
-              cache.current.served.set(key, value);
+              runCache.served.set(key, value);
             }
           });
-          cache.current.pending.set(groupVersion, resolving);
+          runCache.pending.set(groupVersion, resolving);
           return resolving;
         })
       );
     })()
       .then(() => {
         if (!cancelled) {
-          setServed(new Map(cache.current.served));
-          setFailedGroupVersions(new Set(cache.current.failed));
+          setServed(new Map(runCache.served));
+          setFailedGroupVersions(new Set(runCache.failed));
         }
       })
       .catch((err: unknown) => {

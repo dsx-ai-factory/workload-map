@@ -329,6 +329,72 @@ describe('useServedKinds', () => {
     expect(attempts).toBe(2);
   });
 
+  // Latent while a component mounts per cluster, but the hook takes a cluster
+  // and a late answer must not write into whatever cache is current when it
+  // lands.
+  it('writes a late answer into the cache its request was made against', async () => {
+    let releaseA: () => void = () => {};
+    request.mockImplementation((path: string, params: { cluster: string }) => {
+      if (path === '/apis') {
+        return Promise.resolve({
+          groups: [
+            { versions: [{ groupVersion: 'apps/v1' }] },
+            { versions: [{ groupVersion: 'kubeflow.org/v1' }] },
+          ],
+        });
+      }
+      if (path === '/apis/kubeflow.org/v1') {
+        return Promise.resolve({
+          resources: [{ name: 'pytorchjobs', kind: 'PyTorchJob', namespaced: true }],
+        });
+      }
+      if (params.cluster === 'cluster-a') {
+        return new Promise(resolve => {
+          releaseA = () =>
+            resolve({ resources: [{ name: 'a-plurals', kind: 'Deployment', namespaced: true }] });
+        });
+      }
+      return Promise.resolve({
+        resources: [{ name: 'b-plurals', kind: 'Deployment', namespaced: true }],
+      });
+    });
+
+    const { result, rerender } = renderHook(
+      ({ cluster, kinds }) => useServedKinds(cluster, kinds),
+      {
+        initialProps: {
+          cluster: 'cluster-a',
+          kinds: [apps] as ({ group: string; version: string; kind: string } | undefined)[],
+        },
+      }
+    );
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+
+    rerender({ cluster: 'cluster-b', kinds: [apps] });
+    await waitFor(() =>
+      expect(result.current.served?.get(servedKindKey('apps', 'v1', 'Deployment'))?.plural).toBe(
+        'b-plurals'
+      )
+    );
+
+    // cluster-a finally answers. Its run is cancelled, so this cannot reach
+    // state directly: the damage is to the cache it writes into.
+    releaseA();
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    // A later wave for cluster-b re-emits from that cache. Waiting on the kind
+    // only this wave can produce proves the re-emit happened before asserting.
+    rerender({ cluster: 'cluster-b', kinds: [apps, mpiV1] });
+    await waitFor(() =>
+      expect(result.current.served?.has(servedKindKey('kubeflow.org', 'v1', 'PyTorchJob'))).toBe(
+        true
+      )
+    );
+    expect(result.current.served?.get(servedKindKey('apps', 'v1', 'Deployment'))?.plural).toBe(
+      'b-plurals'
+    );
+  });
+
   it('reports no map when discovery fails, so nothing is fetched on a guess', async () => {
     request.mockRejectedValue(new Error('discovery unreachable'));
 

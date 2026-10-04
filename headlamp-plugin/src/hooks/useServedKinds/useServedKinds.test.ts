@@ -232,6 +232,70 @@ describe('useServedKinds', () => {
     expect(result.current.loading).toBe(false);
   });
 
+  // Definitions arrive in waves, so the kind set grows and the effect re-runs.
+  // Re-asking /apis and the groups already answered cost ~1.3s per cluster.
+  it('asks only about group/versions it has not already resolved', async () => {
+    mockDiscovery();
+
+    const { result, rerender } = renderHook(({ kinds }) => useServedKinds('cluster-a', kinds), {
+      initialProps: { kinds: [apps] as ({ group: string; version: string; kind: string } | undefined)[] },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const callsAfterFirst = request.mock.calls.map(call => call[0]);
+    expect(callsAfterFirst).toEqual(['/apis', '/apis/apps/v1']);
+
+    // The cluster's own CRs land, adding a kind in a group not asked about yet.
+    rerender({ kinds: [apps, pod] });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const paths = request.mock.calls.map(call => call[0]);
+    // /apis is cached, and apps/v1 was already answered: only the new group.
+    expect(paths).toEqual(['/apis', '/apis/apps/v1', '/api/v1']);
+    expect(result.current.served?.get(servedKindKey('apps', 'v1', 'Deployment'))?.plural).toBe(
+      'deployments'
+    );
+    expect(result.current.served?.get(servedKindKey('', 'v1', 'Pod'))?.plural).toBe('pods');
+  });
+
+  // The kind set grows while the first run is still in flight, which is the
+  // usual case: the catalog resolves, then the cluster's CRs arrive.
+  it('does not re-request a group/version while the first request is in flight', async () => {
+    const resolvers: Array<() => void> = [];
+    request.mockImplementation((path: string) => {
+      if (path === '/apis') {
+        return Promise.resolve({
+          groups: [
+            { versions: [{ groupVersion: 'apps/v1' }] },
+            { versions: [{ groupVersion: 'kubeflow.org/v1' }] },
+          ],
+        });
+      }
+      return new Promise(resolve => {
+        resolvers.push(() =>
+          resolve({ resources: [{ name: 'deployments', kind: 'Deployment', namespaced: true }] })
+        );
+      });
+    });
+
+    const { result, rerender } = renderHook(({ kinds }) => useServedKinds('cluster-a', kinds), {
+      initialProps: { kinds: [apps] as ({ group: string; version: string; kind: string } | undefined)[] },
+    });
+    await waitFor(() => expect(request.mock.calls.length).toBeGreaterThan(1));
+
+    // A second wave of definitions arrives before apps/v1 has answered.
+    rerender({ kinds: [apps, mpiV1] });
+    await waitFor(() =>
+      expect(request.mock.calls.map(call => call[0])).toContain('/apis/kubeflow.org/v1')
+    );
+
+    resolvers.forEach(resolve => resolve());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // apps/v1 asked once despite being wanted by both runs.
+    const appsCalls = request.mock.calls.filter(call => call[0] === '/apis/apps/v1');
+    expect(appsCalls).toHaveLength(1);
+  });
+
   it('reports no map when discovery fails, so nothing is fetched on a guess', async () => {
     request.mockRejectedValue(new Error('discovery unreachable'));
 

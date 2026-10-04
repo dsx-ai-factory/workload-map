@@ -2,7 +2,7 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { ApiProxy } from '@kinvolk/headlamp-plugin/lib';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GroupVersionKind } from '../../lib/karta/karta.types';
 
 export interface ServedKind {
@@ -19,11 +19,6 @@ export interface UseServedKindsResult {
   failedGroupVersions: Set<string>;
   loading: boolean;
   error: Error | null;
-}
-
-interface DiscoveryResult {
-  served: Map<string, ServedKind>;
-  failedGroupVersions: Set<string>;
 }
 
 // Group is empty for core kinds, matching discovery's groupVersion strings.
@@ -44,12 +39,10 @@ function discoveryPath(groupVersion: string): string {
   return groupVersion.includes('/') ? `/apis/${groupVersion}` : `/api/${groupVersion}`;
 }
 
-async function fetchServedKinds(
-  cluster: string,
-  groupVersions: string[]
-): Promise<DiscoveryResult> {
-  // Ask which groups exist before asking what is in them, because requesting
-  // the resource list of a group the cluster does not serve is itself a 404.
+// Which group/versions the cluster serves at all. Asked before anything else,
+// because requesting the resource list of a group it does not serve is itself
+// a 404.
+async function fetchGroupVersions(cluster: string): Promise<Set<string>> {
   const groupList = (await ApiProxy.request('/apis', { cluster }, false, true)) as ApiGroupList;
   const servedGroupVersions = new Set<string>(['v1']);
   for (const group of groupList.groups ?? []) {
@@ -59,46 +52,71 @@ async function fetchServedKinds(
       }
     }
   }
+  return servedGroupVersions;
+}
 
-  const wanted = groupVersions.filter(groupVersion => servedGroupVersions.has(groupVersion));
-  // Settled, not all: one group failing would otherwise discard every other
-  // group's answer.
-  const results = await Promise.allSettled(
-    wanted.map(async groupVersion => {
-      const list = (await ApiProxy.request(
-        discoveryPath(groupVersion),
-        { cluster },
-        false,
-        true
-      )) as ApiResourceList;
-      return [groupVersion, list] as const;
-    })
-  );
-  const resourceLists = results.flatMap(result =>
-    result.status === 'fulfilled' ? [result.value] : []
-  );
-  const failedGroupVersions = new Set(
-    wanted.filter((_, index) => results[index].status === 'rejected')
-  );
+interface ResolvedGroupVersion {
+  groupVersion: string;
+  served: Map<string, ServedKind>;
+  failed: boolean;
+}
 
+// Reads one group/version's resources, which supply the plural and scope.
+async function fetchResources(
+  cluster: string,
+  groupVersion: string
+): Promise<ResolvedGroupVersion> {
   const served = new Map<string, ServedKind>();
-  for (const [groupVersion, list] of resourceLists) {
-    const separator = groupVersion.lastIndexOf('/');
-    const group = separator === -1 ? '' : groupVersion.slice(0, separator);
-    const version = separator === -1 ? groupVersion : groupVersion.slice(separator + 1);
-
-    for (const resource of list.resources ?? []) {
-      // Subresources are reported as "pods/status" and are not listable.
-      if (!resource.name || !resource.kind || resource.name.includes('/')) {
-        continue;
-      }
-      served.set(servedKindKey(group, version, resource.kind), {
-        plural: resource.name,
-        namespaced: resource.namespaced !== false,
-      });
-    }
+  let list: ApiResourceList;
+  try {
+    list = (await ApiProxy.request(
+      discoveryPath(groupVersion),
+      { cluster },
+      false,
+      true
+    )) as ApiResourceList;
+  } catch {
+    // One group failing must not discard what the others answered.
+    return { groupVersion, served, failed: true };
   }
-  return { served, failedGroupVersions };
+
+  const separator = groupVersion.lastIndexOf('/');
+  const group = separator === -1 ? '' : groupVersion.slice(0, separator);
+  const version = separator === -1 ? groupVersion : groupVersion.slice(separator + 1);
+  for (const resource of list.resources ?? []) {
+    // Subresources are reported as "pods/status" and are not listable.
+    if (!resource.name || !resource.kind || resource.name.includes('/')) {
+      continue;
+    }
+    served.set(servedKindKey(group, version, resource.kind), {
+      plural: resource.name,
+      namespaced: resource.namespaced !== false,
+    });
+  }
+  return { groupVersion, served, failed: false };
+}
+
+interface DiscoveryCache {
+  cluster: string;
+  // The /apis promise rather than its result, so concurrent runs share it.
+  groupVersions: Promise<Set<string>> | null;
+  served: Map<string, ServedKind>;
+  failed: Set<string>;
+  pending: Map<string, Promise<void>>;
+  // Group/versions already resolved, including those the cluster does not
+  // serve: those contribute no kinds and asking again would gain nothing.
+  asked: Set<string>;
+}
+
+function newCache(cluster: string): DiscoveryCache {
+  return {
+    cluster,
+    groupVersions: null,
+    served: new Map(),
+    failed: new Set(),
+    pending: new Map(),
+    asked: new Set(),
+  };
 }
 
 // Reports which of the given kinds the cluster serves, since listing one it
@@ -113,10 +131,21 @@ export function useServedKinds(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Definitions arrive in waves, the catalog first and the cluster's own CRs
+  // after, so the kind set grows and this effect re-runs, often before the
+  // first run has finished. Keeping what the cluster answered, and sharing the
+  // in-flight promise per group/version, means a later run asks only about
+  // what is new instead of repeating /apis and every group.
+  const cache = useRef<DiscoveryCache>(newCache(''));
+
   // The caller rebuilds its kinds array every render, so the effect keys off
   // the group/versions it needs rather than the array's identity.
   const requested = [
-    ...new Set(kinds.filter(kind => !!kind).map(kind => (kind.group ? `${kind.group}/${kind.version}` : kind.version))),
+    ...new Set(
+      kinds
+        .filter(kind => !!kind)
+        .map(kind => (kind.group ? `${kind.group}/${kind.version}` : kind.version))
+    ),
   ]
     .sort()
     .join(',');
@@ -125,9 +154,12 @@ export function useServedKinds(
   useEffect(() => {
     let cancelled = false;
 
-    // Start clean, so a previous run's answers are not read as this run's.
-    setServed(null);
-    setFailedGroupVersions(new Set());
+    if (cache.current.cluster !== cluster) {
+      // Another cluster's answers describe different paths entirely.
+      cache.current = newCache(cluster);
+      setServed(null);
+      setFailedGroupVersions(new Set());
+    }
     setError(null);
 
     if (cluster === '' || requested === '') {
@@ -135,13 +167,56 @@ export function useServedKinds(
       setLoading(false);
       return;
     }
+
+    const wanted = requested.split(',');
+    const outstanding = wanted.filter(groupVersion => !cache.current.asked.has(groupVersion));
+    if (outstanding.length === 0) {
+      setServed(new Map(cache.current.served));
+      setFailedGroupVersions(new Set(cache.current.failed));
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
-    fetchServedKinds(cluster, requested.split(','))
-      .then(result => {
+    (async () => {
+      cache.current.groupVersions ??= fetchGroupVersions(cluster);
+      const groupVersions = await cache.current.groupVersions;
+
+      await Promise.all(
+        outstanding.map(groupVersion => {
+          const inFlight = cache.current.pending.get(groupVersion);
+          if (inFlight) {
+            return inFlight;
+          }
+          // A group the cluster does not serve is answered too: it contributes
+          // no kinds, and asking would be the 404 this exists to avoid.
+          if (!groupVersions.has(groupVersion)) {
+            cache.current.asked.add(groupVersion);
+            return Promise.resolve();
+          }
+          const resolving = fetchResources(cluster, groupVersion).then(resolved => {
+            cache.current.pending.delete(groupVersion);
+            if (resolved.failed) {
+              // Retried on the next wave, rather than silence passing for an
+              // answer.
+              cache.current.failed.add(groupVersion);
+              return;
+            }
+            cache.current.failed.delete(groupVersion);
+            cache.current.asked.add(groupVersion);
+            for (const [key, value] of resolved.served) {
+              cache.current.served.set(key, value);
+            }
+          });
+          cache.current.pending.set(groupVersion, resolving);
+          return resolving;
+        })
+      );
+    })()
+      .then(() => {
         if (!cancelled) {
-          setServed(result.served);
-          setFailedGroupVersions(result.failedGroupVersions);
+          setServed(new Map(cache.current.served));
+          setFailedGroupVersions(new Set(cache.current.failed));
         }
       })
       .catch((err: unknown) => {

@@ -10,8 +10,11 @@ import { WorkloadRow } from '../workloadRow.types';
 export interface ClusterState {
   // Definitions or discovery still resolving for this cluster.
   loading: boolean;
-  // This cluster produced nothing at all. Other clusters may still have.
+  // This cluster produced nothing usable at all.
   error: Error | null;
+  // Something failed but the cluster is still usable, so this belongs beside
+  // its rows rather than in place of them.
+  warning: Error | null;
   // Definition names that will report rows, so a caller knows what to wait for.
   expectedKinds: string[];
   // Definition name to the reason its group could not be asked about.
@@ -82,16 +85,22 @@ export function ClusterFetcher({ cluster, onRows, onError, onState }: ClusterFet
   latest.current = { expectedKinds, discoveryFailures };
 
   const loading = definitionsLoading || discoveryLoading;
-  const error = definitionsError ?? discoveryError ?? null;
+  // Failing to read the cluster's Karta CRs is not fatal while the catalog
+  // still describes kinds: listing those needs no permission on kartas.run.ai,
+  // so a user without it still gets a full table.
+  const usable = definitions.length > 0;
+  const error = (usable ? null : definitionsError) ?? discoveryError ?? null;
+  const warning = usable ? definitionsError : null;
 
   useEffect(() => {
     onState(cluster, {
       loading,
       error,
+      warning,
       expectedKinds: latest.current.expectedKinds,
       discoveryFailures: latest.current.discoveryFailures,
     });
-  }, [cluster, loading, error, expectedKey, failuresKey, onState]);
+  }, [cluster, loading, error, warning, expectedKey, failuresKey, onState]);
 
   // Tagging with the cluster here keeps KindFetcher unaware of it, and the
   // callbacks stable so its effect does not re-run every render.

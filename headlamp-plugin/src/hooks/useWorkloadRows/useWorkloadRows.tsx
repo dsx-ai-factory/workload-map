@@ -2,7 +2,7 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { K8s } from '@kinvolk/headlamp-plugin/lib';
-import { ReactNode, useCallback, useMemo, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useKartaWasm } from '../useKartaWasm/useKartaWasm';
 import { ClusterFetcher, ClusterState } from './ClusterFetcher/ClusterFetcher';
 import { WorkloadRow } from './workloadRow.types';
@@ -66,6 +66,25 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
     setClusterStates(prev => ({ ...prev, [cluster]: state }));
   }, []);
 
+  // A deselected cluster's entries would otherwise satisfy the loading gate if
+  // it were selected again, since discovery names the same kinds before any
+  // list has resolved, and a failing list would leave them indefinitely.
+  useEffect(() => {
+    const keep = <T,>(entries: Record<string, T>) => {
+      const kept = Object.fromEntries(
+        Object.entries(entries).filter(([key]) => clusters.includes(key.slice(0, key.indexOf('/'))))
+      );
+      return Object.keys(kept).length === Object.keys(entries).length ? entries : kept;
+    };
+    setRowsByKey(keep);
+    setErrorsByKey(keep);
+    setClusterStates(prev =>
+      Object.keys(prev).every(cluster => clusters.includes(cluster))
+        ? prev
+        : Object.fromEntries(Object.entries(prev).filter(([cluster]) => clusters.includes(cluster)))
+    );
+  }, [clusters]);
+
   const fetchers = useMemo(
     () =>
       clusters.map(cluster => (
@@ -95,7 +114,8 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
   const errorsByCluster = useMemo(() => {
     const scoped: Record<string, Error> = {};
     for (const cluster of clusters) {
-      const clusterError = clusterStates[cluster]?.error;
+      // Both reach the user: the difference is whether the table survives.
+      const clusterError = clusterStates[cluster]?.error ?? clusterStates[cluster]?.warning;
       if (clusterError) {
         scoped[cluster] = clusterError;
       }
@@ -129,7 +149,10 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
   const everyClusterFailed =
     clusters.length > 0 && clusters.every(cluster => !!clusterStates[cluster]?.error);
   const error =
-    engineError ?? (everyClusterFailed ? Object.values(errorsByCluster)[0] ?? null : null);
+    engineError ??
+    (everyClusterFailed
+      ? clusters.map(cluster => clusterStates[cluster]?.error).find(Boolean) ?? null
+      : null);
 
   const rows = loading
     ? null

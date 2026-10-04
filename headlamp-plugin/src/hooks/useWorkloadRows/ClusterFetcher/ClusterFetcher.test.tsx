@@ -39,11 +39,11 @@ function definition(name: string, group: string, version: string): Definition {
   };
 }
 
-function givenDefinitions(...definitions: Definition[]) {
+function givenDefinitions(definitions: Definition[], error: Error | null = null) {
   useKartaDefinitions.mockReturnValue({
     definitions,
     loading: false,
-    error: null,
+    error,
     installed: true,
     crdMissing: false,
   });
@@ -86,10 +86,10 @@ beforeEach(() => {
 
 describe('ClusterFetcher', () => {
   it('mounts a fetcher only for the kinds the cluster serves', async () => {
-    givenDefinitions(
+    givenDefinitions([
       definition('Deployment', 'apps', 'v1'),
-      definition('MPIJob', 'kubeflow.org', 'v1')
-    );
+      definition('MPIJob', 'kubeflow.org', 'v1'),
+    ]);
     givenDiscovery(deploymentServed);
 
     renderCluster();
@@ -102,7 +102,7 @@ describe('ClusterFetcher', () => {
   });
 
   it('passes its own cluster to the definitions and discovery hooks', () => {
-    givenDefinitions();
+    givenDefinitions([]);
     givenDiscovery(new Map());
 
     renderCluster('cluster-b');
@@ -112,7 +112,7 @@ describe('ClusterFetcher', () => {
   });
 
   it('reports the kinds it expects to report, so a caller knows what to wait for', async () => {
-    givenDefinitions(definition('Deployment', 'apps', 'v1'));
+    givenDefinitions([definition('Deployment', 'apps', 'v1')]);
     givenDiscovery(deploymentServed);
 
     const states = renderCluster();
@@ -123,7 +123,7 @@ describe('ClusterFetcher', () => {
   });
 
   it('reports a kind whose group never answered rather than omitting it', async () => {
-    givenDefinitions(definition('RayJob', 'ray.io', 'v1'));
+    givenDefinitions([definition('RayJob', 'ray.io', 'v1')]);
     givenDiscovery(new Map(), { failedGroupVersions: new Set(['ray.io/v1']) });
 
     const states = renderCluster();
@@ -133,8 +133,32 @@ describe('ClusterFetcher', () => {
     expect(kindFetcherProps).toHaveLength(0);
   });
 
+  // Listing catalog kinds needs no permission on kartas.run.ai, so a user who
+  // cannot read the CRs still gets a full table.
+  it('treats a CR list failure as partial while the catalog still describes kinds', async () => {
+    givenDefinitions([definition('Deployment', 'apps', 'v1')], new Error('kartas forbidden'));
+    givenDiscovery(deploymentServed);
+
+    const states = renderCluster();
+
+    await waitFor(() => expect(states.length).toBeGreaterThan(0));
+    expect(states.at(-1)?.error).toBeNull();
+    expect(states.at(-1)?.warning?.message).toBe('kartas forbidden');
+    expect(states.at(-1)?.expectedKinds).toEqual(['Deployment']);
+  });
+
+  it('treats a definitions failure as fatal when nothing is left to describe', async () => {
+    givenDefinitions([], new Error('kartas forbidden'));
+    givenDiscovery(new Map());
+
+    const states = renderCluster();
+
+    await waitFor(() => expect(states.length).toBeGreaterThan(0));
+    expect(states.at(-1)?.error?.message).toBe('kartas forbidden');
+  });
+
   it('reports a discovery failure as this cluster failing', async () => {
-    givenDefinitions(definition('Deployment', 'apps', 'v1'));
+    givenDefinitions([definition('Deployment', 'apps', 'v1')]);
     givenDiscovery(null, { error: new Error('discovery unreachable') });
 
     const states = renderCluster();

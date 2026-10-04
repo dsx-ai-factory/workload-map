@@ -179,7 +179,12 @@ export function useServedKinds(
     setLoading(true);
 
     (async () => {
-      cache.current.groupVersions ??= fetchGroupVersions(cluster);
+      // A rejected promise would otherwise be cached as an answer, so a single
+      // hiccup would keep every later wave from ever asking again.
+      cache.current.groupVersions ??= fetchGroupVersions(cluster).catch((err: unknown) => {
+        cache.current.groupVersions = null;
+        throw err;
+      });
       const groupVersions = await cache.current.groupVersions;
 
       await Promise.all(

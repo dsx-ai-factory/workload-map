@@ -296,6 +296,39 @@ describe('useServedKinds', () => {
     expect(appsCalls).toHaveLength(1);
   });
 
+  // A cached rejection would answer every later wave with the old failure, so
+  // one hiccup would leave discovery dead for the life of the page.
+  it('asks again after /apis fails, rather than caching the failure', async () => {
+    let attempts = 0;
+    request.mockImplementation((path: string) => {
+      if (path === '/apis') {
+        attempts++;
+        return attempts === 1
+          ? Promise.reject(new Error('api hiccup'))
+          : Promise.resolve({ groups: [{ versions: [{ groupVersion: 'apps/v1' }] }] });
+      }
+      return Promise.resolve({
+        resources: [{ name: 'deployments', kind: 'Deployment', namespaced: true }],
+      });
+    });
+
+    const { result, rerender } = renderHook(({ kinds }) => useServedKinds('cluster-a', kinds), {
+      initialProps: { kinds: [apps] as ({ group: string; version: string; kind: string } | undefined)[] },
+    });
+    await waitFor(() => expect(result.current.error?.message).toBe('api hiccup'));
+
+    // A later wave of definitions arrives once the network has recovered.
+    rerender({ kinds: [apps, mpiV1] });
+
+    await waitFor(() =>
+      expect(result.current.served?.get(servedKindKey('apps', 'v1', 'Deployment'))?.plural).toBe(
+        'deployments'
+      )
+    );
+    expect(result.current.error).toBeNull();
+    expect(attempts).toBe(2);
+  });
+
   it('reports no map when discovery fails, so nothing is fetched on a guess', async () => {
     request.mockRejectedValue(new Error('discovery unreachable'));
 

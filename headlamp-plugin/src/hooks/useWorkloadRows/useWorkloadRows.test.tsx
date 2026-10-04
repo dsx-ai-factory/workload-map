@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 interface ClusterPlan {
   loading?: boolean;
   error?: Error | null;
+  warning?: Error | null;
   kinds?: string[];
   failing?: string[];
   pending?: string[];
@@ -39,6 +40,7 @@ vi.mock('./ClusterFetcher/ClusterFetcher', () => ({
       onState(cluster, {
         loading: plan.loading ?? false,
         error: plan.error ?? null,
+        warning: plan.warning ?? null,
         expectedKinds: kinds,
         discoveryFailures: plan.discoveryFailures ?? {},
       });
@@ -213,6 +215,44 @@ describe('useWorkloadRows', () => {
 
     await waitFor(() => expect(harness.current.loading).toBe(false));
     expect(harness.current.rows).toEqual([{ id: 'cluster-a/deployment', name: 'deployment' }]);
+  });
+
+  // Discovery names the same kinds before any list resolves, so a deselected
+  // cluster's rows would pass the loading gate on re-selection, and stay for
+  // good if the new list failed.
+  it('drops a deselected cluster rows rather than reusing them when it returns', async () => {
+    clustersRef.current = ['cluster-a', 'cluster-b'];
+    plans['cluster-a'] = { kinds: ['deployment'] };
+    plans['cluster-b'] = { kinds: ['deployment'] };
+
+    const harness = renderHarness();
+    await waitFor(() => expect(harness.current.rows).toHaveLength(2));
+
+    // cluster-a goes away.
+    clustersRef.current = ['cluster-b'];
+    harness.rerender();
+    await waitFor(() => expect(harness.current.rows).toHaveLength(1));
+
+    // It comes back, and its list has not resolved yet.
+    plans['cluster-a'] = { kinds: ['deployment'], pending: ['deployment'] };
+    clustersRef.current = ['cluster-a', 'cluster-b'];
+    harness.rerender();
+
+    await waitFor(() => expect(harness.current.loading).toBe(true));
+    expect(harness.current.rows).toBeNull();
+  });
+
+  // The catalog still describes kinds without permission on kartas.run.ai, so
+  // the rows show and the CR failure travels in the partial channel.
+  it('shows rows and reports the cluster when its CRs are unreadable', async () => {
+    plans['cluster-a'] = { kinds: ['deployment'], warning: new Error('kartas forbidden') };
+
+    const harness = renderHarness();
+
+    await waitFor(() => expect(harness.current.loading).toBe(false));
+    expect(harness.current.rows).toEqual([{ id: 'cluster-a/deployment', name: 'deployment' }]);
+    expect(harness.current.error).toBeNull();
+    expect(harness.current.errorsByCluster['cluster-a']?.message).toBe('kartas forbidden');
   });
 
   it('surfaces the engine error, which no cluster can work around', () => {

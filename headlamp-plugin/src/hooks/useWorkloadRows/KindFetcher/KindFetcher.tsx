@@ -92,8 +92,19 @@ export function KindFetcher({
     // Pinned per run, so a mid-flight change cannot mix the two definitions.
     const currentDefinition = definitionRef.current;
 
+    // A controller owns these, so the owner is the workload: a Deployment and
+    // its pods are one thing described at two levels, and listing both shows
+    // it twice. Filtered before the row is built, so a skipped one costs no
+    // status call either.
+    const roots = items.filter(
+      item =>
+        !((item.jsonData as Workload).metadata.ownerReferences ?? []).some(
+          reference => reference.controller
+        )
+    );
+
     // Otherwise a page left open through job churn holds every uid it saw.
-    const live = new Set(items.map(item => workloadCacheKey(item.jsonData as Workload)));
+    const live = new Set(roots.map(item => workloadCacheKey(item.jsonData as Workload)));
     for (const cache of [phaseCache.current, inFlightVersion.current]) {
       for (const cached of cache.keys()) {
         if (!live.has(cached)) {
@@ -103,7 +114,7 @@ export function KindFetcher({
     }
 
     const buildRows = () =>
-      items.map(item => {
+      roots.map(item => {
         const workload = item.jsonData as Workload;
         const row = buildWorkloadRow(currentDefinition, workload, item.cluster);
         const cached = phaseCache.current.get(workloadCacheKey(workload));
@@ -112,7 +123,7 @@ export function KindFetcher({
 
     onRows(key, buildRows());
 
-    const stale = items.filter(item => {
+    const stale = roots.filter(item => {
       const workload = item.jsonData as Workload;
       const cached = phaseCache.current.get(workloadCacheKey(workload));
       return !cached || cached.resourceVersion !== (workload.metadata.resourceVersion ?? '');

@@ -31,6 +31,7 @@ export interface Workload {
     creationTimestamp?: string;
     uid?: string;
     resourceVersion?: string;
+    ownerReferences?: { controller?: boolean }[];
   };
   [field: string]: unknown;
 }

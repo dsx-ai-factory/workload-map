@@ -30,13 +30,13 @@ function definition(resourceVersion?: string): Definition {
   };
 }
 
-function item(resourceVersion: string) {
+function item(resourceVersion: string, metadata: Record<string, unknown> = {}) {
   return {
     cluster: 'local',
     jsonData: {
       apiVersion: 'apps/v1',
       kind: 'Deployment',
-      metadata: { name: 'api', namespace: 'default', uid: 'uid-1', resourceVersion },
+      metadata: { name: 'api', namespace: 'default', uid: 'uid-1', resourceVersion, ...metadata },
     },
   };
 }
@@ -230,6 +230,42 @@ describe('KindFetcher', () => {
     rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
 
     await waitFor(() => expect(onRows).toHaveBeenCalledWith('deployment', expect.any(Array)));
+  });
+
+  // A Deployment and its pods are one workload described at two levels, and
+  // the catalog describes both, so listing each would show it twice.
+  it('skips a workload a controller owns, and its status call with it', async () => {
+    evaluatePhases.mockResolvedValue(['Running']);
+    useListMock.mockReturnValue([
+      [
+        item('1', { name: 'owned', uid: 'uid-owned', ownerReferences: [{ controller: true }] }),
+        item('1', { name: 'root', uid: 'uid-root' }),
+      ],
+      null,
+    ]);
+    const onRows = vi.fn();
+
+    render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={vi.fn()} />);
+
+    await waitFor(() => expect(onRows).toHaveBeenCalled());
+    expect(onRows.mock.calls.at(-1)?.[1]).toEqual([expect.objectContaining({ name: 'root' })]);
+    // The skipped workload costs no WASM call.
+    await waitFor(() => expect(evaluatePhases).toHaveBeenCalledTimes(1));
+  });
+
+  // An ownerReference without controller:true is a reference, not a manager.
+  it('keeps a workload whose owner reference is not the controller', async () => {
+    evaluatePhases.mockResolvedValue(['Running']);
+    useListMock.mockReturnValue([
+      [item('1', { ownerReferences: [{ controller: false }] })],
+      null,
+    ]);
+    const onRows = vi.fn();
+
+    render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={vi.fn()} />);
+
+    await waitFor(() => expect(onRows).toHaveBeenCalled());
+    expect(onRows.mock.calls.at(-1)?.[1]).toHaveLength(1);
   });
 
   it('surfaces the list error without calling evaluatePhases', () => {

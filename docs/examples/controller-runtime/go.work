@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 NVIDIA Corporation
+
+// This example is a standalone module. Without a workspace here, a direct go
+// command walks up to the repository root go.work, which does not list this
+// module, and fails. Keeping one here means `go run .` works as written.
+
+go 1.26.8
+
+use .

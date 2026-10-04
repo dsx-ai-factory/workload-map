@@ -97,24 +97,33 @@ make helm-lint
 make helm-validate
 ```
 
-`make check` is the complete Go presubmit for the library, the CLI and the
-operator, and CI runs it verbatim. CI covers the Helm chart, the air-gap image
-lock and the shell scripts in separate steps, so run those four targets too
-before pushing if you touched them.
+`make check` is the complete Go presubmit for the library, CLI, operator,
+Karta WASM module, and release helper, and CI runs it verbatim. CI covers the
+Helm chart, air-gap image lock, and shell scripts in separate steps, so run
+those targets too before pushing if you touched them.
 
 There is one Makefile, at the repository root. Bare targets act on every
 component, and a component suffix narrows them:
 
 ```bash
-make test              # library, CLI and operator
+make test              # every Go component, including the release helper
 make test-cli          # just the CLI
-make check-operator    # just the operator, the full fmt/vet/lint/test set
+make check-operator    # operator checks, e2e compilation, tests, and version smoke
 make help              # every target, grouped
 ```
 
+`make build-operator` writes a binary for the host OS and architecture to
+`bin/karta-operator`. The operator version smoke test runs that host binary on
+every supported development host. The operator e2e suite is compiled during
+`make check`; its live cluster run remains a separate target.
+
+The root Go workspace contains the library, CLI, and operator modules. The
+separate release helper, Karta WASM module, and other nested modules are
+deliberately isolated. When running Go commands directly in those modules, set
+`GOWORK=off`. Make targets already do this where required.
+
 `make lint` never rewrites your files. `make fmt` and the per-component
-`fmt-lib`, `fmt-cli` and `fmt-operator` targets are the only ones that reformat,
-and nothing depends on them.
+`fmt-*` targets are the only ones that reformat, and nothing depends on them.
 
 ### Commit Messages
 
@@ -182,14 +191,13 @@ This is the same model used by [ai-dynamo/grove](https://github.com/ai-dynamo/gr
 
 ### Releasing
 
-```bash
-git tag v1.2.3
-git push origin v1.2.3
-```
+The root library, CLI module, and operator module use one synchronized version.
+The preparation, two-tag convention, local snapshot, guarded release command,
+credentials, and recovery procedure are documented in
+[RELEASE.md](RELEASE.md).
 
-Pushing the tag triggers `push-artifacts.yaml`, which publishes `oci://ghcr.io/dsx-ai-factory/workload-map/karta:1.2.3` with both `version` and `appVersion` set to `1.2.3`, and creates a corresponding GitHub release.
-
-No `Chart.yaml` bump is needed - the tag is the source of truth for versions. The one pre-tag step is adding the version's entry to [CHANGELOG.md](CHANGELOG.md); see [RELEASE.md](RELEASE.md) for the policy.
+No `Chart.yaml` bump is needed. The release tag remains the source of truth for
+the published chart version and app version.
 
 ## Code of Conduct
 

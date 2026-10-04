@@ -65,7 +65,15 @@ For vulnerability handling and disclosure, `SECURITY.md` is authoritative.
 
 One `Makefile` at the repository root is the only one in the repo; there is no per-component Makefile. Use it to build, test, lint, and generate code. `make help` lists everything.
 
-`make check` is the full Go presubmit and CI runs it verbatim, but CI also runs `helm-lint`, `helm-validate`, `image-lock-verify`, `image-lock-test` and `lint-shell`, so a green `check` alone does not guarantee a green CI. `lint` is read-only; `fmt` and the per-component `fmt-*` targets are the only ones that rewrite files. For a single test use `go test`.
+`make check` is the full Go presubmit and CI runs it verbatim, but CI also runs `helm-lint`, `helm-validate`, `image-lock-verify`, `image-lock-test` and `lint-shell`, plus `pin-check` on pull requests only, so a green `check` alone does not guarantee a green CI. `lint` is read-only; `fmt` and the per-component `fmt-*` targets are the only ones that rewrite files. For a single test use `go test`.
+
+The root `go.work` contains the library, CLI, and operator modules that share the
+product release dependency graph. The internal `hack/release` helper has its own
+module outside the workspace so release-only imports do not become direct
+product dependencies and its pinned dependency graph remains isolated. Run
+direct Go commands inside nested modules such as `hack/release`, `karta-wasm`,
+`test/e2e`, `hack/imagelock`, and `docs/examples` with `GOWORK=off`. The root
+Makefile already sets this for its targets.
 
 ## Code Style
 

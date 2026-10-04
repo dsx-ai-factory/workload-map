@@ -5,6 +5,10 @@ bin/
 testbin/
 vendor/
 
+# go.work is source; module go.sum files are the reproducible checksum inputs.
+# Unanchored: the standalone examples carry their own workspace.
+go.work.sum
+
 # Test binary, build with `go test -c`
 *.test
 
@@ -27,8 +31,12 @@ config/crd/_.yaml
 # Generated air-gap image locks (make image-lock)
 /dist/
 
-# built imagelock tool binary
+# Packaged Helm charts
+/charts/*.tgz
+
+# built hack tool binaries, named after their directory by `go build`
 /hack/imagelock/imagelock
+/hack/release/release
 
 # Generated WASM engine build artifacts (make headlamp-plugin-wasm)
 /karta-wasm/karta.wasm

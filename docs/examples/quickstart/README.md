@@ -45,6 +45,10 @@ The same code in `main.go` runs over two completely different CRD types — **no
 
 From the `docs/examples/quickstart` directory:
 
+This example is a standalone module with its own `go.work`, so the commands
+below run as written. Its local `replace` directive selects the repository
+library.
+
 ```bash
 # Default — injects kai-scheduler
 go run .

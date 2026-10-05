@@ -101,11 +101,15 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 			filter, err = definitionFilterFrom(cmd, args, group, kind, version)
 			return err
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			resolver, warnings := definitions.Load(cmd.Context(), rcg)
-			if err := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err != nil {
-				return err
-			}
+			// Warnings go out last, after the table and before main reports any
+			// error, so a long table cannot scroll them out of view.
+			defer func() {
+				if writeErr := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err == nil {
+					err = writeErr
+				}
+			}()
 
 			matches := resolver.List()
 			switch {

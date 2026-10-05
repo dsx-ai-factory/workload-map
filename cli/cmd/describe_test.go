@@ -371,6 +371,22 @@ func TestDescribeRejectsANegativePodLimit(t *testing.T) {
 	}
 }
 
+// A warning printed above the tree scrolls out of view on a large workload.
+func TestDescribePrintsWarningsAfterTheTree(t *testing.T) {
+	describeCluster(t, jobSet("preprocess", 1),
+		etlPod("preprocess-etl-0", "ml-team/preprocess", "node-01", true))
+	withLoadWarning(t, "the Karta CRD is not installed")
+
+	combined, code := runCombinedCmd(t, "describe", "jobset/preprocess")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, combined)
+	}
+	tree, warning := strings.Index(combined, "preprocess-etl-0"), strings.Index(combined, "warning: ")
+	if tree < 0 || warning < tree {
+		t.Errorf("expected the warning after the tree\n%s", combined)
+	}
+}
+
 // noCluster points the command tree at a kubeconfig-less environment, which is
 // what file mode is for and what keeps these tests off any real cluster.
 func noCluster(t *testing.T) {

@@ -24,9 +24,12 @@
   "semanticCommitScope": "deps",
   "packageRules": [
     {
-      "description": "After a Go update, regenerate what is generated from the dependencies -- DeepCopy, CRDs, mocks, NOTICE and THIRD_PARTY_LICENSES -- in the same commit. The runai-actions pipeline runs these after its tidy hook.",
+      "description": "On main, after a Go update, regenerate what is generated from the dependencies -- DeepCopy, CRDs, mocks, NOTICE and THIRD_PARTY_LICENSES -- in the same commit. The runai-actions pipeline runs these after its tidy hook.",
       "matchManagers": [
         "gomod"
+      ],
+      "matchBaseBranches": [
+        "main"
       ],
       "postUpgradeTasks": {
         "commands": [
@@ -35,6 +38,24 @@
         "fileFilters": [
           "pkg/**",
           "charts/karta/crds/**",
+          "NOTICE",
+          "THIRD_PARTY_LICENSES"
+        ]
+      }
+    },
+    {
+      "description": "Release branches (v*.*) have only generate-licenses, not the lib-* generators, so regenerate NOTICE and THIRD_PARTY_LICENSES there.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchBaseBranches": [
+        "/^v\\d+\\.\\d+$/"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "make generate-licenses"
+        ],
+        "fileFilters": [
           "NOTICE",
           "THIRD_PARTY_LICENSES"
         ]

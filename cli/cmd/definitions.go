@@ -204,6 +204,9 @@ func (f definitionFilter) String() string {
 	switch {
 	case f.version != "":
 		return definitions.FormatGVK(schema.GroupVersionKind{Group: f.group, Version: f.version, Kind: f.kind})
+	case f.kind != "" && f.group == "":
+		// The core group is the empty string, which would leave a bare "/".
+		return f.kind
 	case f.kind != "":
 		return f.group + "/" + f.kind
 	default:

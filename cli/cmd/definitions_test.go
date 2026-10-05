@@ -600,6 +600,7 @@ var _ = Describe("definitionFilter", func() {
 		Entry("all three", definitionFilter{group: "nvidia.com", version: "v1", kind: "Dynamo"},
 			"nvidia.com/v1/Dynamo"),
 		Entry("the core group", definitionFilter{group: "", version: "v1", kind: "Pod"}, "v1/Pod"),
+		Entry("the core group without a version", definitionFilter{group: "", kind: "Pod"}, "Pod"),
 	)
 })
 

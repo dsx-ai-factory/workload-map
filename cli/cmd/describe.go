@@ -140,6 +140,13 @@ func newDescribeCommand() *cobra.Command {
 			}
 			return nil
 		}),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			// -f takes the kind from the manifest, so no argument is accepted.
+			if opts.file != "" {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return completeWorkloads(cmd, args, toComplete)
+		},
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			// A negative limit collides with the ShowAllPods sentinel.
 			if opts.podLimit < 0 {

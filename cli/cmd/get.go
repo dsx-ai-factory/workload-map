@@ -107,6 +107,7 @@ func newGetCommand() *cobra.Command {
 			cobra.RangeArgs(1, 2),
 			func(_ *cobra.Command, args []string) error { return parseArgs(opts, args) },
 		)),
+		ValidArgsFunction: completeWorkloads,
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			opts.phases = phase.Get()
 			return validateOptions(cmd, opts)

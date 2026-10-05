@@ -123,7 +123,7 @@ func writeTree(out io.Writer, view *workload.DescribeView, limits treeLimits) er
 }
 
 func writeComponents(out io.Writer, components []workload.ComponentView, prefix string, limits treeLimits, fileMode bool) {
-	shown, hidden, hiddenUnhealthy := limitComponents(components, limits.components)
+	shown, hidden, hiddenUnhealthy := limitComponents(components, limits.components, fileMode)
 
 	for i, component := range shown {
 		last := i == len(shown)-1 && hidden == 0
@@ -152,14 +152,14 @@ func writeComponents(out io.Writer, components []workload.ComponentView, prefix 
 // limitComponents applies --component-limit. Unhealthy components claim the
 // shown rows first, as pods do under --pod-limit, but the shown ones keep the
 // definition's order so the tree still reads in the order the workload declares.
-func limitComponents(components []workload.ComponentView, limit int) (shown []workload.ComponentView, hidden, hiddenUnhealthy int) {
+func limitComponents(components []workload.ComponentView, limit int, fileMode bool) (shown []workload.ComponentView, hidden, hiddenUnhealthy int) {
 	if limit <= 0 || len(components) <= limit {
 		return components, 0, 0
 	}
 
 	unhealthy := make([]bool, len(components))
 	for i, component := range components {
-		unhealthy[i] = componentUnhealthy(component)
+		unhealthy[i] = componentUnhealthy(component, fileMode)
 	}
 
 	// The unhealthy pass runs first, so they take the rows before healthy ones.
@@ -185,11 +185,20 @@ func limitComponents(components []workload.ComponentView, limit int) (shown []wo
 	return shown, len(components) - limit, hiddenUnhealthy
 }
 
-// componentUnhealthy reports a component with an unhealthy pod anywhere under
-// it. A manifest in file mode has no pods, so none of its components are.
-func componentUnhealthy(component workload.ComponentView) bool {
-	return slices.ContainsFunc(component.Pods, podUnhealthy) ||
-		slices.ContainsFunc(component.Children, componentUnhealthy)
+// componentUnhealthy reports a component missing pods it asked for, or with an
+// unhealthy pod anywhere under it. Missing pods count because a component whose
+// pods were never created has none for podUnhealthy to flag. Readiness alone
+// would not do: a completed pod is not ready either. A manifest in file mode
+// has no live status, so none of its components are unhealthy.
+func componentUnhealthy(component workload.ComponentView, fileMode bool) bool {
+	if fileMode {
+		return false
+	}
+	return component.Replicas.Current < component.Replicas.Desired ||
+		slices.ContainsFunc(component.Pods, podUnhealthy) ||
+		slices.ContainsFunc(component.Children, func(child workload.ComponentView) bool {
+			return componentUnhealthy(child, false)
+		})
 }
 
 // writePods draws a component's pods. childComponents says whether component

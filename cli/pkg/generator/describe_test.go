@@ -347,6 +347,50 @@ var _ = Describe("RenderWorkload", func() {
 			Expect(resources).To(ContainSubstring("job-4"))
 		})
 
+		// A component whose pods were never created has no pod to flag, yet it is
+		// the one a reader most needs to see.
+		It("keeps a component whose pods are missing", func() {
+			view := wideView(5)
+			view.Components[0].Children[4].Pods = nil
+			view.Components[0].Children[4].Replicas = workload.Replicas{Desired: 1}
+
+			tree := strings.Join(treeLines(renderWorkload(view, DescribeOptions{ComponentLimit: 1})), "\n")
+
+			Expect(tree).To(ContainSubstring("job-4"))
+			Expect(tree).NotTo(ContainSubstring("job-0"))
+		})
+
+		// A completed pod is not ready, so ranking on readiness would hand a
+		// finished component the row a failing one needs.
+		It("does not rank a component that ran to completion as unhealthy", func() {
+			view := wideView(5)
+			view.Components[0].Children[4].Replicas.Ready = 0
+			view.Components[0].Children[4].Pods[0] = workload.PodView{
+				Name: "job-4-0", Phase: "Succeeded", Reason: "PodCompleted",
+			}
+
+			tree := strings.Join(treeLines(renderWorkload(view, DescribeOptions{ComponentLimit: 1})), "\n")
+
+			Expect(tree).To(ContainSubstring("job-0"))
+			Expect(tree).NotTo(ContainSubstring("job-4"))
+		})
+
+		// A manifest has no pods at all, which must not read as every component
+		// missing its pods.
+		It("reports no unhealthy component in file mode", func() {
+			view := wideView(3)
+			view.FileMode = true
+			for i := range view.Components[0].Children {
+				view.Components[0].Children[i].Pods = nil
+				view.Components[0].Children[i].Replicas = workload.Replicas{Desired: 1}
+			}
+
+			out := renderWorkload(view, DescribeOptions{ComponentLimit: 1})
+
+			Expect(out).To(ContainSubstring("and 2 more components"))
+			Expect(out).NotTo(ContainSubstring("unhealthy"))
+		})
+
 		It("treats an unset limit as showing every component", func() {
 			out := renderWorkload(wideView(5), DescribeOptions{})
 

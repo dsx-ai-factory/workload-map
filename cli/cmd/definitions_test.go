@@ -6,6 +6,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -59,16 +60,25 @@ func (g *countingGetter) ToRESTConfig() (*rest.Config, error) {
 
 // kartaListServer answers the Karta list with one definition claiming gvk.
 func kartaListServer(name string, gvk v1alpha1.GroupVersionKind) *httptest.Server {
-	body := fmt.Sprintf(`{"apiVersion":"run.ai/v1alpha1","kind":"KartaList",`+
-		`"metadata":{"resourceVersion":"1"},"items":[`+
-		`{"apiVersion":"run.ai/v1alpha1","kind":"Karta","metadata":{"name":%q},`+
-		`"spec":{"structureDefinition":{"rootComponent":{"name":"root",`+
-		`"kind":{"group":%q,"version":%q,"kind":%q}}}}}]}`,
-		name, gvk.Group, gvk.Version, gvk.Kind)
+	return kartaServer(newTestKarta(name, gvk, "root", nil))
+}
+
+// kartaServer answers the Karta list with karta alone, so a spec controls every
+// field the output reads instead of depending on the catalog.
+func kartaServer(karta *v1alpha1.Karta) *httptest.Server {
+	GinkgoHelper()
+	karta.TypeMeta = metav1.TypeMeta{APIVersion: "run.ai/v1alpha1", Kind: "Karta"}
+	body, err := json.Marshal(map[string]any{
+		"apiVersion": "run.ai/v1alpha1",
+		"kind":       "KartaList",
+		"metadata":   map[string]any{"resourceVersion": "1"},
+		"items":      []*v1alpha1.Karta{karta},
+	})
+	Expect(err).NotTo(HaveOccurred())
 
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, body)
+		_, _ = w.Write(body)
 	}))
 }
 
@@ -641,23 +651,35 @@ var _ = DescribeTable("componentsCell lists the root and at most limit children"
 )
 
 var _ = Describe("kli definitions --component-limit", func() {
+	// A cluster definition the spec owns, addressed by name, so the row under
+	// test does not move when a catalog definition gains a component.
+	const wide = "wide-test"
+	var server *httptest.Server
+
+	BeforeEach(func() {
+		server = kartaServer(newTestKarta(wide,
+			v1alpha1.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "WideJob"},
+			"widejob", []string{"a", "b", "c", "d", "e"}))
+		DeferCleanup(server.Close)
+	})
+
 	It("lists three children per definition by default", func() {
-		stdout, _, err := runDefinitions(noClusterGetter(), nil)
+		stdout, _, err := runDefinitions(clusterGetter(server), []string{wide})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(stdout).To(ContainSubstring("milvus, standalone, proxy, mixcoord, +15 more"))
+		Expect(stdout).To(ContainSubstring("widejob, a, b, c, +2 more"))
 	})
 
 	It("lists every component at zero", func() {
-		stdout, _, err := runDefinitions(noClusterGetter(), []string{"--component-limit", "0"})
+		stdout, _, err := runDefinitions(clusterGetter(server), []string{wide, "--component-limit", "0"})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(stdout).To(ContainSubstring("pulsar-proxy"))
+		Expect(stdout).To(ContainSubstring("widejob, a, b, c, d, e"))
 		Expect(stdout).NotTo(ContainSubstring("more"))
 	})
 
 	It("leaves the machine formats whole", func() {
-		stdout, _, err := runDefinitions(noClusterGetter(), []string{"-o", "yaml", "--component-limit", "1"})
+		stdout, _, err := runDefinitions(clusterGetter(server), []string{wide, "-o", "yaml", "--component-limit", "1"})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(stdout).To(ContainSubstring("pulsar-proxy"))
+		Expect(decodeKarta(stdout).Spec.StructureDefinition.ChildComponents).To(HaveLen(5))
 	})
 
 	// A negative limit would otherwise pass through as "list every component".

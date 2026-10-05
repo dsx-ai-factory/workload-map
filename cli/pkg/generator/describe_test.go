@@ -303,6 +303,12 @@ var _ = Describe("RenderWorkload", func() {
 				ContainSubstring("`-- ..."), ContainSubstring("and 2 more components")))
 		})
 
+		It("names a single hidden component in the singular", func() {
+			tree := treeLines(renderWorkload(wideView(4), DescribeOptions{ComponentLimit: 3}))
+
+			Expect(tree[len(tree)-1]).To(HaveSuffix("and 1 more component"))
+		})
+
 		// The note owns the closing glyph, so the last shown component must not
 		// read as the end of the list.
 		It("leaves the closing glyph to the note", func() {

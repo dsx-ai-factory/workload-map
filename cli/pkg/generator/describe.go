@@ -140,7 +140,11 @@ func writeComponents(out io.Writer, components []workload.ComponentView, prefix 
 	}
 
 	if hidden > 0 {
-		note := fmt.Sprintf("and %d more components", hidden)
+		noun := "components"
+		if hidden == 1 {
+			noun = "component"
+		}
+		note := fmt.Sprintf("and %d more %s", hidden, noun)
 		var counts []string
 		if hiddenUnhealthy > 0 {
 			counts = append(counts, fmt.Sprintf("%d unhealthy", hiddenUnhealthy))

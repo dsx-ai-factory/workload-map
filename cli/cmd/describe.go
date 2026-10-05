@@ -37,7 +37,8 @@ const (
 	usagePodLimit = "Maximum pod rows per component; the default shows every pod. " +
 		"When set, unhealthy pods are shown first. Table output only"
 	usageComponentLimit = "Maximum components shown under each parent in the tree; the default shows " +
-		"every component. When set, unhealthy components are kept first. Table output only"
+		"every component. When set, components with an unhealthy pod, then with missing pods, " +
+		"are kept first. Table output only"
 	usageFile = "Describe a workload that has not been submitted; \"-\" reads stdin. " +
 		"No cluster is needed, and no TYPE/NAME is accepted"
 

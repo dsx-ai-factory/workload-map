@@ -375,6 +375,35 @@ var _ = Describe("RenderWorkload", func() {
 			Expect(tree).NotTo(ContainSubstring("job-4"))
 		})
 
+		// A finished component whose pods were cleaned up also has fewer pods than
+		// it desires, so missing pods must not outrank a pod that is failing.
+		It("keeps a failing component ahead of ones missing their pods", func() {
+			view := wideView(5)
+			for i := range 3 {
+				view.Components[0].Children[i].Pods = nil
+				view.Components[0].Children[i].Replicas = workload.Replicas{Desired: 1}
+			}
+			view.Components[0].Children[3].Pods[0] = workload.PodView{
+				Name: "job-3-0", Phase: "Running", Reason: "CrashLoopBackOff",
+			}
+
+			tree := treeLines(renderWorkload(view, DescribeOptions{ComponentLimit: 1}))
+
+			Expect(strings.Join(tree, "\n")).To(ContainSubstring("job-3"))
+			Expect(tree[len(tree)-1]).To(ContainSubstring("and 4 more components (3 with missing pods)"))
+		})
+
+		It("names hidden unhealthy and missing-pod components apart", func() {
+			view := wideView(5)
+			view.Components[0].Children[1].Pods[0].Ready = false
+			view.Components[0].Children[2].Pods[0].Ready = false
+			view.Components[0].Children[4].Pods = nil
+			view.Components[0].Children[4].Replicas = workload.Replicas{Desired: 1}
+
+			Expect(renderWorkload(view, DescribeOptions{ComponentLimit: 1})).
+				To(ContainSubstring("and 4 more components (1 unhealthy, 1 with missing pods)"))
+		})
+
 		// A manifest has no pods at all, which must not read as every component
 		// missing its pods.
 		It("reports no unhealthy component in file mode", func() {
@@ -389,6 +418,7 @@ var _ = Describe("RenderWorkload", func() {
 
 			Expect(out).To(ContainSubstring("and 2 more components"))
 			Expect(out).NotTo(ContainSubstring("unhealthy"))
+			Expect(out).NotTo(ContainSubstring("missing pods"))
 		})
 
 		It("treats an unset limit as showing every component", func() {

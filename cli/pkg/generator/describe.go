@@ -123,7 +123,7 @@ func writeTree(out io.Writer, view *workload.DescribeView, limits treeLimits) er
 }
 
 func writeComponents(out io.Writer, components []workload.ComponentView, prefix string, limits treeLimits, fileMode bool) {
-	shown, hidden, hiddenUnhealthy := limitComponents(components, limits.components, fileMode)
+	shown, hidden, hiddenUnhealthy, hiddenMissing := limitComponents(components, limits.components, fileMode)
 
 	for i, component := range shown {
 		last := i == len(shown)-1 && hidden == 0
@@ -141,33 +141,55 @@ func writeComponents(out io.Writer, components []workload.ComponentView, prefix 
 
 	if hidden > 0 {
 		note := fmt.Sprintf("and %d more components", hidden)
+		var counts []string
 		if hiddenUnhealthy > 0 {
-			note += fmt.Sprintf(" (%d unhealthy)", hiddenUnhealthy)
+			counts = append(counts, fmt.Sprintf("%d unhealthy", hiddenUnhealthy))
+		}
+		if hiddenMissing > 0 {
+			counts = append(counts, fmt.Sprintf("%d with missing pods", hiddenMissing))
+		}
+		if len(counts) > 0 {
+			note += " (" + strings.Join(counts, ", ") + ")"
 		}
 		// The prose sits in the status cell so it cannot widen the name column.
 		fmt.Fprintln(out, strings.Join([]string{prefix + branch(true) + "...", note, "", ""}, "\t"))
 	}
 }
 
-// limitComponents applies --component-limit. Unhealthy components claim the
-// shown rows first, as pods do under --pod-limit, but the shown ones keep the
+// componentHealth ranks components for --component-limit, most urgent first.
+type componentHealth int
+
+const (
+	// healthUnhealthy is an unhealthy pod anywhere under the component, which is
+	// direct evidence of a problem.
+	healthUnhealthy componentHealth = iota
+	// healthMissingPods is fewer pods than desired. The view cannot tell pods
+	// never created from pods cleaned up after finishing, so it ranks below
+	// healthUnhealthy and the note names it as a fact, not as a failure.
+	healthMissingPods
+	healthOK
+)
+
+// limitComponents applies --component-limit. Components claim the shown rows
+// in health order, as pods do under --pod-limit, but the shown ones keep the
 // definition's order so the tree still reads in the order the workload declares.
-func limitComponents(components []workload.ComponentView, limit int, fileMode bool) (shown []workload.ComponentView, hidden, hiddenUnhealthy int) {
+func limitComponents(
+	components []workload.ComponentView, limit int, fileMode bool,
+) (shown []workload.ComponentView, hidden, hiddenUnhealthy, hiddenMissing int) {
 	if limit <= 0 || len(components) <= limit {
-		return components, 0, 0
+		return components, 0, 0, 0
 	}
 
-	unhealthy := make([]bool, len(components))
+	health := make([]componentHealth, len(components))
 	for i, component := range components {
-		unhealthy[i] = componentUnhealthy(component, fileMode)
+		health[i] = healthOf(component, fileMode)
 	}
 
-	// The unhealthy pass runs first, so they take the rows before healthy ones.
 	keep := make([]bool, len(components))
 	kept := 0
-	for _, want := range []bool{true, false} {
+	for _, want := range []componentHealth{healthUnhealthy, healthMissingPods, healthOK} {
 		for i := range components {
-			if kept < limit && unhealthy[i] == want {
+			if kept < limit && health[i] == want {
 				keep[i] = true
 				kept++
 			}
@@ -178,27 +200,33 @@ func limitComponents(components []workload.ComponentView, limit int, fileMode bo
 		switch {
 		case keep[i]:
 			shown = append(shown, component)
-		case unhealthy[i]:
+		case health[i] == healthUnhealthy:
 			hiddenUnhealthy++
+		case health[i] == healthMissingPods:
+			hiddenMissing++
 		}
 	}
-	return shown, len(components) - limit, hiddenUnhealthy
+	return shown, len(components) - limit, hiddenUnhealthy, hiddenMissing
 }
 
-// componentUnhealthy reports a component missing pods it asked for, or with an
-// unhealthy pod anywhere under it. Missing pods count because a component whose
-// pods were never created has none for podUnhealthy to flag. Readiness alone
-// would not do: a completed pod is not ready either. A manifest in file mode
-// has no live status, so none of its components are unhealthy.
-func componentUnhealthy(component workload.ComponentView, fileMode bool) bool {
+// healthOf reports the most urgent health anywhere under component. Readiness
+// alone would not do: a completed pod is not ready either. A manifest in file
+// mode has no live status, so all of its components are healthOK.
+func healthOf(component workload.ComponentView, fileMode bool) componentHealth {
 	if fileMode {
-		return false
+		return healthOK
 	}
-	return component.Replicas.Current < component.Replicas.Desired ||
-		slices.ContainsFunc(component.Pods, podUnhealthy) ||
-		slices.ContainsFunc(component.Children, func(child workload.ComponentView) bool {
-			return componentUnhealthy(child, false)
-		})
+	if slices.ContainsFunc(component.Pods, podUnhealthy) {
+		return healthUnhealthy
+	}
+	health := healthOK
+	if component.Replicas.Current < component.Replicas.Desired {
+		health = healthMissingPods
+	}
+	for _, child := range component.Children {
+		health = min(health, healthOf(child, false))
+	}
+	return health
 }
 
 // writePods draws a component's pods. childComponents says whether component

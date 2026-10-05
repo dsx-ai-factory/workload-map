@@ -312,10 +312,15 @@ build-operator-linux-arm64: $(LOCALBIN) ## Cross-compile the operator for linux/
 .PHONY: build-operator-all
 build-operator-all: build-operator-linux-amd64 build-operator-linux-arm64 ## Cross-compile the operator for all supported platforms
 
+# The operator image builds on the Go its go.mod asks for; the golang image does
+# not fetch a newer toolchain (GOTOOLCHAIN=local), so a stale pin fails the build.
+OPERATOR_GO_VERSION := $(shell awk '/^go /{print $$2; exit}' operator/go.mod)
+
 .PHONY: operator-image
 operator-image: ## Build the operator image for the host arch
 	$(CONTAINER_TOOL) build $(BUILD_ARGS) \
 		--build-arg TARGETARCH=$(shell go env GOARCH) \
+		--build-arg GO_VERSION=$(OPERATOR_GO_VERSION) \
 		--build-arg GO_LDFLAGS="$(GO_LDFLAGS)" \
 		--tag $(IMAGE_REPOSITORY):$(IMAGE_TAG) \
 		-f operator/Dockerfile \
@@ -330,6 +335,7 @@ operator-image-buildx-push: ## Build and push a multi-arch operator image via Bu
 	@[ "$(CONTAINER_TOOL)" = "docker" ] || { echo "Error: operator-image-buildx-push requires CONTAINER_TOOL=docker (got '$(CONTAINER_TOOL)')" >&2; exit 1; }
 	$(CONTAINER_TOOL) buildx build $(BUILD_ARGS) \
 		--platform $(PLATFORMS_CSV) \
+		--build-arg GO_VERSION=$(OPERATOR_GO_VERSION) \
 		--build-arg GO_LDFLAGS="$(GO_LDFLAGS)" \
 		--provenance=false --sbom=false \
 		--tag $(IMAGE_REPOSITORY):$(IMAGE_TAG) \

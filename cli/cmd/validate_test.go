@@ -57,7 +57,7 @@ var _ = Describe("kli validate", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("OK: "))
 			Expect(stdout).To(ContainSubstring(
-				"is a valid Karta definition (maps kubeflow.org/v1, Kind=PyTorchJob)"))
+				"is a valid Karta definition (GVK: kubeflow.org/v1/PyTorchJob)"))
 			Expect(stderr).To(BeEmpty())
 		})
 

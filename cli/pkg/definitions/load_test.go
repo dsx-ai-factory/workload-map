@@ -203,12 +203,12 @@ var _ = Describe("Load", func() {
 		},
 		Entry("two claimants",
 			[]string{"aaa-deployment", "zzz-deployment"},
-			"2 cluster Karta definitions claim apps/v1, Kind=Deployment: "+
+			"2 cluster Karta definitions claim apps/v1/Deployment: "+
 				`"aaa-deployment", "zzz-deployment"`,
 		),
 		Entry("four claimants",
 			[]string{"zzz-deployment", "aaa-deployment", "ccc-deployment", "bbb-deployment"},
-			"4 cluster Karta definitions claim apps/v1, Kind=Deployment: "+
+			"4 cluster Karta definitions claim apps/v1/Deployment: "+
 				`"aaa-deployment", "bbb-deployment", "ccc-deployment", "zzz-deployment"`,
 		),
 	)

@@ -503,12 +503,12 @@ var _ = Describe("kli definitions --group --kind --version", func() {
 		},
 		Entry("an unknown group", []string{"--group", "nosuch.io"}, "nosuch.io"),
 		Entry("a pluralized kind, which the root kind no longer matches",
-			[]string{"--group", "jobset.x-k8s.io", "--kind", "jobsets"}, "jobset.x-k8s.io, Kind=jobsets"),
+			[]string{"--group", "jobset.x-k8s.io", "--kind", "jobsets"}, "jobset.x-k8s.io/jobsets"),
 		Entry("a known kind at an unknown version",
 			[]string{"--group", "nvidia.com", "--kind", "DynamoGraphDeployment", "--version", "v9"},
-			"nvidia.com/v9, Kind=DynamoGraphDeployment"),
+			"nvidia.com/v9/DynamoGraphDeployment"),
 		Entry("a known kind in the wrong group",
-			[]string{"--group", "wrong.group", "--kind", "JobSet"}, "wrong.group, Kind=JobSet"),
+			[]string{"--group", "wrong.group", "--kind", "JobSet"}, "wrong.group/JobSet"),
 	)
 
 	DescribeTable("rejects a filter that addresses nothing",
@@ -591,15 +591,15 @@ var _ = Describe("definitionFilter", func() {
 		Expect(definitionFilter{group: "", set: true}.narrow(defs)).To(BeEmpty())
 	})
 
-	DescribeTable("names the filter the way apimachinery names a GVK",
+	DescribeTable("names the filter the way the CLI names a GVK",
 		func(filter definitionFilter, want string) {
 			Expect(filter.String()).To(Equal(want))
 		},
 		Entry("group only", definitionFilter{group: "nvidia.com"}, "nvidia.com"),
-		Entry("group and kind", definitionFilter{group: "nvidia.com", kind: "Dynamo"}, "nvidia.com, Kind=Dynamo"),
+		Entry("group and kind", definitionFilter{group: "nvidia.com", kind: "Dynamo"}, "nvidia.com/Dynamo"),
 		Entry("all three", definitionFilter{group: "nvidia.com", version: "v1", kind: "Dynamo"},
-			"nvidia.com/v1, Kind=Dynamo"),
-		Entry("the core group", definitionFilter{group: "", version: "v1", kind: "Pod"}, "/v1, Kind=Pod"),
+			"nvidia.com/v1/Dynamo"),
+		Entry("the core group", definitionFilter{group: "", version: "v1", kind: "Pod"}, "v1/Pod"),
 	)
 })
 

@@ -66,7 +66,7 @@ func Load(ctx context.Context, rcg genericclioptions.RESTClientGetter) (*Resolve
 			names = append(names, fmt.Sprintf("%q", name))
 		}
 		l.warn(ReasonCollision, "%d cluster Karta definitions claim %s: %s",
-			len(c.Names), c.GVK, strings.Join(names, ", "))
+			len(c.Names), FormatGVK(c.GVK), strings.Join(names, ", "))
 	}
 	return resolver, l.warnings
 }

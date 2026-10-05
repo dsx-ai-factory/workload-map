@@ -339,9 +339,9 @@ func noDefinitionForType(token string) error {
 func noDefinitionFor(gvk schema.GroupVersionKind) error {
 	return noDefinitionNotFound{
 		exitError: exitError{code: ExitNotFound,
-			err: fmt.Errorf("%s: %s", noDefinitionMessage, gvk)},
+			err: fmt.Errorf("%s: %s", noDefinitionMessage, definitions.FormatGVK(gvk))},
 		subject: machineError{
-			Error: noDefinitionReason, GVK: gvk.String(),
+			Error: noDefinitionReason, GVK: definitions.FormatGVK(gvk),
 			Message: noDefinitionMessage, Hint: noDefinitionHint,
 		},
 	}

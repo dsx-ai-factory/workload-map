@@ -105,7 +105,7 @@ var _ = Describe("Resolver merge and precedence", func() {
 
 		def, err := r.Resolve(jobGVK)
 		Expect(err).To(MatchError(ErrNotFound))
-		Expect(err.Error()).To(ContainSubstring("batch/v1, Kind=Job"))
+		Expect(err.Error()).To(ContainSubstring("batch/v1/Job"))
 		Expect(def.Karta).To(BeNil())
 	})
 
@@ -410,3 +410,11 @@ var _ = Describe("Resolver definitions that name no GVK", func() {
 		Expect(r.ByRootKind("")).To(BeEmpty())
 	})
 })
+
+var _ = DescribeTable("FormatGVK names a type as group/version/Kind",
+	func(gvk schema.GroupVersionKind, want string) {
+		Expect(FormatGVK(gvk)).To(Equal(want))
+	},
+	Entry("a named group", deploymentGVK, "apps/v1/Deployment"),
+	Entry("the core group, which a manifest writes as a bare version", podGVK, "v1/Pod"),
+)

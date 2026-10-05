@@ -198,14 +198,14 @@ func (f definitionFilter) narrow(defs []definitions.Definition) []definitions.De
 	return out
 }
 
-// String renders the filter the way apimachinery renders a GVK, trimmed to the
+// String renders the filter the way the CLI renders a GVK, trimmed to the
 // segments given.
 func (f definitionFilter) String() string {
 	switch {
 	case f.version != "":
-		return schema.GroupVersionKind{Group: f.group, Version: f.version, Kind: f.kind}.String()
+		return definitions.FormatGVK(schema.GroupVersionKind{Group: f.group, Version: f.version, Kind: f.kind})
 	case f.kind != "":
-		return fmt.Sprintf("%s, Kind=%s", f.group, f.kind)
+		return f.group + "/" + f.kind
 	default:
 		return f.group
 	}

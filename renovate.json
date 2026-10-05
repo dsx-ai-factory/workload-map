@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "github>run-ai/runai-actions//renovate/presets/go-common"
+  ],
+  "baseBranchPatterns": [
+    "NOTE: this list is replaced at run time. runai-actions .github/workflows/renovate.yml runs renovate/scan_candidates, which finds the newest release branches in this repository and starts one Renovate run per branch, each scoped to its own. This line is not a branch pattern and matches nothing."
+  ],
+  "includePaths": [
+    "NOTE: the rest of this list is added at run time. runai-actions .github/workflows/renovate.yml runs renovate/scan_candidates, which adds every Go module it finds safe to bump. Keep only entries it cannot work out from the module layout, such as a folder holding no Go module. This line is not a path and is dropped before the list reaches Renovate.",
+    ".github/**"
+  ],
+  "enabledManagers": [
+    "gomod",
+    "dockerfile",
+    "github-actions"
+  ],
+  "labels": [
+    "renovate"
+  ],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "build",
+  "semanticCommitScope": "deps",
+  "packageRules": [
+    {
+      "description": "After a Go update, regenerate NOTICE and THIRD_PARTY_LICENSES in the same commit. This release branch has generate-licenses but not main's lib-generate, lib-manifests and lib-generate-mocks. The runai-actions pipeline takes these commands from the branch's own renovate.json, falling back to main's.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "make generate-licenses"
+        ],
+        "fileFilters": [
+          "NOTICE",
+          "THIRD_PARTY_LICENSES"
+        ]
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { K8s } from '@kinvolk/headlamp-plugin/lib';
+import { useThrottle } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import { useEffect, useMemo, useRef } from 'react';
 import { Definition } from '../../../lib/karta/definitions';
 import { Workload } from '../../../lib/karta/karta.types';
@@ -17,9 +18,14 @@ export interface KindFetcherProps {
   // From discovery: neither is derivable from the kind name or the spec.
   plural: string;
   namespaced: boolean;
+  // Narrows the request, not the rows: an unselected namespace is never
+  // fetched. undefined means all of them.
+  namespaces?: string[];
   onRows: (key: string, rows: WorkloadRow[]) => void;
   onError: (key: string, error: Error) => void;
 }
+
+const LIST_THROTTLE_MS = 1000;
 
 interface PhaseCacheEntry {
   resourceVersion: string;
@@ -37,6 +43,7 @@ export function KindFetcher({
   cluster,
   plural,
   namespaced,
+  namespaces,
   onRows,
   onError,
 }: KindFetcherProps) {
@@ -58,8 +65,12 @@ export function KindFetcher({
 
   // With allowed namespaces, useList queries per namespace and returns the
   // ones that resolved while the rest are pending. isLoading says they all are.
-  const listResult = ResourceClass.useList({ cluster });
-  const [items, error] = listResult;
+  const listResult = ResourceClass.useList({ cluster, namespace: namespaces });
+  const [liveItems, error] = listResult;
+  // A watch delivers events faster than the table can usefully repaint, and
+  // every repaint reprojects every row. Headlamp's own ResourceTable throttles
+  // the same way. The first batch is not delayed, only later ones.
+  const items = useThrottle(liveItems, LIST_THROTTLE_MS) as typeof liveItems;
   const listLoading = listResult.isLoading;
 
   // Status is a WASM call, recomputed only when resourceVersion changes.

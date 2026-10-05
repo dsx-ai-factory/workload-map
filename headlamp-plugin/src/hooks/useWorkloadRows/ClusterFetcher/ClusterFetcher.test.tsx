@@ -65,11 +65,12 @@ const deploymentServed = new Map([
   ['apps/v1/Deployment', { plural: 'deployments', namespaced: true }],
 ]);
 
-function renderCluster(cluster = 'cluster-a') {
+function renderCluster(cluster = 'cluster-a', namespaces?: string[]) {
   const states: ClusterState[] = [];
   render(
     <ClusterFetcher
       cluster={cluster}
+      namespaces={namespaces}
       onRows={vi.fn()}
       onError={vi.fn()}
       onState={(_c, state) => states.push(state)}
@@ -99,6 +100,16 @@ describe('ClusterFetcher', () => {
     // Its own cluster, so another cluster's workloads are not read through
     // this cluster's definitions.
     expect(kindFetcherProps[0].cluster).toBe('cluster-a');
+  });
+
+  it('hands the chosen namespaces to each kind it fetches', async () => {
+    givenDefinitions([definition('Deployment', 'apps', 'v1')]);
+    givenDiscovery(deploymentServed);
+
+    renderCluster('cluster-a', ['default']);
+
+    await waitFor(() => expect(kindFetcherProps).toHaveLength(1));
+    expect(kindFetcherProps[0].namespaces).toEqual(['default']);
   });
 
   it('passes its own cluster to the definitions and discovery hooks', () => {

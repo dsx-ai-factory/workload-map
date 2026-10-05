@@ -23,6 +23,7 @@ export interface ClusterState {
 
 export interface ClusterFetcherProps {
   cluster: string;
+  namespaces?: string[];
   onRows: (cluster: string, key: string, rows: WorkloadRow[]) => void;
   onError: (cluster: string, key: string, error: Error) => void;
   onState: (cluster: string, state: ClusterState) => void;
@@ -31,7 +32,13 @@ export interface ClusterFetcherProps {
 // One per selected cluster. Definitions and discovery are answered per cluster
 // and each needs its own hook call, which the Rules of Hooks forbid in a loop,
 // so the per-cluster work lives in a component. Renders nothing itself.
-export function ClusterFetcher({ cluster, onRows, onError, onState }: ClusterFetcherProps) {
+export function ClusterFetcher({
+  cluster,
+  namespaces,
+  onRows,
+  onError,
+  onState,
+}: ClusterFetcherProps) {
   const {
     definitions,
     loading: definitionsLoading,
@@ -122,6 +129,7 @@ export function ClusterFetcher({ cluster, onRows, onError, onState }: ClusterFet
           cluster={cluster}
           plural={plural}
           namespaced={namespaced}
+          namespaces={namespaces}
           onRows={handleRows}
           onError={handleError}
         />

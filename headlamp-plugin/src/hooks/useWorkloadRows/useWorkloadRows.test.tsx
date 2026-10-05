@@ -15,10 +15,11 @@ interface ClusterPlan {
   discoveryFailures?: Record<string, Error>;
 }
 
-const { useKartaWasm, clustersRef, currentRef, plans } = vi.hoisted(() => ({
+const { useKartaWasm, clustersRef, currentRef, namespacesRef, plans } = vi.hoisted(() => ({
   useKartaWasm: vi.fn(),
   clustersRef: { current: ['cluster-a'] as string[] },
   currentRef: { current: 'cluster-a' as string | null },
+  namespacesRef: { current: undefined as string[] | undefined },
   plans: {} as Record<string, ClusterPlan>,
 }));
 
@@ -29,6 +30,10 @@ vi.mock('@kinvolk/headlamp-plugin/lib', () => ({
   },
 }));
 vi.mock('../useKartaWasm/useKartaWasm', () => ({ useKartaWasm }));
+// Reads Headlamp's redux store, which these tests do not set up.
+vi.mock('../useSelectedNamespaces/useSelectedNamespaces', () => ({
+  useSelectedNamespaces: () => namespacesRef.current,
+}));
 
 // Stands in for one cluster's definitions and discovery, which ClusterFetcher
 // owns and its own tests cover. Each test declares what a cluster reports.
@@ -80,6 +85,7 @@ function renderHarness() {
 beforeEach(() => {
   clustersRef.current = ['cluster-a'];
   currentRef.current = 'cluster-a';
+  namespacesRef.current = undefined;
   for (const key of Object.keys(plans)) {
     delete plans[key];
   }

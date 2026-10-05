@@ -4,6 +4,7 @@
 import { K8s } from '@kinvolk/headlamp-plugin/lib';
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useKartaWasm } from '../useKartaWasm/useKartaWasm';
+import { useSelectedNamespaces } from '../useSelectedNamespaces/useSelectedNamespaces';
 import { ClusterFetcher, ClusterState } from './ClusterFetcher/ClusterFetcher';
 import { WorkloadRow } from './workloadRow.types';
 
@@ -33,6 +34,7 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
   const selectedClusters = K8s.useSelectedClusters();
   const currentCluster = K8s.useCluster();
   const selectedKey = selectedClusters.join(',');
+  const namespaces = useSelectedNamespaces();
   const clusters = useMemo(
     () =>
       selectedClusters.length > 0 ? selectedClusters : currentCluster ? [currentCluster] : [],
@@ -91,12 +93,13 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
         <ClusterFetcher
           key={cluster}
           cluster={cluster}
+          namespaces={namespaces}
           onRows={onRows}
           onError={onError}
           onState={onState}
         />
       )),
-    [clusters, onRows, onError, onState]
+    [clusters, namespaces, onRows, onError, onState]
   );
 
   // Every selected cluster has to have reported its definitions, and every

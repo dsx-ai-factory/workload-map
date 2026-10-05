@@ -135,8 +135,10 @@ preload_image() {
 # build_and_load_image <context-dir> <local-tag>
 # Build a local image from a build context and load it into kind.
 build_and_load_image() {
-  local ctx="$1" tag="$2"
-  docker build -t "${tag}" "${ctx}"
+  local ctx="$1" tag="$2" go_version=""
+  # An image that builds Go takes the version its go.mod asks for.
+  [ -f "${ctx}/go.mod" ] && go_version=$(awk '/^go /{print $2; exit}' "${ctx}/go.mod")
+  docker build ${go_version:+--build-arg "GO_VERSION=${go_version}"} -t "${tag}" "${ctx}"
   kind load docker-image "${tag}" --name "${CLUSTER_NAME}"
 }
 

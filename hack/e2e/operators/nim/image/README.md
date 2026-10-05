@@ -28,7 +28,8 @@ The operator only needs the readiness endpoint to mark the NIMService ready:
 `hack/e2e/up.sh` builds and loads the image into the kind cluster:
 
 ```sh
-docker build -t nim-cpu:e2e hack/e2e/operators/nim/image
+docker build --build-arg GO_VERSION="$(awk '/^go /{print $2; exit}' hack/e2e/operators/nim/image/go.mod)" \
+  -t nim-cpu:e2e hack/e2e/operators/nim/image
 kind load docker-image nim-cpu:e2e --name karta-e2e
 ```
 
@@ -39,7 +40,8 @@ operator requires but the image ignores.
 ## Run standalone
 
 ```sh
-docker build -t nim-cpu:e2e hack/e2e/operators/nim/image
+docker build --build-arg GO_VERSION="$(awk '/^go /{print $2; exit}' hack/e2e/operators/nim/image/go.mod)" \
+  -t nim-cpu:e2e hack/e2e/operators/nim/image
 docker run -p 8000:8000 nim-cpu:e2e
 curl http://localhost:8000/v1/health/ready
 ```

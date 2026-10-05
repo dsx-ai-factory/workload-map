@@ -135,6 +135,44 @@ describe('ClusterFetcher', () => {
     expect(states.at(-1)?.expectedKinds).toEqual([]);
   });
 
+  // useList drops the namespaces for a cluster-scoped kind, so the selection
+  // cannot affect it and it must still be listed.
+  it('keeps cluster-scoped kinds when the selection is disallowed', async () => {
+    getAllowedNamespaces.mockReturnValue(['team-b']);
+    givenDefinitions([
+      definition('Deployment', 'apps', 'v1'),
+      definition('StorageClass', 'storage.k8s.io', 'v1'),
+    ]);
+    givenDiscovery(
+      new Map([
+        ['apps/v1/Deployment', { plural: 'deployments', namespaced: true }],
+        ['storage.k8s.io/v1/StorageClass', { plural: 'storageclasses', namespaced: false }],
+      ])
+    );
+
+    const states = renderCluster('cluster-a', ['team-a']);
+
+    await waitFor(() => expect(kindFetcherProps).toHaveLength(1));
+    expect(kindFetcherProps[0].definition.karta.metadata.name).toBe('StorageClass');
+    expect(states.at(-1)?.expectedKinds).toEqual(['StorageClass']);
+  });
+
+  // An empty table with no explanation reads as "no workloads".
+  it('says why when the selection hides every namespaced kind', async () => {
+    getAllowedNamespaces.mockReturnValue(['team-b']);
+    givenDefinitions([definition('Deployment', 'apps', 'v1')]);
+    givenDiscovery(deploymentServed);
+
+    const states = renderCluster('cluster-a', ['team-a']);
+
+    await waitFor(() => expect(states.length).toBeGreaterThan(0));
+    expect(states.at(-1)?.warning?.message).toBe(
+      'the selected namespaces are not allowed on this cluster'
+    );
+    // Not fatal: the cluster is readable, it just has nothing to show here.
+    expect(states.at(-1)?.error).toBeNull();
+  });
+
   it('narrows the selection to the namespaces the cluster allows', async () => {
     getAllowedNamespaces.mockReturnValue(['team-a', 'team-b']);
     givenDefinitions([definition('Deployment', 'apps', 'v1')]);
@@ -152,7 +190,7 @@ describe('ClusterFetcher', () => {
 
     renderCluster('cluster-b');
 
-    expect(useKartaDefinitions).toHaveBeenCalledWith('cluster-b');
+    expect(useKartaDefinitions).toHaveBeenCalledWith('cluster-b', undefined);
     expect(useServedKinds).toHaveBeenCalledWith('cluster-b', expect.any(Array));
   });
 

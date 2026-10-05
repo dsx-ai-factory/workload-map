@@ -3,6 +3,7 @@
 
 import { SectionBox, SectionFilterHeader } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
 import { WorkloadsTable } from '../../components/workloadsTable/WorkloadsTable';
 import { useWorkloadRows } from '../../hooks/useWorkloadRows/useWorkloadRows';
 
@@ -13,6 +14,7 @@ export function WorkloadsPage() {
     loading,
     error,
     engineError,
+    retryEngine,
     errorsByKind,
     errorsByCluster,
     warningsByCluster,
@@ -23,9 +25,6 @@ export function WorkloadsPage() {
   const failures = [
     // Rows are metadata and survive without the engine, so its failure costs
     // the status column rather than the table.
-    ...(engineError
-      ? [{ key: 'engine', message: `Status unavailable: ${engineError.message}` }]
-      : []),
     ...Object.entries(errorsByCluster).map(([cluster, clusterError]) => ({
       key: cluster,
       message: `Unable to read cluster ${cluster}: ${clusterError.message}`,
@@ -51,6 +50,21 @@ export function WorkloadsPage() {
     >
       {fetchers}
       {/* Beside the table, not instead of it: errorMessage hides every row. */}
+      {engineError && (
+        // Nothing announces that a failed download could now succeed, so the
+        // retry is the user's to ask for.
+        <Alert
+          severity="warning"
+          sx={{ mb: 1 }}
+          action={
+            <Button color="inherit" size="small" onClick={retryEngine}>
+              Retry
+            </Button>
+          }
+        >
+          {`Status unavailable: ${engineError.message}`}
+        </Alert>
+      )}
       {failures.map(failure => (
         <Alert key={failure.key} severity="warning" sx={{ mb: 1 }}>
           {failure.message}

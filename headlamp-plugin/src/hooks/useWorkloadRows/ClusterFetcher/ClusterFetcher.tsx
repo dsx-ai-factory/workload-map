@@ -25,6 +25,8 @@ export interface ClusterState {
 export interface ClusterFetcherProps {
   cluster: string;
   namespaces?: string[];
+  // Bumped to retry the catalog, which is read through the engine.
+  attempt?: number;
   onRows: (cluster: string, key: string, rows: WorkloadRow[]) => void;
   onError: (cluster: string, key: string, error: Error) => void;
   onState: (cluster: string, state: ClusterState) => void;
@@ -36,6 +38,7 @@ export interface ClusterFetcherProps {
 export function ClusterFetcher({
   cluster,
   namespaces,
+  attempt,
   onRows,
   onError,
   onState,
@@ -44,7 +47,7 @@ export function ClusterFetcher({
     definitions,
     loading: definitionsLoading,
     error: definitionsError,
-  } = useKartaDefinitions(cluster);
+  } = useKartaDefinitions(cluster, attempt);
   const {
     served,
     failedGroupVersions,
@@ -66,16 +69,36 @@ export function ClusterFetcher({
       : namespaces.filter(namespace => allowed.includes(namespace));
   const nothingVisible = !!visibleNamespaces && visibleNamespaces.length === 0;
 
-  const fetchable = useMemo(() => {
-    if (served === null || nothingVisible) {
-      return [];
+  const { fetchable, hiddenByNamespace } = useMemo(() => {
+    if (served === null) {
+      return { fetchable: [], hiddenByNamespace: 0 };
     }
-    return definitions.flatMap(definition => {
+    let hidden = 0;
+    const list = definitions.flatMap(definition => {
       const kind = definition.karta.spec?.structureDefinition?.rootComponent?.kind;
       const servedKind = kind && served.get(servedKindKey(kind.group, kind.version, kind.kind));
-      return servedKind ? [{ definition, ...servedKind }] : [];
+      if (!servedKind) {
+        return [];
+      }
+      // Only namespaced kinds are affected: useList drops the namespaces for a
+      // cluster-scoped one, so it reads the same whatever is selected.
+      if (servedKind.namespaced && nothingVisible) {
+        hidden += 1;
+        return [];
+      }
+      return [{ definition, ...servedKind }];
     });
+    return { fetchable: list, hiddenByNamespace: hidden };
   }, [definitions, served, nothingVisible]);
+
+  // Otherwise the table is simply empty, with nothing saying why.
+  const namespaceWarning = useMemo(
+    () =>
+      hiddenByNamespace > 0
+        ? new Error('the selected namespaces are not allowed on this cluster')
+        : null,
+    [hiddenByNamespace]
+  );
 
   const discoveryFailures = useMemo(() => {
     const failures: Record<string, Error> = {};
@@ -109,7 +132,7 @@ export function ClusterFetcher({
   // so a user without it still gets a full table.
   const usable = definitions.length > 0;
   const error = (usable ? null : definitionsError) ?? discoveryError ?? null;
-  const warning = usable ? definitionsError : null;
+  const warning = namespaceWarning ?? (usable ? definitionsError : null);
 
   useEffect(() => {
     onState(cluster, {

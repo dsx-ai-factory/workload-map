@@ -22,7 +22,7 @@ export interface UseKartaDefinitionsResult {
 // defaults to every selected cluster, and definitions merge by root GVK: two
 // clusters each defining Deployment would collapse into one entry, leaving a
 // workload liable to be read through the other cluster's definition.
-export function useKartaDefinitions(cluster: string): UseKartaDefinitionsResult {
+export function useKartaDefinitions(cluster: string, attempt = 0): UseKartaDefinitionsResult {
   const [catalog, setCatalog] = useState<Karta[]>([]);
   const [catalogError, setCatalogError] = useState<Error | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -30,6 +30,7 @@ export function useKartaDefinitions(cluster: string): UseKartaDefinitionsResult 
 
   useEffect(() => {
     let cancelled = false;
+    setCatalogError(null);
 
     listCatalog()
       .then(list => {
@@ -51,7 +52,7 @@ export function useKartaDefinitions(cluster: string): UseKartaDefinitionsResult 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
   const crdMissing = clusterError?.status === 404;
 

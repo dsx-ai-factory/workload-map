@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -285,6 +285,76 @@ describe('useWorkloadRows', () => {
     );
     // Not namespace-a's row.
     expect(harness.current.rows).toEqual([]);
+  });
+
+  // Scoped keys stop one selection reading another's, but a selection returned
+  // to would read its own stale entries: they satisfy the loading gate before
+  // any list resolves, so a workload deleted meanwhile renders as loaded.
+  it('drops entries from a selection that is returned to', async () => {
+    namespacesRef.current = ['namespace-a'];
+    plans['cluster-a'] = { kinds: ['deployment'] };
+
+    const harness = renderHarness();
+    await waitFor(() => expect(harness.current.rows).toHaveLength(1));
+
+    // Away, then back, with namespace-a's list now failing to resolve.
+    namespacesRef.current = ['namespace-b'];
+    harness.rerender();
+    await waitFor(() => expect(harness.current.rows).toHaveLength(1));
+
+    namespacesRef.current = ['namespace-a'];
+    plans['cluster-a'] = { kinds: ['deployment'], pending: ['deployment'] };
+    harness.rerender();
+
+    // Nothing has reported for this selection, so there is nothing to show.
+    await waitFor(() => expect(harness.current.loading).toBe(true));
+    expect(harness.current.rows).toBeNull();
+  });
+
+  it('loads the engine again when a retry is asked for', async () => {
+    useKartaWasm.mockReturnValue({ karta: null, loading: false, error: new Error('wasm failed') });
+    plans['cluster-a'] = { kinds: [] };
+
+    const harness = renderHarness();
+    await waitFor(() => expect(harness.current.engineError).not.toBeNull());
+    const attemptsBefore = useKartaWasm.mock.calls.length;
+
+    act(() => harness.current.retryEngine());
+
+    // Called again with a new attempt, which is what re-runs the load.
+    expect(useKartaWasm.mock.calls.length).toBeGreaterThan(attemptsBefore);
+    expect(useKartaWasm.mock.calls.at(-1)?.[0]).toBe(1);
+  });
+
+  // listCatalog reads through the engine, so a failed load knocks out every
+  // cluster's definitions. Blaming the cluster would point at the wrong thing
+  // and say it twice.
+  it('does not blame a cluster for the engine failing to load', async () => {
+    const wasm = new Error('wasm load failed');
+    useKartaWasm.mockReturnValue({ karta: null, loading: false, error: wasm });
+    // A catalog-only cluster: no definitions survive, so it reports fatally.
+    plans['cluster-a'] = { kinds: [], error: new Error('wasm load failed') };
+
+    const harness = renderHarness();
+
+    await waitFor(() => expect(harness.current.loading).toBe(false));
+    expect(harness.current.engineError?.message).toBe('wasm load failed');
+    expect(harness.current.errorsByCluster).toEqual({});
+    expect(harness.current.warningsByCluster).toEqual({});
+  });
+
+  it('still reports a cluster failure unrelated to the engine', async () => {
+    useKartaWasm.mockReturnValue({
+      karta: null,
+      loading: false,
+      error: new Error('wasm load failed'),
+    });
+    plans['cluster-a'] = { kinds: [], error: new Error('cluster-a unreachable') };
+
+    const harness = renderHarness();
+
+    await waitFor(() => expect(harness.current.loading).toBe(false));
+    expect(harness.current.errorsByCluster['cluster-a']?.message).toBe('cluster-a unreachable');
   });
 
   // Rows are metadata and need no engine: only the status column does. A

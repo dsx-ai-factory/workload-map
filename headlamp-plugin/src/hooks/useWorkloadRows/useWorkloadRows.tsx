@@ -17,6 +17,9 @@ export interface UseWorkloadRowsResult {
   // The engine failed to load. Rows are metadata and survive without it, so
   // this costs the status column rather than the table.
   engineError: Error | null;
+  // Loads the engine and the catalog again. Nothing announces that a failed
+  // download could now succeed, so retrying is the user's to ask for.
+  retryEngine: () => void;
   // Partial failures, keyed "cluster/definition". The other kinds loaded, so
   // these belong beside the results rather than in place of them.
   errorsByKind: Record<string, Error>;
@@ -34,7 +37,9 @@ export interface UseWorkloadRowsResult {
 // per-kind instance list and projects each instance into a row, across every
 // selected cluster.
 export function useWorkloadRows(): UseWorkloadRowsResult {
-  const { error: engineError, loading: engineLoading } = useKartaWasm();
+  const [attempt, setAttempt] = useState(0);
+  const retryEngine = useCallback(() => setAttempt(previous => previous + 1), []);
+  const { error: engineError, loading: engineLoading } = useKartaWasm(attempt);
   // useSelectedClusters returns an empty list when nothing is explicitly
   // selected, which is the ordinary single-cluster case, so fall back to the
   // current one. Same shape as knative's useClusters.
@@ -91,13 +96,18 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
     setClusterStates(prev => ({ ...prev, [cluster]: state }));
   }, []);
 
-  // A deselected cluster's entries would otherwise satisfy the loading gate if
-  // it were selected again, since discovery names the same kinds before any
-  // list has resolved, and a failing list would leave them indefinitely.
+  // Entries die with the cluster and selection that produced them. Scoping the
+  // keys stops one selection reading another's, but returning to an earlier
+  // selection would read its own stale entries: they satisfy the loading gate
+  // before any list resolves, so a workload deleted meanwhile renders as
+  // loaded, and a failing list leaves it there.
   useEffect(() => {
     const keep = <T,>(entries: Record<string, T>) => {
       const kept = Object.fromEntries(
-        Object.entries(entries).filter(([key]) => clusters.includes(key.slice(0, key.indexOf('/'))))
+        Object.entries(entries).filter(([key]) => {
+          const [entryCluster, entrySelection] = key.split('/');
+          return clusters.includes(entryCluster) && entrySelection === namespaceKey;
+        })
       );
       return Object.keys(kept).length === Object.keys(entries).length ? entries : kept;
     };
@@ -108,7 +118,7 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
         ? prev
         : Object.fromEntries(Object.entries(prev).filter(([cluster]) => clusters.includes(cluster)))
     );
-  }, [clusters]);
+  }, [clusters, namespaceKey]);
 
   const fetchers = useMemo(
     () =>
@@ -117,12 +127,13 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
           key={cluster}
           cluster={cluster}
           namespaces={namespaces}
+          attempt={attempt}
           onRows={onRows}
           onError={onError}
           onState={onState}
         />
       )),
-    [clusters, namespaces, onRows, onError, onState]
+    [clusters, namespaces, attempt, onRows, onError, onState]
   );
 
   // Every selected cluster has to have reported its definitions, and every
@@ -137,29 +148,39 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
     );
   });
 
+  // The catalog is read through the engine, so a failed load surfaces again as
+  // every cluster's definitions failing. One failure, one owner: engineError
+  // reports it, and the clusters it knocked out stay quiet rather than blaming
+  // themselves for a local download.
+  const causedByEngine = useCallback(
+    (clusterError?: Error | null) =>
+      !!engineError && !!clusterError && clusterError.message === engineError.message,
+    [engineError]
+  );
+
   // Kept apart: a cluster that still produced rows explains nothing about a
   // kind that failed under it, so folding the two would hide real kind errors.
   const errorsByCluster = useMemo(() => {
     const scoped: Record<string, Error> = {};
     for (const cluster of clusters) {
       const clusterError = clusterStates[cluster]?.error;
-      if (clusterError) {
+      if (clusterError && !causedByEngine(clusterError)) {
         scoped[cluster] = clusterError;
       }
     }
     return scoped;
-  }, [clusters, clusterStates]);
+  }, [clusters, clusterStates, causedByEngine]);
 
   const warningsByCluster = useMemo(() => {
     const scoped: Record<string, Error> = {};
     for (const cluster of clusters) {
       const warning = clusterStates[cluster]?.warning;
-      if (warning) {
+      if (warning && !causedByEngine(warning)) {
         scoped[cluster] = warning;
       }
     }
     return scoped;
-  }, [clusters, clusterStates]);
+  }, [clusters, clusterStates, causedByEngine]);
 
   const errorsByKind = useMemo(() => {
     const scoped: Record<string, Error> = {};
@@ -204,6 +225,7 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
     loading,
     error,
     engineError,
+    retryEngine,
     errorsByKind,
     errorsByCluster,
     warningsByCluster,

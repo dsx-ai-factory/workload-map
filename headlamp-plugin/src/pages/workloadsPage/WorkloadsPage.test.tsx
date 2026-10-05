@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { useWorkloadRows, workloadsTableProps } = vi.hoisted(() => ({
@@ -29,6 +29,7 @@ function givenRows(result: Partial<ReturnType<typeof useWorkloadRows>> = {}) {
     loading: false,
     error: null,
     engineError: null,
+    retryEngine: vi.fn(),
     errorsByKind: {},
     errorsByCluster: {},
     warningsByCluster: {},
@@ -64,6 +65,18 @@ describe('WorkloadsPage', () => {
 
   // Names, namespaces and ages are metadata: only the status column needs the
   // engine, so its failure belongs beside the rows.
+  // Nothing announces that a failed download could now succeed, so the retry
+  // has to be askable.
+  it('offers a retry on the engine failure', () => {
+    const retryEngine = vi.fn();
+    givenRows({ engineError: new Error('wasm load failed'), retryEngine });
+
+    render(<WorkloadsPage />);
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+    expect(retryEngine).toHaveBeenCalledTimes(1);
+  });
+
   it('reports a failed engine beside the rows rather than hiding them', () => {
     givenRows({
       rows: [{ id: 'local/api', name: 'api' }] as any,

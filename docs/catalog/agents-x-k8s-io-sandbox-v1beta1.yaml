@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+kind: Karta
+apiVersion: run.ai/v1alpha1
+metadata:
+  name: agents-x-k8s-io-sandbox-v1beta1
+spec:
+  structureDefinition:
+    rootComponent:
+      name: sandbox
+      kind:
+        group: agents.x-k8s.io
+        version: v1beta1
+        kind: Sandbox
+      statusDefinition:
+        conditionsDefinition:
+          path: .status.conditions
+          typeFieldName: type
+          statusFieldName: status
+          messageFieldName: message
+          reasonFieldName: reason
+        statusMappings:
+          initializing:
+            - byConditions:
+                - type: Ready
+                  status: "False"
+                - type: Suspended
+                  status: "False"
+          running:
+            - byConditions:
+                - type: Ready
+                  status: "True"
+              byExpression:
+                expression: (.spec.operatingMode // "Running") != "Suspended"
+                expectedResult: "true"
+          suspended:
+            - byConditions:
+                - type: Suspended
+                  status: "True"
+          suspending:
+            - byExpression:
+                expression: .spec.operatingMode == "Suspended" and ([(.status.conditions // [])[] | select(.type == "Suspended" and .status == "True")] | length) == 0
+                expectedResult: "true"
+      suspendDefinition:
+        suspendActions:
+          - path: .spec.operatingMode
+            value: '"Suspended"'
+        resumeActions:
+          - path: .spec.operatingMode
+            value: '"Running"'
+    childComponents:
+      - name: agent
+        kind:
+          group: ""
+          version: v1
+          kind: Pod
+        ownerRef: sandbox
+        specDefinition:
+          podTemplateSpecPath: .spec.podTemplate
+        scaleDefinition:
+          replicasPath: if .spec.operatingMode == "Suspended" then 0 else 1 end
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["agents.x-k8s.io/sandbox-name-hash"]
+      - name: supervisor
+        kind:
+          group: ""
+          version: v1
+          kind: Pod
+        ownerRef: sandbox
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["openshell.ai/boundary-role"]
+            value: supervisor
+  optimizationInstructions:
+    gangScheduling:
+      podGroups:
+        - name: sandbox
+          members:
+            - componentName: agent
+              groupByKeyPaths:
+                - .metadata.labels["openshell.ai/boundary-pair"] // .metadata.labels["agents.x-k8s.io/sandbox-name-hash"]
+            - componentName: supervisor
+              groupByKeyPaths:
+                - .metadata.labels["openshell.ai/boundary-pair"]

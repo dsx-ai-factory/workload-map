@@ -298,7 +298,7 @@ var _ = Describe("a definition that names no workload type", func() {
 	It("appears in the table with a placeholder kind", func() {
 		var stdout, stderr bytes.Buffer
 		rows := definitionRows(definitions.New(nil, []*v1alpha1.Karta{rootless("broken-karta")}).List())
-		Expect(renderDefinitions(&stdout, &stderr, rows)).To(Succeed())
+		Expect(renderDefinitions(&stdout, &stderr, rows, 0)).To(Succeed())
 
 		Expect(tableNames(stdout.String())).To(Equal([]string{"broken-karta"}))
 		Expect(stdout.String()).To(ContainSubstring("<none>"))
@@ -361,7 +361,7 @@ var _ = Describe("definitionRows over a merged resolver", func() {
 var _ = Describe("rendering an empty definition list", func() {
 	It("notes the empty table on stderr and writes nothing to stdout", func() {
 		var stdout, stderr bytes.Buffer
-		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil))).To(Succeed())
+		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0)).To(Succeed())
 		Expect(stdout.String()).To(BeEmpty())
 		Expect(stderr.String()).To(ContainSubstring("No Karta definitions found."))
 	})
@@ -624,3 +624,45 @@ func decodeKarta(out string) v1alpha1.Karta {
 	Expect(yaml.Unmarshal([]byte(out), &karta)).To(Succeed())
 	return karta
 }
+
+var _ = DescribeTable("componentsCell lists the root and at most limit children",
+	func(components []string, limit int, want string) {
+		Expect(componentsCell(components, limit)).To(Equal(want))
+	},
+	Entry("children within the limit", []string{"pytorchjob", "master", "worker"}, 3,
+		"pytorchjob, master, worker"),
+	Entry("exactly the limit, since the root does not count",
+		[]string{"leaderworkerset", "group", "leader", "worker"}, 3,
+		"leaderworkerset, group, leader, worker"),
+	Entry("more children than the limit", []string{"milvus", "standalone", "proxy", "mixcoord", "etcd", "minio"}, 3,
+		"milvus, standalone, proxy, mixcoord, +2 more"),
+	Entry("zero lists every component", []string{"milvus", "standalone", "proxy", "mixcoord", "etcd"}, 0,
+		"milvus, standalone, proxy, mixcoord, etcd"),
+)
+
+var _ = Describe("kli definitions --component-limit", func() {
+	It("lists three children per definition by default", func() {
+		stdout, _, err := runDefinitions(noClusterGetter(), nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stdout).To(ContainSubstring("milvus, standalone, proxy, mixcoord, +15 more"))
+	})
+
+	It("lists every component at zero", func() {
+		stdout, _, err := runDefinitions(noClusterGetter(), []string{"--component-limit", "0"})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stdout).To(ContainSubstring("pulsar-proxy"))
+		Expect(stdout).NotTo(ContainSubstring("more"))
+	})
+
+	It("leaves the machine formats whole", func() {
+		stdout, _, err := runDefinitions(noClusterGetter(), []string{"-o", "yaml", "--component-limit", "1"})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stdout).To(ContainSubstring("pulsar-proxy"))
+	})
+
+	// A negative limit would otherwise pass through as "list every component".
+	It("rejects a negative limit", func() {
+		_, _, err := runDefinitions(noClusterGetter(), []string{"--component-limit", "-1"})
+		Expect(err).To(MatchError(ContainSubstring("--component-limit must not be negative")))
+	})
+})

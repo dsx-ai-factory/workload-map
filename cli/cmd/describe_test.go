@@ -327,6 +327,28 @@ func TestDescribeZeroPodLimitShowsEveryPod(t *testing.T) {
 	}
 }
 
+// A negative limit would otherwise pass through as "show every component".
+func TestDescribeRejectsANegativeComponentLimit(t *testing.T) {
+	describeCluster(t, jobSet("preprocess", 3))
+
+	_, errOut, code := runDescribeCmd(t, "jobset/preprocess", "--component-limit", "-1")
+	if code != ExitUsage {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitUsage, code, errOut)
+	}
+	if !strings.Contains(errOut, "--component-limit must not be negative") {
+		t.Errorf("message missing the rejected flag\n%s", errOut)
+	}
+}
+
+// A hidden component is one a reader may need, so describe shows the whole tree
+// unless asked not to.
+func TestDescribeShowsEveryComponentByDefault(t *testing.T) {
+	flag := newDescribeCommand().Flags().Lookup(flagComponentLimit)
+	if flag == nil || flag.DefValue != "0" {
+		t.Fatalf("expected --%s to default to 0, got %+v", flagComponentLimit, flag)
+	}
+}
+
 // A definition can cover a type whose CRD was never installed, which is a
 // different miss from a workload that is merely absent.
 func TestDescribeUninstalledTypeIsItsOwnFailure(t *testing.T) {

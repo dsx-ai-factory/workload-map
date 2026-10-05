@@ -51,6 +51,9 @@ validates as it stands.`
   # Which definition covers JobSet?
   kli definitions --group jobset.x-k8s.io --kind JobSet
 
+  # List every component instead of the first three
+  kli definitions --component-limit 0
+
   # Dump them as YAML
   kli definitions -o yaml
 
@@ -62,6 +65,13 @@ const (
 	usageGroup   = "Show the definitions covering this API group"
 	usageKind    = "Show the definitions covering this kind; needs --" + flagGroup
 	usageVersion = "Show the definitions covering this version; needs --" + flagKind
+
+	// defaultComponentLimit keeps a definition with many components to a row
+	// that fits on one line.
+	defaultComponentLimit = 3
+
+	usageDefinitionsComponentLimit = "Maximum child components listed per definition after the root; " +
+		"0 lists every component. Table output only"
 )
 
 // definitionRow is one row of the table. json and yaml emit the definitions
@@ -85,6 +95,7 @@ type definitionFilter struct {
 // is a parameter so a test can inject a fake without mutating package state.
 func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Command {
 	var group, kind, version string
+	var componentLimit int
 	var (
 		output *Enum[generator.Output]
 		filter definitionFilter
@@ -97,6 +108,9 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 		Example: definitionsExample,
 		Args:    usageArgs(cobra.MaximumNArgs(1)),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if componentLimit < 0 {
+				return usageError(cmd, fmt.Errorf("--%s must not be negative", flagComponentLimit))
+			}
 			var err error
 			filter, err = definitionFilterFrom(cmd, args, group, kind, version)
 			return err
@@ -131,7 +145,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 				kartas = append(kartas, def.Karta)
 			}
 			table := func(out io.Writer) error {
-				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches))
+				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit)
 			}
 			return generator.Render(cmd.OutOrStdout(), output.Get(), kartas, len(args) == 1, table)
 		},
@@ -141,6 +155,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 	cmd.Flags().StringVar(&group, flagGroup, "", usageGroup)
 	cmd.Flags().StringVar(&kind, flagKind, "", usageKind)
 	cmd.Flags().StringVar(&version, flagVersion, "", usageVersion)
+	cmd.Flags().IntVar(&componentLimit, flagComponentLimit, defaultComponentLimit, usageDefinitionsComponentLimit)
 
 	return cmd
 }
@@ -235,7 +250,7 @@ func definitionRows(defs []definitions.Definition) []definitionRow {
 
 // renderDefinitions writes the table. The empty note goes to errOut so stdout
 // stays parseable.
-func renderDefinitions(out, errOut io.Writer, rows []definitionRow) error {
+func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int) error {
 	if len(rows) == 0 {
 		fmt.Fprintln(errOut, "No Karta definitions found.")
 		return nil
@@ -249,10 +264,20 @@ func renderDefinitions(out, errOut io.Writer, rows []definitionRow) error {
 			kind = "<none>"
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-			row.Name, kind, row.Origin, strings.Join(row.Components, ", "))
+			row.Name, kind, row.Origin, componentsCell(row.Components, componentLimit))
 	}
 	if err := w.Flush(); err != nil {
 		return fmt.Errorf("write definitions table: %w", err)
 	}
 	return nil
+}
+
+// componentsCell lists the root and at most limit children. The root only
+// repeats the kind, so it does not count toward the limit; zero lists them all.
+func componentsCell(components []string, limit int) string {
+	if limit == 0 || len(components) <= limit+1 {
+		return strings.Join(components, ", ")
+	}
+	hidden := len(components) - 1 - limit
+	return fmt.Sprintf("%s, +%d more", strings.Join(components[:limit+1], ", "), hidden)
 }

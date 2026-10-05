@@ -34,6 +34,15 @@ type DescribeOptions struct {
 	// PodLimit caps the pod rows per component. Zero and negative both show
 	// every pod, so DescribeOptions{} and an explicit --pod-limit 0 agree.
 	PodLimit int
+	// ComponentLimit caps the components shown under each parent in the tree.
+	// Zero and negative both show every component, as PodLimit does.
+	ComponentLimit int
+}
+
+// treeLimits are the row caps the component tree applies at every level.
+type treeLimits struct {
+	pods       int
+	components int
 }
 
 // RenderWorkload writes one workload to out. The machine formats emit the view
@@ -44,21 +53,21 @@ func RenderWorkload(out io.Writer, view *workload.DescribeView, opts DescribeOpt
 		format = OutputTable
 	}
 
-	limit := opts.PodLimit
-	if limit == 0 {
-		limit = ShowAllPods
+	limits := treeLimits{pods: opts.PodLimit, components: opts.ComponentLimit}
+	if limits.pods == 0 {
+		limits.pods = ShowAllPods
 	}
 
 	return RenderOne(out, format, view, func(w io.Writer) error {
-		return workloadText(w, view, limit)
+		return workloadText(w, view, limits)
 	})
 }
 
-func workloadText(out io.Writer, view *workload.DescribeView, limit int) error {
+func workloadText(out io.Writer, view *workload.DescribeView, limits treeLimits) error {
 	if err := writeHeader(out, view); err != nil {
 		return err
 	}
-	if err := writeTree(out, view, limit); err != nil {
+	if err := writeTree(out, view, limits); err != nil {
 		return err
 	}
 	if err := writeStatus(out, view); err != nil {
@@ -90,7 +99,7 @@ func writeHeader(out io.Writer, view *workload.DescribeView) error {
 
 // writeTree renders the component hierarchy, one row per component and one per
 // pod, through a tab writer so every column lines up across both row kinds.
-func writeTree(out io.Writer, view *workload.DescribeView, limit int) error {
+func writeTree(out io.Writer, view *workload.DescribeView, limits treeLimits) error {
 	if len(view.Components) == 0 {
 		return nil
 	}
@@ -101,7 +110,7 @@ func writeTree(out io.Writer, view *workload.DescribeView, limit int) error {
 	// Every row keeps all its cells so the columns stay aligned down the tree.
 	var tree bytes.Buffer
 	writer := printers.GetNewTabWriter(&tree)
-	writeComponents(writer, view.Components, "", limit, view.FileMode)
+	writeComponents(writer, view.Components, "", limits, view.FileMode)
 	if err := writer.Flush(); err != nil {
 		return fmt.Errorf("write tree: %w", err)
 	}
@@ -113,9 +122,11 @@ func writeTree(out io.Writer, view *workload.DescribeView, limit int) error {
 	return nil
 }
 
-func writeComponents(out io.Writer, components []workload.ComponentView, prefix string, limit int, fileMode bool) {
-	for i, component := range components {
-		last := i == len(components)-1
+func writeComponents(out io.Writer, components []workload.ComponentView, prefix string, limits treeLimits, fileMode bool) {
+	shown, hidden, hiddenUnhealthy := limitComponents(components, limits.components)
+
+	for i, component := range shown {
+		last := i == len(shown)-1 && hidden == 0
 		fmt.Fprintln(out, strings.Join([]string{
 			prefix + branch(last) + component.Name,
 			scale(component.Replicas, fileMode),
@@ -124,9 +135,61 @@ func writeComponents(out io.Writer, components []workload.ComponentView, prefix 
 		}, "\t"))
 
 		childPrefix := prefix + indent(last)
-		writePods(out, component.Pods, childPrefix, limit, len(component.Children) > 0)
-		writeComponents(out, component.Children, childPrefix, limit, fileMode)
+		writePods(out, component.Pods, childPrefix, limits.pods, len(component.Children) > 0)
+		writeComponents(out, component.Children, childPrefix, limits, fileMode)
 	}
+
+	if hidden > 0 {
+		note := fmt.Sprintf("and %d more components", hidden)
+		if hiddenUnhealthy > 0 {
+			note += fmt.Sprintf(" (%d unhealthy)", hiddenUnhealthy)
+		}
+		// The prose sits in the status cell so it cannot widen the name column.
+		fmt.Fprintln(out, strings.Join([]string{prefix + branch(true) + "...", note, "", ""}, "\t"))
+	}
+}
+
+// limitComponents applies --component-limit. Unhealthy components claim the
+// shown rows first, as pods do under --pod-limit, but the shown ones keep the
+// definition's order so the tree still reads in the order the workload declares.
+func limitComponents(components []workload.ComponentView, limit int) (shown []workload.ComponentView, hidden, hiddenUnhealthy int) {
+	if limit <= 0 || len(components) <= limit {
+		return components, 0, 0
+	}
+
+	unhealthy := make([]bool, len(components))
+	for i, component := range components {
+		unhealthy[i] = componentUnhealthy(component)
+	}
+
+	// The unhealthy pass runs first, so they take the rows before healthy ones.
+	keep := make([]bool, len(components))
+	kept := 0
+	for _, want := range []bool{true, false} {
+		for i := range components {
+			if kept < limit && unhealthy[i] == want {
+				keep[i] = true
+				kept++
+			}
+		}
+	}
+
+	for i, component := range components {
+		switch {
+		case keep[i]:
+			shown = append(shown, component)
+		case unhealthy[i]:
+			hiddenUnhealthy++
+		}
+	}
+	return shown, len(components) - limit, hiddenUnhealthy
+}
+
+// componentUnhealthy reports a component with an unhealthy pod anywhere under
+// it. A manifest in file mode has no pods, so none of its components are.
+func componentUnhealthy(component workload.ComponentView) bool {
+	return slices.ContainsFunc(component.Pods, podUnhealthy) ||
+		slices.ContainsFunc(component.Children, componentUnhealthy)
 }
 
 // writePods draws a component's pods. childComponents says whether component

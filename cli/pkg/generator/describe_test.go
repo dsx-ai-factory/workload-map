@@ -6,6 +6,7 @@ package generator
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -81,6 +82,30 @@ func nestedView() *workload.DescribeView {
 				Resources: workload.Resources{GPUs: 3},
 				Pods:      []workload.PodView{{Name: "leaf-0", Phase: "Running", Ready: true, Node: ptr.To("node-03")}},
 			}},
+		}},
+	}
+}
+
+// wideView is a workload whose root fans out into n components with one ready
+// pod each, the shape --component-limit exists for.
+func wideView(n int) *workload.DescribeView {
+	children := make([]workload.ComponentView, 0, n)
+	for i := range n {
+		name := fmt.Sprintf("job-%d", i)
+		children = append(children, workload.ComponentView{
+			Name:     name,
+			Replicas: workload.Replicas{Desired: 1, Current: 1, Ready: 1},
+			Pods: []workload.PodView{
+				{Name: name + "-0", Phase: "Running", Ready: true, Node: ptr.To("node-01")},
+			},
+		})
+	}
+	return &workload.DescribeView{
+		View: workload.View{Name: "train", Namespace: "ml-team", Kind: "JobSet", Phases: []string{"Running"}},
+		Components: []workload.ComponentView{{
+			Name:     "train",
+			Replicas: workload.Replicas{Desired: int32(n), Current: int32(n), Ready: int32(n)},
+			Children: children,
 		}},
 	}
 }
@@ -265,6 +290,74 @@ var _ = Describe("RenderWorkload", func() {
 					Expect(status).To(Equal(column), "status column moved on: "+line)
 				}
 			}
+		})
+	})
+
+	Context("--component-limit", func() {
+		It("shows the first components and reports how many it hid", func() {
+			tree := treeLines(renderWorkload(wideView(5), DescribeOptions{ComponentLimit: 3}))
+
+			Expect(strings.Join(tree, "\n")).To(ContainSubstring("job-2"))
+			Expect(strings.Join(tree, "\n")).NotTo(ContainSubstring("job-3"))
+			Expect(tree[len(tree)-1]).To(SatisfyAll(
+				ContainSubstring("`-- ..."), ContainSubstring("and 2 more components")))
+		})
+
+		// The note owns the closing glyph, so the last shown component must not
+		// read as the end of the list.
+		It("leaves the closing glyph to the note", func() {
+			lines := treeLines(renderWorkload(wideView(5), DescribeOptions{ComponentLimit: 1}))
+
+			Expect(lines[1]).To(HavePrefix("    |-- job-0"))
+			Expect(lines[len(lines)-1]).To(HavePrefix("    `-- ..."))
+		})
+
+		It("keeps an unhealthy component in view, in the order the workload declares", func() {
+			view := wideView(5)
+			view.Components[0].Children[4].Pods[0] = workload.PodView{
+				Name: "job-4-0", Phase: "Pending", Reason: "Unschedulable",
+			}
+
+			out := strings.Join(treeLines(renderWorkload(view, DescribeOptions{ComponentLimit: 2})), "\n")
+
+			Expect(out).To(ContainSubstring("job-0"))
+			Expect(out).To(ContainSubstring("job-4"))
+			Expect(out).NotTo(ContainSubstring("job-1"))
+			Expect(strings.Index(out, "job-0")).To(BeNumerically("<", strings.Index(out, "job-4")))
+		})
+
+		It("names the unhealthy components it could not fit", func() {
+			view := wideView(4)
+			for i := range view.Components[0].Children {
+				view.Components[0].Children[i].Pods[0].Ready = false
+				view.Components[0].Children[i].Pods[0].Phase = "Pending"
+			}
+
+			Expect(renderWorkload(view, DescribeOptions{ComponentLimit: 1})).
+				To(ContainSubstring("and 3 more components (3 unhealthy)"))
+		})
+
+		// The breakdown is what the workload costs, so hiding a row there would
+		// leave TOTAL summing components the reader cannot see.
+		It("leaves the resources breakdown whole", func() {
+			out := renderWorkload(wideView(5), DescribeOptions{ComponentLimit: 1})
+			_, resources, found := strings.Cut(out, "Resources:")
+
+			Expect(found).To(BeTrue())
+			Expect(resources).To(ContainSubstring("job-4"))
+		})
+
+		It("treats an unset limit as showing every component", func() {
+			out := renderWorkload(wideView(5), DescribeOptions{})
+
+			Expect(out).To(ContainSubstring("job-4"))
+			Expect(out).NotTo(ContainSubstring("more components"))
+		})
+
+		It("leaves the machine formats whole", func() {
+			out := renderWorkload(wideView(5), DescribeOptions{Output: OutputJSON, ComponentLimit: 1})
+
+			Expect(out).To(ContainSubstring("job-4"))
 		})
 	})
 

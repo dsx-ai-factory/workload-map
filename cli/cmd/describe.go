@@ -30,11 +30,14 @@ import (
 )
 
 const (
-	flagPodLimit = "pod-limit"
-	flagFile     = "file"
+	flagPodLimit       = "pod-limit"
+	flagComponentLimit = "component-limit"
+	flagFile           = "file"
 
 	usagePodLimit = "Maximum pod rows per component; the default shows every pod. " +
 		"When set, unhealthy pods are shown first. Table output only"
+	usageComponentLimit = "Maximum components shown under each parent in the tree; the default shows " +
+		"every component. When set, unhealthy components are kept first. Table output only"
 	usageFile = "Describe a workload that has not been submitted; \"-\" reads stdin. " +
 		"No cluster is needed, and no TYPE/NAME is accepted"
 
@@ -65,6 +68,9 @@ It answers what a workload would look like before it is submitted.`
   # Large workloads: cap the pod rows, unhealthy pods first
   kli describe pytorchjob/llama-finetune --pod-limit 10
 
+  # Workloads with many components: cap the tree, unhealthy components first
+  kli describe jobset/llama-train --component-limit 3
+
   # Preview a manifest before submitting it, no cluster needed
   kli describe -f jobset.yaml
 
@@ -89,8 +95,9 @@ var errNoDefinitions = errors.New("no Karta definitions available (catalog empty
 // describe accept the same TYPE/NAME forms as get.
 type describeOptions struct {
 	getOptions
-	podLimit int
-	file     string
+	podLimit       int
+	componentLimit int
+	file           string
 }
 
 // machineError is the shape a failure takes in the machine formats. Only the
@@ -145,6 +152,9 @@ func newDescribeCommand() *cobra.Command {
 			if opts.podLimit < 0 {
 				return usageError(cmd, fmt.Errorf("--%s must not be negative", flagPodLimit))
 			}
+			if opts.componentLimit < 0 {
+				return usageError(cmd, fmt.Errorf("--%s must not be negative", flagComponentLimit))
+			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -158,6 +168,7 @@ func newDescribeCommand() *cobra.Command {
 	// Zero is the default rather than ShowAllPods: both mean no limit, and only
 	// zero keeps pflag from advertising a value the flag then rejects.
 	cmd.Flags().IntVar(&opts.podLimit, flagPodLimit, 0, usagePodLimit)
+	cmd.Flags().IntVar(&opts.componentLimit, flagComponentLimit, 0, usageComponentLimit)
 	cmd.Flags().StringVarP(&opts.file, flagFile, "f", "", usageFile)
 
 	return cmd
@@ -172,8 +183,9 @@ func runDescribe(cmd *cobra.Command, opts *describeOptions, format generator.Out
 	}
 
 	return generator.RenderWorkload(cmd.OutOrStdout(), view, generator.DescribeOptions{
-		Output:   format,
-		PodLimit: opts.podLimit,
+		Output:         format,
+		PodLimit:       opts.podLimit,
+		ComponentLimit: opts.componentLimit,
 	})
 }
 

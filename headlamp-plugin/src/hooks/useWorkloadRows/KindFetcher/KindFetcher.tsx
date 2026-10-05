@@ -67,11 +67,23 @@ export function KindFetcher({
   // ones that resolved while the rest are pending. isLoading says they all are.
   const listResult = ResourceClass.useList({ cluster, namespace: namespaces });
   const [liveItems, error] = listResult;
+  const listLoading = listResult.isLoading;
+
   // A watch delivers events faster than the table can usefully repaint, and
   // every repaint reprojects every row. Headlamp's own ResourceTable throttles
   // the same way. The first batch is not delayed, only later ones.
-  const items = useThrottle(liveItems, LIST_THROTTLE_MS) as typeof liveItems;
-  const listLoading = listResult.isLoading;
+  //
+  // Throttled together with the selection they came from: the hook holds the
+  // previous value for up to an interval, so a selection change whose list
+  // resolves inside that window would otherwise publish the old namespaces'
+  // rows as the new ones.
+  const namespaceKey = (namespaces ?? []).join(',');
+  const batch = useMemo(
+    () => ({ items: liveItems, namespaceKey }),
+    [liveItems, namespaceKey]
+  );
+  const throttled = useThrottle(batch, LIST_THROTTLE_MS) as typeof batch;
+  const items = throttled.namespaceKey === namespaceKey ? throttled.items : null;
 
   // Status is a WASM call, recomputed only when resourceVersion changes.
   const phaseCache = useRef<Map<string, PhaseCacheEntry>>(new Map());

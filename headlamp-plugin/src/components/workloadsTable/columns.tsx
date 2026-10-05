@@ -92,8 +92,10 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
           return false;
         }
         // The end of the chosen day, not its midnight, or a workload created
-        // during it would be excluded.
-        const until = to ? new Date(to as string).setHours(23, 59, 59, 999) : null;
+        // during it would be excluded. In UTC, because a date-only value parses
+        // as UTC midnight and `from` is compared the same way: local hours
+        // would shift the bound by the viewer's offset.
+        const until = to ? new Date(to as string).setUTCHours(23, 59, 59, 999) : null;
         return !(until && created > until);
       },
       Cell: ({ row }) => <DateLabel date={row.original.creationTimestamp} format="mini" />,

@@ -4,12 +4,18 @@
 import { render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { useKartaDefinitions, useServedKinds, kindFetcherProps } = vi.hoisted(() => ({
-  useKartaDefinitions: vi.fn(),
-  useServedKinds: vi.fn(),
-  kindFetcherProps: [] as any[],
-}));
+const { useKartaDefinitions, useServedKinds, kindFetcherProps, getAllowedNamespaces } = vi.hoisted(
+  () => ({
+    useKartaDefinitions: vi.fn(),
+    useServedKinds: vi.fn(),
+    kindFetcherProps: [] as any[],
+    getAllowedNamespaces: vi.fn(() => [] as string[]),
+  })
+);
 
+vi.mock('@kinvolk/headlamp-plugin/lib', () => ({
+  K8s: { cluster: { getAllowedNamespaces } },
+}));
 vi.mock('../../useKartaDefinitions/useKartaDefinitions', () => ({ useKartaDefinitions }));
 vi.mock('../../useServedKinds/useServedKinds', () => ({
   useServedKinds,
@@ -83,6 +89,8 @@ beforeEach(() => {
   kindFetcherProps.length = 0;
   useKartaDefinitions.mockReset();
   useServedKinds.mockReset();
+  getAllowedNamespaces.mockReset();
+  getAllowedNamespaces.mockReturnValue([]);
 });
 
 describe('ClusterFetcher', () => {
@@ -110,6 +118,32 @@ describe('ClusterFetcher', () => {
 
     await waitFor(() => expect(kindFetcherProps).toHaveLength(1));
     expect(kindFetcherProps[0].namespaces).toEqual(['default']);
+  });
+
+  // useList turns an empty namespace list into a request with no namespace,
+  // which lists the whole cluster. Selecting one this cluster disallows must
+  // not widen the read.
+  it('fetches nothing when the selection and the allowed namespaces do not overlap', async () => {
+    getAllowedNamespaces.mockReturnValue(['team-b']);
+    givenDefinitions([definition('Deployment', 'apps', 'v1')]);
+    givenDiscovery(deploymentServed);
+
+    const states = renderCluster('cluster-a', ['team-a']);
+
+    await waitFor(() => expect(states.length).toBeGreaterThan(0));
+    expect(kindFetcherProps).toHaveLength(0);
+    expect(states.at(-1)?.expectedKinds).toEqual([]);
+  });
+
+  it('narrows the selection to the namespaces the cluster allows', async () => {
+    getAllowedNamespaces.mockReturnValue(['team-a', 'team-b']);
+    givenDefinitions([definition('Deployment', 'apps', 'v1')]);
+    givenDiscovery(deploymentServed);
+
+    renderCluster('cluster-a', ['team-a', 'team-z']);
+
+    await waitFor(() => expect(kindFetcherProps).toHaveLength(1));
+    expect(kindFetcherProps[0].namespaces).toEqual(['team-a']);
   });
 
   it('passes its own cluster to the definitions and discovery hooks', () => {

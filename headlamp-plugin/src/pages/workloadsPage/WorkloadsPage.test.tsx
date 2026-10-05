@@ -28,8 +28,10 @@ function givenRows(result: Partial<ReturnType<typeof useWorkloadRows>> = {}) {
     rows: [],
     loading: false,
     error: null,
+    engineError: null,
     errorsByKind: {},
     errorsByCluster: {},
+    warningsByCluster: {},
     fetchers: null,
     ...result,
   });
@@ -53,11 +55,26 @@ describe('WorkloadsPage', () => {
   // Headlamp's Table hides every row whenever errorMessage is set, so only a
   // failure that leaves nothing to show belongs there.
   it('gives the table an error message only when nothing could be fetched', () => {
-    givenRows({ rows: null, error: new Error('wasm load failed') });
+    givenRows({ rows: null, error: new Error('every cluster unreachable') });
 
     render(<WorkloadsPage />);
 
-    expect(workloadsTableProps.at(-1)?.errorMessage).toBe('wasm load failed');
+    expect(workloadsTableProps.at(-1)?.errorMessage).toBe('every cluster unreachable');
+  });
+
+  // Names, namespaces and ages are metadata: only the status column needs the
+  // engine, so its failure belongs beside the rows.
+  it('reports a failed engine beside the rows rather than hiding them', () => {
+    givenRows({
+      rows: [{ id: 'local/api', name: 'api' }] as any,
+      engineError: new Error('wasm load failed'),
+    });
+
+    render(<WorkloadsPage />);
+
+    expect(screen.getByText(/Status unavailable: wasm load failed/)).toBeDefined();
+    expect(workloadsTableProps.at(-1)?.errorMessage).toBeUndefined();
+    expect(workloadsTableProps.at(-1)?.rows).toHaveLength(1);
   });
 
   it('reports a failing kind beside the table rather than in place of it', () => {
@@ -71,6 +88,21 @@ describe('WorkloadsPage', () => {
     expect(screen.getByText(/Unable to list cluster-a\/rayjob/)).toBeDefined();
     expect(screen.getByTestId('table')).toBeDefined();
     expect(workloadsTableProps.at(-1)?.errorMessage).toBeUndefined();
+  });
+
+  // A cluster that still produced rows explains nothing about a kind that
+  // failed under it.
+  it('reports a kind failure under a cluster that only warned', () => {
+    givenRows({
+      rows: [{ id: 'cluster-a/api', name: 'api' }] as any,
+      warningsByCluster: { 'cluster-a': new Error('kartas forbidden') },
+      errorsByKind: { 'cluster-a/rayjob': new Error('rayjobs is forbidden') },
+    });
+
+    render(<WorkloadsPage />);
+
+    expect(screen.getByText(/Partial results for cluster cluster-a/)).toBeDefined();
+    expect(screen.getByText(/Unable to list cluster-a\/rayjob/)).toBeDefined();
   });
 
   // An unreachable cluster explains every kind missing under it, so repeating

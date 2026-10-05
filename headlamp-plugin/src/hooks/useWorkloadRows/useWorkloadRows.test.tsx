@@ -38,7 +38,8 @@ vi.mock('../useSelectedNamespaces/useSelectedNamespaces', () => ({
 // Stands in for one cluster's definitions and discovery, which ClusterFetcher
 // owns and its own tests cover. Each test declares what a cluster reports.
 vi.mock('./ClusterFetcher/ClusterFetcher', () => ({
-  ClusterFetcher: ({ cluster, onRows, onError, onState }: any) => {
+  ClusterFetcher: ({ cluster, namespaces, onRows, onError, onState }: any) => {
+    const selection = (namespaces ?? []).join(',');
     useEffect(() => {
       const plan = plans[cluster] ?? {};
       const kinds = plan.kinds ?? [];
@@ -56,8 +57,9 @@ vi.mock('./ClusterFetcher/ClusterFetcher', () => ({
           onRows(cluster, kind, [{ id: `${cluster}/${kind}`, name: kind }]);
         }
       }
+      // Re-reports when the selection changes, as the real one does.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [selection]);
     return null;
   },
 }));
@@ -258,19 +260,48 @@ describe('useWorkloadRows', () => {
     await waitFor(() => expect(harness.current.loading).toBe(false));
     expect(harness.current.rows).toEqual([{ id: 'cluster-a/deployment', name: 'deployment' }]);
     expect(harness.current.error).toBeNull();
-    expect(harness.current.errorsByCluster['cluster-a']?.message).toBe('kartas forbidden');
+    expect(harness.current.warningsByCluster['cluster-a']?.message).toBe('kartas forbidden');
+    expect(harness.current.errorsByCluster['cluster-a']).toBeUndefined();
   });
 
-  it('surfaces the engine error, which no cluster can work around', () => {
+  // Namespace a's rows would otherwise satisfy the loading gate under a
+  // b-only selection, and stay on screen when b's list fails.
+  it('drops rows from a previous namespace selection', async () => {
+    namespacesRef.current = ['namespace-a'];
+    plans['cluster-a'] = { kinds: ['deployment'] };
+
+    const harness = renderHarness();
+    await waitFor(() => expect(harness.current.rows).toHaveLength(1));
+
+    // The selection changes and the new list fails for that kind.
+    namespacesRef.current = ['namespace-b'];
+    plans['cluster-a'] = { kinds: ['deployment'], failing: ['deployment'] };
+    harness.rerender();
+
+    await waitFor(() =>
+      expect(harness.current.errorsByKind['cluster-a/deployment']?.message).toBe(
+        'deployment failed to list'
+      )
+    );
+    // Not namespace-a's row.
+    expect(harness.current.rows).toEqual([]);
+  });
+
+  // Rows are metadata and need no engine: only the status column does. A
+  // failed 19MB fetch must not blank a table that would have been full.
+  it('reports an engine failure without hiding the rows', async () => {
     useKartaWasm.mockReturnValue({
       karta: null,
       loading: false,
       error: new Error('wasm load failed'),
     });
-    plans['cluster-a'] = { kinds: [] };
+    plans['cluster-a'] = { kinds: ['deployment'] };
 
     const harness = renderHarness();
 
-    expect(harness.current.error?.message).toBe('wasm load failed');
+    await waitFor(() => expect(harness.current.loading).toBe(false));
+    expect(harness.current.engineError?.message).toBe('wasm load failed');
+    expect(harness.current.error).toBeNull();
+    expect(harness.current.rows).toEqual([{ id: 'cluster-a/deployment', name: 'deployment' }]);
   });
 });

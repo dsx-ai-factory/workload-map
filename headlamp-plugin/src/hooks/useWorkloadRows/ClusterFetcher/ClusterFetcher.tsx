@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
+import { K8s } from '@kinvolk/headlamp-plugin/lib';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useKartaDefinitions } from '../../useKartaDefinitions/useKartaDefinitions';
 import { servedKindKey, useServedKinds } from '../../useServedKinds/useServedKinds';
@@ -54,8 +55,19 @@ export function ClusterFetcher({
     definitions.map(definition => definition.karta.spec?.structureDefinition?.rootComponent?.kind)
   );
 
+  // An empty intersection must not reach useList: it builds one request per
+  // namespace, and no namespaces means a request with none, which lists the
+  // whole cluster. Selecting a namespace this cluster disallows would widen
+  // the read instead of narrowing it.
+  const allowed = K8s.cluster.getAllowedNamespaces(cluster);
+  const visibleNamespaces =
+    !namespaces || allowed.length === 0
+      ? namespaces
+      : namespaces.filter(namespace => allowed.includes(namespace));
+  const nothingVisible = !!visibleNamespaces && visibleNamespaces.length === 0;
+
   const fetchable = useMemo(() => {
-    if (served === null) {
+    if (served === null || nothingVisible) {
       return [];
     }
     return definitions.flatMap(definition => {
@@ -63,7 +75,7 @@ export function ClusterFetcher({
       const servedKind = kind && served.get(servedKindKey(kind.group, kind.version, kind.kind));
       return servedKind ? [{ definition, ...servedKind }] : [];
     });
-  }, [definitions, served]);
+  }, [definitions, served, nothingVisible]);
 
   const discoveryFailures = useMemo(() => {
     const failures: Record<string, Error> = {};
@@ -129,7 +141,7 @@ export function ClusterFetcher({
           cluster={cluster}
           plural={plural}
           namespaced={namespaced}
-          namespaces={namespaces}
+          namespaces={visibleNamespaces}
           onRows={handleRows}
           onError={handleError}
         />

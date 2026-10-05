@@ -1,8 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildWorkloadColumns, OPTIONAL_COLUMN_IDS } from './columns';
+
+// Node 24 exposes its own localStorage, which shadows jsdom's and throws
+// unless the process was started with a store file. The real CommonComponents
+// pulls in Headlamp's redux store, which reads localStorage at import time
+// (plugin/pluginConfigSlice.js), so the stub has to exist before that import.
+vi.hoisted(() => {
+  const storage = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => void storage.set(key, String(value)),
+      removeItem: (key: string) => void storage.delete(key),
+      clear: () => storage.clear(),
+    },
+  });
+});
 
 const DEFAULT_COLUMN_IDS = ['workload', 'type', 'namespace', 'status', 'pods', 'gpus', 'age'];
 
@@ -103,7 +120,10 @@ describe('buildWorkloadColumns', () => {
     const match = (creationTimestamp: string, range: [unknown, unknown]) =>
       (age.filterFn as any)({ original: { creationTimestamp } }, 'age', range);
 
-    expect(match('2026-06-30T18:00:00Z', ['2026-06-01', '2026-06-30'])).toBe(true);
+    // Late in the day on purpose: a bound built from local hours lands before
+    // this in any timezone west of UTC, and three hours before it here.
+    expect(match('2026-06-30T23:30:00Z', ['2026-06-01', '2026-06-30'])).toBe(true);
+    expect(match('2026-06-30T00:00:00Z', ['2026-06-01', '2026-06-30'])).toBe(true);
     expect(match('2026-07-01T00:00:01Z', ['2026-06-01', '2026-06-30'])).toBe(false);
   });
 });

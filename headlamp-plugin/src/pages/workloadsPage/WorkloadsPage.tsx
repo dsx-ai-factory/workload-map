@@ -8,13 +8,31 @@ import { useWorkloadRows } from '../../hooks/useWorkloadRows/useWorkloadRows';
 
 // Route target for /karta/workloads: owns fetching, delegates rendering.
 export function WorkloadsPage() {
-  const { rows, loading, error, errorsByKind, errorsByCluster, fetchers } = useWorkloadRows();
-  // Cluster first: an unreachable cluster explains every kind missing under
-  // it, so repeating those would bury the line that matters.
+  const {
+    rows,
+    loading,
+    error,
+    engineError,
+    errorsByKind,
+    errorsByCluster,
+    warningsByCluster,
+    fetchers,
+  } = useWorkloadRows();
+  // Only a cluster that produced nothing explains the kinds missing under it.
+  // A cluster that still has rows does not, so its kinds report for themselves.
   const failures = [
+    // Rows are metadata and survive without the engine, so its failure costs
+    // the status column rather than the table.
+    ...(engineError
+      ? [{ key: 'engine', message: `Status unavailable: ${engineError.message}` }]
+      : []),
     ...Object.entries(errorsByCluster).map(([cluster, clusterError]) => ({
       key: cluster,
       message: `Unable to read cluster ${cluster}: ${clusterError.message}`,
+    })),
+    ...Object.entries(warningsByCluster).map(([cluster, warning]) => ({
+      key: `${cluster}-warning`,
+      message: `Partial results for cluster ${cluster}: ${warning.message}`,
     })),
     ...Object.entries(errorsByKind)
       .filter(([key]) => !(key.split('/')[0] in errorsByCluster))

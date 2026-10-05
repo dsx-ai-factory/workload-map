@@ -14,11 +14,18 @@ export interface UseWorkloadRowsResult {
   // Set only when nothing could be fetched on any cluster, so a consumer can
   // hide the view.
   error: Error | null;
+  // The engine failed to load. Rows are metadata and survive without it, so
+  // this costs the status column rather than the table.
+  engineError: Error | null;
   // Partial failures, keyed "cluster/definition". The other kinds loaded, so
   // these belong beside the results rather than in place of them.
   errorsByKind: Record<string, Error>;
-  // Clusters that produced nothing while others did, keyed by cluster.
+  // Clusters that produced nothing while others did, keyed by cluster. A
+  // consumer may take these as covering every kind beneath them.
   errorsByCluster: Record<string, Error>;
+  // Clusters that produced rows despite something failing. Their kinds can
+  // still fail independently, so these explain nothing about the kinds.
+  warningsByCluster: Record<string, Error>;
   // Renders nothing; mounting these is what subscribes to each kind's list.
   fetchers: ReactNode;
 }
@@ -42,13 +49,24 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
     [selectedKey, currentCluster]
   );
 
+  // Entries are scoped by namespace selection as well as cluster. Wiping them
+  // on change instead would race the fetchers, whose effects run first.
+  const namespaceKey = (namespaces ?? []).join(',');
+
   const [rowsByKey, setRowsByKey] = useState<Record<string, WorkloadRow[]>>({});
   const [errorsByKey, setErrorsByKey] = useState<Record<string, Error>>({});
   const [clusterStates, setClusterStates] = useState<Record<string, ClusterState>>({});
 
-  // Definition names repeat across clusters, so every entry is scoped by one.
-  const onRows = useCallback((cluster: string, key: string, rows: WorkloadRow[]) => {
-    const scoped = `${cluster}/${key}`;
+  // Definition names repeat across clusters and selections, so every entry is
+  // scoped by both.
+  const scopedKey = useCallback(
+    (cluster: string, key: string) => `${cluster}/${namespaceKey}/${key}`,
+    [namespaceKey]
+  );
+
+  const onRows = useCallback(
+    (cluster: string, key: string, rows: WorkloadRow[]) => {
+    const scoped = scopedKey(cluster, key);
     setRowsByKey(prev => ({ ...prev, [scoped]: rows }));
     setErrorsByKey(prev => {
       if (!(scoped in prev)) {
@@ -58,11 +76,16 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
       delete next[scoped];
       return next;
     });
-  }, []);
+    },
+    [scopedKey]
+  );
 
-  const onError = useCallback((cluster: string, key: string, error: Error) => {
-    setErrorsByKey(prev => ({ ...prev, [`${cluster}/${key}`]: error }));
-  }, []);
+  const onError = useCallback(
+    (cluster: string, key: string, error: Error) => {
+      setErrorsByKey(prev => ({ ...prev, [scopedKey(cluster, key)]: error }));
+    },
+    [scopedKey]
+  );
 
   const onState = useCallback((cluster: string, state: ClusterState) => {
     setClusterStates(prev => ({ ...prev, [cluster]: state }));
@@ -110,17 +133,29 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
       return true;
     }
     return state.expectedKinds.some(
-      name => !(`${cluster}/${name}` in rowsByKey) && !(`${cluster}/${name}` in errorsByKey)
+      name => !(scopedKey(cluster, name) in rowsByKey) && !(scopedKey(cluster, name) in errorsByKey)
     );
   });
 
+  // Kept apart: a cluster that still produced rows explains nothing about a
+  // kind that failed under it, so folding the two would hide real kind errors.
   const errorsByCluster = useMemo(() => {
     const scoped: Record<string, Error> = {};
     for (const cluster of clusters) {
-      // Both reach the user: the difference is whether the table survives.
-      const clusterError = clusterStates[cluster]?.error ?? clusterStates[cluster]?.warning;
+      const clusterError = clusterStates[cluster]?.error;
       if (clusterError) {
         scoped[cluster] = clusterError;
+      }
+    }
+    return scoped;
+  }, [clusters, clusterStates]);
+
+  const warningsByCluster = useMemo(() => {
+    const scoped: Record<string, Error> = {};
+    for (const cluster of clusters) {
+      const warning = clusterStates[cluster]?.warning;
+      if (warning) {
+        scoped[cluster] = warning;
       }
     }
     return scoped;
@@ -134,7 +169,7 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
         continue;
       }
       for (const name of state.expectedKinds) {
-        const kindError = errorsByKey[`${cluster}/${name}`];
+        const kindError = errorsByKey[scopedKey(cluster, name)];
         if (kindError) {
           scoped[`${cluster}/${name}`] = kindError;
         }
@@ -144,27 +179,34 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
       }
     }
     return scoped;
-  }, [clusters, clusterStates, errorsByKey]);
+  }, [clusters, clusterStates, errorsByKey, scopedKey]);
 
   const loading = engineLoading || stillFetching;
   // Fatal only when nothing is left: one cluster failing among several is
   // partial, and reported through errorsByCluster instead.
   const everyClusterFailed =
     clusters.length > 0 && clusters.every(cluster => !!clusterStates[cluster]?.error);
-  const error =
-    engineError ??
-    (everyClusterFailed
-      ? clusters.map(cluster => clusterStates[cluster]?.error).find(Boolean) ?? null
-      : null);
+  const error = everyClusterFailed
+    ? clusters.map(cluster => clusterStates[cluster]?.error).find(Boolean) ?? null
+    : null;
 
   const rows = loading
     ? null
     : clusters.flatMap(cluster =>
         (clusterStates[cluster]?.expectedKinds ?? []).flatMap(
-          name => rowsByKey[`${cluster}/${name}`] ?? []
+          name => rowsByKey[scopedKey(cluster, name)] ?? []
         )
       );
 
 
-  return { rows, loading, error, errorsByKind, errorsByCluster, fetchers };
+  return {
+    rows,
+    loading,
+    error,
+    engineError,
+    errorsByKind,
+    errorsByCluster,
+    warningsByCluster,
+    fetchers,
+  };
 }

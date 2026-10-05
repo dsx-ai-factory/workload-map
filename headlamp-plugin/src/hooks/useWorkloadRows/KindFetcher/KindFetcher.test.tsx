@@ -60,7 +60,8 @@ describe('KindFetcher', () => {
   beforeEach(() => {
     evaluatePhases.mockReset();
     useListMock.mockReset();
-    useThrottleMock.mockClear();
+    useThrottleMock.mockReset();
+    useThrottleMock.mockImplementation((value: unknown) => value);
   });
 
   // Without the cluster, useList spans every selected cluster, and those
@@ -122,7 +123,33 @@ describe('KindFetcher', () => {
 
     render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={vi.fn()} onError={vi.fn()} />);
 
-    expect(useThrottleMock).toHaveBeenCalledWith(items, 1000);
+    expect(useThrottleMock).toHaveBeenCalledWith({ items, namespaceKey: '' }, 1000);
+  });
+
+  // The throttle holds the previous value for up to an interval, so a
+  // selection whose list resolves inside that window would otherwise publish
+  // the old namespaces' rows as the new ones.
+  it('withholds rows held over from a previous namespace selection', async () => {
+    const held = [item('1')];
+    // Stuck on the previous selection, as the throttle is between intervals.
+    useThrottleMock.mockReturnValue({ items: held, namespaceKey: 'default' });
+    useListMock.mockReturnValue([held, null]);
+    const onRows = vi.fn();
+
+    render(
+      <KindFetcher
+        definition={definition()}
+        cluster="cluster-a"
+        plural="reactors"
+        namespaced
+        namespaces={['kube-system']}
+        onRows={onRows}
+        onError={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(useThrottleMock).toHaveBeenCalled());
+    expect(onRows).not.toHaveBeenCalled();
   });
 
   it('computes status once per workload and reuses it when resourceVersion is unchanged', async () => {

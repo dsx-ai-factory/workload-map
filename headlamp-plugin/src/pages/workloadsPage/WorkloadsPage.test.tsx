@@ -9,12 +9,8 @@ const { useWorkloadRows, workloadsTableProps } = vi.hoisted(() => ({
   workloadsTableProps: [] as any[],
 }));
 
-vi.mock('@kinvolk/headlamp-plugin/lib', () => ({
-  CommonComponents: {
-    SectionBox: ({ children }: any) => <div>{children}</div>,
-  },
-}));
 vi.mock('@kinvolk/headlamp-plugin/lib/CommonComponents', () => ({
+  SectionBox: ({ children }: any) => <div>{children}</div>,
   SectionFilterHeader: ({ title }: any) => <h1>{title}</h1>,
 }));
 vi.mock('../../hooks/useWorkloadRows/useWorkloadRows', () => ({ useWorkloadRows }));

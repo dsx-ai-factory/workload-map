@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { CommonComponents } from '@kinvolk/headlamp-plugin/lib';
-import { SectionFilterHeader } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
+import { SectionBox, SectionFilterHeader } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import Alert from '@mui/material/Alert';
 import { WorkloadsTable } from '../../components/workloadsTable/WorkloadsTable';
 import { useWorkloadRows } from '../../hooks/useWorkloadRows/useWorkloadRows';
-
-const { SectionBox } = CommonComponents;
 
 // Route target for /karta/workloads: owns fetching, delegates rendering.
 export function WorkloadsPage() {

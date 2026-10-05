@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { CommonComponents } from '@kinvolk/headlamp-plugin/lib';
-import type { TableColumn } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
+import { DateLabel, type TableColumn } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import { WorkloadRow } from '../../hooks/useWorkloadRows/workloadRow.types';
 import { formatCount, formatCpuMillis, formatMemoryBytes, formatPods } from '../../utils/format';
-import { KARTA_PHASES, StatusPhaseChips } from '../statusPhaseChips/StatusPhaseChips';
-
-const { DateLabel } = CommonComponents;
+import {
+  KARTA_PHASES,
+  StatusPhaseChips,
+  worstPhaseSeverity,
+} from '../statusPhaseChips/StatusPhaseChips';
 
 // Hidden by default, toggleable through the column picker.
 export const OPTIONAL_COLUMN_IDS = [
@@ -48,6 +49,10 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       id: 'status',
       header: 'Status',
       accessorFn: row => row.phases.join(','),
+      // Sorted by the worst phase, so the order matches what the chips show.
+      // The accessor joins them, which would otherwise sort alphabetically.
+      sortingFn: (a, b) =>
+        worstPhaseSeverity(a.original.phases) - worstPhaseSeverity(b.original.phases),
       filterVariant: 'multi-select',
       // The accessor joins the phases, so default options would be
       // combinations such as "Running,Degraded".
@@ -86,7 +91,10 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
         if (from && created < new Date(from as string).getTime()) {
           return false;
         }
-        return !(to && created > new Date(to as string).getTime());
+        // The end of the chosen day, not its midnight, or a workload created
+        // during it would be excluded.
+        const until = to ? new Date(to as string).setHours(23, 59, 59, 999) : null;
+        return !(until && created > until);
       },
       Cell: ({ row }) => <DateLabel date={row.original.creationTimestamp} format="mini" />,
       gridTemplate: 'min-content',

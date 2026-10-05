@@ -80,4 +80,30 @@ describe('buildWorkloadColumns', () => {
     expect(match('2026-06-01T00:00:00Z', ['2026-07-01', undefined])).toBe(false);
     expect(match('2026-06-01T00:00:00Z', [undefined, undefined])).toBe(true);
   });
+
+  // The accessor is negated so that ascending is newest first. Sorting it
+  // descending would put the oldest workload on top.
+  it('sorts status by worst phase rather than alphabetically', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    const compare = (a: string[], b: string[]) =>
+      (status.sortingFn as any)({ original: { phases: a } }, { original: { phases: b } });
+
+    // Failed is worse than Completed, so it sorts first despite C < F.
+    expect(compare(['Failed'], ['Completed'])).toBeLessThan(0);
+    expect(compare(['Completed'], ['Failed'])).toBeGreaterThan(0);
+    // A workload matching several sorts by its worst.
+    expect(compare(['Running', 'Degraded'], ['Running'])).toBeLessThan(0);
+    // An unrecognised phase sorts last rather than first.
+    expect(compare(['Mystery'], ['Undefined'])).toBeGreaterThan(0);
+  });
+
+  // `to` is midnight, so comparing against it drops anything created that day.
+  it('includes workloads created on the last day of the chosen range', () => {
+    const age = buildWorkloadColumns(false).find(column => column.id === 'age')!;
+    const match = (creationTimestamp: string, range: [unknown, unknown]) =>
+      (age.filterFn as any)({ original: { creationTimestamp } }, 'age', range);
+
+    expect(match('2026-06-30T18:00:00Z', ['2026-06-01', '2026-06-30'])).toBe(true);
+    expect(match('2026-07-01T00:00:01Z', ['2026-06-01', '2026-06-30'])).toBe(false);
+  });
 });

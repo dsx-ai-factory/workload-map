@@ -26,6 +26,9 @@ export function WorkloadsTable({ rows, loading, errorMessage }: WorkloadsTablePr
       data={rows}
       columns={columns}
       initialSortColumnId="age"
+      // The age accessor is negated so that ascending is newest first, which
+      // is how Headlamp's own resource tables sort it.
+      initialSortDesc={false}
       hiddenColumnIds={[...OPTIONAL_COLUMN_IDS]}
       loading={loading}
       errorMessage={errorMessage}

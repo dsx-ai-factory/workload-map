@@ -2,11 +2,8 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { Icon } from '@iconify/react';
-import { CommonComponents } from '@kinvolk/headlamp-plugin/lib';
-import Box from '@mui/material/Box';
+import { StatusLabel } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import Stack from '@mui/material/Stack';
-
-const { StatusLabel } = CommonComponents;
 
 // The 9 normalized Karta phases, worst first.
 const PHASE_SEVERITY: Record<string, number> = {
@@ -24,6 +21,15 @@ const PHASE_SEVERITY: Record<string, number> = {
 // Worst first, so a filter offers them in the order the chips use.
 export const KARTA_PHASES = Object.keys(PHASE_SEVERITY);
 
+// The severity of a workload's worst phase, which is the one its chips lead
+// with. Unknown phases sort last.
+export function worstPhaseSeverity(phases: string[]): number {
+  return Math.min(
+    ...phases.map(phase => PHASE_SEVERITY[phase] ?? Number.MAX_SAFE_INTEGER),
+    Number.MAX_SAFE_INTEGER
+  );
+}
+
 // StatusLabel understands only four buckets, the same ones Headlamp's own
 // workload views use, so the 9 phases map onto them by severity.
 const PHASE_STATUS: Record<string, 'success' | 'warning' | 'error' | ''> = {
@@ -38,26 +44,12 @@ const PHASE_STATUS: Record<string, 'success' | 'warning' | 'error' | ''> = {
   Undefined: '',
 };
 
-// The dot color Headlamp's Pod list uses: a plain CSS color, not a palette
-// token.
-const PHASE_DOT_COLOR: Record<string, string> = {
-  Failed: 'red',
-  Degraded: 'orange',
-  Suspending: 'orange',
-  Resuming: 'blue',
-  Suspended: 'grey',
-  Initializing: 'grey',
-  Running: 'green',
-  Completed: 'blue',
-  Undefined: 'grey',
-};
-
 export interface StatusPhaseChipsProps {
   phases: string[];
 }
 
-// A pill and dot per matched phase, worst first. A workload can match several
-// at once, such as Running and Degraded.
+// A pill per matched phase, worst first. A workload can match several at once,
+// such as Running and Degraded.
 export function StatusPhaseChips({ phases }: StatusPhaseChipsProps) {
   const sorted = [...phases].sort((a, b) => (PHASE_SEVERITY[a] ?? 99) - (PHASE_SEVERITY[b] ?? 99));
   return (
@@ -65,15 +57,12 @@ export function StatusPhaseChips({ phases }: StatusPhaseChipsProps) {
       {sorted.map(phase => {
         const status = PHASE_STATUS[phase] ?? '';
         return (
-          <Box key={phase} display="flex" alignItems="center" gap={0.5}>
-            <StatusLabel status={status}>
-              {(status === 'warning' || status === 'error') && (
-                <Icon aria-label="hidden" icon="mdi:alert-outline" width="1.2rem" height="1.2rem" />
-              )}
-              {phase}
-            </StatusLabel>
-            <Icon icon="mdi:circle" style={{ color: PHASE_DOT_COLOR[phase] ?? 'grey' }} width="1rem" height="1rem" />
-          </Box>
+          <StatusLabel key={phase} status={status}>
+            {(status === 'warning' || status === 'error') && (
+              <Icon aria-hidden icon="mdi:alert-outline" width="1.2rem" height="1.2rem" />
+            )}
+            {phase}
+          </StatusLabel>
         );
       })}
     </Stack>

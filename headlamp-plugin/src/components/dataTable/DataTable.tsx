@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { CommonComponents } from '@kinvolk/headlamp-plugin/lib';
-import type { TableColumn } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
+import { Table, type TableColumn } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import { ReactNode, useMemo } from 'react';
-
-const { Table } = CommonComponents;
 
 export interface DataTableProps<RowItem extends Record<string, any>> {
   // Must be unique among tables on a page: it keys the URL-reflected state.

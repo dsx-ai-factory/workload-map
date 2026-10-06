@@ -5,13 +5,17 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
@@ -27,6 +31,12 @@ func complete(t *testing.T, args ...string) []string {
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
 	}
+	return candidates(out)
+}
+
+// candidates parses the output of the completion command, dropping the
+// trailing directive line.
+func candidates(out string) []string {
 	var candidates []string
 	for line := range strings.Lines(out) {
 		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, ":") {
@@ -136,6 +146,18 @@ func TestCompleteOffersNamespacesForTheNamespaceFlag(t *testing.T) {
 	}
 }
 
+// A user who may not list namespaces gets nothing to complete, not an error.
+func TestCompleteOffersNoNamespacesWhenTheListFails(t *testing.T) {
+	client := fakeCluster(t, namespace("ml-team"))
+	client.PrependReactor("list", "namespaces", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewForbidden(namespaceGVR.GroupResource(), "", errors.New("rbac denied"))
+	})
+
+	if got := complete(t, "get", "-n", ""); len(got) != 0 {
+		t.Errorf("expected no candidates, got %v", got)
+	}
+}
+
 // namespace builds a Namespace object for the fake cluster.
 func namespace(name string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: map[string]any{
@@ -160,11 +182,23 @@ func TestCompleteGivesUpOnAClusterThatDoesNotAnswer(t *testing.T) {
 	}
 	t.Cleanup(func() { loadDefinitions = restore })
 
-	done := make(chan []string, 1)
-	go func() { done <- complete(t, "get", "") }()
+	// The goroutine only runs the command: t.Fatal must be called from the test
+	// goroutine, so the checks happen after the select.
+	type result struct {
+		out, errOut string
+		code        int
+	}
+	done := make(chan result, 1)
+	go func() {
+		out, errOut, code := runCmd(t, "__complete", "get", "")
+		done <- result{out, errOut, code}
+	}()
 	select {
-	case got := <-done:
-		if len(got) != 0 {
+	case r := <-done:
+		if r.code != 0 {
+			t.Fatalf("expected exit 0, got %d\n%s", r.code, r.errOut)
+		}
+		if got := candidates(r.out); len(got) != 0 {
 			t.Errorf("expected no candidates, got %v", got)
 		}
 	case <-time.After(5 * time.Second):

@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 	"github.com/dsx-ai-factory/workload-map/pkg/catalog/kartas"
 	"github.com/dsx-ai-factory/workload-map/pkg/instructions"
 	"github.com/dsx-ai-factory/workload-map/pkg/resource"
@@ -72,8 +73,35 @@ var _ = Describe("Sandbox Karta pod mapping", func() {
 		Expect(component(sandboxPod)).To(Equal("agent"))
 	})
 
-	It("maps any other pod owned by the Sandbox to the same component", func() {
+	// The companion component has no pod spec, so it is not a leaf, and
+	// InferPodComponent resolves every Sandbox-owned pod to the single leaf.
+	It("resolves any other pod owned by the Sandbox to the leaf component", func() {
 		Expect(component(companionPod)).To(Equal("agent"))
+	})
+
+	// Integrations that build a workload structure match each pod against every
+	// component's selector, so the selectors must split Sandbox-owned pods
+	// between agent and companion with no overlap.
+	It("selects each Sandbox-owned pod into exactly one of agent and companion", func() {
+		selectors := map[string]*v1alpha1.ComponentTypeSelector{}
+		for _, c := range kartas.Sandbox().Spec.StructureDefinition.ChildComponents {
+			selectors[c.Name] = c.PodSelector.ComponentTypeSelector
+		}
+		matching := func(pod *corev1.Pod) []string {
+			var names []string
+			for _, name := range []string{"agent", "companion"} {
+				ok, err := resource.NewPodQuerier(pod).MatchesComponentType(ctx, selectors[name])
+				Expect(err).NotTo(HaveOccurred())
+				if ok {
+					names = append(names, name)
+				}
+			}
+			return names
+		}
+		Expect(matching(sandboxPod)).To(Equal([]string{"agent"}))
+		Expect(matching(companionPod)).To(Equal([]string{"companion"}))
+		unowned := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "unrelated", Namespace: "default"}}
+		Expect(matching(unowned)).To(BeEmpty())
 	})
 
 	It("gangs the Sandbox pod and other pods it owns on the owning Sandbox", func() {

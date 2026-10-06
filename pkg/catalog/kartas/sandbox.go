@@ -14,17 +14,21 @@ import (
 // and any other pod the Sandbox owns.
 const sandboxOwnerUID = `[.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]`
 
+// sandboxPodLabel is set by the Agent Sandbox controller on the pod it creates
+// from .spec.podTemplate, and on no other pod.
+const sandboxPodLabel = `.metadata.labels["agents.x-k8s.io/sandbox-name-hash"]`
+
 // Sandbox returns the built-in Karta for the Kubernetes SIG Agent Sandbox
 // workload (agents.x-k8s.io/v1beta1). A Sandbox runs one isolated, stateful pod
 // created from .spec.podTemplate, and is suspended and resumed through
 // .spec.operatingMode.
 //
 // Integrations built on Agent Sandbox can add their own pods to a Sandbox by
-// making the Sandbox their owner (for example a supervisor or proxy pod). Every
-// pod a Sandbox owns maps to its single pod component, and the gang keys each pod
-// on its owning Sandbox, so such pods join the Sandbox's workload and pod group.
-// Their number is integration-specific, so only the Sandbox pod counts toward
-// minMember.
+// making the Sandbox their owner (for example a supervisor or proxy pod). Those
+// pods map to the companion component, so they appear next to the Sandbox pod
+// rather than as part of it, and the gang keys every pod on its owning Sandbox,
+// so they share the Sandbox's pod group. Their number is integration-specific,
+// so only the Sandbox pod counts toward minMember.
 func Sandbox() *v1alpha1.Karta {
 	return &v1alpha1.Karta{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "run.ai/v1alpha1", Kind: "Karta"},
@@ -102,7 +106,20 @@ func Sandbox() *v1alpha1.Karta {
 						},
 						PodSelector: &v1alpha1.PodSelector{
 							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
-								KeyPath: `.metadata.labels["agents.x-k8s.io/sandbox-name-hash"]`,
+								KeyPath: sandboxPodLabel,
+							},
+						},
+					},
+					{
+						// Any other pod the Sandbox owns. The selector is the
+						// complement of the agent selector, so a pod maps to exactly
+						// one of the two components.
+						Name:     "companion",
+						Kind:     &v1alpha1.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"},
+						OwnerRef: ptr.To("sandbox"),
+						PodSelector: &v1alpha1.PodSelector{
+							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
+								KeyPath: `select(` + sandboxPodLabel + ` == null) | ` + sandboxOwnerUID,
 							},
 						},
 					},
@@ -115,6 +132,10 @@ func Sandbox() *v1alpha1.Karta {
 						Members: []v1alpha1.PodGroupMemberDefinition{
 							{
 								ComponentName:   "agent",
+								GroupByKeyPaths: []string{sandboxOwnerUID},
+							},
+							{
+								ComponentName:   "companion",
 								GroupByKeyPaths: []string{sandboxOwnerUID},
 							},
 						},

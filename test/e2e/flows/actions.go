@@ -38,3 +38,14 @@ func Resume() *recorder.Action {
 func ScaleParallelism(n int) *recorder.Action {
 	return &recorder.Action{Type: recorder.ActionScale, Patch: []byte(fmt.Sprintf(`{"spec":{"parallelism":%d}}`, n))}
 }
+
+// SuspendSandbox sets an Agent Sandbox's spec.operatingMode to Suspended, which deletes its pod while
+// keeping the Sandbox and its volumes.
+func SuspendSandbox() *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionSuspend, Patch: []byte(`{"spec":{"operatingMode":"Suspended"}}`)}
+}
+
+// ResumeSandbox sets an Agent Sandbox's spec.operatingMode back to Running.
+func ResumeSandbox() *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionResume, Patch: []byte(`{"spec":{"operatingMode":"Running"}}`)}
+}

@@ -344,3 +344,15 @@ func RayJobInitializing() recorder.StateCheck {
 		return ds == "Initializing"
 	}
 }
+
+// SandboxMode matches an Agent Sandbox whose requested spec.operatingMode is want. The field defaults to
+// Running, so an unset mode counts as Running.
+func SandboxMode(want string) recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		mode, found, _ := unstructured.NestedString(u.Object, "spec", "operatingMode")
+		if !found || mode == "" {
+			mode = "Running"
+		}
+		return mode == want
+	}
+}

@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/metadata"
 )
 
 // podsGVR is the fixed core/v1 Pod resource, which discovery does not need to map.
@@ -27,8 +28,8 @@ type PodAttributor struct {
 	owners *OwnerWalker
 }
 
-func NewPodAttributor(dyn dynamic.Interface, mapper meta.RESTMapper) *PodAttributor {
-	return &PodAttributor{owners: NewOwnerWalker(dyn, mapper)}
+func NewPodAttributor(client metadata.Interface, mapper meta.RESTMapper) *PodAttributor {
+	return &PodAttributor{owners: NewOwnerWalker(client, mapper)}
 }
 
 // Filter returns the pods whose owner-reference chain reaches rootUID, decoding
@@ -38,8 +39,7 @@ func (a *PodAttributor) Filter(
 ) ([]corev1.Pod, error) {
 	var matched []corev1.Pod
 	for i := range pods {
-		// An owner that cannot be read leaves the chain unwalkable, which is not
-		// a match.
+		// An unreadable owner chain is not a match.
 		owned, err := a.owners.climb(ctx, pods[i].GetOwnerReferences(), pods[i].GetNamespace(),
 			func(refs []metav1.OwnerReference) bool {
 				return slices.ContainsFunc(refs, func(ref metav1.OwnerReference) bool { return ref.UID == rootUID })

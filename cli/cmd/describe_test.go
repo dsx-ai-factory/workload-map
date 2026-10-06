@@ -100,6 +100,7 @@ func describeCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeD
 	restore := newDynamicClient
 	newDynamicClient = func(genericclioptions.RESTClientGetter) (dynamic.Interface, error) { return client, nil }
 	t.Cleanup(func() { newDynamicClient = restore })
+	fakeMetadata(t, objects...)
 
 	flags := genericclioptions.NewTestConfigFlags().
 		WithClientConfig(clientcmd.NewDefaultClientConfig(*clientcmdapi.NewConfig(), nil)).

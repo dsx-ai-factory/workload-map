@@ -14,12 +14,15 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/metadata"
+	metadatafake "k8s.io/client-go/metadata/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -82,6 +85,7 @@ func fakeCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeDynam
 	restore := newDynamicClient
 	newDynamicClient = func(genericclioptions.RESTClientGetter) (dynamic.Interface, error) { return client, nil }
 	t.Cleanup(func() { newDynamicClient = restore })
+	fakeMetadata(t, objects...)
 
 	flags := genericclioptions.NewTestConfigFlags().
 		WithClientConfig(clientcmd.NewDefaultClientConfig(*clientcmdapi.NewConfig(), nil)).
@@ -91,6 +95,33 @@ func fakeCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeDynam
 	restoreAccess := clusterAccess
 	clusterAccess = func() genericclioptions.RESTClientGetter { return flags }
 	t.Cleanup(func() { clusterAccess = restoreAccess })
+
+	return client
+}
+
+// fakeMetadata serves the metadata of objects, which is what owner walks read,
+// and restores the real client factory afterwards.
+func fakeMetadata(t *testing.T, objects ...runtime.Object) *metadatafake.FakeMetadataClient {
+	t.Helper()
+
+	scheme := runtime.NewScheme()
+	if err := metav1.AddMetaToScheme(scheme); err != nil {
+		t.Fatalf("register metadata types: %v", err)
+	}
+	partials := make([]runtime.Object, 0, len(objects))
+	for _, obj := range objects {
+		var partial metav1.PartialObjectMetadata
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(
+			obj.(*unstructured.Unstructured).Object, &partial); err != nil {
+			t.Fatalf("convert %v to metadata: %v", obj, err)
+		}
+		partials = append(partials, &partial)
+	}
+	client := metadatafake.NewSimpleMetadataClient(scheme, partials...)
+
+	restore := newMetadataClient
+	newMetadataClient = func(genericclioptions.RESTClientGetter) (metadata.Interface, error) { return client, nil }
+	t.Cleanup(func() { newMetadataClient = restore })
 
 	return client
 }
@@ -495,6 +526,7 @@ func setupDynamoCluster(t *testing.T) *dynamicfake.FakeDynamicClient {
 	restore := newDynamicClient
 	newDynamicClient = func(genericclioptions.RESTClientGetter) (dynamic.Interface, error) { return client, nil }
 	t.Cleanup(func() { newDynamicClient = restore })
+	fakeMetadata(t, dynamoGraph())
 
 	flags := genericclioptions.NewTestConfigFlags().
 		WithClientConfig(clientcmd.NewDefaultClientConfig(*clientcmdapi.NewConfig(), nil)).

@@ -26,8 +26,7 @@ type Options struct {
 	AllNamespaces bool
 	// ByName reports that the request addressed one workload by name.
 	ByName bool
-	// TypeOf names the type of each row in a TYPE column, which a listing of
-	// one type leaves out. Nil omits the column.
+	// TypeOf fills a TYPE column for a listing across types; nil omits it.
 	TypeOf func(workload.View) string
 }
 

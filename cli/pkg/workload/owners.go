@@ -6,54 +6,48 @@ package workload
 import (
 	"context"
 	"fmt"
-	"sync"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/metadata"
 )
 
-// maxOwnerDepth bounds the walk, which is what ends a cycle in malformed data.
-// Real chains are two or three hops.
-const maxOwnerDepth = 6
+const (
+	// maxOwnerDepth bounds the walk, which is what ends a cycle in malformed
+	// data. Real chains are two or three hops.
+	maxOwnerDepth = 6
 
-// OwnerWalker climbs controller owner-reference chains, fetching each owner at
-// most once however many objects share it. It is safe for concurrent use.
+	// ownerListChunk pages an owner list, following the kubectl convention.
+	ownerListChunk = 500
+)
+
+// OwnerWalker climbs controller owner chains for one metadata list per owner
+// kind and namespace. It is not safe for concurrent use.
 type OwnerWalker struct {
-	dyn    dynamic.Interface
+	client metadata.Interface
 	mapper meta.RESTMapper
-
-	mu    sync.Mutex
-	cache map[ownerKey]*ownerEntry
+	// lists keeps failures too, so a broken chain is not re-read once per object.
+	lists map[listKey]ownerList
 }
 
-type ownerKey struct {
-	gvk       schema.GroupVersionKind
+type listKey struct {
+	resource  schema.GroupVersionResource
 	namespace string
-	name      string
 }
 
-// ownerEntry is one owner fetch. ready closes once obj and err are set, so a
-// walk reaching an owner already in flight waits for that fetch rather than
-// issuing its own.
-type ownerEntry struct {
-	ready chan struct{}
-	obj   *unstructured.Unstructured
-	err   error
+type ownerList struct {
+	byName map[string]*metav1.PartialObjectMetadata
+	err    error
 }
 
-func NewOwnerWalker(dyn dynamic.Interface, mapper meta.RESTMapper) *OwnerWalker {
-	return &OwnerWalker{dyn: dyn, mapper: mapper, cache: map[ownerKey]*ownerEntry{}}
+func NewOwnerWalker(client metadata.Interface, mapper meta.RESTMapper) *OwnerWalker {
+	return &OwnerWalker{client: client, mapper: mapper, lists: map[listKey]ownerList{}}
 }
 
 // TopLevel reports whether no object in obj's controller chain is of a covered
-// kind. A covered controller is recognized from the owner reference alone, so
-// only an uncovered one costs a fetch. An owner that no longer exists ends the
-// chain; one that cannot be read leaves the question open and is returned as
-// the error.
+// kind. An owner that cannot be read leaves that open and is the error.
 func (w *OwnerWalker) TopLevel(
 	ctx context.Context, obj *unstructured.Unstructured, covered func(schema.GroupKind) bool,
 ) (bool, error) {
@@ -66,9 +60,8 @@ func (w *OwnerWalker) TopLevel(
 	return !nested, err
 }
 
-// climb walks the controller chain up from refs until match accepts the owner
-// references of one level. A chain that ends, runs past maxOwnerDepth or
-// reaches an owner that no longer exists is no match.
+// climb reports whether match accepts the owner references at any level of the
+// controller chain from refs up. A missing owner ends the chain.
 func (w *OwnerWalker) climb(
 	ctx context.Context, refs []metav1.OwnerReference, namespace string,
 	match func([]metav1.OwnerReference) bool,
@@ -82,10 +75,7 @@ func (w *OwnerWalker) climb(
 			return false, nil
 		}
 		owner, err := w.get(ctx, *controller, namespace)
-		switch {
-		case apierrors.IsNotFound(err):
-			return false, nil
-		case err != nil:
+		if err != nil || owner == nil {
 			return false, err
 		}
 		refs = owner.GetOwnerReferences()
@@ -104,9 +94,10 @@ func controllerRef(refs []metav1.OwnerReference) *metav1.OwnerReference {
 	return nil
 }
 
+// get returns the owner ref names, or nil when it no longer exists.
 func (w *OwnerWalker) get(
 	ctx context.Context, ref metav1.OwnerReference, namespace string,
-) (*unstructured.Unstructured, error) {
+) (*metav1.PartialObjectMetadata, error) {
 	gv, err := schema.ParseGroupVersion(ref.APIVersion)
 	if err != nil {
 		return nil, fmt.Errorf("parse owner apiVersion %q: %w", ref.APIVersion, err)
@@ -119,28 +110,33 @@ func (w *OwnerWalker) get(
 
 	// A cluster-scoped owner is not addressed by namespace, and a namespaced
 	// request for one is a 404 that would end the chain early.
-	client := dynamic.ResourceInterface(w.dyn.Resource(mapping.Resource))
-	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
-		client = w.dyn.Resource(mapping.Resource).Namespace(namespace)
-	} else {
+	if mapping.Scope.Name() != meta.RESTScopeNameNamespace {
 		namespace = ""
 	}
-
-	key := ownerKey{gvk: gvk, namespace: namespace, name: ref.Name}
-	w.mu.Lock()
-	entry, cached := w.cache[key]
+	key := listKey{resource: mapping.Resource, namespace: namespace}
+	owners, cached := w.lists[key]
 	if !cached {
-		entry = &ownerEntry{ready: make(chan struct{})}
-		w.cache[key] = entry
+		owners.byName, owners.err = listOwners(ctx, w.client.Resource(mapping.Resource).Namespace(namespace))
+		w.lists[key] = owners
 	}
-	w.mu.Unlock()
+	return owners.byName[ref.Name], owners.err
+}
 
-	if cached {
-		<-entry.ready
-		return entry.obj, entry.err
+// listOwners reads every object of one kind in one namespace, indexed by name.
+func listOwners(ctx context.Context, client metadata.ResourceInterface) (map[string]*metav1.PartialObjectMetadata, error) {
+	owners := map[string]*metav1.PartialObjectMetadata{}
+	options := metav1.ListOptions{Limit: ownerListChunk}
+	for {
+		page, err := client.List(ctx, options)
+		if err != nil {
+			return nil, err
+		}
+		for i := range page.Items {
+			owners[page.Items[i].Name] = &page.Items[i]
+		}
+		options.Continue = page.Continue
+		if options.Continue == "" {
+			return owners, nil
+		}
 	}
-	// The miss is cached too, so a broken chain is not re-fetched once per object.
-	entry.obj, entry.err = client.Get(ctx, ref.Name, metav1.GetOptions{})
-	close(entry.ready)
-	return entry.obj, entry.err
 }

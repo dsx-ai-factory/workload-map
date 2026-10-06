@@ -20,6 +20,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	metadatafake "k8s.io/client-go/metadata/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -65,7 +66,7 @@ func controlledBy(gvk schema.GroupVersionKind, name string) *metav1.OwnerReferen
 
 // fakeMixedCluster serves JobSet, Deployment, ReplicaSet and Pod, so a listing
 // across types meets nested objects. Every other covered type is absent.
-func fakeMixedCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeDynamicClient {
+func fakeMixedCluster(t *testing.T, objects ...runtime.Object) (*dynamicfake.FakeDynamicClient, *metadatafake.FakeMetadataClient) {
 	t.Helper()
 
 	served := map[schema.GroupVersionKind]string{
@@ -86,6 +87,7 @@ func fakeMixedCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.Fake
 	restore := newDynamicClient
 	newDynamicClient = func(genericclioptions.RESTClientGetter) (dynamic.Interface, error) { return client, nil }
 	t.Cleanup(func() { newDynamicClient = restore })
+	metadataClient := fakeMetadata(t, objects...)
 
 	flags := genericclioptions.NewTestConfigFlags().
 		WithClientConfig(clientcmd.NewDefaultClientConfig(*clientcmdapi.NewConfig(), nil)).
@@ -95,12 +97,11 @@ func fakeMixedCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.Fake
 	clusterAccess = func() genericclioptions.RESTClientGetter { return flags }
 	t.Cleanup(func() { clusterAccess = restoreAccess })
 
-	return client
+	return client, metadataClient
 }
 
-// mixedNamespace is one namespace holding top-level workloads of three types
-// and objects nested under covered owners, directly and through an uncovered
-// ReplicaSet.
+// mixedNamespace holds top-level workloads of three types, plus objects nested
+// under covered owners directly and through an uncovered ReplicaSet.
 func mixedNamespace() []runtime.Object {
 	return []runtime.Object{
 		jobSet("preprocess", 1),
@@ -206,7 +207,7 @@ func TestGetRequiresATypeOrAllTypes(t *testing.T) {
 // Being denied one type degrades the result, and the warning says which part
 // is missing.
 func TestGetAllTypesSkipsATypeItMayNotList(t *testing.T) {
-	client := fakeMixedCluster(t, mixedNamespace()...)
+	client, _ := fakeMixedCluster(t, mixedNamespace()...)
 	client.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
 		return true, nil, apierrors.NewForbidden(schema.GroupResource{Resource: "pods"}, "", errors.New("nope"))
 	})
@@ -226,10 +227,10 @@ func TestGetAllTypesSkipsATypeItMayNotList(t *testing.T) {
 // An owner that cannot be read leaves the question open; hiding the object
 // would drop a real workload with no signal.
 func TestGetAllTypesKeepsAnObjectWhoseOwnerItMayNotRead(t *testing.T) {
-	client := fakeMixedCluster(t, mixedNamespace()...)
-	client.PrependReactor("get", "replicasets", func(k8stesting.Action) (bool, runtime.Object, error) {
+	_, metadataClient := fakeMixedCluster(t, mixedNamespace()...)
+	metadataClient.PrependReactor("list", "replicasets", func(k8stesting.Action) (bool, runtime.Object, error) {
 		return true, nil, apierrors.NewForbidden(
-			schema.GroupResource{Group: "apps", Resource: "replicasets"}, "web-abc", errors.New("nope"))
+			schema.GroupResource{Group: "apps", Resource: "replicasets"}, "", errors.New("nope"))
 	})
 
 	out, errOut, code := runGetCmd(t, "--all-types")
@@ -302,6 +303,38 @@ func TestGetAllTypesJSONCarriesEachItemsType(t *testing.T) {
 	for _, item := range items {
 		if item["kind"] == "" || item["apiVersion"] == "" {
 			t.Errorf("expected kind and apiVersion on %v", item)
+		}
+	}
+}
+
+// Owners are read as metadata, one list per owner kind, so a namespace of
+// Deployments costs one ReplicaSet read however many pods it runs.
+func TestGetAllTypesReadsOwnersAsOneMetadataListPerKind(t *testing.T) {
+	objects := append(mixedNamespace(),
+		object(podGVK, "web-abc-2", controlledBy(appsReplicaSetGVK, "web-abc")),
+		object(appsReplicaSetGVK, "web-def", controlledBy(appsDeploymentGVK, "web")),
+		object(podGVK, "web-def-1", controlledBy(appsReplicaSetGVK, "web-def")),
+	)
+	dynamicClient, metadataClient := fakeMixedCluster(t, objects...)
+
+	out, errOut, code := runGetCmd(t, "--all-types")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if got := rowNames(out); !slices.Equal(got, []string{"web", "preprocess", "debug-shell"}) {
+		t.Errorf("expected the top-level rows alone, got %v\n%s", got, out)
+	}
+
+	var reads []string
+	for _, action := range metadataClient.Actions() {
+		reads = append(reads, action.GetVerb()+" "+action.GetResource().Resource)
+	}
+	if !slices.Equal(reads, []string{"list replicasets"}) {
+		t.Errorf("expected one ReplicaSet metadata list, got %v", reads)
+	}
+	for _, action := range dynamicClient.Actions() {
+		if action.GetVerb() == "get" {
+			t.Errorf("owners must not be read as full objects: %v", action)
 		}
 	}
 }

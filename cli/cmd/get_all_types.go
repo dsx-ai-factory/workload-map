@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"sync"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -20,42 +19,35 @@ import (
 	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
 )
 
-// ownerWalkConcurrency bounds the owner reads in flight. A workload wrapped in
-// an uncovered CR costs one read per row, so a serial walk scales badly.
-const ownerWalkConcurrency = 8
-
-// collectAllTypes lists every covered type discovery maps and keeps the
-// workloads whose controller-owner chain reaches no other covered object.
-// Being unable to list one type, or to walk one object's owners, degrades the
-// result with a warning rather than failing it.
+// collectAllTypes lists the top-level workloads of every covered type. A type
+// or an owner the caller cannot read degrades the result with a warning.
 func collectAllTypes(ctx context.Context, look lookup, opts *getOptions) ([]workload.View, []string, error) {
 	versions, kinds := coveredVersions(look.resolver)
+	walker := workload.NewOwnerWalker(look.metadata, look.mapper)
+	topLevel := func(obj *unstructured.Unstructured) (bool, error) {
+		return walker.TopLevel(ctx, obj, func(gk schema.GroupKind) bool {
+			_, ok := versions[gk]
+			return ok
+		})
+	}
 
 	var (
-		candidates []candidate
-		warnings   []string
+		views    []workload.View
+		warnings []string
 	)
 	for _, gk := range kinds {
-		listed, listWarnings, err := listKind(ctx, look, opts, gk, versions[gk])
+		listed, listWarnings, err := listKind(ctx, look, opts, gk, versions[gk], topLevel)
 		warnings = append(warnings, listWarnings...)
 		if err != nil {
 			return nil, warnings, err
 		}
-		candidates = append(candidates, listed...)
+		views = append(views, listed...)
 	}
-
-	covered := func(gk schema.GroupKind) bool {
-		_, ok := versions[gk]
-		return ok
-	}
-	views, walkWarnings := keepTopLevel(ctx, workload.NewOwnerWalker(look.dyn, look.mapper), candidates, covered)
-	return views, append(warnings, walkWarnings...), nil
+	return views, warnings, nil
 }
 
-// coveredVersions groups the root GVKs of every definition by GroupKind, in
-// resolver order, with each Kind's versions most stable first. A Kind covered
-// at several versions is listed once: the server returns the same objects at
-// each.
+// coveredVersions returns each covered Kind's versions, most stable first, so a
+// Kind covered at several versions is listed once.
 func coveredVersions(resolver *definitions.Resolver) (map[schema.GroupKind][]string, []schema.GroupKind) {
 	versions := map[schema.GroupKind][]string{}
 	var kinds []schema.GroupKind
@@ -80,17 +72,16 @@ func coveredVersions(resolver *definitions.Resolver) (map[schema.GroupKind][]str
 	return versions, kinds
 }
 
-// listKind lists one covered Kind at the most stable version the server serves
-// and resolves each object, keeping those that pass --phase. Resolving before
-// the owner walk lets --phase narrow the objects before any owner read.
+// listKind lists one covered Kind and returns the views of its top-level
+// objects that pass --phase.
 func listKind(
 	ctx context.Context, look lookup, opts *getOptions, gk schema.GroupKind, versions []string,
-) ([]candidate, []string, error) {
+	topLevel func(*unstructured.Unstructured) (bool, error),
+) ([]workload.View, []string, error) {
 	mapping, err := look.mapper.RESTMapping(gk, versions...)
 	switch {
 	case meta.IsNoMatchError(err):
-		// No type was named, and most covered types are absent from any one
-		// cluster, so an absent one is not worth a warning.
+		// Most covered types are absent from any one cluster, so absence is not news.
 		return nil, nil, nil
 	case err != nil:
 		return nil, nil, fmt.Errorf("discover %s: %w", gk.Kind, err)
@@ -115,69 +106,35 @@ func listKind(
 	}
 
 	var (
-		candidates []candidate
-		warnings   []string
-	)
-	for i := range objects {
-		view, err := workload.Resolve(ctx, &objects[i], def)
-		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("could not resolve %s/%s: %v",
-				gk.Kind, objects[i].GetName(), err))
-			continue
-		}
-		if matchesPhase(view, opts.phases) {
-			candidates = append(candidates, candidate{object: &objects[i], view: *view})
-		}
-	}
-	return candidates, warnings, nil
-}
-
-// candidate is a listed object that passed the filters, kept with its view
-// until the owner walk decides whether it is a row.
-type candidate struct {
-	object *unstructured.Unstructured
-	view   workload.View
-}
-
-// keepTopLevel walks each candidate's owners, at most ownerWalkConcurrency at a
-// time, and returns the views of the top-level ones in candidate order.
-func keepTopLevel(
-	ctx context.Context, walker *workload.OwnerWalker, candidates []candidate, covered func(schema.GroupKind) bool,
-) ([]workload.View, []string) {
-	topLevel := make([]bool, len(candidates))
-	walkErrs := make([]error, len(candidates))
-	inFlight := make(chan struct{}, ownerWalkConcurrency)
-	var wg sync.WaitGroup
-	for i, c := range candidates {
-		inFlight <- struct{}{}
-		wg.Go(func() {
-			defer func() { <-inFlight }()
-			topLevel[i], walkErrs[i] = walker.TopLevel(ctx, c.object, covered)
-		})
-	}
-	wg.Wait()
-
-	var (
 		views    []workload.View
 		warnings []string
 	)
-	for i, c := range candidates {
-		if walkErrs[i] != nil {
+	for i := range objects {
+		object := &objects[i]
+		view, err := workload.Resolve(ctx, object, def)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("could not resolve %s/%s: %v", gk.Kind, object.GetName(), err))
+			continue
+		}
+		// Filtering first spares the owner reads of objects --phase drops.
+		if !matchesPhase(view, opts.phases) {
+			continue
+		}
+		top, err := topLevel(object)
+		if err != nil {
 			// Hiding the object would drop a real workload over a permission
 			// error, with nothing to tell the caller.
 			warnings = append(warnings, fmt.Sprintf("listing %s/%s, though it may belong to another workload: %v",
-				c.view.Kind, c.view.Name, walkErrs[i]))
+				gk.Kind, object.GetName(), err))
 		}
-		if topLevel[i] {
-			views = append(views, c.view)
+		if top {
+			views = append(views, *view)
 		}
 	}
-	return views, warnings
+	return views, warnings, nil
 }
 
-// typeColumn names a row by its Kind, qualified as Kind.group when more than
-// one covered group shares that Kind, so each name stays the same whatever the
-// result holds.
+// typeColumn names a row by Kind, as Kind.group where covered groups share it.
 func typeColumn(resolver *definitions.Resolver) func(workload.View) string {
 	groups := map[string]map[string]bool{}
 	for _, def := range resolver.List() {

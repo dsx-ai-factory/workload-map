@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
@@ -84,6 +85,22 @@ var newDynamicClient = func(rcg genericclioptions.RESTClientGetter) (dynamic.Int
 	client, err := dynamic.NewForConfig(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("kubernetes dynamic client: %w", err)
+	}
+	return client, nil
+}
+
+// newMetadataClient is a variable so tests can inject a fake cluster. Owner
+// walks read through it, since they need object metadata alone.
+var newMetadataClient = func(rcg genericclioptions.RESTClientGetter) (metadata.Interface, error) {
+	cfg, err := RESTConfig(rcg)
+	if err != nil {
+		return nil, err
+	}
+	cfg.WarningHandler = rest.NoWarnings{}
+
+	client, err := metadata.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("kubernetes metadata client: %w", err)
 	}
 	return client, nil
 }
@@ -254,6 +271,7 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) (err 
 type lookup struct {
 	namespace string
 	dyn       dynamic.Interface
+	metadata  metadata.Interface
 	mapper    meta.RESTMapper
 	resolver  *definitions.Resolver
 	// definition is unset under --all-types, which names no type.
@@ -285,8 +303,12 @@ func resolveLookup(cmd *cobra.Command, opts *getOptions) (lookup, []string, erro
 	if err != nil {
 		return lookup{}, warnings, err
 	}
+	metadataClient, err := newMetadataClient(access)
+	if err != nil {
+		return lookup{}, warnings, err
+	}
 
-	look := lookup{namespace: namespace, dyn: dyn, mapper: mapper, resolver: resolver}
+	look := lookup{namespace: namespace, dyn: dyn, metadata: metadataClient, mapper: mapper, resolver: resolver}
 	if opts.allTypes {
 		return look, warnings, nil
 	}

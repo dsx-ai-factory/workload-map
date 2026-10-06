@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
@@ -113,6 +114,35 @@ func TestCompleteOffersNothingItCannotUse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCompleteOffersNamespacesForTheNamespaceFlag(t *testing.T) {
+	fakeCluster(t, namespace("ml-team"), namespace("ml-infra"), namespace("default"))
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"-n on get", []string{"get", "-n", ""}, []string{"default", "ml-infra", "ml-team"}},
+		{"--namespace on describe with a prefix", []string{"describe", "--namespace", "ml-"}, []string{"ml-infra", "ml-team"}},
+		{"-n on definitions", []string{"definitions", "-n", "d"}, []string{"default"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := complete(t, tc.args...); !slices.Equal(got, tc.want) {
+				t.Errorf("expected %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+// namespace builds a Namespace object for the fake cluster.
+func namespace(name string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Namespace",
+		"metadata":   map[string]any{"name": name},
+	}}
 }
 
 // A cluster that never answers must not freeze the shell on TAB.

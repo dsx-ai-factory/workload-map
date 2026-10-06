@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
@@ -44,6 +46,33 @@ func completeWorkloads(cmd *cobra.Command, args []string, toComplete string) ([]
 		candidates = completeNames(cmd, args[0], toComplete)
 	}
 	return candidates, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeNamespaces completes the -n/--namespace flag with the namespaces of
+// the cluster, matching prefix.
+func completeNamespaces(cmd *cobra.Command, _ []string, prefix string) ([]string, cobra.ShellCompDirective) {
+	ctx, cancel := context.WithTimeout(cmd.Context(), completionTimeout)
+	defer cancel()
+
+	dyn, err := newDynamicClient(clusterAccess())
+	if err != nil {
+		cobra.CompDebugln(err.Error(), true)
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	list, err := dyn.Resource(corev1.SchemeGroupVersion.WithResource("namespaces")).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		cobra.CompDebugln(err.Error(), true)
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var namespaces []string
+	for _, item := range list.Items {
+		if name := item.GetName(); strings.HasPrefix(name, prefix) {
+			namespaces = append(namespaces, name)
+		}
+	}
+	slices.Sort(namespaces)
+	return namespaces, cobra.ShellCompDirectiveNoFileComp
 }
 
 // completeTypes offers the lowercased root kind of every definition, the form

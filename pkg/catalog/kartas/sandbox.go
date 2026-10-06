@@ -10,9 +10,11 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
-// sandboxOwnerUID resolves a pod's owning Sandbox UID, shared by the Sandbox pod
-// and any other pod the Sandbox owns.
-const sandboxOwnerUID = `[.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]`
+// sandboxOwnerUID resolves a pod's owning Agent Sandbox UID, shared by the
+// Sandbox pod and any other pod the Sandbox owns. It matches the API group as
+// well as the kind, so a Sandbox kind from another API group is never taken for
+// it, and any served version of the group is accepted.
+const sandboxOwnerUID = `[.metadata.ownerReferences[]? | select(.kind == "Sandbox" and (.apiVersion | startswith("agents.x-k8s.io/"))) | .uid][0]`
 
 // sandboxPodLabel is set by the Agent Sandbox controller on the pod it creates
 // from .spec.podTemplate, and on no other pod.

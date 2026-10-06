@@ -75,11 +75,23 @@ spec:
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["agents.x-k8s.io/sandbox-name-hash"]
+      - name: companion
+        kind:
+          group: ""
+          version: v1
+          kind: Pod
+        ownerRef: sandbox
+        podSelector:
+          componentTypeSelector:
+            keyPath: select(.metadata.labels["agents.x-k8s.io/sandbox-name-hash"] == null) | [.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]
   optimizationInstructions:
     gangScheduling:
       podGroups:
         - name: sandbox
           members:
             - componentName: agent
+              groupByKeyPaths:
+                - '[.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]'
+            - componentName: companion
               groupByKeyPaths:
                 - '[.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]'

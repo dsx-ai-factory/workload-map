@@ -83,7 +83,7 @@ spec:
         ownerRef: sandbox
         podSelector:
           componentTypeSelector:
-            keyPath: select(.metadata.labels["agents.x-k8s.io/sandbox-name-hash"] == null) | [.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]
+            keyPath: select(.metadata.labels["agents.x-k8s.io/sandbox-name-hash"] == null) | [.metadata.ownerReferences[]? | select(.kind == "Sandbox" and (.apiVersion | startswith("agents.x-k8s.io/"))) | .uid][0]
   optimizationInstructions:
     gangScheduling:
       podGroups:
@@ -91,7 +91,7 @@ spec:
           members:
             - componentName: agent
               groupByKeyPaths:
-                - '[.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]'
+                - '[.metadata.ownerReferences[]? | select(.kind == "Sandbox" and (.apiVersion | startswith("agents.x-k8s.io/"))) | .uid][0]'
             - componentName: companion
               groupByKeyPaths:
-                - '[.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]'
+                - '[.metadata.ownerReferences[]? | select(.kind == "Sandbox" and (.apiVersion | startswith("agents.x-k8s.io/"))) | .uid][0]'

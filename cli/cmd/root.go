@@ -62,6 +62,7 @@ func NewRootCommand() *cobra.Command {
 	cmd.SetFlagErrorFunc(usageError)
 
 	kubeFlags.AddFlags(cmd.PersistentFlags())
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc("namespace", completeNamespaces))
 	withOutput(cmd, cmd.PersistentFlags(), true)
 	withConfig(cmd)
 

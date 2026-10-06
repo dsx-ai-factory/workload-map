@@ -33,6 +33,8 @@ import (
 var (
 	jobSetGVK = schema.GroupVersionKind{Group: "jobset.x-k8s.io", Version: "v1alpha2", Kind: "JobSet"}
 	jobSetGVR = jobSetGVK.GroupVersion().WithResource("jobsets")
+
+	namespaceGVR = schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
 )
 
 // jobSet builds a JobSet with one replicated job of the given parallelism.
@@ -62,14 +64,17 @@ func jobSetIn(namespace, name string, parallelism int64) *unstructured.Unstructu
 	}}
 }
 
-// fakeCluster points the get command at an in-memory cluster serving only the
-// JobSet type, and restores the real client factory afterwards.
+// fakeCluster points the get command at an in-memory cluster serving the
+// JobSet type and namespaces, and restores the real client factory afterwards.
 func fakeCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeDynamicClient {
 	t.Helper()
 
 	scheme := runtime.NewScheme()
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme,
-		map[schema.GroupVersionResource]string{jobSetGVR: "JobSetList"}, objects...)
+		map[schema.GroupVersionResource]string{
+			jobSetGVR:    "JobSetList",
+			namespaceGVR: "NamespaceList",
+		}, objects...)
 
 	mapper := meta.NewDefaultRESTMapper(nil)
 	mapper.AddSpecific(jobSetGVK, jobSetGVR, jobSetGVK.GroupVersion().WithResource("jobset"), meta.RESTScopeNamespace)

@@ -18,8 +18,9 @@ import (
 	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
 )
 
-// completionTimeout bounds one TAB press: an unreachable cluster should offer
-// nothing rather than freeze the shell. A variable so tests can shorten it.
+// completionTimeout bounds each request a TAB press makes: an unreachable cluster
+// should offer nothing rather than freeze the shell. A variable so tests can
+// shorten it.
 var completionTimeout = 2 * time.Second
 
 // boundRequests caps every request to the cluster at completionTimeout unless

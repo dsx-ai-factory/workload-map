@@ -26,6 +26,9 @@ spec:
                   status: "False"
                 - type: Suspended
                   status: "False"
+              byExpression:
+                expression: (.spec.operatingMode // "Running") != "Suspended"
+                expectedResult: "true"
           running:
             - byConditions:
                 - type: Ready
@@ -37,9 +40,19 @@ spec:
             - byConditions:
                 - type: Suspended
                   status: "True"
+              byExpression:
+                expression: .spec.operatingMode == "Suspended"
+                expectedResult: "true"
           suspending:
             - byExpression:
                 expression: .spec.operatingMode == "Suspended" and ([(.status.conditions // [])[] | select(.type == "Suspended" and .status == "True")] | length) == 0
+                expectedResult: "true"
+          resuming:
+            - byConditions:
+                - type: Suspended
+                  status: "True"
+              byExpression:
+                expression: (.spec.operatingMode // "Running") != "Suspended"
                 expectedResult: "true"
       suspendDefinition:
         suspendActions:
@@ -68,6 +81,8 @@ spec:
           version: v1
           kind: Pod
         ownerRef: sandbox
+        scaleDefinition:
+          replicasPath: if .spec.operatingMode == "Suspended" then 0 elif (.metadata.annotations["openshell.ai/sandbox-id"] // "") != "" then 1 else 0 end
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["openshell.ai/boundary-role"]

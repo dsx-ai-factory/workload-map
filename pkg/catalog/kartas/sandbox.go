@@ -17,8 +17,10 @@ import (
 // The supervisor component covers NVIDIA OpenShell, which provisions agents
 // through Agent Sandbox and pairs each Sandbox pod with a supervisor pod owned by
 // the same Sandbox. Both pods carry the openshell.ai/boundary-pair label, which
-// gang-schedules them together. Without OpenShell the supervisor component has no
-// pods and the gang falls back to the Sandbox pod's name-hash label.
+// gang-schedules them together, and the supervisor counts as one replica when the
+// Sandbox carries the openshell.ai/sandbox-id annotation. Without OpenShell the
+// supervisor component has no pods and the gang falls back to the Sandbox pod's
+// name-hash label.
 func Sandbox() *v1alpha1.Karta {
 	return &v1alpha1.Karta{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "run.ai/v1alpha1", Kind: "Karta"},
@@ -40,11 +42,20 @@ func Sandbox() *v1alpha1.Karta {
 							MessageFieldName: ptr.To("message"),
 							ReasonFieldName:  ptr.To("reason"),
 						},
+						// Every status pairs the Sandbox conditions with the requested
+						// .spec.operatingMode, so a condition the controller has not yet
+						// updated cannot resolve to a second, contradictory status.
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
-								{Type: "Ready", Status: ptr.To("False")},
-								{Type: "Suspended", Status: ptr.To("False")},
-							}}},
+							Initializing: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{
+									{Type: "Ready", Status: ptr.To("False")},
+									{Type: "Suspended", Status: ptr.To("False")},
+								},
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     `(.spec.operatingMode // "Running") != "Suspended"`,
+									ExpectedResult: "true",
+								},
+							}},
 							Running: []v1alpha1.StatusMatcher{{
 								ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("True")}},
 								ByExpression: &v1alpha1.ExpressionMatcher{
@@ -56,7 +67,21 @@ func Sandbox() *v1alpha1.Karta {
 								Expression:     `.spec.operatingMode == "Suspended" and ([(.status.conditions // [])[] | select(.type == "Suspended" and .status == "True")] | length) == 0`,
 								ExpectedResult: "true",
 							}}},
-							Suspended: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Suspended", Status: ptr.To("True")}}}},
+							Suspended: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{{Type: "Suspended", Status: ptr.To("True")}},
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     `.spec.operatingMode == "Suspended"`,
+									ExpectedResult: "true",
+								},
+							}},
+							// Resumed but the controller still reports the Sandbox as suspended.
+							Resuming: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{{Type: "Suspended", Status: ptr.To("True")}},
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     `(.spec.operatingMode // "Running") != "Suspended"`,
+									ExpectedResult: "true",
+								},
+							}},
 						},
 					},
 				},
@@ -81,6 +106,11 @@ func Sandbox() *v1alpha1.Karta {
 						Name:     "supervisor",
 						Kind:     &v1alpha1.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"},
 						OwnerRef: ptr.To("sandbox"),
+						// One supervisor per OpenShell-managed Sandbox, so the gang
+						// requires both pods; none for plain Agent Sandbox objects.
+						ScaleDefinition: &v1alpha1.ScaleDefinition{
+							ReplicasPath: ptr.To(`if .spec.operatingMode == "Suspended" then 0 elif (.metadata.annotations["openshell.ai/sandbox-id"] // "") != "" then 1 else 0 end`),
+						},
 						PodSelector: &v1alpha1.PodSelector{
 							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
 								KeyPath: `.metadata.labels["openshell.ai/boundary-role"]`,

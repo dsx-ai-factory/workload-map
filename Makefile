@@ -106,6 +106,23 @@ check: $(addprefix check-,$(COMPONENTS)) ## Everything CI runs for Go. Run this 
 .PHONY: build
 build: build-cli build-operator ## Build every binary into bin/ (the library has no artifact)
 
+# Keeps the pinned tools and envtest assets in bin/; clean-all removes them too.
+.PHONY: clean
+clean: ## Remove build outputs, coverage profiles, and release and plugin artifacts
+	rm -f $(LOCALBIN)/kli $(LOCALBIN)/karta-operator $(LOCALBIN)/karta-operator-amd64 $(LOCALBIN)/karta-operator-arm64
+	rm -f $(LOCALBIN)/*-tidy.mod $(LOCALBIN)/*-tidy.sum $(LOCALBIN)/*-license.mod $(LOCALBIN)/*-license.sum $(LOCALBIN)/*deps.json
+	rm -f operator/cover-unit.out operator/cover-integration.out
+	rm -f karta-wasm/karta.wasm karta-wasm/wasm_exec.js
+	rm -f hack/imagelock/imagelock hack/release/release
+	rm -f $(PROJECT_DIR)/karta-*.tgz
+	rm -rf $(DIST_DIR) $(IMAGE_LOCK_OUT_DIR) headlamp-plugin/dist $(PROJECT_DIR)/.artifacts
+
+# setup-envtest leaves its asset directories read-only, which blocks rm -rf without the chmod.
+.PHONY: clean-all
+clean-all: clean ## Run clean, then also remove bin/ (tools, envtest assets) and headlamp-plugin/node_modules
+	[ ! -d $(LOCALBIN) ] || chmod -R u+w $(LOCALBIN)
+	rm -rf $(LOCALBIN) headlamp-plugin/node_modules
+
 ##@ Library (root module)
 
 .PHONY: fmt-lib

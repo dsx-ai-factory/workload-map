@@ -27,18 +27,35 @@ case "${shell_name}" in
     ;;
 esac
 
-# Drop a previously installed block, so install is idempotent.
-remove_block() {
-  [ -f "${rc_file}" ] || return 0
-  local tmp
-  tmp="$(mktemp)"
-  awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '
-    $0 == begin { skip = 1; next }
-    $0 == end { skip = 0; next }
-    !skip
-  ' "${rc_file}" >"${tmp}"
-  cat "${tmp}" >"${rc_file}"
-  rm -f "${tmp}"
+# Follow a symlinked rc file, as dotfile managers create, so the replacement
+# lands on the real file and the link survives.
+target="${rc_file}"
+while [ -L "${target}" ]; do
+  link="$(readlink "${target}")"
+  case "${link}" in
+    /*) target="${link}" ;;
+    *) target="$(dirname "${target}")/${link}" ;;
+  esac
+done
+
+# rewrite_rc replaces the rc file with its content minus any installed block,
+# followed by stdin. The result is built in a temporary file beside the target
+# and moved over it in one step, so a failed write leaves the rc file intact.
+tmp=""
+trap 'rm -f "${tmp}"' EXIT
+rewrite_rc() {
+  tmp="$(mktemp "$(dirname "${target}")/.kli-completion.XXXXXX")"
+  if [ -f "${target}" ]; then
+    # Copy first so the replacement keeps the rc file's permissions.
+    cp -p "${target}" "${tmp}"
+    awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '
+      $0 == begin { skip = 1; next }
+      $0 == end { skip = 0; next }
+      !skip
+    ' "${target}" >"${tmp}"
+  fi
+  cat >>"${tmp}"
+  mv -f "${tmp}" "${target}"
 }
 
 case "${action}" in
@@ -48,8 +65,9 @@ case "${action}" in
       exit 1
     fi
     bin_dir="$(cd "$(dirname "${binary}")" && pwd)"
-    remove_block
-    {
+    # A here-string rather than a pipe: a pipe would run rewrite_rc in a
+    # subshell, out of reach of the trap that removes its temporary file.
+    block="$(
       echo "${BEGIN_MARKER}"
       echo "export PATH=\"${bin_dir}:\${PATH}\""
       if [ "${shell_name}" = "zsh" ]; then
@@ -59,11 +77,14 @@ case "${action}" in
       # eval rather than source <(...), which bash 3.2 on macOS ignores.
       echo "eval \"\$(\"${bin_dir}/kli\" completion ${shell_name})\""
       echo "${END_MARKER}"
-    } >>"${rc_file}"
+    )"
+    rewrite_rc <<<"${block}"
     echo "kli completion added to ${rc_file}; open a new shell or run: source ${rc_file}"
     ;;
   uninstall)
-    remove_block
+    if [ -f "${target}" ]; then
+      rewrite_rc </dev/null
+    fi
     echo "kli completion removed from ${rc_file}; open a new shell to unload it"
     ;;
   *)

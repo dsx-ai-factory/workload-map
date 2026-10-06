@@ -6,6 +6,9 @@ package cmd
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -203,5 +206,47 @@ func TestCompleteGivesUpOnAClusterThatDoesNotAnswer(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("completion did not give up on a cluster that never answers")
+	}
+}
+
+// Discovery takes no context, so only the request timeout stops a server that
+// serves the definitions but never answers discovery.
+func TestCompleteGivesUpOnDiscoveryThatDoesNotAnswer(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "absent"))
+
+	restoreTimeout := completionTimeout
+	completionTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { completionTimeout = restoreTimeout })
+
+	restore := loadDefinitions
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+		return definitions.New([]*v1alpha1.Karta{kartas.Jobset()}, nil), nil
+	}
+	t.Cleanup(func() { loadDefinitions = restore })
+
+	type result struct {
+		out, errOut string
+		code        int
+	}
+	done := make(chan result, 1)
+	go func() {
+		out, errOut, code := runCmd(t, "__complete",
+			"--server", server.URL, "--cache-dir", t.TempDir(), "get", "jobset", "")
+		done <- result{out, errOut, code}
+	}()
+	select {
+	case r := <-done:
+		if r.code != 0 {
+			t.Fatalf("expected exit 0, got %d\n%s", r.code, r.errOut)
+		}
+		if got := candidates(r.out); len(got) != 0 {
+			t.Errorf("expected no candidates, got %v", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("completion did not give up on discovery that never answers")
 	}
 }

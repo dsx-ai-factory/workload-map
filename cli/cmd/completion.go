@@ -22,6 +22,15 @@ import (
 // nothing rather than freeze the shell. A variable so tests can shorten it.
 var completionTimeout = 2 * time.Second
 
+// boundRequests caps every request to the cluster at completionTimeout unless
+// the user set --request-timeout. Discovery takes no context, so the request
+// timeout is the only bound on it. It must run before any client is built.
+func boundRequests(cmd *cobra.Command) {
+	if !cmd.Flags().Changed("request-timeout") {
+		*kubeFlags.Timeout = completionTimeout.String()
+	}
+}
+
 // completeWorkloads completes the TYPE, TYPE/NAME and TYPE NAME arguments get
 // and describe accept. A completion has no channel for an error, so a failure
 // to reach the cluster offers nothing rather than printing.
@@ -31,6 +40,7 @@ func completeWorkloads(cmd *cobra.Command, args []string, toComplete string) ([]
 	ctx, cancel := context.WithTimeout(cmd.Context(), completionTimeout)
 	defer cancel()
 	cmd.SetContext(ctx)
+	boundRequests(cmd)
 
 	typeToken, namePrefix, qualified := strings.Cut(toComplete, "/")
 
@@ -53,6 +63,7 @@ func completeWorkloads(cmd *cobra.Command, args []string, toComplete string) ([]
 func completeNamespaces(cmd *cobra.Command, _ []string, prefix string) ([]string, cobra.ShellCompDirective) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), completionTimeout)
 	defer cancel()
+	boundRequests(cmd)
 
 	dyn, err := newDynamicClient(clusterAccess())
 	if err != nil {

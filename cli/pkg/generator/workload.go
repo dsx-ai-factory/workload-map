@@ -26,6 +26,9 @@ type Options struct {
 	AllNamespaces bool
 	// ByName reports that the request addressed one workload by name.
 	ByName bool
+	// TypeOf names the type of each row in a TYPE column, which a listing of
+	// one type leaves out. Nil omits the column.
+	TypeOf func(workload.View) string
 }
 
 // RenderWorkloads writes views to out. The machine formats go through Render, so
@@ -49,16 +52,20 @@ func RenderWorkloads(out, errOut io.Writer, views []workload.View, opts Options)
 			}
 			return nil
 		}
-		return renderWorkloadTable(w, views, format)
+		return renderWorkloadTable(w, views, format, opts.TypeOf)
 	}
 
 	return Render(out, format, views, opts.ByName, table)
 }
 
-func renderWorkloadTable(out io.Writer, views []workload.View, format Output) error {
+func renderWorkloadTable(out io.Writer, views []workload.View, format Output, typeOf func(workload.View) string) error {
 	writer := printers.GetNewTabWriter(out)
 
-	headers := []string{"NAME", "NAMESPACE", "PHASE", "AGE"}
+	headers := []string{"NAME", "NAMESPACE"}
+	if typeOf != nil {
+		headers = append(headers, "TYPE")
+	}
+	headers = append(headers, "PHASE", "AGE")
 	if format == OutputWide {
 		headers = append(headers, "ORIGIN")
 	}
@@ -66,12 +73,11 @@ func renderWorkloadTable(out io.Writer, views []workload.View, format Output) er
 
 	now := time.Now()
 	for _, view := range views {
-		cells := []string{
-			view.Name,
-			view.Namespace,
-			strings.Join(view.Phases, ","),
-			age(now, view.CreatedAt),
+		cells := []string{view.Name, view.Namespace}
+		if typeOf != nil {
+			cells = append(cells, typeOf(view))
 		}
+		cells = append(cells, strings.Join(view.Phases, ","), age(now, view.CreatedAt))
 		if format == OutputWide {
 			cells = append(cells, view.Origin)
 		}

@@ -478,7 +478,7 @@ func dynamoGraph() *unstructured.Unstructured {
 
 // setupDynamoCluster serves a Kind the catalog covers at two versions, which is
 // what makes the bare type token ambiguous.
-func setupDynamoCluster(t *testing.T) {
+func setupDynamoCluster(t *testing.T) *dynamicfake.FakeDynamicClient {
 	alpha := dynamoGVK.GroupVersion().WithResource("dynamographdeployments")
 	beta := schema.GroupVersion{Group: "nvidia.com", Version: "v1beta1"}.WithResource("dynamographdeployments")
 
@@ -504,6 +504,7 @@ func setupDynamoCluster(t *testing.T) {
 	clusterAccess = func() genericclioptions.RESTClientGetter { return flags }
 	t.Cleanup(func() { clusterAccess = restoreAccess })
 
+	return client
 }
 
 // The ambiguity error names a token, which must itself resolve: a user who

@@ -61,6 +61,10 @@ var _ = Describe("RenderWorkloads", func() {
 			Options{Output: OutputWide},
 			[]string{"NAME", "NAMESPACE", "PHASE", "AGE", "ORIGIN"},
 			[]string{"preprocess", "ml-team", "Completed", "<unknown>", "catalog"}),
+		Entry("a listing across types, which adds TYPE after the namespace",
+			Options{Output: OutputWide, TypeOf: func(v workload.View) string { return v.Kind }},
+			[]string{"NAME", "NAMESPACE", "TYPE", "PHASE", "AGE", "ORIGIN"},
+			[]string{"preprocess", "ml-team", "JobSet", "Completed", "<unknown>", "catalog"}),
 	)
 
 	// A view resolved outside a live read carries no timestamp, which must not

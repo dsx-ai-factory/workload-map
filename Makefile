@@ -235,6 +235,14 @@ cli-verify-version: build-cli ## Assert the CLI binary reports the stamped versi
 	[ "$$out" = "$(VERSION)" ] || { \
 		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
 
+.PHONY: cli-completion-install
+cli-completion-install: build-cli ## Build kli and load its completion from your bash or zsh rc file
+	hack/kli-completion.sh install $(LOCALBIN)/kli
+
+.PHONY: cli-completion-uninstall
+cli-completion-uninstall: ## Stop loading kli completion from your bash or zsh rc file
+	hack/kli-completion.sh uninstall
+
 # go mod tidy ignores the workspace, so it cannot resolve the unpublished root
 # pin. Tidy a copy carrying a local replace; its go.sum must travel with it.
 .PHONY: modules-check-cli modules-check-operator

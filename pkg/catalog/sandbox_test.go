@@ -104,6 +104,18 @@ var _ = Describe("Sandbox Karta pod mapping", func() {
 		Expect(matching(unowned)).To(BeEmpty())
 	})
 
+	It("keys on the Agent Sandbox owner when another API group also has a Sandbox kind", func() {
+		mixed := sandboxOwnedPod("demo-proxy", map[string]string{"example.com/role": "proxy"}, false)
+		mixed.OwnerReferences = append([]metav1.OwnerReference{{
+			APIVersion: "sandbox.example.com/v1",
+			Kind:       "Sandbox",
+			Name:       "other",
+			UID:        types.UID("99999999-8888-7777-6666-555555555555"),
+		}}, mixed.OwnerReferences...)
+		_, keys := group(mixed)
+		Expect(keys).To(Equal([]string{"11111111-2222-3333-4444-555555555555"}))
+	})
+
 	It("gangs the Sandbox pod and other pods it owns on the owning Sandbox", func() {
 		agentGroup, agentKeys := group(sandboxPod)
 		companionGroup, companionKeys := group(companionPod)

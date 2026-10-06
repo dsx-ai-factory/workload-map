@@ -1,4 +1,4 @@
-module github.com/dsx-ai-factory/workload-map
+module github.com/dsx-ai-factory/workload-map/karta
 
 go 1.26.8
 

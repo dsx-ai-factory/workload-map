@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/catalog"
 )
 
 // completionTimeout bounds each request a TAB press makes: an unreachable cluster

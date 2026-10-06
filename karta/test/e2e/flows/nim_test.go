@@ -9,8 +9,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/test/e2e/recorder"
 )
 
 var _ = Describe("NIMService", Ordered, Label("nim"), func() {
@@ -18,7 +18,7 @@ var _ = Describe("NIMService", Ordered, Label("nim"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../docs/catalog/apps-nvidia-com-nimservice-v1alpha1.yaml", "apps-nvidia-com-nimservice-v1alpha1")
+		installKarta(ctx, "../../../docs/catalog/apps-nvidia-com-nimservice-v1alpha1.yaml", "apps-nvidia-com-nimservice-v1alpha1")
 		// The NIMService references authSecret ngc-secret; the operator reads it from the workload's own
 		// namespace, so seed it here (up.sh only creates it in default).
 		ensureSecret(ctx, "ngc-secret", map[string]string{"NGC_API_KEY": "dummy-not-a-real-token"})

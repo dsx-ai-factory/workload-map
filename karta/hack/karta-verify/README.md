@@ -6,6 +6,9 @@
 Validates a Karta definition, and optionally proves it against a real workload
 object. Offline, no cluster.
 
+It belongs to the `karta/` module, so run the commands below from the `karta/`
+directory. Relative file paths resolve from there.
+
 ## Validate
 
 Every definition should pass this:
@@ -89,8 +92,8 @@ Run against a definition and a manifest already in the repository:
 
 ```bash
 go run ./hack/karta-verify \
-  --karta docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml \
-  --workload docs/examples/quickstart/lws.yaml
+  --karta ../docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml \
+  --workload ../docs/examples/quickstart/lws.yaml
 ```
 
 The manifest declares `replicas: 3` and `size: 4`. The `group` component reports

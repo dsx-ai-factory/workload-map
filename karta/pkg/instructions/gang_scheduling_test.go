@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/resource"
 )
 
 var _ = Describe("Gang Scheduling", func() {

@@ -10,12 +10,13 @@
 > GitHub redirects. The Go module path has also moved to
 > `github.com/dsx-ai-factory/workload-map`; update any pinned `go get` or import
 > paths, GitHub Actions, webhooks, or other automation that reference
-> `run-ai/karta` or `dsx-ai-factory/karta`.
+> `run-ai/karta` or `dsx-ai-factory/karta`. After v0.2.x the library moves again,
+> into the nested module `github.com/dsx-ai-factory/workload-map/karta`.
 
 **A standard way to describe the structure of any Kubernetes workload type.**
 
 [![CI](https://github.com/dsx-ai-factory/workload-map/actions/workflows/ci.yaml/badge.svg)](https://github.com/dsx-ai-factory/workload-map/actions/workflows/ci.yaml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/dsx-ai-factory/workload-map.svg)](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map)
+[![Go Reference](https://pkg.go.dev/badge/github.com/dsx-ai-factory/workload-map/karta.svg)](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta)
 [![Go Report Card](https://goreportcard.com/badge/github.com/dsx-ai-factory/workload-map)](https://goreportcard.com/report/github.com/dsx-ai-factory/workload-map)
 [![Latest release](https://img.shields.io/github/v/release/dsx-ai-factory/workload-map)](https://github.com/dsx-ai-factory/workload-map/releases)
 [![License](https://img.shields.io/github/license/dsx-ai-factory/workload-map)](LICENSE)
@@ -101,20 +102,14 @@ The structure in this view comes from Karta path expressions: the group, leader,
 
 ### Install the CLI
 
-Install the latest synchronized Go module release:
-
-```bash
-go install github.com/dsx-ai-factory/workload-map/cli/cmd/kli@latest
-```
-
-Or download a prebuilt archive for your platform from the
-[releases page](https://github.com/dsx-ai-factory/workload-map/releases) and put
-the `kli` executable on your `PATH`. Run `kli --version` to print the release
-version.
-
-Each release also publishes prebuilt `kli` archives for Linux and macOS on
-amd64 and arm64, with a `checksums.txt` manifest, on the
+Each release publishes prebuilt `kli` archives for Linux and macOS on amd64 and
+arm64, with a `checksums.txt` manifest, on the
 [GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
+Download the archive for your platform, check it against `checksums.txt`, and
+put the `kli` executable on your `PATH`. Run `kli --version` to print the
+release version.
+
+`go install` is not a supported way to install the CLI.
 
 To complete commands, workload types, workload names, and namespaces on TAB,
 load the completion script from your shell rc file:
@@ -141,8 +136,14 @@ kubectl apply -f https://raw.githubusercontent.com/dsx-ai-factory/workload-map/m
 ### Use the Go library
 
 ```bash
-go get github.com/dsx-ai-factory/workload-map@latest
+go get github.com/dsx-ai-factory/workload-map/karta@latest
 ```
+
+The library lives in the `karta/` module. Releases up to v0.2.x published it as
+`github.com/dsx-ai-factory/workload-map`. To move to the new path, require
+`github.com/dsx-ai-factory/workload-map/karta` and rewrite imports from
+`github.com/dsx-ai-factory/workload-map/pkg/...` to
+`github.com/dsx-ai-factory/workload-map/karta/pkg/...`.
 
 ### Define a Karta
 
@@ -195,7 +196,7 @@ spec:
 ### Extract workload information
 
 ```go
-import "github.com/dsx-ai-factory/workload-map/pkg/resource"
+import "github.com/dsx-ai-factory/workload-map/karta/pkg/resource"
 
 // Create a factory from your Karta and workload object
 factory := resource.NewComponentFactoryFromObject(karta, jobSetObject)

@@ -6,13 +6,13 @@ module github.com/dsx-ai-factory/workload-map/docs/examples/quickstart
 go 1.26.8
 
 require (
-	github.com/dsx-ai-factory/workload-map v0.0.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
+	github.com/dsx-ai-factory/workload-map/karta v0.0.0
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/itchyny/gojq v0.12.19 // indirect
@@ -35,7 +35,7 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
 
-// replace points to the local repository root so the example can be run
+// replace points to the repository's karta module so the example can be run
 // directly from the repo without publishing a release first.
 // Remove this directive and pin a released version when using outside the repo.
-replace github.com/dsx-ai-factory/workload-map => ../../../
+replace github.com/dsx-ai-factory/workload-map/karta => ../../../karta

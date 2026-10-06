@@ -11,8 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/jq/execution"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/jq/execution"
 )
 
 type ComponentReader interface {

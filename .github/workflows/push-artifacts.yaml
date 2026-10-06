@@ -31,7 +31,7 @@ jobs:
         with:
           go-version-file: operator/go.mod
           cache-dependency-path: |
-            go.sum
+            karta/go.sum
             operator/go.sum
             cli/go.sum
             hack/release/go.sum
@@ -99,7 +99,7 @@ jobs:
       - name: Lint and validate helm chart
         run: make helm-lint helm-validate
 
-      - name: Validate synchronized module version
+      - name: Validate release version and library module
         if: github.ref_type == 'tag'
         run: make release-validate VERSION="$PACKAGE_VERSION"
 

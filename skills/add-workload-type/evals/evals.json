@@ -14,7 +14,7 @@
           "kind": "triggering"
         },
         {
-          "text": "The deliverable is a Karta YAML definition only. No Go source file under pkg/catalog/kartas/, no catalog registration, and no hack/e2e module are produced",
+          "text": "The deliverable is a Karta YAML definition only. No Go source file under karta/pkg/catalog/kartas/, no catalog registration, and no hack/e2e module are produced",
           "measured": "3/3 vs 0/3",
           "kind": "discriminating"
         },

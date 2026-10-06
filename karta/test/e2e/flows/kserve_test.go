@@ -9,8 +9,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/test/e2e/recorder"
 )
 
 var _ = Describe("KServe InferenceService", Ordered, Label("kserve"), func() {
@@ -18,7 +18,7 @@ var _ = Describe("KServe InferenceService", Ordered, Label("kserve"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml", "serving-kserve-io-inferenceservice-v1beta1")
+		installKarta(ctx, "../../../docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml", "serving-kserve-io-inferenceservice-v1beta1")
 		fx = recorder.Fixture{Operator: "kserve", Version: operatorVersion("kserve"), KartaName: "serving-kserve-io-inferenceservice-v1beta1", KartaFile: "docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml"}
 		// The definition maps no Initializing for an InferenceService (the deploy window only reports
 		// Unknown conditions), so the journeys start at the first mapped state and the deploy frames

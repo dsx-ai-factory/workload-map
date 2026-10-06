@@ -33,7 +33,7 @@
           "make lib-generate lib-manifests lib-generate-mocks generate-licenses"
         ],
         "fileFilters": [
-          "pkg/**",
+          "karta/pkg/**",
           "charts/karta/crds/**",
           "NOTICE",
           "THIRD_PARTY_LICENSES"

@@ -19,9 +19,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/resource"
-	"github.com/dsx-ai-factory/workload-map/pkg/tree"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/tree"
 )
 
 // observation doubles as the predictions format, so --dump output can seed the

@@ -9,8 +9,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/test/e2e/recorder"
 )
 
 var _ = Describe("Grove PodCliqueSet", Ordered, Label("grove"), func() {
@@ -18,7 +18,7 @@ var _ = Describe("Grove PodCliqueSet", Ordered, Label("grove"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../docs/catalog/grove-io-podcliqueset-v1alpha1.yaml", "grove-io-podcliqueset-v1alpha1")
+		installKarta(ctx, "../../../docs/catalog/grove-io-podcliqueset-v1alpha1.yaml", "grove-io-podcliqueset-v1alpha1")
 		fx = recorder.Fixture{Operator: "grove", Version: operatorVersion("grove"), KartaName: "grove-io-podcliqueset-v1alpha1", KartaFile: "docs/catalog/grove-io-podcliqueset-v1alpha1.yaml"}
 		rec = recorder.New(cfg).
 			SetTimeout(4*time.Minute).

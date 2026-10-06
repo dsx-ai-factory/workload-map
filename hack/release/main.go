@@ -17,10 +17,7 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/semver"
 )
-
-const rootModule = "github.com/dsx-ai-factory/workload-map"
 
 var semanticVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 
@@ -45,8 +42,10 @@ func run(args []string) error {
 		return errors.New("a subcommand is required")
 	}
 	switch args[0] {
-	case "validate-version":
-		return runValidateVersion(args[1:])
+	case "validate-release":
+		return runValidateRelease(args[1:])
+	case "check-publishable":
+		return runCheckPublishable(args[1:])
 	case "verify-artifacts":
 		return runVerifyArtifacts(args[1:])
 	default:
@@ -54,28 +53,18 @@ func run(args []string) error {
 	}
 }
 
-func runValidateVersion(args []string) error {
-	flags := flag.NewFlagSet("validate-version", flag.ContinueOnError)
+func runValidateRelease(args []string) error {
+	flags := flag.NewFlagSet("validate-release", flag.ContinueOnError)
 	root := flags.String("root", ".", "repository root")
-	version := flags.String("version", "", "normalized product version, defaults to the cli/go.mod pin")
-	requireTags := flags.Bool("require-tags", false, "require all synchronized tags at HEAD")
+	version := flags.String("version", "", "normalized release version X.Y.Z")
+	requireTags := flags.Bool("require-tags", false, "require the vX.Y.Z and karta/vX.Y.Z tags at HEAD")
 	if err := flags.Parse(args); err != nil {
 		return err
-	}
-	if *version == "" {
-		pinned, err := pinnedVersion(*root)
-		if err != nil {
-			return err
-		}
-		*version = pinned
 	}
 	if !semanticVersion.MatchString(*version) {
 		return fmt.Errorf("version %q must match X.Y.Z without a leading v", *version)
 	}
-	if err := validateModuleVersions(*root, *version); err != nil {
-		return err
-	}
-	if err := validateVersionIsUnreleased(*root, *version); err != nil {
+	if err := checkPublishable(filepath.Join(*root, "karta", "go.mod")); err != nil {
 		return err
 	}
 	if *requireTags {
@@ -83,113 +72,43 @@ func runValidateVersion(args []string) error {
 			return err
 		}
 	}
-	fmt.Printf("synchronized module version v%s is valid\n", *version)
+	fmt.Printf("release v%s is valid\n", *version)
 	return nil
 }
 
-func pinnedVersion(root string) (string, error) {
-	path := filepath.Join(root, "cli", "go.mod")
+func runCheckPublishable(args []string) error {
+	flags := flag.NewFlagSet("check-publishable", flag.ContinueOnError)
+	path := flags.String("modfile", "", "go.mod of the published module")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if *path == "" {
+		return errors.New("--modfile is required")
+	}
+	if err := checkPublishable(*path); err != nil {
+		return err
+	}
+	fmt.Printf("%s is publishable\n", *path)
+	return nil
+}
+
+// checkPublishable fails when a published module's go.mod carries a replace or
+// exclude directive. Both apply only while the module is the main module, so a
+// consumer's `go get` would resolve a different graph than the repository builds.
+func checkPublishable(path string) error {
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
-	}
-	parsed, err := modfile.Parse(path, contents, nil)
-	if err != nil {
-		return "", fmt.Errorf("parse %s: %w", path, err)
-	}
-	for _, require := range parsed.Require {
-		if require.Mod.Path == rootModule {
-			return strings.TrimPrefix(require.Mod.Version, "v"), nil
-		}
-	}
-	return "", fmt.Errorf("%s does not require %s", path, rootModule)
-}
-
-func validateModuleVersions(root, version string) error {
-	want := "v" + version
-	for _, moduleFile := range []string{"cli/go.mod", "operator/go.mod"} {
-		contents, err := os.ReadFile(filepath.Join(root, moduleFile))
-		if err != nil {
-			return err
-		}
-		file, err := modfile.Parse(moduleFile, contents, nil)
-		if err != nil {
-			return fmt.Errorf("parse %s: %w", moduleFile, err)
-		}
-		if len(file.Replace) != 0 {
-			return fmt.Errorf("%s contains a publication-unsafe replace directive", moduleFile)
-		}
-		if len(file.Exclude) != 0 {
-			return fmt.Errorf("%s contains a publication-unsafe exclude directive", moduleFile)
-		}
-		got := ""
-		for _, requirement := range file.Require {
-			if requirement.Mod.Path == rootModule {
-				got = requirement.Mod.Version
-				break
-			}
-		}
-		if got != want {
-			return fmt.Errorf("%s requires %s %s, want %s", moduleFile, rootModule, got, want)
-		}
-	}
-	contents, err := os.ReadFile(filepath.Join(root, "go.work"))
-	if err != nil {
 		return err
 	}
-	workspace, err := modfile.ParseWork("go.work", contents, nil)
+	file, err := modfile.Parse(path, contents, nil)
 	if err != nil {
-		return fmt.Errorf("parse go.work: %w", err)
+		return fmt.Errorf("parse %s: %w", path, err)
 	}
-	for _, replacement := range workspace.Replace {
-		if replacement.Old.Path == rootModule && replacement.Old.Version == want &&
-			replacement.New.Path == "." && replacement.New.Version == "" {
-			return nil
-		}
+	if len(file.Replace) != 0 {
+		return fmt.Errorf("%s contains a publication-unsafe replace directive", path)
 	}
-	return fmt.Errorf("go.work must replace %s %s with the local root module", rootModule, want)
-}
-
-// validateVersionIsUnreleased fails when the synchronized version is not ahead
-// of every released one. The pin names the next release, so a version that has
-// already shipped means the requirement went stale while the change waited, and
-// its module path can no longer resolve. Tags at HEAD are skipped: during the
-// release the tag being cut is the version under validation.
-func validateVersionIsUnreleased(root, version string) error {
-	head, err := commandOutput("git", "-C", root, "rev-parse", "HEAD")
-	if err != nil {
-		// No repository metadata, so there is no release history to compare
-		// against. The tag checks below cover the cases that must have it.
-		return nil
-	}
-	listed, err := commandOutput("git", "-C", root, "tag", "--list", "v[0-9]*.[0-9]*.[0-9]*")
-	if err != nil {
-		return err
-	}
-	// A newer line does not constrain this one. Reachability cannot stand in:
-	// release tags are cut from the release branch, not from main.
-	line := semver.MajorMinor("v" + version)
-	newest := ""
-	for _, tag := range strings.Fields(listed) {
-		if !semver.IsValid(tag) || semver.Prerelease(tag) != "" {
-			continue
-		}
-		if semver.Compare(semver.MajorMinor(tag), line) > 0 {
-			continue
-		}
-		commit, err := commandOutput("git", "-C", root, "rev-list", "-n", "1", tag)
-		if err != nil {
-			return fmt.Errorf("resolve tag %s: %w", tag, err)
-		}
-		if commit == head {
-			continue
-		}
-		if newest == "" || semver.Compare(tag, newest) > 0 {
-			newest = tag
-		}
-	}
-	if newest != "" && semver.Compare("v"+version, newest) <= 0 {
-		return fmt.Errorf("version v%s is not newer than the released %s; bump the requirement in cli/go.mod, operator/go.mod and go.work", version, newest)
+	if len(file.Exclude) != 0 {
+		return fmt.Errorf("%s contains a publication-unsafe exclude directive", path)
 	}
 	return nil
 }
@@ -199,7 +118,7 @@ func validateTags(root, version string) error {
 	if err != nil {
 		return err
 	}
-	for _, tag := range []string{"v" + version, "cli/v" + version} {
+	for _, tag := range []string{"v" + version, "karta/v" + version} {
 		commit, err := commandOutput("git", "-C", root, "rev-list", "-n", "1", tag)
 		if err != nil {
 			return fmt.Errorf("resolve tag %s: %w", tag, err)

@@ -9,8 +9,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/test/e2e/recorder"
 )
 
 var _ = Describe("DynamoGraphDeployment", Ordered, Label("dynamo"), func() {
@@ -18,7 +18,7 @@ var _ = Describe("DynamoGraphDeployment", Ordered, Label("dynamo"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../docs/catalog/nvidia-com-dynamographdeployment-v1alpha1.yaml", "nvidia-com-dynamographdeployment-v1alpha1")
+		installKarta(ctx, "../../../docs/catalog/nvidia-com-dynamographdeployment-v1alpha1.yaml", "nvidia-com-dynamographdeployment-v1alpha1")
 		// The decode worker pulls env from hf-token-secret; the operator reads it from the workload's own
 		// namespace, so seed it here (up.sh only creates it in default).
 		ensureSecret(ctx, "hf-token-secret", map[string]string{"HF_TOKEN": "dummy"})

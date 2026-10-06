@@ -6,7 +6,7 @@ package tree
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/resource"
 )
 
 // WorkloadTree is the raw tree produced by Build().

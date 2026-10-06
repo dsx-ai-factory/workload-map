@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"slices"
 
-	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
 )
 
 // validateObservedOrder checks that observed is a legal walk of the journey:

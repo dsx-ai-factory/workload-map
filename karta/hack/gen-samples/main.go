@@ -12,12 +12,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/catalog"
 )
 
-// outputDir is the catalog directory relative to the repository root, which is
-// the working directory when run via `go run ./hack/gen-samples`.
-var outputDir = filepath.Join("docs", "catalog")
+// outputDir is the repository's docs/catalog relative to the karta module root,
+// which is the working directory when run via `go run ./hack/gen-samples`.
+var outputDir = filepath.Join("..", "docs", "catalog")
 
 func main() {
 	if err := run(); err != nil {

@@ -131,7 +131,7 @@ this section is a quick reference for what has already shipped.
 - Browse [open issues](https://github.com/dsx-ai-factory/workload-map/issues) and look for
   `good first issue` and `help wanted` labels.
 - Have a workload type Karta should describe? Open an issue or contribute a
-  typed definition under [`pkg/catalog/kartas/`](pkg/catalog/kartas/); the
+  typed definition under [`karta/pkg/catalog/kartas/`](karta/pkg/catalog/kartas/); the
   generated YAML lands in [`docs/catalog/`](docs/catalog/).
 - Read [CONTRIBUTING.md](CONTRIBUTING.md) to get started (DCO sign-off required).
 

@@ -9,8 +9,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/test/e2e/recorder"
 )
 
 var _ = Describe("RayCluster", Ordered, Label("kuberay", "raycluster"), func() {
@@ -18,7 +18,7 @@ var _ = Describe("RayCluster", Ordered, Label("kuberay", "raycluster"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../docs/catalog/ray-io-raycluster-v1.yaml", "ray-io-raycluster-v1")
+		installKarta(ctx, "../../../docs/catalog/ray-io-raycluster-v1.yaml", "ray-io-raycluster-v1")
 		fx = recorder.Fixture{Operator: "kuberay", Version: operatorVersion("kuberay"), KartaName: "ray-io-raycluster-v1", KartaFile: "docs/catalog/ray-io-raycluster-v1.yaml"}
 		// The definition maps no Initializing for a RayCluster (bring-up only reports False
 		// conditions and an empty state), so the journeys start at the first mapped state and the

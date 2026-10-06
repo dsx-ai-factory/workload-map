@@ -3,6 +3,11 @@
 
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
+# The modules reach the library through replace directives, never a workspace.
+# The go command also searches parent directories for a go.work, so turn it off
+# for every recipe rather than let one outside the checkout change the build.
+export GOWORK := off
+
 # One output directory for build artifacts and downloaded tools.
 LOCALBIN ?= $(PROJECT_DIR)/bin
 
@@ -12,7 +17,7 @@ VERSION ?= $(shell git describe --tags --always --dirty --match 'v[0-9]*.[0-9]*.
 # Freeze the fallback once so image variables do not rerun it per recipe.
 VERSION := $(VERSION)
 
-VERSION_PKG := github.com/dsx-ai-factory/workload-map/pkg/version
+VERSION_PKG := github.com/dsx-ai-factory/workload-map/karta/pkg/version
 GO_LDFLAGS  := -X $(VERSION_PKG).version=$(VERSION)
 LDFLAGS     := -ldflags "$(GO_LDFLAGS)"
 
@@ -22,14 +27,9 @@ COMPONENTS := lib cli operator karta-wasm release-helper
 # Every Go module in the repo. The tidy target fans out over this rather than
 # COMPONENTS because an untidy manifest in a module that ships no
 # binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
-GO_MODULES := . cli karta-wasm operator test/e2e hack/imagelock \
+GO_MODULES := karta cli karta-wasm operator karta/test/e2e hack/imagelock \
 	docs/examples/quickstart docs/examples/controller-runtime \
 	hack/e2e/operators/nim/image
-
-# cli and operator pin a root version the proxy cannot serve until the release
-# tags are pushed. modules-check-cli and modules-check-operator tidy them
-# out of tree instead.
-TIDY_MODULES := $(filter-out cli operator,$(GO_MODULES))
 
 KARTA_CHART_DIR := $(PROJECT_DIR)/charts/karta
 KARTA_CRDS_DIR := $(KARTA_CHART_DIR)/crds
@@ -71,7 +71,6 @@ CONTAINER_TOOL ?= docker
 BUILD_ARGS     ?=
 DIST_DIR       ?= $(PROJECT_DIR)/dist
 RELEASE_HELPER_DIR := $(PROJECT_DIR)/hack/release
-ROOT_MODULE         := github.com/dsx-ai-factory/workload-map
 
 # Architectures for build-operator-all and operator-image-buildx-push.
 PLATFORMS ?= linux/amd64 linux/arm64
@@ -106,40 +105,47 @@ check: $(addprefix check-,$(COMPONENTS)) ## Everything CI runs for Go. Run this 
 .PHONY: build
 build: build-cli build-operator ## Build every binary into bin/ (the library has no artifact)
 
-##@ Library (root module)
+##@ Library (karta module)
 
 .PHONY: fmt-lib
 fmt-lib: ## Format the library module
-	go fmt ./...
+	cd karta && go fmt ./...
 
 .PHONY: fmt-check-lib
 fmt-check-lib: ## Check library formatting without modifying files
 	@set -e; \
+	cd karta; \
 	dirs="$$(go list -f '{{.Dir}}' ./...)"; \
 	unformatted="$$(gofmt -l $$dirs)"; \
 	test -z "$$unformatted" || { echo "go fmt required:"; echo "$$unformatted"; exit 1; }
 
 .PHONY: vet-lib
 vet-lib: ## go vet the library module
-	go vet ./...
+	cd karta && go vet ./...
 
 .PHONY: lint-lib
 lint-lib: golangci-lint ## Lint the library module (set VERBOSE=1 for -v)
-	$(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+	cd karta && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
 .PHONY: test-lib
 test-lib: lib-generate-mocks ## Run the library tests, plus the offline e2e recorder tests
-	go test ./...
-	cd test/e2e && GOWORK=off go test ./recorder/...
+	cd karta && go test ./...
+	cd karta/test/e2e && go test ./recorder/...
+
+# The library is the one published module, so a replace in it would break every
+# consumer's `go get`. The other modules carry one on purpose.
+.PHONY: modules-check-lib
+modules-check-lib: ## Fail if the library go.mod carries a replace or exclude directive
+	cd $(RELEASE_HELPER_DIR) && go run . check-publishable --modfile $(PROJECT_DIR)/karta/go.mod
 
 .PHONY: check-lib
-check-lib: fmt-check-lib vet-lib lint-lib validate verify-recordings test-lib test-replay ## Full library presubmit
+check-lib: fmt-check-lib vet-lib lint-lib modules-check-lib validate verify-recordings test-lib test-replay ## Full library presubmit
 
 ##@ Karta WASM (karta-wasm module)
 
 .PHONY: fmt-karta-wasm
 fmt-karta-wasm: ## Format the karta-wasm module
-	GOWORK=off go -C karta-wasm fmt ./...
+	go -C karta-wasm fmt ./...
 
 .PHONY: fmt-check-karta-wasm
 fmt-check-karta-wasm: ## Check karta-wasm formatting without modifying files
@@ -149,16 +155,16 @@ fmt-check-karta-wasm: ## Check karta-wasm formatting without modifying files
 
 .PHONY: vet-karta-wasm
 vet-karta-wasm: ## go vet the karta-wasm module (host and js builds)
-	GOWORK=off go -C karta-wasm vet ./...
-	cd karta-wasm && GOWORK=off GOOS=js GOARCH=wasm go vet ./...
+	go -C karta-wasm vet ./...
+	cd karta-wasm && GOOS=js GOARCH=wasm go vet ./...
 
 .PHONY: lint-karta-wasm
 lint-karta-wasm: golangci-lint ## Lint the karta-wasm module
-	cd karta-wasm && GOWORK=off $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+	cd karta-wasm && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
 .PHONY: test-karta-wasm
 test-karta-wasm: ## Run the karta-wasm module tests on the host
-	GOWORK=off go -C karta-wasm test ./...
+	go -C karta-wasm test ./...
 
 .PHONY: check-karta-wasm
 check-karta-wasm: fmt-check-karta-wasm vet-karta-wasm lint-karta-wasm test-karta-wasm ## Full karta-wasm presubmit
@@ -167,32 +173,32 @@ check-karta-wasm: fmt-check-karta-wasm vet-karta-wasm lint-karta-wasm test-karta
 
 .PHONY: fmt-release-helper
 fmt-release-helper: ## Format the release helper module
-	cd hack/release && GOWORK=off go fmt ./...
+	cd hack/release && go fmt ./...
 
 .PHONY: fmt-check-release-helper
 fmt-check-release-helper: ## Check release helper formatting without modifying files
 	@set -e; \
 	cd hack/release; \
-	dirs="$$(GOWORK=off go list -f '{{.Dir}}' ./...)"; \
+	dirs="$$(go list -f '{{.Dir}}' ./...)"; \
 	unformatted="$$(gofmt -l $$dirs)"; \
 	test -z "$$unformatted" || { echo "go fmt required:"; echo "$$unformatted"; exit 1; }
 
 .PHONY: vet-release-helper
 vet-release-helper: ## go vet the release helper module
-	cd hack/release && GOWORK=off go vet ./...
+	cd hack/release && go vet ./...
 
 .PHONY: lint-release-helper
 lint-release-helper: golangci-lint ## Lint the release helper module
-	cd hack/release && GOWORK=off $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+	cd hack/release && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
 .PHONY: test-release-helper
 test-release-helper: ## Test the release helper module
-	cd hack/release && GOWORK=off go test ./...
+	cd hack/release && go test ./...
 
 .PHONY: modules-check-release-helper
 modules-check-release-helper: ## Verify release helper module metadata is tidy and complete
-	cd $(RELEASE_HELPER_DIR) && GOWORK=off go mod tidy -diff
-	cd $(RELEASE_HELPER_DIR) && GOWORK=off go mod verify
+	cd $(RELEASE_HELPER_DIR) && go mod tidy -diff
+	cd $(RELEASE_HELPER_DIR) && go mod verify
 
 .PHONY: check-release-helper
 check-release-helper: fmt-check-release-helper vet-release-helper lint-release-helper modules-check-release-helper test-release-helper ## Full release helper presubmit
@@ -243,19 +249,11 @@ cli-completion-install: build-cli ## Build kli and load its completion from your
 cli-completion-uninstall: ## Stop loading kli completion from your bash or zsh rc file
 	hack/kli-completion.sh uninstall
 
-# go mod tidy ignores the workspace, so it cannot resolve the unpublished root
-# pin. Tidy a copy carrying a local replace; its go.sum must travel with it.
 .PHONY: modules-check-cli modules-check-operator
 modules-check-cli: MODULE := cli
 modules-check-operator: MODULE := operator
-modules-check-cli modules-check-operator: $(LOCALBIN) ## Verify the module's third-party requirements are tidy
-	@set -e; \
-	cp $(MODULE)/go.mod $(LOCALBIN)/$(MODULE)-tidy.mod; \
-	cp $(MODULE)/go.sum $(LOCALBIN)/$(MODULE)-tidy.sum; \
-	cd $(MODULE); \
-	GOWORK=off go mod edit -modfile=$(LOCALBIN)/$(MODULE)-tidy.mod \
-		-replace github.com/dsx-ai-factory/workload-map=../; \
-	GOWORK=off go mod tidy -diff -modfile=$(LOCALBIN)/$(MODULE)-tidy.mod
+modules-check-cli modules-check-operator: ## Verify the module's requirements are tidy
+	cd $(MODULE) && go mod tidy -diff
 
 .PHONY: check-cli
 check-cli: fmt-check-cli vet-cli lint-cli test-cli modules-check-cli cli-verify-version ## Full CLI presubmit
@@ -366,49 +364,29 @@ release-snapshot: goreleaser release-validate ## Build the complete release loca
 
 .PHONY: release-verify
 release-verify: ## Verify the CLI archives and stamped executable versions in dist/
-	cd $(RELEASE_HELPER_DIR) && GOWORK=off go run . verify-artifacts --dist $(DIST_DIR) --version $(VERSION)
-
-# Not part of `check`: main carries the released pin until the bump lands, so
-# gating pushes on it would redden main. Pull-request only, and needs the tags.
-.PHONY: pin-check
-pin-check: ## Check the synchronized pin is consistent and still unreleased
-	cd $(RELEASE_HELPER_DIR) && GOWORK=off go run . validate-version --root $(PROJECT_DIR)
-
-.PHONY: pin-bump
-pin-bump: ## Set the synchronized pin in both modules and go.work to VERSION
-	@set -eu; \
-	printf '%s\n' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$' || { \
-		echo "VERSION must be X.Y.Z without a leading v, for example make pin-bump VERSION=0.3.0" >&2; \
-		echo "got '$(VERSION)', which is the default derived from git describe" >&2; exit 1; }; \
-	old="$$(sed -n 's|^replace $(subst .,\.,$(ROOT_MODULE)) \(v[^ ]*\) => \.|\1|p' $(PROJECT_DIR)/go.work)"; \
-	[ -n "$$old" ] || { echo "no $(ROOT_MODULE) replace found in go.work" >&2; exit 1; }; \
-	cd $(PROJECT_DIR); \
-	GOWORK=off go mod edit -require=$(ROOT_MODULE)@v$(VERSION) cli/go.mod; \
-	GOWORK=off go mod edit -require=$(ROOT_MODULE)@v$(VERSION) operator/go.mod; \
-	go work edit -dropreplace=$(ROOT_MODULE)@$$old -replace=$(ROOT_MODULE)@v$(VERSION)=. go.work; \
-	echo "pin $$old -> v$(VERSION) in cli/go.mod, operator/go.mod and go.work"
+	cd $(RELEASE_HELPER_DIR) && go run . verify-artifacts --dist $(DIST_DIR) --version $(VERSION)
 
 .PHONY: release-validate
-release-validate: ## Validate the synchronized module requirements for VERSION
-	cd $(RELEASE_HELPER_DIR) && GOWORK=off go run . validate-version --root $(PROJECT_DIR) --version $(VERSION)
+release-validate: ## Validate VERSION and that the library module is publishable
+	cd $(RELEASE_HELPER_DIR) && go run . validate-release --root $(PROJECT_DIR) --version $(VERSION)
 
 .PHONY: release
-release: goreleaser ## Publish a guarded root-tag release
+release: goreleaser ## Publish a guarded release from the vX.Y.Z tag (karta/vX.Y.Z must point to the same commit)
 	@set -eu; \
 	[ -n "$${GITHUB_TOKEN:-}" ] || { echo "GITHUB_TOKEN is required" >&2; exit 1; }; \
 	status="$$(git status --porcelain)"; \
 	[ -z "$$status" ] || { echo "the working tree must be clean" >&2; exit 1; }; \
 	tag="$$(git describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"; \
-	printf '%s\n' "$$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "current ref is not a root vX.Y.Z tag" >&2; exit 1; }; \
+	printf '%s\n' "$$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "current ref is not a vX.Y.Z tag" >&2; exit 1; }; \
 	[ "$${tag#v}" = "$(VERSION)" ] || { echo "VERSION $(VERSION) must be $${tag#v} (the tag without the leading v)" >&2; exit 1; }; \
-	(cd $(RELEASE_HELPER_DIR) && GOWORK=off go run . validate-version --root $(PROJECT_DIR) --version $(VERSION) --require-tags); \
+	(cd $(RELEASE_HELPER_DIR) && go run . validate-release --root $(PROJECT_DIR) --version $(VERSION) --require-tags); \
 	GORELEASER_CURRENT_TAG="$$tag" VERSION=$(VERSION) $(GORELEASER) release --clean
 
 ##@ Headlamp plugin
 
 .PHONY: karta-wasm
 karta-wasm: ## Build the WASM engine module (used by the Headlamp plugin)
-	cd karta-wasm && GOWORK=off GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o karta.wasm .
+	cd karta-wasm && GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o karta.wasm .
 	rm -f karta-wasm/wasm_exec.js
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" karta-wasm/wasm_exec.js
 
@@ -424,31 +402,30 @@ headlamp-plugin-build: karta-wasm ## Build the Headlamp plugin (requires Node.js
 
 .PHONY: lib-manifests
 lib-manifests: controller-gen ## Generate CRD manifests
-	$(CONTROLLER_GEN) crd paths="./pkg/..." output:crd:artifacts:config=$(KARTA_CRDS_DIR)
+	cd karta && $(CONTROLLER_GEN) crd paths="./pkg/..." output:crd:artifacts:config=$(KARTA_CRDS_DIR)
 
 .PHONY: lib-generate
 lib-generate: controller-gen ## Generate DeepCopy methods
-	$(CONTROLLER_GEN) object paths="./pkg/..."
+	cd karta && $(CONTROLLER_GEN) object paths="./pkg/..."
 
 .PHONY: lib-generate-mocks
 lib-generate-mocks: ## Generate mocks using go generate
-	go generate ./pkg/...
+	cd karta && go generate ./pkg/...
 
 .PHONY: generate-samples
-generate-samples: ## Regenerate docs/catalog/ from pkg/catalog
-	go run ./hack/gen-samples
+generate-samples: ## Regenerate docs/catalog/ from karta/pkg/catalog
+	cd karta && go run ./hack/gen-samples
 
+# go mod download skips a module replaced by a local directory, so the library
+# itself never lands in the cli or karta-wasm inventories.
 .PHONY: generate-licenses
 generate-licenses: tidy go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies
 	@set -eu; \
 	echo "Generating NOTICE and THIRD_PARTY_LICENSES files from current dependencies using go-licence-detector"; \
-	GOWORK=off go mod download -json > $(LOCALBIN)/root-deps.json; \
-	cp cli/go.mod $(LOCALBIN)/cli-license.mod; \
-	cp cli/go.sum $(LOCALBIN)/cli-license.sum; \
-	GOWORK=off go mod edit -modfile=$(LOCALBIN)/cli-license.mod -droprequire=github.com/dsx-ai-factory/workload-map; \
-	GOWORK=off go mod download -modfile=$(LOCALBIN)/cli-license.mod -json > $(LOCALBIN)/cli-deps.json; \
-	(cd karta-wasm && GOWORK=off go mod download -json) > $(LOCALBIN)/karta-wasm-deps.json; \
-	python3 hack/merge-go-deps.py $(LOCALBIN)/root-deps.json $(LOCALBIN)/cli-deps.json $(LOCALBIN)/karta-wasm-deps.json > $(LOCALBIN)/deps.json; \
+	(cd karta && go mod download -json) > $(LOCALBIN)/karta-deps.json; \
+	(cd cli && go mod download -json) > $(LOCALBIN)/cli-deps.json; \
+	(cd karta-wasm && go mod download -json) > $(LOCALBIN)/karta-wasm-deps.json; \
+	python3 hack/merge-go-deps.py $(LOCALBIN)/karta-deps.json $(LOCALBIN)/cli-deps.json $(LOCALBIN)/karta-wasm-deps.json > $(LOCALBIN)/deps.json; \
 	$(GO_LICENCE_DETECTOR) -in $(LOCALBIN)/deps.json \
 		-noticeTemplate=hack/licenses/notice.tpl \
 		-noticeOut=NOTICE \
@@ -457,9 +434,9 @@ generate-licenses: tidy go-licence-detector ## Regenerate NOTICE and THIRD_PARTY
 	echo "Done"
 
 .PHONY: tidy
-tidy: ## Run go mod tidy in every module except cli and operator (rewrites go.mod and go.sum)
+tidy: ## Run go mod tidy in every module (rewrites go.mod and go.sum)
 	@set -e; \
-	for module in $(TIDY_MODULES); do \
+	for module in $(GO_MODULES); do \
 		(cd $$module && go mod tidy); \
 	done
 
@@ -475,7 +452,7 @@ validate: tidy lib-generate lib-manifests lib-generate-mocks generate-licenses g
 
 .PHONY: download-dependencies
 download-dependencies: ## Pre-warm the module cache for the library module
-	GOWORK=off go mod download
+	cd karta && go mod download
 
 ##@ CRDs
 
@@ -514,7 +491,7 @@ IMAGE_LOCK_PLATFORMS ?= linux/amd64 linux/arm64
 
 .PHONY: image-lock
 image-lock: ## Generate the per-platform ImageLock for a release (VERSION=vX.Y.Z)
-	cd hack/imagelock && GOWORK=off go run . \
+	cd hack/imagelock && go run . \
 		--chart $(KARTA_CHART_DIR) \
 		--version $(VERSION) \
 		$(foreach p,$(IMAGE_LOCK_PLATFORMS),--platform $(p)) \
@@ -523,11 +500,11 @@ image-lock: ## Generate the per-platform ImageLock for a release (VERSION=vX.Y.Z
 
 .PHONY: image-lock-verify
 image-lock-verify: ## Fail if the chart renders a container image the lock generator does not classify
-	cd hack/imagelock && GOWORK=off go run . --chart $(KARTA_CHART_DIR) --verify-only
+	cd hack/imagelock && go run . --chart $(KARTA_CHART_DIR) --verify-only
 
 .PHONY: image-lock-test
 image-lock-test: ## Run the image-lock generator unit tests
-	cd hack/imagelock && GOWORK=off go test ./...
+	cd hack/imagelock && go test ./...
 
 ##@ E2E
 
@@ -559,8 +536,8 @@ endif
 
 .PHONY: test-replay
 test-replay: ## Replay the recorded fixtures through Karta offline (no cluster)
-	cd test/e2e && GOWORK=off go build ./...
-	cd test/e2e && GOWORK=off go test ./replay_tests/...
+	cd karta/test/e2e && go build ./...
+	cd karta/test/e2e && go test ./replay_tests/...
 
 # Defaults and accepted values live in hack/e2e/global.env.
 KARTA_WEBHOOK_MODE ?= auto
@@ -602,13 +579,13 @@ e2e-down: ## Tear down the e2e cluster (set CLUSTER_NAME for a named one)
 record-e2e: ## Record the fixtures against the current cluster - kind from e2e-up or your own (WORKLOADS="pod" a subset, FLOW="running" one flow, CLUSTER_NAME for a named kind cluster)
 	@if [ "$(strip $(WORKLOADS))" = "none" ]; then \
 		echo "record-e2e: WORKLOADS=none selects no cases"; exit 2; fi
-	cd test/e2e && GOWORK=off go test -count=1 ./recorder
-	cd test/e2e && GOWORK=off CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) go test -count=1 -v -timeout $(E2E_TIMEOUT) ./flows $(if $(E2E_FOCUS)$(E2E_LABELS),-args $(if $(E2E_FOCUS),-ginkgo.focus="$(E2E_FOCUS)") $(if $(E2E_LABELS),-ginkgo.label-filter="$(E2E_LABELS)"))
+	cd karta/test/e2e && go test -count=1 ./recorder
+	cd karta/test/e2e && CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) go test -count=1 -v -timeout $(E2E_TIMEOUT) ./flows $(if $(E2E_FOCUS)$(E2E_LABELS),-args $(if $(E2E_FOCUS),-ginkgo.focus="$(E2E_FOCUS)") $(if $(E2E_LABELS),-ginkgo.label-filter="$(E2E_LABELS)"))
 
 .PHONY: verify-recordings
 verify-recordings: ## Fail if any recorded fixture ended with succeeded false (re-record it clean before pushing)
-	@test -d test/e2e/recorded_data || { echo "no test/e2e/recorded_data dir"; exit 1; }
-	@bad=$$(grep -rlE '^  succeeded: false' test/e2e/recorded_data --include='*.yaml'); \
+	@test -d karta/test/e2e/recorded_data || { echo "no karta/test/e2e/recorded_data dir"; exit 1; }
+	@bad=$$(grep -rlE '^  succeeded: false' karta/test/e2e/recorded_data --include='*.yaml'); \
 	if [ -n "$$bad" ]; then echo "recordings that did not succeed:"; echo "$$bad"; exit 1; fi; \
 	echo "all recordings succeeded"
 

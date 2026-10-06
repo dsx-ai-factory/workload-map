@@ -7,8 +7,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
+	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/test/e2e/recorder"
 )
 
 var _ = Describe("JobSet", Ordered, Label("jobset"), func() {
@@ -16,7 +16,7 @@ var _ = Describe("JobSet", Ordered, Label("jobset"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml", "jobset-x-k8s-io-jobset-v1alpha2")
+		installKarta(ctx, "../../../docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml", "jobset-x-k8s-io-jobset-v1alpha2")
 		// Suspended first so a lingering Suspended condition never masks real progress after a resume.
 		fx = recorder.Fixture{Operator: "jobset", Version: operatorVersion("jobset"), KartaName: "jobset-x-k8s-io-jobset-v1alpha2", KartaFile: "docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml"}
 		rec = recorder.New(cfg).

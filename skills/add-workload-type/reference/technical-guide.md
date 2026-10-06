@@ -4,8 +4,8 @@
 # Karta technical guide (cheatsheet)
 
 A condensed field reference for authoring a Karta definition. It matches the API
-types in `pkg/api/runai/v1alpha1/` and the validator in
-`pkg/api/runai/v1alpha1/validation.go`. The prose reference is
+types in `karta/pkg/api/runai/v1alpha1/` and the validator in
+`karta/pkg/api/runai/v1alpha1/validation.go`. The prose reference is
 `docs/Technical Guide.md`.
 
 ## Top-level shape

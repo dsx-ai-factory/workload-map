@@ -39,9 +39,10 @@ Load these as needed. Do not guess field names or rules; confirm them here.
   the closest existing definition under `docs/catalog/`. Start here in step 2.
 - `reference/troubleshooting.md` - every validator, jq, and runtime error mapped
   to its cause and fix, plus the mistakes that pass validation but behave wrong.
-- `hack/karta-verify/` in the repository root - the offline harness. Validates a
-  definition (step 6) and, given a real CR, runs it and checks the extraction
-  against predicted values (step 7).
+- `karta/hack/karta-verify/` - the offline harness. Validates a definition
+  (step 6) and, given a real CR, runs it and checks the extraction against
+  predicted values (step 7). Run it from the `karta/` directory, where relative
+  file paths resolve.
 
 ## Workflow
 
@@ -139,7 +140,7 @@ workload's own conditions or phases into Karta's normalized statuses:
 ### 6. Validate the definition
 
 Always run the validator on the definition just written. Do not hand back a
-definition that has not passed it.
+definition that has not passed it. From the `karta/` directory:
 
 ```bash
 go run ./hack/karta-verify --karta <definition.yaml>
@@ -192,7 +193,7 @@ unverified should be stated plainly rather than left for someone to discover.
 The same command does it, with `--workload` added. It builds the workload tree
 from the manifest and prints the extracted status, replica counts, and containers
 per component instance, with no cluster involved. Its flags and the predictions
-format are documented in `hack/karta-verify/README.md`.
+format are documented in `karta/hack/karta-verify/README.md`.
 
 Predict before running. Writing down the expected values first is the point of
 this step: reading the output afterwards invites accepting whatever appears,
@@ -203,7 +204,7 @@ talked away.
    file: the status, and per component instance the replica count and container
    names. Derive them from the CR's own numbers, never by reading them back out
    of an existing definition.
-2. Run it, from the repository root:
+2. Run it, from the `karta/` directory:
 
    ```bash
    go run ./hack/karta-verify --karta <definition.yaml> \

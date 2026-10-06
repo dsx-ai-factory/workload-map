@@ -14,15 +14,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog/kartas"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/catalog/kartas"
 )
 
 // catalogDir returns the docs/catalog directory relative to this test file.
 func catalogDir() string {
 	_, thisFile, _, ok := runtime.Caller(0)
 	Expect(ok).To(BeTrue(), "cannot locate test file")
-	return filepath.Join(filepath.Dir(thisFile), "..", "..", "docs", "catalog")
+	return filepath.Join(filepath.Dir(thisFile), "..", "..", "..", "docs", "catalog")
 }
 
 var _ = Describe("Get", func() {

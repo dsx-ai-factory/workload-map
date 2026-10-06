@@ -5,8 +5,8 @@ bin/
 testbin/
 vendor/
 
-# go.work is source; module go.sum files are the reproducible checksum inputs.
-# Unanchored: the standalone examples carry their own workspace.
+# The modules reach each other through replace directives, not a workspace.
+go.work
 go.work.sum
 
 # Test binary, build with `go test -c`

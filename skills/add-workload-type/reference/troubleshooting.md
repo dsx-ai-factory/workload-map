@@ -4,8 +4,8 @@
 # Troubleshooting catalog
 
 Match the error text to a row and apply the fix. Messages come from the
-validator (`pkg/api/runai/v1alpha1/validation.go`), the jq validator
-(`pkg/jq/validation.go`), or the Go accessor API at runtime. The prose version
+validator (`karta/pkg/api/runai/v1alpha1/validation.go`), the jq validator
+(`karta/pkg/jq/validation.go`), or the Go accessor API at runtime. The prose version
 is `docs/Troubleshooting.md`.
 
 ## Structure validation errors

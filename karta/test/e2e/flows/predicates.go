@@ -6,7 +6,7 @@ package flows
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
+	"github.com/dsx-ai-factory/workload-map/karta/test/e2e/recorder"
 )
 
 // State predicates: each reads a workload's own fields to recognise one state, never Karta.

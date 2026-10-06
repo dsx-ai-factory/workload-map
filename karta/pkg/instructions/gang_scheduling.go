@@ -10,8 +10,8 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/resource"
 )
 
 // PodGroupingEffectiveComponent contains the effective component information for pod grouping

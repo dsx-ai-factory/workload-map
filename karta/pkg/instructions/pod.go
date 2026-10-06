@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/resource"
 )
 
 // InferPodComponent infers the component name for the given pod based on component type selectors

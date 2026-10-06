@@ -18,9 +18,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/jq/execution"
-	"github.com/dsx-ai-factory/workload-map/test/types"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/jq/execution"
+	"github.com/dsx-ai-factory/workload-map/karta/test/types"
 )
 
 const (

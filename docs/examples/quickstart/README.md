@@ -45,9 +45,8 @@ The same code in `main.go` runs over two completely different CRD types — **no
 
 From the `docs/examples/quickstart` directory:
 
-This example is a standalone module with its own `go.work`, so the commands
-below run as written. Its local `replace` directive selects the repository
-library.
+This example is a standalone module. Its local `replace` directive selects the
+repository library in `karta/`.
 
 ```bash
 # Default — injects kai-scheduler
@@ -165,6 +164,6 @@ Your Go code never references these paths directly — Karta handles the navigat
 
 - [Technical Guide](../../Technical%20Guide.md) — full Karta specification
 - [catalog](../../catalog/) — ready-made definitions for PyTorchJob, RayCluster, MPIJob, KServe, and more
-- [resource](../../../pkg/resource/) — full Component API (suspend/resume, fragmented pod specs, pod querier)
-- [tree](../../../pkg/tree/) — WorkloadTree for inspecting the component hierarchy of live workloads
-- [instructions](../../../pkg/instructions/) — gang scheduling and `StructureSummary` for scheduler integrations
+- [resource](../../../karta/pkg/resource/) — full Component API (suspend/resume, fragmented pod specs, pod querier)
+- [tree](../../../karta/pkg/tree/) — WorkloadTree for inspecting the component hierarchy of live workloads
+- [instructions](../../../karta/pkg/instructions/) — gang scheduling and `StructureSummary` for scheduler integrations

@@ -6,7 +6,6 @@ module github.com/dsx-ai-factory/workload-map/docs/examples/controller-runtime
 go 1.26.8
 
 require (
-	github.com/dsx-ai-factory/workload-map v0.0.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	k8s.io/client-go v0.37.1
@@ -17,6 +16,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/dsx-ai-factory/workload-map/karta v0.0.0
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -79,7 +79,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-// replace points to the local repository root so the example can be run
+// replace points to the repository's karta module so the example can be run
 // directly from the repo without publishing a release first.
 // Remove this directive and pin a released version when using outside the repo.
-replace github.com/dsx-ai-factory/workload-map => ../../../
+replace github.com/dsx-ai-factory/workload-map/karta => ../../../karta

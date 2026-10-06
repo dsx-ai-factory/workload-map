@@ -263,7 +263,7 @@ Karta supports any workload type. The following are pre-built and tested Karta d
 | Milvus | Milvus |
 | DynamoGraphDeployment | NVIDIA Dynamo |
 | PodCliqueSet | Grove |
-| Sandbox | Kubernetes Agent Sandbox (incl. NVIDIA OpenShell) |
+| Sandbox | Kubernetes Agent Sandbox |
 
 See [`docs/catalog/`](docs/catalog/) for the full Karta definitions.
 

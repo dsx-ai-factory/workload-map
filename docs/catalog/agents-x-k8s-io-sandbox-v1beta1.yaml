@@ -75,18 +75,6 @@ spec:
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["agents.x-k8s.io/sandbox-name-hash"]
-      - name: supervisor
-        kind:
-          group: ""
-          version: v1
-          kind: Pod
-        ownerRef: sandbox
-        scaleDefinition:
-          replicasPath: if .spec.operatingMode == "Suspended" then 0 elif (.metadata.annotations["openshell.ai/sandbox-id"] // "") != "" then 1 else 0 end
-        podSelector:
-          componentTypeSelector:
-            keyPath: .metadata.labels["openshell.ai/boundary-role"]
-            value: supervisor
   optimizationInstructions:
     gangScheduling:
       podGroups:
@@ -94,7 +82,4 @@ spec:
           members:
             - componentName: agent
               groupByKeyPaths:
-                - .metadata.labels["openshell.ai/boundary-pair"] // .metadata.labels["agents.x-k8s.io/sandbox-name-hash"]
-            - componentName: supervisor
-              groupByKeyPaths:
-                - .metadata.labels["openshell.ai/boundary-pair"]
+                - '[.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]'

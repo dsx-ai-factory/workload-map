@@ -39,7 +39,7 @@ multi-instance or nested pattern (for example Ray worker groups needing
 | Status reported through both a phase and conditions | `docs/catalog/milvus-io-milvus-v1beta1.yaml` | Declares both `phaseDefinition` and `conditionsDefinition`; maps statuses `byPhase`. |
 | Multi-service inference, each service its own component | `docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml` | Predictor and transformer children mix `fragmentedPodSpecDefinition` and `podSpecPath` plus `metadataPath`; `componentTypeSelector` per service. |
 | Nested pod cliques and scaling groups | `docs/catalog/grove-io-podcliqueset-v1alpha1.yaml` | Multiple multi-instance children (`clique`, `scalinggroup`) each with `instanceIdPath` plus instance and replica selectors. This CRD has no aggregate phase, so status is mapped with `byExpression` over replica counts, not `byPhase`. |
-| Single pod from an embedded template, plus a sidecar pod owned by the same CR but created outside it | `docs/catalog/agents-x-k8s-io-sandbox-v1beta1.yaml` | Template pod and externally created pod are separate `Pod` children told apart by `componentTypeSelector` (key existence vs value); a running rule combines `byConditions` and `byExpression` (AND); string-valued suspend via `.spec.operatingMode`. |
+| Single stateful pod from an embedded template, suspended through a mode field rather than a boolean | `docs/catalog/agents-x-k8s-io-sandbox-v1beta1.yaml` | One `Pod` child selected by key existence of a controller label; every status matcher combines `byConditions` with a `byExpression` on the requested mode (AND), so lagging conditions resolve to `Suspending`/`Resuming` instead of a second status; string-valued suspend via `.spec.operatingMode`. |
 
 ## Pattern quick reference
 

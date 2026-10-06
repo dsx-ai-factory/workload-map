@@ -10,17 +10,21 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 )
 
+// sandboxOwnerUID resolves a pod's owning Sandbox UID, shared by the Sandbox pod
+// and any other pod the Sandbox owns.
+const sandboxOwnerUID = `[.metadata.ownerReferences[]? | select(.kind == "Sandbox") | .uid][0]`
+
 // Sandbox returns the built-in Karta for the Kubernetes SIG Agent Sandbox
 // workload (agents.x-k8s.io/v1beta1). A Sandbox runs one isolated, stateful pod
-// created from .spec.podTemplate.
+// created from .spec.podTemplate, and is suspended and resumed through
+// .spec.operatingMode.
 //
-// The supervisor component covers NVIDIA OpenShell, which provisions agents
-// through Agent Sandbox and pairs each Sandbox pod with a supervisor pod owned by
-// the same Sandbox. Both pods carry the openshell.ai/boundary-pair label, which
-// gang-schedules them together, and the supervisor counts as one replica when the
-// Sandbox carries the openshell.ai/sandbox-id annotation. Without OpenShell the
-// supervisor component has no pods and the gang falls back to the Sandbox pod's
-// name-hash label.
+// Integrations built on Agent Sandbox can add their own pods to a Sandbox by
+// making the Sandbox their owner (for example a supervisor or proxy pod). Every
+// pod a Sandbox owns maps to its single pod component, and the gang keys each pod
+// on its owning Sandbox, so such pods join the Sandbox's workload and pod group.
+// Their number is integration-specific, so only the Sandbox pod counts toward
+// minMember.
 func Sandbox() *v1alpha1.Karta {
 	return &v1alpha1.Karta{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "run.ai/v1alpha1", Kind: "Karta"},
@@ -102,22 +106,6 @@ func Sandbox() *v1alpha1.Karta {
 							},
 						},
 					},
-					{
-						Name:     "supervisor",
-						Kind:     &v1alpha1.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"},
-						OwnerRef: ptr.To("sandbox"),
-						// One supervisor per OpenShell-managed Sandbox, so the gang
-						// requires both pods; none for plain Agent Sandbox objects.
-						ScaleDefinition: &v1alpha1.ScaleDefinition{
-							ReplicasPath: ptr.To(`if .spec.operatingMode == "Suspended" then 0 elif (.metadata.annotations["openshell.ai/sandbox-id"] // "") != "" then 1 else 0 end`),
-						},
-						PodSelector: &v1alpha1.PodSelector{
-							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
-								KeyPath: `.metadata.labels["openshell.ai/boundary-role"]`,
-								Value:   ptr.To("supervisor"),
-							},
-						},
-					},
 				},
 			},
 			Instructions: v1alpha1.OptimizationInstructions{
@@ -127,11 +115,7 @@ func Sandbox() *v1alpha1.Karta {
 						Members: []v1alpha1.PodGroupMemberDefinition{
 							{
 								ComponentName:   "agent",
-								GroupByKeyPaths: []string{`.metadata.labels["openshell.ai/boundary-pair"] // .metadata.labels["agents.x-k8s.io/sandbox-name-hash"]`},
-							},
-							{
-								ComponentName:   "supervisor",
-								GroupByKeyPaths: []string{`.metadata.labels["openshell.ai/boundary-pair"]`},
+								GroupByKeyPaths: []string{sandboxOwnerUID},
 							},
 						},
 					}},

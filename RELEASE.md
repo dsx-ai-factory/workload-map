@@ -81,18 +81,23 @@ without publishing. It does not need release credentials.
 
 Before tagging, add the version entry to [CHANGELOG.md](CHANGELOG.md) and run
 the checks above. After that preparation change is merged, create both tags
-from the same commit and push them in one operation:
+from the same commit and push them in one atomic operation:
 
 ```bash
 git tag v1.2.3
 git tag karta/v1.2.3
-git push origin v1.2.3 karta/v1.2.3
+git push --atomic origin v1.2.3 karta/v1.2.3
 ```
 
-The `v1.2.3` tag runs the release workflow. The workflow builds and pushes the
-multi-architecture operator image from source and publishes the Helm chart.
-GoReleaser then builds the four CLI archives and checksum manifest and creates
-the GitHub Release. Finally, the workflow generates the two image locks and
+With `--atomic`, the remote accepts both tags or neither, so a rejected library
+tag cannot leave a `v1.2.3` tag that starts a release on its own.
+
+The `v1.2.3` tag runs the release workflow. Before it publishes anything, the
+workflow checks that both tags point to the tagged commit and that
+`karta/go.mod` carries no `replace` or `exclude` directive. It then builds and
+pushes the multi-architecture operator image from source and publishes the Helm
+chart. GoReleaser then builds the four CLI archives and checksum manifest and
+creates the GitHub Release. Finally, the workflow generates the two image locks and
 attaches the chart and locks to the existing release.
 
 The guarded publishing command used by the workflow is:
@@ -103,7 +108,8 @@ make release VERSION=1.2.3
 
 It fails unless the checkout is clean and at the matching `vX.Y.Z` tag, both
 tags point to `HEAD`, `karta/go.mod` carries no `replace` or `exclude`
-directive, and the required credentials are present. It must normally run only in the release workflow.
+directive, and the required credentials are present. It must normally run
+only in the release workflow.
 
 ## Release credentials
 

@@ -140,7 +140,10 @@ workload's own conditions or phases into Karta's normalized statuses:
 ### 6. Validate the definition
 
 Always run the validator on the definition just written. Do not hand back a
-definition that has not passed it. From the `karta/` directory:
+definition that has not passed it. Run it from the `karta/` directory, where
+file arguments resolve: a definition under the repository's `docs/catalog/` is
+`../docs/catalog/<file>.yaml`, and any other file needs its path relative to
+`karta/` or an absolute path.
 
 ```bash
 go run ./hack/karta-verify --karta <definition.yaml>
@@ -204,7 +207,9 @@ talked away.
    file: the status, and per component instance the replica count and container
    names. Derive them from the CR's own numbers, never by reading them back out
    of an existing definition.
-2. Run it, from the `karta/` directory:
+2. Run it from the `karta/` directory. Give each of the three files its path
+   relative to `karta/` (`../` for a file under the repository root) or an
+   absolute path:
 
    ```bash
    go run ./hack/karta-verify --karta <definition.yaml> \

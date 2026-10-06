@@ -99,9 +99,11 @@ jobs:
       - name: Lint and validate helm chart
         run: make helm-lint helm-validate
 
-      - name: Validate release version and library module
+      # Before anything is published: without the karta/vX.Y.Z tag on this
+      # commit, the image and chart would ship and only `make release` would fail.
+      - name: Validate release version, library module, and release tags
         if: github.ref_type == 'tag'
-        run: make release-validate VERSION="$PACKAGE_VERSION"
+        run: make release-validate VERSION="$PACKAGE_VERSION" REQUIRE_TAGS=1
 
       - name: Run checks
         if: github.ref_type == 'tag'

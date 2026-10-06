@@ -366,9 +366,12 @@ release-snapshot: goreleaser release-validate ## Build the complete release loca
 release-verify: ## Verify the CLI archives and stamped executable versions in dist/
 	cd $(RELEASE_HELPER_DIR) && go run . verify-artifacts --dist $(DIST_DIR) --version $(VERSION)
 
+# REQUIRE_TAGS=1 also requires vX.Y.Z and karta/vX.Y.Z at HEAD. The release
+# workflow sets it so a missing library tag fails the run before the operator
+# image and Helm chart are published; local snapshots leave it unset.
 .PHONY: release-validate
-release-validate: ## Validate VERSION and that the library module is publishable
-	cd $(RELEASE_HELPER_DIR) && go run . validate-release --root $(PROJECT_DIR) --version $(VERSION)
+release-validate: ## Validate VERSION and that the library module is publishable (REQUIRE_TAGS=1 to also check the release tags)
+	cd $(RELEASE_HELPER_DIR) && go run . validate-release --root $(PROJECT_DIR) --version $(VERSION) $(if $(REQUIRE_TAGS),--require-tags)
 
 .PHONY: release
 release: goreleaser ## Publish a guarded release from the vX.Y.Z tag (karta/vX.Y.Z must point to the same commit)

@@ -19,7 +19,15 @@ binary="${2:-bin/kli}"
 shell_name="${KLI_SHELL:-$(basename "${SHELL:-bash}")}"
 
 case "${shell_name}" in
-  bash) rc_file="${HOME}/.bashrc" ;;
+  bash)
+    # macOS terminals start bash as a login shell, which reads .bash_profile
+    # and never .bashrc.
+    if [ "$(uname -s)" = "Darwin" ]; then
+      rc_file="${HOME}/.bash_profile"
+    else
+      rc_file="${HOME}/.bashrc"
+    fi
+    ;;
   zsh) rc_file="${ZDOTDIR:-${HOME}}/.zshrc" ;;
   *)
     echo "unsupported shell '${shell_name}': set KLI_SHELL to bash or zsh" >&2
@@ -74,8 +82,9 @@ case "${action}" in
         # The zsh completion script calls compdef, which compinit defines.
         echo "(( \${+functions[compdef]} )) || { autoload -Uz compinit && compinit; }"
       fi
-      # eval rather than source <(...), which bash 3.2 on macOS ignores.
-      echo "eval \"\$(\"${bin_dir}/kli\" completion ${shell_name})\""
+      # eval rather than source <(...), which bash 3.2 on macOS ignores. The
+      # guard keeps a new shell quiet once the binary or the clone is deleted.
+      echo "if [ -x \"${bin_dir}/kli\" ]; then eval \"\$(\"${bin_dir}/kli\" completion ${shell_name})\"; fi"
       echo "${END_MARKER}"
     )"
     rewrite_rc <<<"${block}"

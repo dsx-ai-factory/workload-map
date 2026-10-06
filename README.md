@@ -123,7 +123,7 @@ load the completion script from your shell rc file:
 # ~/.zshrc (after compinit)
 eval "$(kli completion zsh)"
 
-# ~/.bashrc (needs the bash-completion package)
+# ~/.bashrc, or ~/.bash_profile on macOS (needs the bash-completion package)
 eval "$(kli completion bash)"
 ```
 

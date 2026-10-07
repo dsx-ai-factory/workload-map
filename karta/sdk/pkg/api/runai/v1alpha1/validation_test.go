@@ -357,6 +357,10 @@ var _ = Describe("KartaValidator", func() {
 			Entry("empty selector", &ComponentTypeSelector{}, "neither keyPath nor matchLabels"),
 			Entry("empty matchLabels", &ComponentTypeSelector{MatchLabels: map[string]string{}}, "neither keyPath nor matchLabels"),
 			Entry("value without keyPath", &ComponentTypeSelector{Value: ptr.To("worker"), MatchLabels: map[string]string{"app": "pulsar"}}, "value without keyPath"),
+			Entry("prefixed matchLabels key", &ComponentTypeSelector{MatchLabels: map[string]string{"app.kubernetes.io/component": "proxy"}}, ""),
+			Entry("empty matchLabels value", &ComponentTypeSelector{MatchLabels: map[string]string{"app": ""}}, ""),
+			Entry("invalid matchLabels key", &ComponentTypeSelector{MatchLabels: map[string]string{"app name": "pulsar"}}, `invalid matchLabels key "app name"`),
+			Entry("invalid matchLabels value", &ComponentTypeSelector{MatchLabels: map[string]string{"component": "proxy "}}, `invalid matchLabels value "proxy "`),
 		)
 	})
 

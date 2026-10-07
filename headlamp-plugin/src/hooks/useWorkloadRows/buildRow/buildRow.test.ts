@@ -43,13 +43,6 @@ describe('buildWorkloadRow', () => {
       apiGroup: 'kubeflow.org',
       phases: [],
       componentsCount: 3,
-      instancesCount: null,
-      podsReady: null,
-      podsDesired: null,
-      gpusRequested: null,
-      cpuRequestMillis: null,
-      memoryRequestBytes: null,
-      rawPhase: null,
     });
   });
 

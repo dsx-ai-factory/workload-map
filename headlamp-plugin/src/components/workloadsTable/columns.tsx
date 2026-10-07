@@ -3,7 +3,6 @@
 
 import { DateLabel, type TableColumn } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import { WorkloadRow } from '../../hooks/useWorkloadRows/workloadRow.types';
-import { formatCount, formatCpuMillis, formatMemoryBytes, formatPods } from '../../utils/format';
 import {
   KARTA_PHASES,
   StatusPhaseChips,
@@ -11,13 +10,7 @@ import {
 } from '../statusPhaseChips/StatusPhaseChips';
 
 // Hidden by default, toggleable through the column picker.
-export const OPTIONAL_COLUMN_IDS = [
-  'cpuRequest',
-  'memoryRequest',
-  'components',
-  'instances',
-  'rawPhase',
-] as const;
+export const OPTIONAL_COLUMN_IDS = ['components'] as const;
 
 // includeCluster is false for a single cluster, so the Cluster column is
 // absent rather than present and identical on every row.
@@ -63,22 +56,6 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       gridTemplate: 'auto',
     },
     {
-      id: 'pods',
-      header: 'Pods',
-      accessorFn: row => row.podsReady ?? -1,
-      filterVariant: 'range',
-      Cell: ({ row }) => formatPods(row.original.podsReady, row.original.podsDesired),
-      gridTemplate: 'min-content',
-    },
-    {
-      id: 'gpus',
-      header: 'GPUs',
-      accessorFn: row => row.gpusRequested ?? -1,
-      filterVariant: 'range',
-      Cell: ({ row }) => formatCount(row.original.gpusRequested),
-      gridTemplate: 'min-content',
-    },
-    {
       id: 'age',
       header: 'Age',
       // Negated so newest sorts first, which makes the raw value useless to
@@ -113,47 +90,13 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
     });
   }
 
-  columns.push(
-    {
-      id: 'cpuRequest',
-      header: 'CPU request',
-      accessorFn: row => row.cpuRequestMillis ?? -1,
-      filterVariant: 'range',
-      Cell: ({ row }) => formatCpuMillis(row.original.cpuRequestMillis),
-      gridTemplate: 'min-content',
-    },
-    {
-      id: 'memoryRequest',
-      header: 'Memory request',
-      accessorFn: row => row.memoryRequestBytes ?? -1,
-      filterVariant: 'range',
-      Cell: ({ row }) => formatMemoryBytes(row.original.memoryRequestBytes),
-      gridTemplate: 'min-content',
-    },
-    {
-      id: 'components',
-      header: 'Components',
-      accessorFn: row => row.componentsCount,
-      filterVariant: 'range',
-      gridTemplate: 'min-content',
-    },
-    {
-      id: 'instances',
-      header: 'Instances',
-      accessorFn: row => row.instancesCount ?? -1,
-      filterVariant: 'range',
-      Cell: ({ row }) => formatCount(row.original.instancesCount),
-      gridTemplate: 'min-content',
-    },
-    {
-      id: 'rawPhase',
-      header: 'Raw phase',
-      accessorFn: row => row.rawPhase ?? '',
-      filterVariant: 'multi-select',
-      Cell: ({ row }) => row.original.rawPhase ?? 'n/a',
-      gridTemplate: 'min-content',
-    }
-  );
+  columns.push({
+    id: 'components',
+    header: 'Components',
+    accessorFn: row => row.componentsCount,
+    filterVariant: 'range',
+    gridTemplate: 'min-content',
+  });
 
   return columns;
 }

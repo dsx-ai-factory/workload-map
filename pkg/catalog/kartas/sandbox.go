@@ -66,10 +66,12 @@ func Sandbox() *v1alpha1.Karta {
 									ExpectedResult: "true",
 								},
 							}},
+							// Suspended must not be True, so a stale condition after a
+							// resume resolves to Resuming only.
 							Running: []v1alpha1.StatusMatcher{{
 								ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("True")}},
 								ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     `(.spec.operatingMode // "Running") != "Suspended"`,
+									Expression:     `(.spec.operatingMode // "Running") != "Suspended" and ([(.status.conditions // [])[] | select(.type == "Suspended" and .status == "True")] | length) == 0`,
 									ExpectedResult: "true",
 								},
 							}},

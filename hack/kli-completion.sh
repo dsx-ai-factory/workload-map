@@ -4,18 +4,21 @@
 #
 # Add or remove loading of kli shell completion in the shell rc file.
 #
-# Usage: kli-completion.sh install|uninstall [KLI_BINARY]
+# Usage: kli-completion.sh install|uninstall [LOCAL_KLI] [INSTALLED_KLI]
 #
 # The shell comes from $SHELL (bash or zsh); set KLI_SHELL to override it.
-# install puts the directory of KLI_BINARY (default bin/kli) on PATH, so
-# completion fires for a plain `kli`, and sources its completion script.
+# install sources the completion script of INSTALLED_KLI (the make install-cli
+# target) when it exists at shell start. Otherwise it puts the directory of
+# LOCAL_KLI (default bin/kli) on PATH, so completion fires for a plain `kli`,
+# and sources its completion script instead.
 set -euo pipefail
 
 BEGIN_MARKER="# >>> kli completion >>>"
 END_MARKER="# <<< kli completion <<<"
 
 action="${1:-}"
-binary="${2:-bin/kli}"
+local_kli="${2:-bin/kli}"
+installed_kli="${3:-}"
 shell_name="${KLI_SHELL:-$(basename "${SHELL:-bash}")}"
 
 case "${shell_name}" in
@@ -68,23 +71,41 @@ rewrite_rc() {
 
 case "${action}" in
   install)
-    if [ ! -x "${binary}" ]; then
-      echo "${binary} not found: run make build-cli first" >&2
+    if [ ! -x "${local_kli}" ] && { [ -z "${installed_kli}" ] || [ ! -x "${installed_kli}" ]; }; then
+      echo "${local_kli} not found: run make build-cli first" >&2
       exit 1
     fi
-    bin_dir="$(cd "$(dirname "${binary}")" && pwd)"
+    # The rc file outlives this shell, so both paths must be absolute.
+    case "${local_kli}" in
+      /*) ;;
+      *) local_kli="${PWD}/${local_kli}" ;;
+    esac
+    case "${installed_kli}" in
+      "" | /*) ;;
+      *) installed_kli="${PWD}/${installed_kli}" ;;
+    esac
+    local_dir="$(dirname "${local_kli}")"
+    # eval rather than source <(...), which bash 3.2 on macOS ignores. The
+    # guards keep a new shell quiet once a binary or the clone is deleted.
+    local_branch="[ -x \"${local_kli}\" ]; then
+  export PATH=\"${local_dir}:\${PATH}\"
+  eval \"\$(\"${local_kli}\" completion ${shell_name})\""
     # A here-string rather than a pipe: a pipe would run rewrite_rc in a
     # subshell, out of reach of the trap that removes its temporary file.
     block="$(
       echo "${BEGIN_MARKER}"
-      echo "export PATH=\"${bin_dir}:\${PATH}\""
       if [ "${shell_name}" = "zsh" ]; then
         # The zsh completion script calls compdef, which compinit defines.
         echo "(( \${+functions[compdef]} )) || { autoload -Uz compinit && compinit; }"
       fi
-      # eval rather than source <(...), which bash 3.2 on macOS ignores. The
-      # guard keeps a new shell quiet once the binary or the clone is deleted.
-      echo "if [ -x \"${bin_dir}/kli\" ]; then eval \"\$(\"${bin_dir}/kli\" completion ${shell_name})\"; fi"
+      if [ -n "${installed_kli}" ]; then
+        echo "if [ -x \"${installed_kli}\" ]; then"
+        echo "  eval \"\$(\"${installed_kli}\" completion ${shell_name})\""
+        echo "elif ${local_branch}"
+      else
+        echo "if ${local_branch}"
+      fi
+      echo "fi"
       echo "${END_MARKER}"
     )"
     rewrite_rc <<<"${block}"
@@ -97,7 +118,7 @@ case "${action}" in
     echo "kli completion removed from ${rc_file}; open a new shell to unload it"
     ;;
   *)
-    echo "usage: $0 install|uninstall [KLI_BINARY]" >&2
+    echo "usage: $0 install|uninstall [LOCAL_KLI] [INSTALLED_KLI]" >&2
     exit 1
     ;;
 esac

@@ -12,6 +12,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 	"github.com/dsx-ai-factory/workload-map/pkg/jq/execution"
@@ -417,6 +418,40 @@ var _ = Describe("PodQuerier", func() {
 				Expect(matches).To(BeFalse())
 			})
 		})
+
+		Context("when selector sets no conditions", func() {
+			It("should return false", func() {
+				matches, err := querier.MatchesComponentType(ctx, &v1alpha1.ComponentTypeSelector{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(matches).To(BeFalse())
+			})
+		})
+
+		DescribeTable("when matching labels (MatchLabels is specified)",
+			func(selector *v1alpha1.ComponentTypeSelector, expected bool) {
+				matches, err := querier.MatchesComponentType(ctx, selector)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(matches).To(Equal(expected))
+			},
+			Entry("single matching label",
+				&v1alpha1.ComponentTypeSelector{MatchLabels: map[string]string{"component": "worker"}}, true),
+			Entry("all labels match",
+				&v1alpha1.ComponentTypeSelector{MatchLabels: map[string]string{"component": "worker", "app": "pytorch"}}, true),
+			Entry("one label has a different value",
+				&v1alpha1.ComponentTypeSelector{MatchLabels: map[string]string{"component": "worker", "app": "pulsar"}}, false),
+			Entry("one label is missing",
+				&v1alpha1.ComponentTypeSelector{MatchLabels: map[string]string{"component": "worker", "missing": "x"}}, false),
+			Entry("empty value does not match a missing label",
+				&v1alpha1.ComponentTypeSelector{MatchLabels: map[string]string{"missing": ""}}, false),
+			Entry("matching labels and existing keyPath",
+				&v1alpha1.ComponentTypeSelector{KeyPath: ".metadata.annotations.config", MatchLabels: map[string]string{"app": "pytorch"}}, true),
+			Entry("matching labels and matching keyPath value",
+				&v1alpha1.ComponentTypeSelector{KeyPath: ".metadata.annotations.owner", Value: ptr.To("team-ai"), MatchLabels: map[string]string{"app": "pytorch"}}, true),
+			Entry("matching labels and non-matching keyPath value",
+				&v1alpha1.ComponentTypeSelector{KeyPath: ".metadata.annotations.owner", Value: ptr.To("team-x"), MatchLabels: map[string]string{"app": "pytorch"}}, false),
+			Entry("non-matching labels and matching keyPath value",
+				&v1alpha1.ComponentTypeSelector{KeyPath: ".metadata.annotations.owner", Value: ptr.To("team-ai"), MatchLabels: map[string]string{"app": "pulsar"}}, false),
+		)
 	})
 
 	Describe("ExtractReplicaKey", func() {

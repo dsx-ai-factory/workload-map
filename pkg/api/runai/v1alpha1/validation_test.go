@@ -333,6 +333,31 @@ var _ = Describe("KartaValidator", func() {
 				Expect(errs).To(BeEmpty())
 			})
 		})
+
+		DescribeTable("component type selector validation",
+			func(selector *ComponentTypeSelector, expectedErr string) {
+				component := ComponentDefinition{
+					Name:        "test",
+					PodSelector: &PodSelector{ComponentTypeSelector: selector},
+				}
+				validator.initialize()
+
+				errs := validator.validateComponent(component)
+				if expectedErr == "" {
+					Expect(errs).To(BeEmpty())
+					return
+				}
+				Expect(errs).To(HaveLen(1))
+				Expect(errs).To(ContainElement(MatchError(ContainSubstring(expectedErr))))
+			},
+			Entry("keyPath only", &ComponentTypeSelector{KeyPath: ".metadata.labels.role"}, ""),
+			Entry("keyPath and value", &ComponentTypeSelector{KeyPath: ".metadata.labels.role", Value: ptr.To("worker")}, ""),
+			Entry("matchLabels only", &ComponentTypeSelector{MatchLabels: map[string]string{"app": "pulsar", "component": "proxy"}}, ""),
+			Entry("keyPath and matchLabels", &ComponentTypeSelector{KeyPath: ".metadata.annotations.leader", MatchLabels: map[string]string{"app": "pulsar"}}, ""),
+			Entry("empty selector", &ComponentTypeSelector{}, "neither keyPath nor matchLabels"),
+			Entry("empty matchLabels", &ComponentTypeSelector{MatchLabels: map[string]string{}}, "neither keyPath nor matchLabels"),
+			Entry("value without keyPath", &ComponentTypeSelector{Value: ptr.To("worker"), MatchLabels: map[string]string{"app": "pulsar"}}, "value without keyPath"),
+		)
 	})
 
 	Describe("validateInstructions", func() {

@@ -6,6 +6,9 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/api/validate/content"
 
 	"github.com/dsx-ai-factory/workload-map/pkg/jq"
 )
@@ -158,14 +161,8 @@ func (v *KartaValidator) validateComponent(component ComponentDefinition) []erro
 		}
 	}
 
-	if component.PodSelector != nil && component.PodSelector.ComponentTypeSelector != nil {
-		selector := component.PodSelector.ComponentTypeSelector
-		switch {
-		case selector.KeyPath == "" && len(selector.MatchLabels) == 0:
-			errs = append(errs, fmt.Errorf("component '%s' has component type selector with neither keyPath nor matchLabels", component.Name))
-		case selector.KeyPath == "" && selector.Value != nil:
-			errs = append(errs, fmt.Errorf("component '%s' has component type selector value without keyPath", component.Name))
-		}
+	if err := validateComponentTypeSelector(component); err != nil {
+		errs = append(errs, err)
 	}
 
 	// Component's PodSelector has instance selector if has the component has instance id path defined or the opposite
@@ -174,6 +171,31 @@ func (v *KartaValidator) validateComponent(component ComponentDefinition) []erro
 	}
 
 	return errs
+}
+
+func validateComponentTypeSelector(component ComponentDefinition) error {
+	if component.PodSelector == nil || component.PodSelector.ComponentTypeSelector == nil {
+		return nil
+	}
+
+	selector := component.PodSelector.ComponentTypeSelector
+	switch {
+	case selector.KeyPath == "" && len(selector.MatchLabels) == 0:
+		return fmt.Errorf("component '%s' has component type selector with neither keyPath nor matchLabels", component.Name)
+	case selector.KeyPath == "" && selector.Value != nil:
+		return fmt.Errorf("component '%s' has component type selector value without keyPath", component.Name)
+	}
+
+	for key, value := range selector.MatchLabels {
+		if msgs := content.IsLabelKey(key); len(msgs) > 0 {
+			return fmt.Errorf("component '%s' has invalid matchLabels key %q: %s", component.Name, key, strings.Join(msgs, "; "))
+		}
+		if msgs := content.IsLabelValue(value); len(msgs) > 0 {
+			return fmt.Errorf("component '%s' has invalid matchLabels value %q: %s", component.Name, value, strings.Join(msgs, "; "))
+		}
+	}
+
+	return nil
 }
 
 func validateMultiInstanceComponent(component ComponentDefinition) error {

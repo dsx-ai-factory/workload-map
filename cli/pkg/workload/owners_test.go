@@ -117,6 +117,26 @@ var _ = Describe("OwnerWalker.TopLevel", func() {
 		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeTrue())
 	})
 
+	// A same-name replacement is another object, so its owners are not ours.
+	It("keeps an object whose owner was replaced under the same name", func() {
+		client, mapper := fakeCluster(deployment, replicaSet)
+
+		p := pod("web-abc-1", controllerOf(replicaSetGVK, "web-abc", "old-rs-uid"))
+		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeTrue())
+	})
+
+	// Stopping early must not read as top level, or a nested object becomes a
+	// row with no signal.
+	It("reports a chain it cannot walk to the end, and keeps the object", func() {
+		loop := owned(replicaSetGVK, "loop", "loop-uid", controllerOf(replicaSetGVK, "loop", "loop-uid"))
+		client, mapper := fakeCluster(loop)
+
+		p := pod("loop-1", controllerOf(replicaSetGVK, "loop", "loop-uid"))
+		top, err := NewOwnerWalker(client, mapper).TopLevel(context.Background(), &p, covered)
+		Expect(err).To(MatchError(errChainTooLong))
+		Expect(top).To(BeTrue())
+	})
+
 	// The question cannot be answered, so the caller must hear about it.
 	It("reports an owner kind it may not list, and keeps the object", func() {
 		client, mapper := fakeCluster(deployment, replicaSet)

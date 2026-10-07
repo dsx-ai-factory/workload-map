@@ -23,6 +23,10 @@ const (
 	ownerListChunk = 500
 )
 
+// errChainTooLong reports a walk cut off before the chain ended, so whether an
+// owner further up is covered was never checked.
+var errChainTooLong = fmt.Errorf("owner chain longer than %d links", maxOwnerDepth)
+
 // OwnerWalker climbs controller owner chains for one metadata list per owner
 // kind and namespace. It is not safe for concurrent use.
 type OwnerWalker struct {
@@ -42,12 +46,14 @@ type ownerList struct {
 	err    error
 }
 
+// NewOwnerWalker returns a walker reading owners through client.
 func NewOwnerWalker(client metadata.Interface, mapper meta.RESTMapper) *OwnerWalker {
 	return &OwnerWalker{client: client, mapper: mapper, lists: map[listKey]ownerList{}}
 }
 
 // TopLevel reports whether no object in obj's controller chain is of a covered
-// kind. An owner that cannot be read leaves that open and is the error.
+// kind. A chain that cannot be walked to its end leaves that open and is the
+// error.
 func (w *OwnerWalker) TopLevel(
 	ctx context.Context, obj *unstructured.Unstructured, covered func(schema.GroupKind) bool,
 ) (bool, error) {
@@ -80,7 +86,7 @@ func (w *OwnerWalker) climb(
 		}
 		refs = owner.GetOwnerReferences()
 	}
-	return false, nil
+	return false, errChainTooLong
 }
 
 // controllerRef returns the single owner reference with Controller set, the
@@ -94,7 +100,8 @@ func controllerRef(refs []metav1.OwnerReference) *metav1.OwnerReference {
 	return nil
 }
 
-// get returns the owner ref names, or nil when it no longer exists.
+// get returns the owner ref names, or nil when it no longer exists. A
+// same-name object with another UID is a replacement, not that owner.
 func (w *OwnerWalker) get(
 	ctx context.Context, ref metav1.OwnerReference, namespace string,
 ) (*metav1.PartialObjectMetadata, error) {
@@ -119,7 +126,11 @@ func (w *OwnerWalker) get(
 		owners.byName, owners.err = listOwners(ctx, w.client.Resource(mapping.Resource).Namespace(namespace))
 		w.lists[key] = owners
 	}
-	return owners.byName[ref.Name], owners.err
+	owner := owners.byName[ref.Name]
+	if owner == nil || owner.UID != ref.UID {
+		return nil, owners.err
+	}
+	return owner, nil
 }
 
 // listOwners reads every object of one kind in one namespace, indexed by name.

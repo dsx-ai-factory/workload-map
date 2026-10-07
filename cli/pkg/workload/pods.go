@@ -28,6 +28,7 @@ type PodAttributor struct {
 	owners *OwnerWalker
 }
 
+// NewPodAttributor returns an attributor reading pod owners through client.
 func NewPodAttributor(client metadata.Interface, mapper meta.RESTMapper) *PodAttributor {
 	return &PodAttributor{owners: NewOwnerWalker(client, mapper)}
 }

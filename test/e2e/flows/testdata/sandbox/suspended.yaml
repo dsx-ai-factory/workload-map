@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A Sandbox created suspended (spec.operatingMode Suspended). The controller creates no
+# pod and sets the Suspended condition, which the Karta library reads as Suspended.
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: karta-e2e-sandbox-suspended
+  namespace: default
+spec:
+  operatingMode: Suspended
+  podTemplate:
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: agent
+          image: busybox:1.36
+          command: ["sleep", "infinity"]
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {cpu: 50m, memory: 32Mi}

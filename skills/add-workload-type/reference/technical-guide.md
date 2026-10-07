@@ -264,7 +264,8 @@ podSelector:
 
 When one label is not enough (two operators reuse the same label value), match
 several labels with `matchLabels`. All entries must match, and `matchLabels`
-can be combined with `keyPath`. At least one of the two must be set.
+can be combined with `keyPath`. At least one of the two must be set, and
+`value` requires `keyPath`.
 
 ```yaml
 componentTypeSelector:

@@ -6,9 +6,11 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/api/validate/content"
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/dsx-ai-factory/workload-map/pkg/jq"
 )
@@ -180,22 +182,24 @@ func validateComponentTypeSelector(component ComponentDefinition) error {
 
 	selector := component.PodSelector.ComponentTypeSelector
 	switch {
+	// Mirrors the CRD's minProperties, which rejects an explicitly empty map even when keyPath is set
+	case selector.MatchLabels != nil && len(selector.MatchLabels) == 0:
+		return fmt.Errorf("component '%s' has component type selector with empty matchLabels", component.Name)
 	case selector.KeyPath == "" && len(selector.MatchLabels) == 0:
 		return fmt.Errorf("component '%s' has component type selector with neither keyPath nor matchLabels", component.Name)
 	case selector.KeyPath == "" && selector.Value != nil:
 		return fmt.Errorf("component '%s' has component type selector value without keyPath", component.Name)
 	}
 
-	for key, value := range selector.MatchLabels {
-		if msgs := content.IsLabelKey(key); len(msgs) > 0 {
-			return fmt.Errorf("component '%s' has invalid matchLabels key %q: %s", component.Name, key, strings.Join(msgs, "; "))
-		}
-		if msgs := content.IsLabelValue(value); len(msgs) > 0 {
-			return fmt.Errorf("component '%s' has invalid matchLabels value %q: %s", component.Name, value, strings.Join(msgs, "; "))
-		}
+	labelErrs := metav1validation.ValidateLabels(selector.MatchLabels, field.NewPath("podSelector", "componentTypeSelector", "matchLabels"))
+	if len(labelErrs) == 0 {
+		return nil
 	}
-
-	return nil
+	// ValidateLabels walks the map in random order; sort so the message is stable across runs
+	slices.SortFunc(labelErrs, func(a, b *field.Error) int {
+		return strings.Compare(a.Error(), b.Error())
+	})
+	return fmt.Errorf("component '%s' has invalid matchLabels: %w", component.Name, labelErrs.ToAggregate())
 }
 
 func validateMultiInstanceComponent(component ComponentDefinition) error {

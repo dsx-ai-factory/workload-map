@@ -110,6 +110,21 @@ jobs:
         if: github.event_name == 'release'
         run: make release-validate VERSION="$PACKAGE_VERSION" REQUIRE_TAGS=1
 
+      # Also before anything is published: GoReleaser opens the kli cask pull
+      # request with this token, and a release that cannot open it must not
+      # start. A pull request opened with GITHUB_TOKEN would not run the CI
+      # check the default branch requires, so it could never merge. The token
+      # covers only this repository and lasts an hour, which outlives the job.
+      - name: Mint the Homebrew tap token
+        id: tap-token
+        if: github.ref_type == 'tag'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.HOMEBREW_TAP_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Run checks
         if: github.event_name == 'release'
         run: make check VERSION="$PACKAGE_VERSION"
@@ -150,6 +165,7 @@ jobs:
         if: github.event_name == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ steps.tap-token.outputs.token }}
         run: make release VERSION="$PACKAGE_VERSION"
 
       - name: Generate air-gap image lock

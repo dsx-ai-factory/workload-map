@@ -5,6 +5,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -14,12 +16,21 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 
 	"golang.org/x/mod/modfile"
 )
 
-var semanticVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+// quarantineStep is the postflight step that lets Gatekeeper run the
+// unnotarized executable Homebrew downloaded.
+const quarantineStep = `run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{staged_path}}/kli"]`
+
+var (
+	semanticVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+	caskStanza      = regexp.MustCompile(`^(version|sha256|url|homepage|binary) "([^"]*)"$`)
+	cliPlatforms    = []string{"linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"}
+)
 
 type artifact struct {
 	Name   string         `json:"name"`
@@ -169,35 +180,164 @@ func runVerifyArtifacts(args []string) error {
 		return err
 	}
 	archives := map[string]artifact{}
+	var casks []artifact
 	for _, item := range artifacts {
-		if item.Type != "Archive" {
-			continue
+		switch item.Type {
+		case "Archive":
+			if extraID(item) != "karta" {
+				return fmt.Errorf("unexpected public archive %s from %s", item.Name, extraID(item))
+			}
+			archives[item.Name] = item
+		case "Homebrew Cask":
+			casks = append(casks, item)
 		}
-		if extraID(item) != "karta" {
-			return fmt.Errorf("unexpected public archive %s from %s", item.Name, extraID(item))
-		}
-		archives[item.Name] = item
 	}
-	platforms := []string{"linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"}
-	if len(archives) != len(platforms) {
-		return fmt.Errorf("found %d CLI archives, want %d", len(archives), len(platforms))
+	if len(archives) != len(cliPlatforms) {
+		return fmt.Errorf("found %d CLI archives, want %d", len(archives), len(cliPlatforms))
 	}
-	for _, platform := range platforms {
+	sums := map[string]string{}
+	for _, platform := range cliPlatforms {
 		name := "karta_" + *version + "_" + platform + ".tar.gz"
-		if _, ok := archives[name]; !ok {
+		archive, ok := archives[name]
+		if !ok {
 			return fmt.Errorf("missing archive %s", name)
 		}
+		contents, err := os.ReadFile(archive.Path)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(contents)
+		sums[name] = hex.EncodeToString(sum[:])
+	}
+	if len(casks) != 1 {
+		return fmt.Errorf("found %d Homebrew casks, want 1", len(casks))
+	}
+	cask, err := os.ReadFile(casks[0].Path)
+	if err != nil {
+		return err
+	}
+	if err := verifyCask(string(cask), *version, sums); err != nil {
+		return fmt.Errorf("%s: %w", casks[0].Path, err)
 	}
 	verified, skipped, err := verifyHostVersions(artifacts, *version)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("verified %d CLI archives for %s\n", len(archives), *version)
+	fmt.Printf("verified %d CLI archives and the kli cask for %s\n", len(archives), *version)
 	if len(verified) != 0 {
 		fmt.Printf("verified host executable versions: %s\n", strings.Join(verified, ", "))
 	}
 	for _, id := range skipped {
 		fmt.Printf("skipped %s --version: no %s/%s artifact\n", id, runtime.GOOS, runtime.GOARCH)
+	}
+	return nil
+}
+
+// verifyCask checks the cask GoReleaser generated against the archives it
+// installs. It follows the do/end nesting rather than evaluating Ruby, which
+// is enough for the generated layout: one sha256 and url inside each
+// on_<os> and on_<arch> pair.
+func verifyCask(contents, version string, sums map[string]string) error {
+	type caskPackage struct{ sha256, url string }
+	packages := map[string]*caskPackage{}
+	var blocks []string
+	var caskVersion, homepage string
+	var installsKli, removesQuarantine bool
+	for line := range strings.Lines(contents) {
+		line = strings.TrimSpace(line)
+		switch {
+		case line == "end":
+			if len(blocks) == 0 {
+				return errors.New("cask closes a block it never opened")
+			}
+			blocks = blocks[:len(blocks)-1]
+			continue
+		case strings.HasSuffix(line, " do"):
+			blocks = append(blocks, strings.Fields(line)[0])
+			continue
+		case line == quarantineStep:
+			removesQuarantine = slices.Contains(blocks, "postflight_steps") && slices.Contains(blocks, "on_macos")
+			continue
+		}
+		match := caskStanza.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+		switch stanza, value := match[1], match[2]; stanza {
+		case "version":
+			caskVersion = value
+		case "homepage":
+			homepage = value
+		case "binary":
+			installsKli = installsKli || value == "kli"
+		case "sha256", "url":
+			var goos, goarch string
+			for _, block := range blocks {
+				switch block {
+				case "on_macos":
+					goos = "darwin"
+				case "on_linux":
+					goos = "linux"
+				case "on_arm":
+					goarch = "arm64"
+				case "on_intel":
+					goarch = "amd64"
+				}
+			}
+			if goos == "" || goarch == "" {
+				return fmt.Errorf("cask sets %s outside an operating system and architecture block", stanza)
+			}
+			platform := goos + "_" + goarch
+			if packages[platform] == nil {
+				packages[platform] = &caskPackage{}
+			}
+			field := &packages[platform].url
+			if stanza == "sha256" {
+				field = &packages[platform].sha256
+			}
+			if *field != "" {
+				return fmt.Errorf("cask sets %s twice for %s", stanza, platform)
+			}
+			*field = value
+		}
+	}
+	if len(blocks) != 0 {
+		return fmt.Errorf("cask has unclosed blocks: %s", strings.Join(blocks, ", "))
+	}
+	if caskVersion != version {
+		return fmt.Errorf("cask version is %q, want %q", caskVersion, version)
+	}
+	if len(packages) != len(cliPlatforms) {
+		return fmt.Errorf("cask has %d packages, want %d", len(packages), len(cliPlatforms))
+	}
+	var repository string
+	for _, platform := range cliPlatforms {
+		pkg, ok := packages[platform]
+		if !ok {
+			return fmt.Errorf("cask has no package for %s", platform)
+		}
+		name := "karta_" + version + "_" + platform + ".tar.gz"
+		if pkg.sha256 != sums[name] {
+			return fmt.Errorf("cask sha256 for %s is %q, want %q", platform, pkg.sha256, sums[name])
+		}
+		url := strings.ReplaceAll(pkg.url, "#{version}", version)
+		prefix, ok := strings.CutSuffix(url, "/releases/download/v"+version+"/"+name)
+		if !ok || !strings.HasPrefix(prefix, "https://github.com/") {
+			return fmt.Errorf("cask url for %s is %q, want the GitHub release download of %s", platform, url, name)
+		}
+		if repository != "" && prefix != repository {
+			return fmt.Errorf("cask downloads from both %s and %s", repository, prefix)
+		}
+		repository = prefix
+	}
+	if homepage != repository {
+		return fmt.Errorf("cask homepage is %q, want the download repository %s", homepage, repository)
+	}
+	if !installsKli {
+		return errors.New("cask does not install the kli binary")
+	}
+	if !removesQuarantine {
+		return errors.New("cask does not remove the macOS quarantine from kli")
 	}
 	return nil
 }

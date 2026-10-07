@@ -5,6 +5,12 @@
 version: 2
 project_name: karta
 
+# The release, the cask download URLs and the tap follow the repository the
+# workflow runs in, so a fork releases to itself with no edits. A local
+# snapshot has no GITHUB_REPOSITORY and renders the upstream values.
+env:
+  - RELEASE_REPOSITORY={{ envOrDefault "GITHUB_REPOSITORY" "dsx-ai-factory/workload-map" }}
+
 builds:
   - id: karta
     dir: cli
@@ -64,10 +70,52 @@ source:
 sboms:
   - disable: true
 
+# The tap is this repository. Users tap it by URL once, then install by full
+# name, which also makes Homebrew trust this one cask:
+#   brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
+#   brew install dsx-ai-factory/kli/kli
+#
+# The default branch takes only reviewed pull requests, so the cask lands on a
+# kli-cask-<version> branch and GoReleaser opens the pull request with the
+# GitHub App token the release workflow mints. A pull request opened by an App
+# runs CI, unlike one opened with GITHUB_TOKEN. The cask reaches users when a
+# maintainer approves and merges it.
+homebrew_casks:
+  - name: kli
+    ids:
+      - karta
+    binaries:
+      - kli
+    url:
+      template: "https://github.com/{{ .Env.RELEASE_REPOSITORY }}/releases/download/v{{ .Version }}/{{ .ArtifactName }}"
+    homepage: "https://github.com/{{ .Env.RELEASE_REPOSITORY }}"
+    description: Workload-aware visibility for any Kubernetes workload type
+    commit_msg_template: "build(release): update the kli cask to {{ .Version }}"
+    # With no committer on the API call, GitHub signs the commit as the App,
+    # which the default branch's signed-commit rule requires.
+    commit_author:
+      use_github_app_token: true
+    repository:
+      owner: "{{ dir .Env.RELEASE_REPOSITORY }}"
+      name: "{{ base .Env.RELEASE_REPOSITORY }}"
+      branch: "kli-cask-{{ .Version }}"
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      # No base: the pull request targets this repository's default branch.
+      pull_request:
+        enabled: true
+    # Homebrew quarantines what it downloads, and Gatekeeper refuses to run an
+    # unnotarized executable that carries the attribute.
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{staged_path}}" }}/kli"]
+        end
+      end
+
 release:
   github:
-    owner: dsx-ai-factory
-    name: workload-map
+    owner: "{{ dir .Env.RELEASE_REPOSITORY }}"
+    name: "{{ base .Env.RELEASE_REPOSITORY }}"
   ids:
     - karta
   # A maintainer publishes the GitHub Release, with notes from CHANGELOG.md, and

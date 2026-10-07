@@ -140,11 +140,11 @@ uninstall: ## Remove kli from BINDIR and stop loading its completion from your b
 
 .PHONY: install-local
 install-local: ## Run install into $HOME/.local/bin, which needs no root
-	$(MAKE) install PREFIX="$(HOME)/.local"
+	$(MAKE) install BINDIR="$(HOME)/.local/bin"
 
 .PHONY: uninstall-local
 uninstall-local: ## Run uninstall against $HOME/.local/bin
-	$(MAKE) uninstall PREFIX="$(HOME)/.local"
+	$(MAKE) uninstall BINDIR="$(HOME)/.local/bin"
 
 ##@ Library (root module)
 
@@ -281,7 +281,7 @@ cli-completion-install: build-cli ## Build kli and load its completion (of the i
 
 .PHONY: cli-completion-install-local
 cli-completion-install-local: ## Run cli-completion-install, preferring the kli in $HOME/.local/bin
-	$(MAKE) cli-completion-install PREFIX="$(HOME)/.local"
+	$(MAKE) cli-completion-install BINDIR="$(HOME)/.local/bin"
 
 .PHONY: cli-completion-uninstall
 cli-completion-uninstall: ## Stop loading kli completion from your bash or zsh rc file

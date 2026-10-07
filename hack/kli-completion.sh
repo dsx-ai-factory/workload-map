@@ -80,6 +80,10 @@ case "${action}" in
       /*) ;;
       *) local_kli="${PWD}/${local_kli}" ;;
     esac
+    case "${installed_kli}" in
+      "" | /*) ;;
+      *) installed_kli="${PWD}/${installed_kli}" ;;
+    esac
     local_dir="$(dirname "${local_kli}")"
     # eval rather than source <(...), which bash 3.2 on macOS ignores. The
     # guards keep a new shell quiet once a binary or the clone is deleted.

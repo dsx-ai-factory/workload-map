@@ -70,6 +70,9 @@ IMAGE_REPOSITORY ?= $(IMAGE_REGISTRY)/$(IMAGE_NAME)
 CONTAINER_TOOL ?= docker
 BUILD_ARGS     ?=
 DIST_DIR       ?= $(PROJECT_DIR)/dist
+# Where make install puts kli. make install-local uses $(HOME)/.local/bin instead.
+PREFIX         ?= /usr/local
+BINDIR         ?= $(PREFIX)/bin
 RELEASE_HELPER_DIR := $(PROJECT_DIR)/hack/release
 ROOT_MODULE         := github.com/dsx-ai-factory/workload-map
 
@@ -122,6 +125,26 @@ clean: ## Remove build outputs, coverage profiles, and release and plugin artifa
 clean-all: clean ## Run clean, then also remove bin/ (tools, envtest assets) and headlamp-plugin/node_modules
 	[ ! -d "$(LOCALBIN)" ] || chmod -R u+w "$(LOCALBIN)"
 	rm -rf "$(LOCALBIN)" headlamp-plugin/node_modules
+
+.PHONY: install
+install: build-cli ## Install kli into BINDIR (default /usr/local/bin) and load its completion from your bash or zsh rc file
+	install -d "$(BINDIR)"
+	install -m 0755 "$(LOCALBIN)/kli" "$(BINDIR)/kli"
+	hack/kli-completion.sh install "$(LOCALBIN)/kli" "$(BINDIR)/kli"
+	@case ":$$PATH:" in *":$(BINDIR):"*) ;; *) echo "warning: $(BINDIR) is not on PATH" >&2 ;; esac
+
+.PHONY: uninstall
+uninstall: ## Remove kli from BINDIR and stop loading its completion from your bash or zsh rc file
+	rm -f "$(BINDIR)/kli"
+	hack/kli-completion.sh uninstall
+
+.PHONY: install-local
+install-local: ## Run install into $HOME/.local/bin, which needs no root
+	$(MAKE) install PREFIX="$(HOME)/.local"
+
+.PHONY: uninstall-local
+uninstall-local: ## Run uninstall against $HOME/.local/bin
+	$(MAKE) uninstall PREFIX="$(HOME)/.local"
 
 ##@ Library (root module)
 
@@ -253,8 +276,12 @@ cli-verify-version: build-cli ## Assert the CLI binary reports the stamped versi
 		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
 
 .PHONY: cli-completion-install
-cli-completion-install: build-cli ## Build kli and load its completion from your bash or zsh rc file
-	hack/kli-completion.sh install $(LOCALBIN)/kli
+cli-completion-install: build-cli ## Build kli and load its completion (of the installed kli if present) from your bash or zsh rc file
+	hack/kli-completion.sh install "$(LOCALBIN)/kli" "$(BINDIR)/kli"
+
+.PHONY: cli-completion-install-local
+cli-completion-install-local: ## Run cli-completion-install, preferring the kli in $HOME/.local/bin
+	$(MAKE) cli-completion-install PREFIX="$(HOME)/.local"
 
 .PHONY: cli-completion-uninstall
 cli-completion-uninstall: ## Stop loading kli completion from your bash or zsh rc file

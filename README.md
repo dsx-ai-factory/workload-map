@@ -127,9 +127,14 @@ eval "$(kli completion zsh)"
 eval "$(kli completion bash)"
 ```
 
-In a clone of this repository, `make cli-completion-install` builds `kli` into
-`bin/` and loads its completion from your rc file instead.
-`make cli-completion-uninstall` removes it.
+In a clone of this repository, `make install` builds `kli`, copies it to
+`/usr/local/bin`, and loads its completion from your rc file. `make uninstall`
+removes both. `make install-local` and `make uninstall-local` do the same with
+`$HOME/.local/bin`, which needs no root.
+`make cli-completion-install` only builds `kli` into `bin/` and loads its
+completion (`make cli-completion-install-local` after `make install-local`);
+`make cli-completion-uninstall` removes it. Either way, completion comes from
+the installed `kli` when it exists and falls back to `bin/kli`.
 `kli completion --help` lists the other shells and setup details.
 
 ### Install the CRD

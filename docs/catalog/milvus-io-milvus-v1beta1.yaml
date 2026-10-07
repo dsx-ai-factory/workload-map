@@ -310,6 +310,11 @@ spec:
             resourcesPath: .spec.dependencies.pulsar.inCluster.values.zookeeper.resources
         scaleDefinition:
           replicasPath: .spec.dependencies.pulsar.inCluster.values.zookeeper.replicaCount
+        podSelector:
+          componentTypeSelector:
+            matchLabels:
+              app: pulsar
+              component: zookeeper
       - name: pulsar-bookkeeper
         kind:
           group: apps
@@ -321,6 +326,11 @@ spec:
             resourcesPath: .spec.dependencies.pulsar.inCluster.values.bookkeeper.resources
         scaleDefinition:
           replicasPath: .spec.dependencies.pulsar.inCluster.values.bookkeeper.replicaCount
+        podSelector:
+          componentTypeSelector:
+            matchLabels:
+              app: pulsar
+              component: bookie
       - name: pulsar-broker
         kind:
           group: apps
@@ -332,6 +342,11 @@ spec:
             resourcesPath: .spec.dependencies.pulsar.inCluster.values.broker.resources
         scaleDefinition:
           replicasPath: .spec.dependencies.pulsar.inCluster.values.broker.replicaCount
+        podSelector:
+          componentTypeSelector:
+            matchLabels:
+              app: pulsar
+              component: broker
       - name: pulsar-proxy
         kind:
           group: apps
@@ -343,6 +358,11 @@ spec:
             resourcesPath: .spec.dependencies.pulsar.inCluster.values.proxy.resources
         scaleDefinition:
           replicasPath: .spec.dependencies.pulsar.inCluster.values.proxy.replicaCount
+        podSelector:
+          componentTypeSelector:
+            matchLabels:
+              app: pulsar
+              component: proxy
   optimizationInstructions:
     gangScheduling:
       podGroups:

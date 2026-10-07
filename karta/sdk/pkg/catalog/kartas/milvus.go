@@ -380,6 +380,11 @@ func Milvus() *v1alpha1.Karta {
 						ScaleDefinition: &v1alpha1.ScaleDefinition{
 							ReplicasPath: ptr.To(".spec.dependencies.pulsar.inCluster.values.zookeeper.replicaCount"),
 						},
+						PodSelector: &v1alpha1.PodSelector{
+							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
+								MatchLabels: map[string]string{"app": "pulsar", "component": "zookeeper"},
+							},
+						},
 					},
 					{
 						Name:     "pulsar-bookkeeper",
@@ -392,6 +397,11 @@ func Milvus() *v1alpha1.Karta {
 						},
 						ScaleDefinition: &v1alpha1.ScaleDefinition{
 							ReplicasPath: ptr.To(".spec.dependencies.pulsar.inCluster.values.bookkeeper.replicaCount"),
+						},
+						PodSelector: &v1alpha1.PodSelector{
+							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
+								MatchLabels: map[string]string{"app": "pulsar", "component": "bookie"},
+							},
 						},
 					},
 					{
@@ -406,6 +416,11 @@ func Milvus() *v1alpha1.Karta {
 						ScaleDefinition: &v1alpha1.ScaleDefinition{
 							ReplicasPath: ptr.To(".spec.dependencies.pulsar.inCluster.values.broker.replicaCount"),
 						},
+						PodSelector: &v1alpha1.PodSelector{
+							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
+								MatchLabels: map[string]string{"app": "pulsar", "component": "broker"},
+							},
+						},
 					},
 					{
 						Name:     "pulsar-proxy",
@@ -418,6 +433,11 @@ func Milvus() *v1alpha1.Karta {
 						},
 						ScaleDefinition: &v1alpha1.ScaleDefinition{
 							ReplicasPath: ptr.To(".spec.dependencies.pulsar.inCluster.values.proxy.replicaCount"),
+						},
+						PodSelector: &v1alpha1.PodSelector{
+							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
+								MatchLabels: map[string]string{"app": "pulsar", "component": "proxy"},
+							},
 						},
 					},
 				},

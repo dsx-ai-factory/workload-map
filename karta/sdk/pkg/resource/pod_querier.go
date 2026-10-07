@@ -38,16 +38,25 @@ func (pq *PodQuerier) GetPodName() string {
 	return pq.pod.Name
 }
 
-// MatchesComponentType returns true if the pod matches the given component type selector
+// MatchesComponentType returns true if the pod matches every condition set on the given component type selector
 func (pq *PodQuerier) MatchesComponentType(ctx context.Context, selector *v1alpha1.ComponentTypeSelector) (bool, error) {
-	if selector == nil {
+	if selector == nil || (selector.KeyPath == "" && len(selector.MatchLabels) == 0) {
 		return false, nil
 	}
 
-	if selector.Value == nil {
+	for key, value := range selector.MatchLabels {
+		if podValue, ok := pq.pod.Labels[key]; !ok || podValue != value {
+			return false, nil
+		}
+	}
+
+	switch {
+	case selector.KeyPath == "":
+		return true, nil
+	case selector.Value == nil:
 		// Existence check: key should exist and not be nil
 		return pq.checkKeyExists(ctx, selector.KeyPath)
-	} else {
+	default:
 		// Equality check: key should equal the specified value
 		return pq.checkKeyValue(ctx, selector.KeyPath, *selector.Value)
 	}

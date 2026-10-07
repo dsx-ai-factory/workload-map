@@ -158,6 +158,16 @@ func (v *KartaValidator) validateComponent(component ComponentDefinition) []erro
 		}
 	}
 
+	if component.PodSelector != nil && component.PodSelector.ComponentTypeSelector != nil {
+		selector := component.PodSelector.ComponentTypeSelector
+		switch {
+		case selector.KeyPath == "" && len(selector.MatchLabels) == 0:
+			errs = append(errs, fmt.Errorf("component '%s' has component type selector with neither keyPath nor matchLabels", component.Name))
+		case selector.KeyPath == "" && selector.Value != nil:
+			errs = append(errs, fmt.Errorf("component '%s' has component type selector value without keyPath", component.Name))
+		}
+	}
+
 	// Component's PodSelector has instance selector if has the component has instance id path defined or the opposite
 	if err := validateMultiInstanceComponent(component); err != nil {
 		errs = append(errs, err)

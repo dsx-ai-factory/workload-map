@@ -355,13 +355,33 @@ var _ = Describe("KartaValidator", func() {
 			Entry("matchLabels only", &ComponentTypeSelector{MatchLabels: map[string]string{"app": "pulsar", "component": "proxy"}}, ""),
 			Entry("keyPath and matchLabels", &ComponentTypeSelector{KeyPath: ".metadata.annotations.leader", MatchLabels: map[string]string{"app": "pulsar"}}, ""),
 			Entry("empty selector", &ComponentTypeSelector{}, "neither keyPath nor matchLabels"),
-			Entry("empty matchLabels", &ComponentTypeSelector{MatchLabels: map[string]string{}}, "neither keyPath nor matchLabels"),
+			Entry("empty matchLabels", &ComponentTypeSelector{MatchLabels: map[string]string{}}, "empty matchLabels"),
+			Entry("keyPath and empty matchLabels", &ComponentTypeSelector{KeyPath: ".metadata.labels.role", MatchLabels: map[string]string{}}, "empty matchLabels"),
 			Entry("value without keyPath", &ComponentTypeSelector{Value: ptr.To("worker"), MatchLabels: map[string]string{"app": "pulsar"}}, "value without keyPath"),
 			Entry("prefixed matchLabels key", &ComponentTypeSelector{MatchLabels: map[string]string{"app.kubernetes.io/component": "proxy"}}, ""),
 			Entry("empty matchLabels value", &ComponentTypeSelector{MatchLabels: map[string]string{"app": ""}}, ""),
-			Entry("invalid matchLabels key", &ComponentTypeSelector{MatchLabels: map[string]string{"app name": "pulsar"}}, `invalid matchLabels key "app name"`),
-			Entry("invalid matchLabels value", &ComponentTypeSelector{MatchLabels: map[string]string{"component": "proxy "}}, `invalid matchLabels value "proxy "`),
+			Entry("invalid matchLabels key", &ComponentTypeSelector{MatchLabels: map[string]string{"app name": "pulsar"}}, `Invalid value: "app name"`),
+			Entry("invalid matchLabels value", &ComponentTypeSelector{MatchLabels: map[string]string{"component": "proxy "}}, `Invalid value: "proxy "`),
 		)
+
+		It("reports every invalid matchLabels entry in a stable order", func() {
+			component := ComponentDefinition{
+				Name: "test",
+				PodSelector: &PodSelector{ComponentTypeSelector: &ComponentTypeSelector{
+					MatchLabels: map[string]string{"app name": "pulsar", "component": "proxy ", "tier": "-bad"},
+				}},
+			}
+
+			first := validateComponentTypeSelector(component)
+			Expect(first).To(MatchError(And(
+				ContainSubstring(`"app name"`),
+				ContainSubstring(`"proxy "`),
+				ContainSubstring(`"-bad"`),
+			)))
+			for range 20 {
+				Expect(validateComponentTypeSelector(component)).To(MatchError(first.Error()))
+			}
+		})
 	})
 
 	Describe("validateInstructions", func() {

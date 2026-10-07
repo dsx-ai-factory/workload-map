@@ -7,7 +7,7 @@
 # Usage: kli-completion.sh install|uninstall [LOCAL_KLI] [INSTALLED_KLI]
 #
 # The shell comes from $SHELL (bash or zsh); set KLI_SHELL to override it.
-# install sources the completion script of INSTALLED_KLI (the make install
+# install sources the completion script of INSTALLED_KLI (the make install-cli
 # target) when it exists at shell start. Otherwise it puts the directory of
 # LOCAL_KLI (default bin/kli) on PATH, so completion fires for a plain `kli`,
 # and sources its completion script instead.

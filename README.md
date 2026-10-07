@@ -112,30 +112,8 @@ Or download a prebuilt archive for your platform from the
 the `kli` executable on your `PATH`. Run `kli --version` to print the release
 version.
 
-Each release also publishes prebuilt `kli` archives for Linux and macOS on
-amd64 and arm64, with a `checksums.txt` manifest, on the
-[GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
-
-To complete commands, workload types, workload names, and namespaces on TAB,
-load the completion script from your shell rc file:
-
-```bash
-# ~/.zshrc (after compinit)
-eval "$(kli completion zsh)"
-
-# ~/.bashrc, or ~/.bash_profile on macOS (needs the bash-completion package)
-eval "$(kli completion bash)"
-```
-
-In a clone of this repository, `make install` builds `kli`, copies it to
-`/usr/local/bin`, and loads its completion from your rc file. `make uninstall`
-removes both. `make install-local` and `make uninstall-local` do the same with
-`$HOME/.local/bin`, which needs no root.
-`make cli-completion-install` only builds `kli` into `bin/` and loads its
-completion (`make cli-completion-install-local` after `make install-local`);
-`make cli-completion-uninstall` removes it. Either way, completion comes from
-the installed `kli` when it exists and falls back to `bin/kli`.
-`kli completion --help` lists the other shells and setup details.
+See the [CLI Guide](docs/CLI%20Guide.md) for shell completion and for installing
+from a clone with make.
 
 ### Install the CRD
 
@@ -294,6 +272,7 @@ See [ADOPTERS.md](ADOPTERS.md) for the full list of adopters. If you use Karta, 
 
 - [Roadmap](ROADMAP.md) - Where Karta is headed, in Now / Next / Later horizons
 - [Changelog](CHANGELOG.md) - Notable changes per release
+- [CLI Guide](docs/CLI%20Guide.md) - Installing `kli`, shell completion, and the install make targets
 - [Technical Guide](docs/Technical%20Guide.md) - Full Karta spec, path syntax (jq), validation rules
 - [Webhook Certificates](docs/Webhook%20Certificates.md) - Webhook cert modes (auto self-signed or manual) and how to wire cert-manager
 - [FIPS 140-3](docs/FIPS.md) - Running the operator with Go's FIPS 140-3 crypto module

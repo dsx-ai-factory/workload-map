@@ -70,7 +70,7 @@ IMAGE_REPOSITORY ?= $(IMAGE_REGISTRY)/$(IMAGE_NAME)
 CONTAINER_TOOL ?= docker
 BUILD_ARGS     ?=
 DIST_DIR       ?= $(PROJECT_DIR)/dist
-# Where make install puts kli. make install-local uses $(HOME)/.local/bin instead.
+# Where make install-cli puts kli. make install-cli-local uses $(HOME)/.local/bin instead.
 PREFIX         ?= /usr/local
 BINDIR         ?= $(PREFIX)/bin
 RELEASE_HELPER_DIR := $(PROJECT_DIR)/hack/release
@@ -110,8 +110,18 @@ check: $(addprefix check-,$(COMPONENTS)) ## Everything CI runs for Go. Run this 
 build: build-cli build-operator ## Build every binary into bin/ (the library has no artifact)
 
 # Keeps the pinned tools and envtest assets in bin/; clean-all removes them too.
+# The output directories can be overridden and are deleted recursively, so refuse
+# any that is not a subdirectory of the repository. clean-all runs this check too.
 .PHONY: clean
 clean: ## Remove build outputs, coverage profiles, and release and plugin artifacts
+	@for dir in "$(LOCALBIN)" "$(DIST_DIR)" "$(IMAGE_LOCK_OUT_DIR)"; do \
+		case "$$dir/" in \
+			*/./*|*/../*) ;; \
+			"$(PROJECT_DIR)"/?*/) continue ;; \
+		esac; \
+		echo "refusing to clean $$dir: not a directory inside $(PROJECT_DIR)" >&2; \
+		exit 1; \
+	done
 	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64"
 	rm -fv "$(LOCALBIN)"/*-tidy.mod "$(LOCALBIN)"/*-tidy.sum "$(LOCALBIN)"/*-license.mod "$(LOCALBIN)"/*-license.sum "$(LOCALBIN)"/*deps.json
 	rm -fv operator/cover-unit.out operator/cover-integration.out
@@ -129,25 +139,25 @@ clean-all: clean ## Run clean, then also remove bin/ (tools, envtest assets) and
 	@[ ! -d headlamp-plugin/node_modules ] || echo "removing headlamp-plugin/node_modules"
 	rm -rf headlamp-plugin/node_modules
 
-.PHONY: install
-install: build-cli ## Install kli into BINDIR (default /usr/local/bin) and load its completion from your bash or zsh rc file
+.PHONY: install-cli
+install-cli: build-cli ## Install kli into BINDIR (default /usr/local/bin) and load its completion from your bash or zsh rc file
 	install -d "$(BINDIR)"
 	install -m 0755 "$(LOCALBIN)/kli" "$(BINDIR)/kli"
 	hack/kli-completion.sh install "$(LOCALBIN)/kli" "$(BINDIR)/kli"
 	@case ":$$PATH:" in *":$(BINDIR):"*) ;; *) echo "warning: $(BINDIR) is not on PATH" >&2 ;; esac
 
-.PHONY: uninstall
-uninstall: ## Remove kli from BINDIR and stop loading its completion from your bash or zsh rc file
+.PHONY: uninstall-cli
+uninstall-cli: ## Remove kli from BINDIR and stop loading its completion from your bash or zsh rc file
 	rm -fv "$(BINDIR)/kli"
 	hack/kli-completion.sh uninstall
 
-.PHONY: install-local
-install-local: ## Run install into $HOME/.local/bin, which needs no root
-	$(MAKE) install BINDIR="$(HOME)/.local/bin"
+.PHONY: install-cli-local
+install-cli-local: ## Run install-cli into $HOME/.local/bin, which needs no root
+	$(MAKE) install-cli BINDIR="$(HOME)/.local/bin"
 
-.PHONY: uninstall-local
-uninstall-local: ## Run uninstall against $HOME/.local/bin
-	$(MAKE) uninstall BINDIR="$(HOME)/.local/bin"
+.PHONY: uninstall-cli-local
+uninstall-cli-local: ## Run uninstall-cli against $HOME/.local/bin
+	$(MAKE) uninstall-cli BINDIR="$(HOME)/.local/bin"
 
 ##@ Library (root module)
 
@@ -278,16 +288,16 @@ cli-verify-version: build-cli ## Assert the CLI binary reports the stamped versi
 	[ "$$out" = "$(VERSION)" ] || { \
 		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
 
-.PHONY: cli-completion-install
-cli-completion-install: build-cli ## Build kli and load its completion (of the installed kli if present) from your bash or zsh rc file
+.PHONY: install-cli-completion
+install-cli-completion: build-cli ## Build kli and load its completion (of the installed kli if present) from your bash or zsh rc file
 	hack/kli-completion.sh install "$(LOCALBIN)/kli" "$(BINDIR)/kli"
 
-.PHONY: cli-completion-install-local
-cli-completion-install-local: ## Run cli-completion-install, preferring the kli in $HOME/.local/bin
-	$(MAKE) cli-completion-install BINDIR="$(HOME)/.local/bin"
+.PHONY: install-cli-completion-local
+install-cli-completion-local: ## Run install-cli-completion, preferring the kli in $HOME/.local/bin
+	$(MAKE) install-cli-completion BINDIR="$(HOME)/.local/bin"
 
-.PHONY: cli-completion-uninstall
-cli-completion-uninstall: ## Stop loading kli completion from your bash or zsh rc file
+.PHONY: uninstall-cli-completion
+uninstall-cli-completion: ## Stop loading kli completion from your bash or zsh rc file
 	hack/kli-completion.sh uninstall
 
 # go mod tidy ignores the workspace, so it cannot resolve the unpublished root

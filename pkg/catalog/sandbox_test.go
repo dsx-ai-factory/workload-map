@@ -16,6 +16,7 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 	"github.com/dsx-ai-factory/workload-map/pkg/catalog/kartas"
 	"github.com/dsx-ai-factory/workload-map/pkg/instructions"
+	"github.com/dsx-ai-factory/workload-map/pkg/jq/execution"
 	"github.com/dsx-ai-factory/workload-map/pkg/resource"
 )
 
@@ -123,5 +124,40 @@ var _ = Describe("Sandbox Karta pod mapping", func() {
 		Expect(companionGroup).To(Equal(agentGroup))
 		Expect(agentKeys).To(Equal([]string{"11111111-2222-3333-4444-555555555555"}))
 		Expect(companionKeys).To(Equal(agentKeys))
+	})
+})
+
+var _ = Describe("Sandbox Karta status mapping", func() {
+	ctx := context.Background()
+
+	// status resolves the Sandbox statuses for the given operating mode and conditions.
+	status := func(mode string, conditions ...map[string]any) []v1alpha1.ResourceStatus {
+		conds := make([]any, len(conditions))
+		for i, c := range conditions {
+			conds[i] = c
+		}
+		obj := map[string]any{
+			"spec":   map[string]any{"operatingMode": mode},
+			"status": map[string]any{"conditions": conds},
+		}
+		accessor := resource.NewAccessor(execution.NewDefaultRunner(obj))
+		result, err := accessor.ExtractStatus(ctx, kartas.Sandbox().Spec.StructureDefinition.RootComponent)
+		Expect(err).NotTo(HaveOccurred())
+		return result.MatchedStatuses
+	}
+	cond := func(t, s string) map[string]any { return map[string]any{"type": t, "status": s} }
+
+	It("resolves a ready Sandbox to Running", func() {
+		Expect(status("Running", cond("Ready", "True"), cond("Suspended", "False"))).
+			To(ConsistOf(v1alpha1.RunningStatus))
+	})
+
+	It("resolves a ready Sandbox without a Suspended condition to Running", func() {
+		Expect(status("Running", cond("Ready", "True"))).To(ConsistOf(v1alpha1.RunningStatus))
+	})
+
+	It("resolves a resumed Sandbox with a stale Suspended condition to Resuming only", func() {
+		Expect(status("Running", cond("Ready", "True"), cond("Suspended", "True"))).
+			To(ConsistOf(v1alpha1.ResumingStatus))
 	})
 })

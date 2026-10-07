@@ -7,6 +7,7 @@
 set -euo pipefail
 
 MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
 source "${MODULE_DIR}/../_common.sh"
 
 main() {

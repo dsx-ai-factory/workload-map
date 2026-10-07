@@ -34,7 +34,7 @@ spec:
                 - type: Ready
                   status: "True"
               byExpression:
-                expression: (.spec.operatingMode // "Running") != "Suspended"
+                expression: (.spec.operatingMode // "Running") != "Suspended" and ([(.status.conditions // [])[] | select(.type == "Suspended" and .status == "True")] | length) == 0
                 expectedResult: "true"
           suspended:
             - byConditions:

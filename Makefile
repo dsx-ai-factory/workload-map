@@ -112,19 +112,22 @@ build: build-cli build-operator ## Build every binary into bin/ (the library has
 # Keeps the pinned tools and envtest assets in bin/; clean-all removes them too.
 .PHONY: clean
 clean: ## Remove build outputs, coverage profiles, and release and plugin artifacts
-	rm -f "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64"
-	rm -f "$(LOCALBIN)"/*-tidy.mod "$(LOCALBIN)"/*-tidy.sum "$(LOCALBIN)"/*-license.mod "$(LOCALBIN)"/*-license.sum "$(LOCALBIN)"/*deps.json
-	rm -f operator/cover-unit.out operator/cover-integration.out
-	rm -f karta-wasm/karta.wasm karta-wasm/wasm_exec.js
-	rm -f hack/imagelock/imagelock hack/release/release
-	rm -f "$(PROJECT_DIR)"/karta-*.tgz
-	rm -rf "$(DIST_DIR)" "$(IMAGE_LOCK_OUT_DIR)" headlamp-plugin/dist "$(PROJECT_DIR)/.artifacts"
+	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64"
+	rm -fv "$(LOCALBIN)"/*-tidy.mod "$(LOCALBIN)"/*-tidy.sum "$(LOCALBIN)"/*-license.mod "$(LOCALBIN)"/*-license.sum "$(LOCALBIN)"/*deps.json
+	rm -fv operator/cover-unit.out operator/cover-integration.out
+	rm -fv karta-wasm/karta.wasm karta-wasm/wasm_exec.js
+	rm -fv hack/imagelock/imagelock hack/release/release
+	rm -fv "$(PROJECT_DIR)"/karta-*.tgz
+	rm -rfv "$(DIST_DIR)" "$(IMAGE_LOCK_OUT_DIR)" headlamp-plugin/dist "$(PROJECT_DIR)/.artifacts"
 
 # setup-envtest leaves its asset directories read-only, which blocks rm -rf without the chmod.
+# node_modules is removed without -v: it holds tens of thousands of files.
 .PHONY: clean-all
 clean-all: clean ## Run clean, then also remove bin/ (tools, envtest assets) and headlamp-plugin/node_modules
 	[ ! -d "$(LOCALBIN)" ] || chmod -R u+w "$(LOCALBIN)"
-	rm -rf "$(LOCALBIN)" headlamp-plugin/node_modules
+	rm -rfv "$(LOCALBIN)"
+	@[ ! -d headlamp-plugin/node_modules ] || echo "removing headlamp-plugin/node_modules"
+	rm -rf headlamp-plugin/node_modules
 
 .PHONY: install
 install: build-cli ## Install kli into BINDIR (default /usr/local/bin) and load its completion from your bash or zsh rc file
@@ -135,7 +138,7 @@ install: build-cli ## Install kli into BINDIR (default /usr/local/bin) and load 
 
 .PHONY: uninstall
 uninstall: ## Remove kli from BINDIR and stop loading its completion from your bash or zsh rc file
-	rm -f "$(BINDIR)/kli"
+	rm -fv "$(BINDIR)/kli"
 	hack/kli-completion.sh uninstall
 
 .PHONY: install-local

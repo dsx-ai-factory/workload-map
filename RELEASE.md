@@ -120,7 +120,9 @@ workflow once "Set as a pre-release" is unchecked; nothing needs to be deleted.
 
 Publishing the release runs the release workflow. Before it publishes anything,
 the workflow checks that both tags point to the release's commit and that
-`karta/sdk/go.mod` carries no `replace` or `exclude` directive. It then builds and
+`karta/sdk/go.mod` carries no `replace` or `exclude` directive. It also runs
+`make release-snapshot` and `make release-verify`, a dry run of the CLI release
+that stops a release whose archives or cask would be wrong. It then builds and
 pushes the multi-architecture operator image from source and publishes the Helm
 chart. GoReleaser then builds the four CLI archives and checksum manifest,
 uploads them to the release, keeping its notes, pushes the Homebrew cask to a
@@ -193,6 +195,12 @@ The repository rules decide what else the App and the pull request need:
   squash merge, so a maintainer reviews and merges every cask update.
 
 ## Recovery after a partial release
+
+If the workflow fails before it publishes any image, chart, or asset, nothing
+else needs cleaning up. Use Re-run jobs if the failure was transient. If the
+fix needs a code change, for example a release snapshot that fails
+verification, merge the fix and release the next patch version, because the
+tags do not move.
 
 If the release workflow fails after publishing the operator image or Helm chart,
 do not create a second release, unpublish the release, or move any tag. Correct

@@ -129,6 +129,13 @@ jobs:
         if: github.event_name == 'release'
         run: make check VERSION="$PACKAGE_VERSION"
 
+      # A dry run of the CLI release, still before anything is published. A
+      # config change that breaks the archives or the cask would otherwise
+      # surface inside `make release`, after the image and chart are pushed.
+      - name: Verify the CLI release snapshot
+        if: github.ref_type == 'tag'
+        run: make release-snapshot release-verify VERSION="$PACKAGE_VERSION"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 

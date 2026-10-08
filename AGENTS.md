@@ -70,11 +70,12 @@ One `Makefile` at the repository root is the only one in the repo; there is no p
 
 `make check` is the full Go presubmit and CI runs it verbatim, but CI also runs `helm-lint`, `helm-validate`, `image-lock-verify`, `image-lock-test` and `lint-shell`, so a green `check` alone does not guarantee a green CI. `lint` is read-only; `fmt` and the per-component `fmt-*` targets are the only ones that rewrite files. For a single test use `go test` inside the module's directory.
 
-There is no root Go module and no `go.work`. The library is the `karta/` module.
-`cli`, `operator`, `karta-wasm`, `karta/test/e2e`, and `docs/examples` require it
-at `v0.0.0` with a relative `replace`, so each module builds against the library
-in the same checkout. Run Go commands from a module's directory, not from the
-repository root. Do not add a `go.work`: the Makefile sets `GOWORK=off` for every
+The library is the `karta/` module, and there is no `go.work`. `cli`, `operator`,
+`karta-wasm`, `karta/test/e2e`, and `docs/examples` require it at `v0.0.0` with a
+relative `replace`, so each module builds against the library in the same
+checkout. Run Go commands from a module's directory. The root `go.mod` is a
+deprecation stub for the library's old path: it has no packages, and nothing may
+be added to it. Do not add a `go.work`: the Makefile sets `GOWORK=off` for every
 recipe, so a workspace would change what you build locally but not what CI builds.
 
 ## Code Style

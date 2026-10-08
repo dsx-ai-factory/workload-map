@@ -57,10 +57,12 @@ checks it again.
 
 Releases up to v0.2.x published the library as
 `github.com/dsx-ai-factory/workload-map`, from the repository root. Patch
-releases on the `v0.2` branch keep that path. From the first release without a
-root `go.mod`, `go get github.com/dsx-ai-factory/workload-map@latest` resolves to
-a version with no packages, so the release notes for that release must carry
-the migration to the new import path.
+releases on the `v0.2` branch keep that path. On `main`, the root `go.mod` is a
+stub with no packages and a `Deprecated:` comment, so every later `vX.Y.Z` tag
+is a version of the old path that `go get` and `go list -u` report as
+deprecated, with a pointer to the new path. Upgrading to it still fails to
+build, so the notes for the first release after the move must carry the
+migration to the new import path.
 
 ## Local release validation
 

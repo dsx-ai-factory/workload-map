@@ -1,6 +1,6 @@
 {
   "skill_name": "add-workload-type",
-  "notes": "Expectations are chosen to separate a skill-guided run from an unaided one. Each expectation records the pass counts measured over 3 runs per configuration in the 2026-08-18 benchmark, as with_skill/without_skill. Expectations marked floor are correctness minimums that both configurations already satisfy where measured; they are kept to catch regressions, not to show a delta. Expectations with a null measured value come from evals that have not been run, so neither their floor nor their discriminating status is established.",
+  "notes": "Expectations are chosen to separate a skill-guided run from an unaided one. Each expectation records the pass counts measured over 3 runs per configuration in the 2026-08-18 benchmark, as with_skill/without_skill. Expectations marked floor are correctness minimums that both configurations already satisfy where measured; they are kept to catch regressions, not to show a delta. Expectations with a null measured value come from evals that have not been run, or were reworded after the benchmark, so neither their floor nor their discriminating status is established.",
   "evals": [
     {
       "id": 1,
@@ -39,8 +39,8 @@
           "kind": "floor"
         },
         {
-          "text": "Status is mapped from the real .status.phase values (Pending, Running, Succeeded, Failed, Error) rather than invented condition types, and every jq path is absolute and null-safe",
-          "measured": "2/3 vs 2/3",
+          "text": "Status is mapped from the real .status.phase values (Pending, Running, Succeeded, Failed, Error) rather than invented condition types, and every jq path is absolute, status expressions are null-safe, and spec and scale paths are plain",
+          "measured": null,
           "kind": "floor"
         }
       ]
@@ -72,8 +72,8 @@
           "kind": "floor"
         },
         {
-          "text": "Status is mapped with byExpression over real fields such as .spec.suspend and .status.active, and every jq path is null-safe and evaluated against the workload object",
-          "measured": "3/3 vs 3/3",
+          "text": "Status is mapped with byExpression over real fields such as .spec.suspend and .status.active, and status expressions are null-safe, spec and scale paths are plain, and every path is evaluated against the workload object",
+          "measured": null,
           "kind": "floor"
         }
       ]
@@ -133,7 +133,7 @@
           "kind": "floor"
         },
         {
-          "text": "Replicas are read per task from .spec.tasks[].replicas with a null-safe default, and every jq path is absolute",
+          "text": "Replicas are read per task from the plain path .spec.tasks[].replicas, with no default after the iterator, and every jq path is absolute",
           "measured": null,
           "kind": "floor"
         }

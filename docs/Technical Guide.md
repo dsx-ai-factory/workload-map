@@ -96,6 +96,16 @@ podSelector:
 ```
 If value is not provided, only key existence is checked.
 
+When one label is not enough to identify the pods, use `matchLabels`. Each entry is an equality requirement on a pod label, and all entries must match.
+```YAML
+podSelector:
+  componentTypeSelector:
+    matchLabels:
+      app: "pulsar"
+      component: "proxy"
+```
+`keyPath` and `matchLabels` can be combined, and the pod must then satisfy both. At least one of them must be set, and `value` requires `keyPath`.
+
 2. Component instance selector - a path on the pod that holds its matching instance id.
 
 ```YAML

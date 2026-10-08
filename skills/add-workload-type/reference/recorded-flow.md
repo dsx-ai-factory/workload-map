@@ -168,7 +168,7 @@ references by name.
 Namespaced objects the pods need (a ServiceAccount, its RoleBinding, a Secret)
 must live in the generated namespace. A chart that creates them per configured
 namespace cannot reach it, which is why they are created in the flow's
-`BeforeAll` through a helper in `test/e2e/flows/setup_test.go`, as
+`BeforeAll` through a helper in `karta/test/e2e/flows/setup_test.go`, as
 `ensureSecret` does.
 
 ### Pinning the install manifest
@@ -264,7 +264,7 @@ bash hack/e2e/operators/<name>/verify.sh
 The final `make e2e-up` writes the `.installed-versions-<cluster>` entry the
 recorder needs.
 
-## Flow under test/e2e/flows/
+## Flow under karta/test/e2e/flows/
 
 ### Fixture, labels, and where recordings land
 
@@ -273,7 +273,7 @@ keyed by `Fixture.Operator`. A name that does not match the operator directory
 finds no entry and files the recording under the Kubernetes version.
 
 Recordings land under
-`test/e2e/recorded_data/<operator>/<version>/<kartaName>/<flow>.yaml`. The
+`karta/test/e2e/recorded_data/<operator>/<version>/<kartaName>/<flow>.yaml`. The
 fixtures already in the repository all sit under the Kubernetes version
 (`v1.34.0`), operators included. New ones go under the operator's `version_of`
 string from `up.sh`, which can be composite (`kubeflow` is `v1.9.0+mpiv0.8.2`).
@@ -288,7 +288,7 @@ label, the testdata directory, the object names, and the root component name
 
 ### Predicates
 
-Helpers in `test/e2e/flows/predicates.go`: `CondTrue`, `CondFalse`,
+Helpers in `karta/test/e2e/flows/predicates.go`: `CondTrue`, `CondFalse`,
 `CondsFalse`, `CondNotTrue`, `CondStatus`, `CondReason`, `PhaseEq`, `PhaseAny`,
 `IntAtLeast`, `IntEq`, `BoolTrue`, `Absent`, `AllOf`. `CondReason` requires
 status True and `CondNotTrue` also matches Unknown, so a controller that
@@ -312,7 +312,7 @@ workload get one named predicate per state, as the StatefulSet's
 
 ### Proving predicates offline
 
-A scratch test in `test/e2e/flows` checks every step 7 CR against the
+A scratch test in `karta/test/e2e/flows` checks every step 7 CR against the
 predicates before the cluster run:
 
 ```go
@@ -327,7 +327,7 @@ func TestX(t *testing.T) {
 ```
 
 A plain `yaml.Unmarshal` into a map yields float64, so `NestedInt64` reads 0
-and every counter predicate passes or fails silently. Run it from `test/e2e`
+and every counter predicate passes or fails silently. Run it from `karta/test/e2e`
 with `GOWORK=off go test -run '^TestX$' ./flows`; the Ginkgo suite that needs a
 cluster does not run. Delete the file afterwards.
 
@@ -369,17 +369,17 @@ training-operator sets `Running` to False in the same status write that sets
 training-operator kind with the guarded `Initializing` rule declares none.
 
 Each flow run has a 3 minute deadline (`defaultTimeout` in
-`test/e2e/recorder/recorder.go`). Slow image pulls or many pods on the two
+`karta/test/e2e/recorder/recorder.go`). Slow image pulls or many pods on the two
 workers are the usual reasons to raise it with `SetTimeout`.
 
 ### Actions and gates
 
-Actions are merge patches in `test/e2e/flows/actions.go`. A generic helper
+Actions are merge patches in `karta/test/e2e/flows/actions.go`. A generic helper
 takes its inputs (an annotation patch takes the key and value), so suspend and
 resume share it. A missing helper is added when a flow first needs it, next to
 the existing ones: a `SuspendRunPolicy` with
 `{"spec":{"runPolicy":{"suspend":true}}}` and `ActionSuspend` goes next to
-`ResumeRunPolicy`. A new `ActionType` constant in `test/e2e/recorder/flow.go`
+`ResumeRunPolicy`. A new `ActionType` constant in `karta/test/e2e/recorder/flow.go`
 is only the recorded action name.
 
 A pod annotation patch drives a rollout on any kind that rolls its template.
@@ -491,7 +491,7 @@ A webhook Service can refuse connections for a few seconds after
 multi-kind operator re-records every sibling flow. `E2E_LABELS` takes a raw
 Ginkgo label expression. `FLOW` is a Ginkgo focus regex: `FLOW=<name>` narrows
 to one flow, and `FLOW="aborted|terminated"` re-records just those two and
-leaves the other fixtures untouched. See Record in `test/e2e/README.md`.
+leaves the other fixtures untouched. See Record in `karta/test/e2e/README.md`.
 `FLOW` fits a failure in one flow or its manifest. The `phases` and states in
 every fixture of the kind come from the flow's predicates at record time, and
 the predicates mirror the status rules, so a change to either re-records them
@@ -533,7 +533,7 @@ yq v4 needs the quoted keys. Slice with `| head -N`, since yq rejects
 `.events[0:9] | {...}`.
 
 In the walk, `Running=Initializing,Running` means two predicates matched the
-frame (`judge` in `test/e2e/recorder/flow.go`); Karta is not involved. Since
+frame (`judge` in `karta/test/e2e/recorder/flow.go`); Karta is not involved. Since
 the predicates mirror the rules, run karta-verify on that frame to confirm the
 definition overlaps too (step 5). Older fixtures carry such frames; a new one
 must not. When
@@ -555,7 +555,7 @@ left. That is why one testdata manifest is applied by hand before
 ## Before make check
 
 `make lint-shell`, `make test-replay`, and `make verify-recordings` take
-seconds. `make check` does not vet or lint the `test/e2e` module, hence the
+seconds. `make check` does not vet or lint the `karta/test/e2e` module, hence the
 separate `GOWORK=off go vet ./...` and `gofmt -l .` there.
 
 `make check` first downloads the pinned tools missing from `bin/`
@@ -570,7 +570,7 @@ a broken generator but is not.
 `make test-replay` prints only `ok`. To see the new fixtures replayed:
 
 ```bash
-cd test/e2e && GOWORK=off go test -count=1 -v ./replay_tests/... -args -ginkgo.v
+cd karta/test/e2e && GOWORK=off go test -count=1 -v ./replay_tests/... -args -ginkgo.v
 ```
 
 and grep the output for the `kartaName`.

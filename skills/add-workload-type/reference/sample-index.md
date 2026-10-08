@@ -61,7 +61,7 @@ Parts of the existing tree that predate a rule. Copy the shape, not these.
 | The nearest sample's role label key | The `keyPath` value | The target controller's real pod labels (step 6) |
 | Older entries such as `.spec.replicas // 1` | A `//` fallback in a scale path | A plain path (step 4) |
 | The PyTorchJob flow | The `Initializing` revisit before the terminal state | Declare a revisit only when the controller source can produce it (step 8) |
-| `test/e2e/recorded_data/*/v1.34.0/` | Fixtures of an operator filed under the Kubernetes version | The operator's `version_of` string (step 8) |
+| `karta/test/e2e/recorded_data/*/v1.34.0/` | Fixtures of an operator filed under the Kubernetes version | The operator's `version_of` string (step 8) |
 | `karta-e2e-pytorch`, `karta-e2e-mpi`, `karta-e2e-sts`; the `pytorch` label and testdata directory | Object names without the flow suffix or with a shortened workload; a name that is not the lowercase kind | `karta-e2e-<workload>-<flow>` and the lowercase kind (step 8) |
 | The existing builders' one or two line doc comments | A builder comment without the step 8 items | The 3 to 26 line builder comment (step 8) |
 | A sibling catalog definition's gang format | Converting `podGroups` to `podGroup` while copying | Copy the format it uses (Optimization instructions in `technical-guide.md`) |

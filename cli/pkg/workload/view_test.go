@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/catalog"
 )
 
 // resolveFixture reads a workload manifest from testdata and resolves it through

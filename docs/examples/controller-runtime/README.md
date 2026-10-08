@@ -64,9 +64,8 @@ and writes them with plain `GetPodTemplateSpec` / `UpdatePodTemplateSpec` calls.
 - [kind](https://kind.sigs.k8s.io/), `kubectl`, `docker`
 - Go (only to build the image)
 
-This example is a standalone module with its own `go.work`, so Go commands run
-directly inside it work as written. The example Dockerfile sets `GOWORK=off`
-for its build, which does not copy the workspace file.
+This example is a standalone module. Its local `replace` directive selects the
+repository library in `karta/`, so the image is built from the repository root.
 
 ## Run it on Kind
 

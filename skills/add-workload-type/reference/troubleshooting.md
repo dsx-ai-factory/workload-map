@@ -4,9 +4,9 @@
 # Troubleshooting catalog
 
 Match the error text to a row and apply the fix. Messages come from the
-validator (`pkg/api/runai/v1alpha1/validation.go`), the jq validator
-(`pkg/jq/validation.go`), the Go accessor API at runtime, a
-`hack/karta-verify` run against a CR, or the e2e scripts and recorder. The
+validator (`karta/pkg/api/runai/v1alpha1/validation.go`), the jq validator
+(`karta/pkg/jq/validation.go`), the Go accessor API at runtime, a
+`karta/hack/karta-verify` run against a CR, or the e2e scripts and recorder. The
 prose version is `docs/Troubleshooting.md`.
 
 ## Structure validation errors
@@ -87,7 +87,7 @@ Raised by the Go Component API when reading a definition.
 | A new training-operator kind never reconciles | `install.sh` does not list it in `--enable-scheme`. | Add one `--enable-scheme=<kind>` per kind. |
 | `kind load` fails on a multi-arch image | Docker Desktop's containerd store. | `preload_image "${img}" "${img}" \|\| warn "..."` with the pinned upstream reference, and keep testdata on it. |
 | `run_smoke` waits on the wrong object | A bare `job/` resolves to `batch/v1`. | Use `<plural>.<group>/<name>-smoke`. |
-| `go vet` fails in `test/e2e/flows` on a new helper | The name collides with dot-imported ginkgo or gomega (`Not`, `And`, `Or`, `Equal`). | Rename it (`Negate`, `AnyOf`). |
+| `go vet` fails in `karta/test/e2e/flows` on a new helper | The name collides with dot-imported ginkgo or gomega (`Not`, `And`, `Or`, `Equal`). | Rename it (`Negate`, `AnyOf`). |
 | Counter predicates pass or fail on every CR in the offline test | `yaml.Unmarshal` into a map yields float64, and `NestedInt64` reads 0. | Decode with `yaml.YAMLToJSON` then `Unstructured.UnmarshalJSON`. |
 | The run stalls until the timeout | A `With()` or `Do()` step whose frame the watch missed. | Gate only the terminal step or a step whose frame always appears. Never pair `With()` with `Optional()`. |
 | `Do()` fires before the controller wrote any status | Its predicate reads a spec field. | Gate the step with `With()` on a field only the controller writes. |

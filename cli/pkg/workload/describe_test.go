@@ -20,9 +20,9 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
-	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
-	"github.com/dsx-ai-factory/workload-map/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/resource"
 )
 
 // describeFixture resolves a manifest from testdata through the built-in

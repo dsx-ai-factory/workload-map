@@ -4,8 +4,8 @@
 # Karta technical guide (cheatsheet)
 
 A condensed field reference for authoring a Karta definition. It matches the API
-types in `pkg/api/runai/v1alpha1/` and the validator in
-`pkg/api/runai/v1alpha1/validation.go`. The prose reference is
+types in `karta/pkg/api/runai/v1alpha1/` and the validator in
+`karta/pkg/api/runai/v1alpha1/validation.go`. The prose reference is
 `docs/Technical Guide.md`. It also carries the why and the operator examples
 behind steps 3 to 7 of `SKILL.md`: Status mapping patterns for step 5 and
 karta-verify runs for steps 6 and 7.
@@ -481,7 +481,7 @@ so in the builder comment.
 
 `minReplicasPath` is also the gang minimum. Gang scheduling sizes a component
 from its min replicas when set and above zero, else from its replicas
-(`getEffectiveMinReplicas` in `pkg/instructions/gang_scheduling.go`). A
+(`getEffectiveMinReplicas` in `karta/pkg/instructions/gang_scheduling.go`). A
 per-role gang minimum the CRD declares (Volcano `.spec.tasks[].minAvailable`)
 therefore belongs in `minReplicasPath`. A workload-wide minimum (Volcano
 `.spec.minAvailable`) belongs to no single component; leave it out and say so
@@ -620,7 +620,7 @@ This is not only a mutation concern. Reading breaks too: a component without
 `instanceIdPath` has one implicit instance, and a fragmented or scale path that
 iterates an array yields one result per element. The tree build then fails with
 `instance ids count (1) does not match results count (N)`
-(`zipWithInstanceIds` in `pkg/resource/component.go`). The rule: any
+(`zipWithInstanceIds` in `karta/pkg/resource/component.go`). The rule: any
 fragmented or scale path that can return more than one value, or zero, requires
 `instanceIdPath` plus a `componentInstanceSelector`.
 
@@ -686,7 +686,7 @@ component already covers it.
 How a pod reaches a component. Which pods belong to the workload is decided by
 the owner-reference chain from the pod up to the root. Which component a pod
 maps to is decided among the components that declare a spec pattern
-(`InferPodComponent` in `pkg/instructions/pod.go`): with exactly one, every pod
+(`InferPodComponent` in `karta/pkg/instructions/pod.go`): with exactly one, every pod
 maps to it and no selector is needed; with several, `componentTypeSelector`
 decides. An ownership-only child has no spec pattern and receives no pods. In
 the CronJob shape the pods map to the root, which carries the template, and the
@@ -759,12 +759,12 @@ schedules first. Gang only the roles the controller creates together, or leave t
 gang out and say why in the builder comment. The tree has the same trap: a
 creator with no `scaleDefinition` and the created role as its child gets its
 children's count from `CalculateSubtreeScale`
-(`pkg/instructions/gang_scheduling.go`), not 1. Name that in the comment too.
+(`karta/pkg/instructions/gang_scheduling.go`), not 1. Name that in the comment too.
 
 ## karta-verify runs
 
 The why and the detail behind steps 6 and 7 in `SKILL.md`. Flags and the
-predictions format are documented in `hack/karta-verify/README.md`.
+predictions format are documented in `karta/hack/karta-verify/README.md`.
 
 Validation says nothing about whether a path resolves against a real object. A
 definition can pass step 6 in full, resolve to null against the real object,
@@ -903,7 +903,7 @@ Where it belongs. In the CLI, as flags of `kli validate`:
 karta-verify (0 success, 2 mismatch, 3 warnings). `kli` is the released binary,
 so a definition author outside this repository gets the check without a
 checkout, and the skill then names one command for steps 6 and 7. The
-`hack/karta-verify` harness becomes a thin wrapper or goes away.
+`karta/hack/karta-verify` harness becomes a thin wrapper or goes away.
 
 Order of work. The engine fix lands first; until then the identity write
 reports the engine's own defects on every definition that carries a pod

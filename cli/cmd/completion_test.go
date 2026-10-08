@@ -21,8 +21,8 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
-	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog/kartas"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/catalog/kartas"
 )
 
 // complete runs cobra's hidden completion command, returning the candidates

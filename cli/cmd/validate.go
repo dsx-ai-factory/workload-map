@@ -13,8 +13,8 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
-	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
+	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/pkg/catalog"
 )
 
 const (

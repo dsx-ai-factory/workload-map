@@ -5,11 +5,14 @@ name: Upload artifacts to GitHub Container Registry
 on:
   push:
     branches: [ main ]
-    tags:
-      - 'v[0-9]*.[0-9]*.[0-9]*'
-      # The release is built for exact X.Y.Z versions. A prerelease tag would
-      # otherwise run the whole presubmit and then fail the version check.
-      - '!v*-*'
+  # A release runs when its GitHub Release is released, not when its tags are
+  # pushed: vX.Y.Z and karta/vX.Y.Z are pushed first, then the release is
+  # published from the existing vX.Y.Z tag. `released` fires when a full
+  # release is published or a prerelease is changed to a full release. A draft
+  # or a prerelease fires nothing, so a release published as a prerelease by
+  # mistake starts when the box is unchecked.
+  release:
+    types: [ released ]
 
 permissions:
   contents: write
@@ -31,7 +34,7 @@ jobs:
         with:
           go-version-file: operator/go.mod
           cache-dependency-path: |
-            go.sum
+            karta/go.sum
             operator/go.sum
             cli/go.sum
             hack/release/go.sum
@@ -42,10 +45,12 @@ jobs:
           version: v4.2.4
 
       - name: Set package version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            echo "Tag release: using the tag as the version (strip leading 'v' if present)"
-            PACKAGE_VERSION=${GITHUB_REF_NAME#v}
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            echo "Release: using its tag as the version (strip the leading 'v')"
+            PACKAGE_VERSION=${RELEASE_TAG#v}
           else
             echo "Push to main: dev build keyed off the commit sha"
             PACKAGE_VERSION=0.0.0-main-$(git rev-parse --short HEAD)
@@ -99,12 +104,14 @@ jobs:
       - name: Lint and validate helm chart
         run: make helm-lint helm-validate
 
-      - name: Validate synchronized module version
-        if: github.ref_type == 'tag'
-        run: make release-validate VERSION="$PACKAGE_VERSION"
+      # Before anything is published: without the karta/vX.Y.Z tag on this
+      # commit, the image and chart would ship and only `make release` would fail.
+      - name: Validate release version, library module, and release tags
+        if: github.event_name == 'release'
+        run: make release-validate VERSION="$PACKAGE_VERSION" REQUIRE_TAGS=1
 
       - name: Run checks
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'release'
         run: make check VERSION="$PACKAGE_VERSION"
 
       - name: Set up Docker Buildx
@@ -137,25 +144,28 @@ jobs:
         run: |
           helm push ./charts/karta-$PACKAGE_VERSION.tgz oci://${{ env.HELM_REGISTRY }}
 
-      - name: Publish tagged CLI release
-        if: github.ref_type == 'tag'
+      # GoReleaser finds the published release by its tag and uploads to it,
+      # keeping the notes written for it (release.mode in .goreleaser.yaml).
+      - name: Publish CLI release assets
+        if: github.event_name == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: make release VERSION="$PACKAGE_VERSION"
 
       - name: Generate air-gap image lock
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'release'
         run: |
           # Run after GoReleaser because `release --clean` recreates dist/.
           make image-lock VERSION="$PACKAGE_VERSION" \
             IMAGE_LOCK_SET="image.repository=$REGISTRY_NAMESPACE/karta-operator"
 
-      - name: Attach chart and image locks to the GoReleaser release
-        if: github.ref_type == 'tag'
+      - name: Attach chart and image locks to the release
+        if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          gh release upload "$GITHUB_REF_NAME" --clobber \
+          gh release upload "$RELEASE_TAG" --clobber \
             "charts/karta-$PACKAGE_VERSION.tgz" \
             "dist/imagelock-karta-v$PACKAGE_VERSION-linux-amd64.yaml" \
             "dist/imagelock-karta-v$PACKAGE_VERSION-linux-arm64.yaml"

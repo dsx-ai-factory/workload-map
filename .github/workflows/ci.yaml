@@ -26,17 +26,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          # pin-check compares the pin against the release tags.
           fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: 'go.mod'
+          go-version-file: 'karta/go.mod'
           cache: true
           cache-dependency-path: |
-            go.sum
+            karta/go.sum
             operator/go.sum
             cli/go.sum
             hack/release/go.sum
@@ -56,17 +55,13 @@ jobs:
             bin/goreleaser-*
             bin/setup-envtest-*
             bin/k8s
-          key: ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-${{ hashFiles('go.mod') }}
+          key: ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-${{ hashFiles('karta/go.mod') }}
           restore-keys: |
             ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-
             ${{ runner.os }}-tools-v1-
 
       - name: Validate GoReleaser configuration
         run: make goreleaser-check
-
-      - name: Check the synchronized pin
-        if: github.event_name == 'pull_request'
-        run: make pin-check
 
       - name: Run checks and build release executables
         run: |
@@ -106,10 +101,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: 'go.mod'
+          go-version-file: 'karta/go.mod'
           cache: true
           cache-dependency-path: |
-            go.sum
+            karta/go.sum
             operator/go.sum
 
       - name: Read pinned tool versions
@@ -162,7 +157,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: 'go.mod'
+          go-version-file: 'karta/go.mod'
 
       - name: Set up Node.js
         uses: actions/setup-node@v7

@@ -2,12 +2,10 @@ module github.com/dsx-ai-factory/workload-map/karta-wasm
 
 go 1.26.8
 
-require (
-	github.com/dsx-ai-factory/workload-map v0.0.0
-	k8s.io/apimachinery v0.37.1
-)
+require k8s.io/apimachinery v0.37.1
 
 require (
+	github.com/dsx-ai-factory/workload-map/karta v0.0.0
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/itchyny/gojq v0.12.19 // indirect
@@ -32,4 +30,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
 
-replace github.com/dsx-ai-factory/workload-map => ../
+replace github.com/dsx-ai-factory/workload-map/karta => ../karta

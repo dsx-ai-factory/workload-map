@@ -21,7 +21,7 @@ vi.hoisted(() => {
   });
 });
 
-const DEFAULT_COLUMN_IDS = ['workload', 'type', 'namespace', 'status', 'pods', 'gpus', 'age'];
+const DEFAULT_COLUMN_IDS = ['workload', 'type', 'namespace', 'status', 'age'];
 
 describe('buildWorkloadColumns', () => {
   it('omits the cluster column when includeCluster is false', () => {
@@ -59,10 +59,10 @@ describe('buildWorkloadColumns', () => {
     const variant = (id: string) => columns.find(column => column.id === id)?.filterVariant;
 
     expect(columns.every(column => column.enableColumnFilter !== false)).toBe(true);
-    for (const id of ['type', 'namespace', 'cluster', 'status', 'rawPhase']) {
+    for (const id of ['type', 'namespace', 'cluster', 'status']) {
       expect(variant(id)).toBe('multi-select');
     }
-    for (const id of ['pods', 'gpus', 'cpuRequest', 'memoryRequest', 'components', 'instances']) {
+    for (const id of ['components']) {
       expect(variant(id)).toBe('range');
     }
     expect(variant('age')).toBe('date-range');

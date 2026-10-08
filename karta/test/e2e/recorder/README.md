@@ -42,7 +42,8 @@ out, err := recorder.NewFlow(rec, "scaled", "testdata/deployment/running.yaml").
    the watch attaching is missed (observation.go).
 3. Every distinct frame is kept, volatile metadata stripped. A frame whose controller has
    not observed the spec yet (observedGeneration < generation) is kept marked
-   staleObservedGeneration.
+   staleObservedGeneration. Only an integer observedGeneration is compared; a missing
+   or string value counts as observed.
 4. Once an observed frame reaches the next declared step, its action is performed; the run
    ends at the declared terminal state or on timeout.
 5. validateObservedOrder checks the observed states walked the declared journey (order.go).

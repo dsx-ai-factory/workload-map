@@ -1,0 +1,183 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Review guidance for CodeRabbit. Karta is a CRD plus a Go library that reads
+# and writes any workload type through declared jq paths; the catalog under
+# karta/pkg/catalog/kartas/ holds one definition per workload type, proven by
+# recorded e2e flows that replay offline in CI. The instructions below encode
+# what human review kept finding in catalog, e2e and write-path changes.
+language: en-US
+tone_instructions: >-
+  Plain words, short sentences. Name the file and line. Say what to run or
+  check, not what the diff already says. No emojis.
+
+reviews:
+  profile: assertive
+  high_level_summary: true
+  high_level_summary_instructions: >-
+    If karta/pkg/catalog/kartas/ changes, list which of hack/e2e/operators/,
+    karta/test/e2e/flows/ and karta/test/e2e/recorded_data/ the PR also touches. A
+    definition without a flow and recorded fixtures is a claim without
+    evidence; say so. Only a new operator, or a new kind on an installed one,
+    needs a hack/e2e/operators/ change; a Kubernetes builtin (apps, batch,
+    core) needs none.
+  path_filters:
+    - "!**/zz_generated*"
+    - "!NOTICE"
+    - "!THIRD_PARTY_LICENSES"
+    - "!**/go.sum"
+  tools:
+    golangci-lint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    yamllint:
+      enabled: true
+    markdownlint:
+      enabled: true
+    actionlint:
+      enabled: true
+    gitleaks:
+      enabled: true
+  path_instructions:
+    - path: "karta/pkg/catalog/kartas/**/*.go"
+      instructions: >-
+        A catalog definition maps one workload CRD. Run these checks and flag
+        each gap as its own comment.
+
+        Companions: a new or changed definition ships in the same PR with the
+        builder registered in karta/pkg/catalog/catalog.go, the generated file under
+        docs/catalog/ from `make generate-samples`, a flow under
+        karta/test/e2e/flows/ with manifests under karta/test/e2e/flows/testdata/, fixtures
+        recorded from a live run under karta/test/e2e/recorded_data/, and
+        `make test-replay` plus `make verify-recordings` green. A new operator
+        also ships e2e install support under hack/e2e/operators/<operator>/
+        with the version pinned in hack/e2e/global.env. A new kind on an
+        installed operator keeps the directory and the pin; it needs
+        `<kind>-smoke.yaml`, a run_smoke line in its verify.sh, and, when
+        install.sh gates which kinds the controller serves, that gate extended
+        to the new kind. A Kubernetes builtin (apps, batch, core) needs no
+        hack/e2e change. A unit test with hand-written conditions does not
+        replace the recording.
+
+        Status mappings: enumerate every reason the controller writes on its
+        top-level condition by reading the operator source, not the CRD.
+        Transitional reasons (Deployment progressing or not yet available,
+        router waiting on Gateway API objects, autoscaler objects appearing, a
+        LeaderWorkerSet rolling) map to Initializing; a deliberate stop or
+        suspend maps to Suspended; a fault the controller clears on recovery
+        maps to Degraded. Failed is only for a state the controller does not
+        leave without a spec change, never ProgressDeadlineExceeded. A
+        condition the controller never clears stays unmapped. The matcher
+        returns every state that matches, with no precedence, so mappings must
+        be mutually exclusive on every frame. Use Ready=Unknown as the startup
+        signal only when the controller is shown to write it; many controllers
+        go straight to False. Map gate conditions outside the Ready rollup
+        explicitly. Rationale: a catch-all `Ready=False -> Failed` makes every
+        healthy startup flap Failed.
+
+        Components: Kind, OwnerRef and pod selector value must match the label
+        constants the controller writes; grep the controller and compare each.
+        Every pod role the controller can create needs a component (multi-node
+        leader, worker and prefill roles are the usual misses), otherwise those
+        pods fall out of the gang group. When one spec feeds different child
+        kinds by topology, gate the paths with `select()` so a pod spec and a
+        replica count are read exactly once.
+
+        Scale paths: a path used for writes must address a location, not
+        compute one. `//` fallbacks, arithmetic and value-producing projections
+        (`. + {...}`, `map(...)`, a default inside the pipeline) are formulas;
+        a path-preserving `select(...)` stays assignable. A `//` fallback
+        between two paths writes into whichever branch the read resolved,
+        possibly the wrong field; one to a literal fails on write. Replicas
+        reading null for an autoscaled component is correct; take bounds from
+        the autoscaler block.
+
+        Pod spec paths: podSpecPath for a bare PodSpec, podTemplateSpecPath
+        when the field carries metadata. Say in a comment when the field's type
+        is a wrapper (other fields next to the inline PodSpec) or a merge input
+        (the controller merges it into presets); writes inherit those rules.
+
+        Gang scheduling: LeaderWorkerSet-backed members group by the
+        leaderworkerset.sigs.k8s.io/group-index label as well as the name.
+
+        When a CRD has one builder per served version (dynamo v1alpha1 and
+        v1beta1), the builders differ only in the GVK; diff them.
+    - path: "docs/catalog/**/*.yaml"
+      instructions: >-
+        Generated by `make generate-samples`. Flag a hand edit, or a builder
+        change without the regenerated file. Review semantics in the builder.
+    - path: "hack/e2e/**"
+      instructions: >-
+        Every operator script must work on a brand-new kind cluster through
+        `make e2e-up WORKLOADS=<operator>`, not only on a cluster that already
+        had the operator. Check: namespaces the release manifest does not ship
+        are created first; CRDs are applied before any controller that
+        registers watches on them at startup; manifests that carry instances
+        of their own CRDs go through `apply_with_retry` from
+        hack/e2e/operators/_common.sh; objects admitted by webhooks with
+        failurePolicy Fail are applied only after the webhook deployment is
+        rolled out and its cert-manager certificates are Ready; nothing is
+        helm-installed when a plain manifest already owns the same objects;
+        every remote URL is pinned to a version from hack/e2e/global.env;
+        version skips probe the artifact with curl first; the script is
+        idempotent on a re-run. Bumping an operator pin re-records that
+        operator's fixtures in the same PR. `make lint-shell` must stay clean.
+    - path: "karta/test/e2e/flows/**"
+      instructions: >-
+        Recorder predicates read the workload's own fields only, never Karta,
+        and mirror the definition's StatusMappings exactly, reasons included; a
+        predicate wider or narrower than the mapping records the wrong state.
+        The one exception: a mapped reason no recording can show stays out of
+        the predicate when the builder comment names it unproven.
+        Manifests under testdata pin image tags, declare resource requests and
+        limits, carry the SPDX header, and satisfy the controller's own
+        constraints (inherited preset probes and security contexts, no model
+        URIs that trigger real downloads). The reason a step is Optional should
+        be findable in the flow file, on the step or on the flow.
+    - path: "karta/test/e2e/recorded_data/**"
+      instructions: >-
+        Written by `make record-e2e`; flag hand edits. Check each fixture's
+        state sequence reads as the controller behaves (Undefined before the
+        first status write is normal). Do not comment on fixture contents line
+        by line.
+    - path: "karta/pkg/resource/**"
+      instructions: >-
+        The write path. Review a change against this contract for a write, and
+        flag a change that moves the engine further from it. A mutation of one
+        field changes exactly that field in the stored object: no whole-struct
+        replacement, no typed zero values materializing, fields the projection
+        type cannot represent survive, keyed lists merge per element, a path
+        that computes a value fails with a typed error before anything mutates,
+        and all fragments of one update commit atomically. No per-CRD special
+        cases in the engine. A new failure mode is a typed error, never a
+        silent partial write.
+    - path: "karta/pkg/jq/**"
+      instructions: >-
+        Paths are resolved with jq itself; do not reimplement setpath or
+        getpath semantics in Go. The contract for validation: an expression
+        declared on a writable path that cannot be assigned through is
+        rejected. Flag a change that moves validation further from it.
+    - path: "**/*.go"
+      instructions: >-
+        Follow AGENTS.md: types, consts and vars first, functions after in call
+        order; `context.Context` first parameter; errors wrapped with %w, never
+        logged and returned; interfaces end in -er or Interface; boolean
+        predicates start with is, has or should; helpers only when tested or
+        reused; comments only for a non-obvious why, no first person. No
+        ticket, issue, PR or CVE identifiers in code or comments. A new
+        third-party module needs its license named in the PR and
+        `make generate-licenses` run.
+    - path: "**/*.md"
+      instructions: >-
+        Short sentences, no bold for emphasis, no emojis, no em dash, ASCII
+        only. New Markdown files carry the SPDX and copyright header. Commands
+        and paths named in the text must exist in the repository.
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "AGENTS.md"
+      - "CONTRIBUTING.md"

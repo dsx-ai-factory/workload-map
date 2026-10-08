@@ -41,7 +41,9 @@ go run ./hack/karta-verify --karta ./mydef.yaml --workload ./real-cr.yaml --pred
 ```
 
 Predictions are partial. Only the fields present are compared, so a prediction
-may cover one component or one field.
+may cover one component or one field. Component keys cover child components
+only. The root reports its status and nothing else, so check its scale and spec
+paths with jq against the manifest.
 
 ```yaml
 status: [Running]

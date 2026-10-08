@@ -32,8 +32,12 @@ E2E_TIMEOUT=10m caps the whole run, E2E_LABELS passes a raw ginkgo label express
 
 ```sh
 make test-lib            # library unit tests, plus the recorder unit tests (offline, no cluster)
+make test-replay         # replay recorded_data through Karta offline (no cluster)
 make verify-recordings   # fail if any recorded fixture ended with succeeded: false
 ```
 
-An offline replay suite that feeds recorded_data back through Karta follows in the next
-slice.
+## Writing a flow
+
+Catalog Definitions in CONTRIBUTING.md lists what a new flow needs. The conventions
+(Fixture, AddState order, Optional steps, predicates, actions, testdata) are in step 8 of
+skills/add-workload-type/SKILL.md, and the engine is described in recorder/README.md.

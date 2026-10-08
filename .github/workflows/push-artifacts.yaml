@@ -5,12 +5,14 @@ name: Upload artifacts to GitHub Container Registry
 on:
   push:
     branches: [ main ]
-  # A release runs when its GitHub Release is published, not when its tags are
+  # A release runs when its GitHub Release is released, not when its tags are
   # pushed: vX.Y.Z and karta/vX.Y.Z are pushed first, then the release is
-  # published from the existing vX.Y.Z tag. A draft does not fire this event
-  # until it is published.
+  # published from the existing vX.Y.Z tag. `released` fires when a full
+  # release is published or a prerelease is changed to a full release. A draft
+  # or a prerelease fires nothing, so a release published as a prerelease by
+  # mistake starts when the box is unchecked.
   release:
-    types: [ published ]
+    types: [ released ]
 
 permissions:
   contents: write
@@ -20,9 +22,6 @@ permissions:
 jobs:
   build-and-push:
     name: Build & Push Helm Chart and Operator Image
-    # The release is built for exact X.Y.Z versions. A prerelease would
-    # otherwise run the whole presubmit and then fail the version check.
-    if: github.event_name == 'push' || !github.event.release.prerelease
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

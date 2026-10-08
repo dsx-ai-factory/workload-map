@@ -107,8 +107,10 @@ gh release create v1.2.3 --verify-tag --title v1.2.3 --notes-file notes.md
 ```
 
 `--verify-tag` refuses to create `v1.2.3` when the first step did not push it.
-A draft starts nothing until it is published, and the workflow skips a
-prerelease.
+The workflow runs on the `released` event, which fires when a full release is
+published or a prerelease is changed to a full release. A draft or a prerelease
+starts nothing. A release published as a prerelease by mistake starts the
+workflow once "Set as a pre-release" is unchecked; nothing needs to be deleted.
 
 Publishing the release runs the release workflow. Before it publishes anything,
 the workflow checks that both tags point to the release's commit and that

@@ -70,6 +70,10 @@ release:
     name: workload-map
   ids:
     - karta
+  # A maintainer publishes the GitHub Release, with notes from CHANGELOG.md, and
+  # that publication starts the release workflow. GoReleaser then finds the
+  # release by its tag, keeps those notes, and uploads the archives into it.
+  mode: keep-existing
   replace_existing_artifacts: true
   include_meta: false
   preflight:

@@ -183,7 +183,7 @@ git commit -s -m "fix(api): validate status mapping expressions before applying 
 | Trigger | Published `version` and `appVersion` |
 |---|---|
 | Push to `main` (dev build) | `0.0.0-main-<short-sha>` |
-| Tag push (release) | the tag (e.g. tag `v1.2.3` → `1.2.3`) |
+| Published GitHub Release | the release's tag (e.g. tag `v1.2.3` -> `1.2.3`) |
 
 Consumers pin a specific release by chart `version` (which equals the tag), e.g. `version: 1.2.3` in the consumer's `Chart.yaml` dependency entry.
 
@@ -192,9 +192,10 @@ This is the same model used by [ai-dynamo/grove](https://github.com/ai-dynamo/gr
 ### Releasing
 
 A release tags the product as `vX.Y.Z` and the `karta/` library module as
-`karta/vX.Y.Z` on the same commit. The two-tag convention, local snapshot,
-guarded release command, credentials, and recovery procedure are documented in
-[RELEASE.md](RELEASE.md).
+`karta/vX.Y.Z` on the same commit, then publishes the GitHub Release for
+`vX.Y.Z`, which starts the release workflow. The two-tag convention, local
+snapshot, guarded release command, credentials, and recovery procedure are
+documented in [RELEASE.md](RELEASE.md).
 
 No `Chart.yaml` bump is needed. The release tag remains the source of truth for
 the published chart version and app version.

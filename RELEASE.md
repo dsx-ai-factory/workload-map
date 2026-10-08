@@ -27,7 +27,8 @@ fixes ship without waiting on `main`.
 ## Who can cut a release
 
 Releases are cut by project [maintainers](MAINTAINERS.md). Release artifacts are
-built by CI from the pushed tag, never from a local machine.
+built by CI when a maintainer publishes the GitHub Release, never from a local
+machine.
 
 ## Modules and tags
 
@@ -43,8 +44,8 @@ container image. `go install` of the CLI is not supported, because the go
 command refuses a module whose `go.mod` carries a `replace`.
 
 Release `1.2.3` uses the tags `v1.2.3` and `karta/v1.2.3`, and both must point
-to the same commit. `v1.2.3` starts the release workflow and names the operator
-image, the Helm chart, and the CLI archives. `karta/v1.2.3` is the library's Go
+to the same commit. `v1.2.3` names the GitHub Release, the operator image, the
+Helm chart, and the CLI archives. `karta/v1.2.3` is the library's Go
 module version; the go command requires the `karta/` prefix for a module that
 lives in a subdirectory.
 
@@ -80,25 +81,45 @@ without publishing. It does not need release credentials.
 ## How a release is cut
 
 Before tagging, add the version entry to [CHANGELOG.md](CHANGELOG.md) and run
-the checks above. After that preparation change is merged, create both tags
-from the same commit and push them in one atomic operation:
+the checks above. After that preparation change is merged, a release takes two
+steps.
+
+First, create both tags on the merged commit and push them in one atomic
+operation:
 
 ```bash
-git tag v1.2.3
-git tag karta/v1.2.3
+git tag -m "v1.2.3" v1.2.3
+git tag -m "karta/v1.2.3" karta/v1.2.3
 git push --atomic origin v1.2.3 karta/v1.2.3
 ```
 
-With `--atomic`, the remote accepts both tags or neither, so a rejected library
-tag cannot leave a `v1.2.3` tag that starts a release on its own.
+Pushing the tags starts no workflow. With `--atomic`, the remote accepts both
+tags or neither. The library can be fetched with `go get` from this point.
 
-The `v1.2.3` tag runs the release workflow. Before it publishes anything, the
-workflow checks that both tags point to the tagged commit and that
+Then publish the GitHub Release from the existing `v1.2.3` tag, with the
+version's CHANGELOG.md entry as its notes. Use the Releases page and choose the
+existing tag, or:
+
+```bash
+gh release create v1.2.3 --verify-tag --title v1.2.3 --notes-file notes.md
+```
+
+`--verify-tag` refuses to create `v1.2.3` when the first step did not push it.
+A draft starts nothing until it is published, and the workflow skips a
+prerelease.
+
+Publishing the release runs the release workflow. Before it publishes anything,
+the workflow checks that both tags point to the release's commit and that
 `karta/go.mod` carries no `replace` or `exclude` directive. It then builds and
 pushes the multi-architecture operator image from source and publishes the Helm
 chart. GoReleaser then builds the four CLI archives and checksum manifest and
-creates the GitHub Release. Finally, the workflow generates the two image locks and
-attaches the chart and locks to the existing release.
+uploads them to the release, keeping its notes. Finally, the workflow generates
+the two image locks and attaches the chart and locks to the release. The release
+shows no assets until the workflow finishes.
+
+The workflow uploads to a release that is already published, so the repository
+must not enable GitHub's immutable releases. An immutable release accepts no new
+assets, and GoReleaser stops with "already exists and is immutable".
 
 The guarded publishing command used by the workflow is:
 
@@ -118,18 +139,20 @@ packages, and release attachments. The release needs no other credential.
 
 ## Recovery after a partial release
 
-If a tagged workflow fails after publishing the operator image or Helm chart, do
-not create a second release or move any tag. Correct the failure and rerun the
-same workflow. A later attempt validates and reuses the chart and image from the
-first attempt instead of overwriting them. GoReleaser replaces matching assets
+If the release workflow fails after publishing the operator image or Helm chart,
+do not create a second release, unpublish the release, or move any tag. Correct
+the failure and use Re-run jobs on the same workflow run. A later attempt
+validates and reuses the chart and image from the first attempt instead of
+overwriting them. GoReleaser replaces matching assets
 on an existing GitHub Release. After it succeeds, confirm that the workflow
 attached the chart and both image locks to the same release, and that the assets
 match `checksums.txt`.
 
 ## Release notes and breaking changes
 
-The GitHub Release body is written from the version's CHANGELOG.md entry; the
-changelog is the source, the release body is the copy. Every breaking change
+The GitHub Release body is written from the version's CHANGELOG.md entry when
+the release is published, and GoReleaser keeps it; the changelog is the source,
+the release body is the copy. Every breaking change
 (API field changes, removed or renamed library surface, behavioral changes that
 require consumer action) must be documented in the release notes with migration
 guidance so that downstream consumers can upgrade predictably.

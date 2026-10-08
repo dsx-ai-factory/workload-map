@@ -58,23 +58,12 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
     {
       id: 'age',
       header: 'Age',
-      // Negated so newest sorts first, which makes the raw value useless to
-      // filter on: the filter reads the timestamp instead.
+      // Negated so newest sorts first.
       accessorFn: row => -new Date(row.creationTimestamp).getTime(),
-      filterVariant: 'date-range',
-      filterFn: (row, _columnId, filterValue: [unknown, unknown]) => {
-        const [from, to] = filterValue ?? [];
-        const created = new Date(row.original.creationTimestamp).getTime();
-        if (from && created < new Date(from as string).getTime()) {
-          return false;
-        }
-        // The end of the chosen day, not its midnight, or a workload created
-        // during it would be excluded. In UTC, because a date-only value parses
-        // as UTC midnight and `from` is compared the same way: local hours
-        // would shift the bound by the viewer's offset.
-        const until = to ? new Date(to as string).setUTCHours(23, 59, 59, 999) : null;
-        return !(until && created > until);
-      },
+      // The date-range filter renders MUI X date pickers, which need a
+      // LocalizationProvider that Headlamp does not mount, so opening it
+      // crashes the page. Headlamp's own Age columns are unfiltered too.
+      enableColumnFilter: false,
       Cell: ({ row }) => <DateLabel date={row.original.creationTimestamp} format="mini" />,
       gridTemplate: 'min-content',
     },

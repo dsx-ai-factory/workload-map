@@ -8,18 +8,41 @@ import {
   StatusPhaseChips,
   worstPhaseSeverity,
 } from '../statusPhaseChips/StatusPhaseChips';
+import { WorkloadNameFilter } from './WorkloadNameFilter';
 
 // Hidden by default, toggleable through the column picker.
 export const OPTIONAL_COLUMN_IDS = ['components'] as const;
 
+// The values the select filters offer, taken from the rows on screen.
+export interface FilterOptions {
+  kinds: string[];
+  namespaces: string[];
+  clusters: string[];
+}
+
+// Matches a row whose value is any of the selected ones. Listing the options
+// and the match here, as the status column does, keeps the filters working
+// without the table's faceted values, which the host leaves off by default.
+function matchesAnySelected(
+  row: { getValue: (columnId: string) => unknown },
+  columnId: string,
+  selected: string[]
+) {
+  return selected.length === 0 || selected.includes(row.getValue(columnId) as string);
+}
+
 // includeCluster is false for a single cluster, so the Cluster column is
 // absent rather than present and identical on every row.
-export function buildWorkloadColumns(includeCluster: boolean): TableColumn<WorkloadRow>[] {
+export function buildWorkloadColumns(
+  includeCluster: boolean,
+  options: FilterOptions = { kinds: [], namespaces: [], clusters: [] }
+): TableColumn<WorkloadRow>[] {
   const columns: TableColumn<WorkloadRow>[] = [
     {
       id: 'workload',
       header: 'Workload',
       accessorFn: row => row.name,
+      Filter: WorkloadNameFilter,
       // Plain text until the detail page lands: a link built now points at
       // nothing.
       gridTemplate: 'auto',
@@ -29,6 +52,8 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       header: 'Type',
       accessorFn: row => row.kind,
       filterVariant: 'multi-select',
+      filterSelectOptions: options.kinds,
+      filterFn: (row, columnId, selected: string[]) => matchesAnySelected(row, columnId, selected),
       gridTemplate: 'min-content',
     },
     {
@@ -36,6 +61,8 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       header: 'Namespace',
       accessorFn: row => row.namespace,
       filterVariant: 'multi-select',
+      filterSelectOptions: options.namespaces,
+      filterFn: (row, columnId, selected: string[]) => matchesAnySelected(row, columnId, selected),
       gridTemplate: 'auto',
     },
     {
@@ -75,6 +102,8 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       header: 'Cluster',
       accessorFn: row => row.cluster,
       filterVariant: 'multi-select',
+      filterSelectOptions: options.clusters,
+      filterFn: (row, columnId, selected: string[]) => matchesAnySelected(row, columnId, selected),
       gridTemplate: 'min-content',
     });
   }

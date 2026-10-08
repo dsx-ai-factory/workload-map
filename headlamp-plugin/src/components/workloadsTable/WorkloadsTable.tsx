@@ -18,7 +18,23 @@ export function WorkloadsTable({ rows, loading, errorMessage }: WorkloadsTablePr
   const clusters = K8s.useSelectedClusters();
   const showCluster = clusters.length > 1;
 
-  const columns = useMemo(() => buildWorkloadColumns(showCluster), [showCluster]);
+  // Joined so the columns, and the open filter menus with them, are rebuilt
+  // only when a value appears or disappears, not on every poll.
+  const unique = (pick: (row: WorkloadRow) => string) =>
+    [...new Set((rows ?? []).map(pick))].sort().join('\n');
+  const kinds = unique(row => row.kind);
+  const namespaces = unique(row => row.namespace);
+  const clusterNames = unique(row => row.cluster);
+
+  const columns = useMemo(
+    () =>
+      buildWorkloadColumns(showCluster, {
+        kinds: kinds ? kinds.split('\n') : [],
+        namespaces: namespaces ? namespaces.split('\n') : [],
+        clusters: clusterNames ? clusterNames.split('\n') : [],
+      }),
+    [showCluster, kinds, namespaces, clusterNames]
+  );
 
   return (
     <DataTable

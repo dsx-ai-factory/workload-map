@@ -33,7 +33,11 @@ describe('buildWorkloadColumns', () => {
   it('includes the cluster column right after the default columns when includeCluster is true', () => {
     const columns = buildWorkloadColumns(true);
 
-    expect(columns.map(c => c.id)).toEqual([...DEFAULT_COLUMN_IDS, 'cluster', ...OPTIONAL_COLUMN_IDS]);
+    expect(columns.map(c => c.id)).toEqual([
+      ...DEFAULT_COLUMN_IDS,
+      'cluster',
+      ...OPTIONAL_COLUMN_IDS,
+    ]);
   });
 
   it('filters type and namespace by picking values rather than typing them', () => {
@@ -72,6 +76,39 @@ describe('buildWorkloadColumns', () => {
     expect(variant('age')).toBeUndefined();
     // Names are typed, not picked: there are as many as there are workloads.
     expect(variant('workload')).toBeUndefined();
+  });
+
+  // The host leaves the table's faceted values off, so a select filter left to
+  // derive its own options opens empty. The options are passed in, as the
+  // status column does with its phases.
+  it('offers the type, namespace and cluster filters the values it was given', () => {
+    const columns = buildWorkloadColumns(true, {
+      kinds: ['Deployment', 'Job'],
+      namespaces: ['perf-test'],
+      clusters: ['kind-a', 'kind-b'],
+    });
+    const options = (id: string) => columns.find(column => column.id === id)?.filterSelectOptions;
+
+    expect(options('type')).toEqual(['Deployment', 'Job']);
+    expect(options('namespace')).toEqual(['perf-test']);
+    expect(options('cluster')).toEqual(['kind-a', 'kind-b']);
+  });
+
+  it('matches a row whose value is any of the selected ones', () => {
+    const columns = buildWorkloadColumns(true);
+    for (const [id, field] of [
+      ['type', 'kind'],
+      ['namespace', 'namespace'],
+      ['cluster', 'cluster'],
+    ]) {
+      const column = columns.find(candidate => candidate.id === id)!;
+      const match = (value: string, selected: string[]) =>
+        (column.filterFn as any)({ getValue: () => value }, field, selected);
+
+      expect(match('a', ['a', 'b'])).toBe(true);
+      expect(match('c', ['a', 'b'])).toBe(false);
+      expect(match('c', [])).toBe(true);
+    }
   });
 
   // The accessor joins the phases, so the default options would be

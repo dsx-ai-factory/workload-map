@@ -8,9 +8,24 @@ import {
   StatusPhaseChips,
   worstPhaseSeverity,
 } from '../statusPhaseChips/StatusPhaseChips';
+import { SelectFilter } from './SelectFilter';
+import { WorkloadNameFilter } from './WorkloadNameFilter';
 
 // Hidden by default, toggleable through the column picker.
 export const OPTIONAL_COLUMN_IDS = ['components'] as const;
+
+// Matches a row whose value is exactly one of the selected ones. The table's
+// own multi-select match is a substring test, so picking "team" would also
+// keep "team-b", and picking "-" would keep every hyphenated namespace.
+function matchesAnySelected(
+  row: { getValue: (columnId: string) => unknown },
+  columnId: string,
+  selected: string[]
+) {
+  return selected.includes(row.getValue(columnId) as string);
+}
+// An emptied selection removes the filter, so the header stops showing one.
+matchesAnySelected.autoRemove = (selected?: string[]) => !selected?.length;
 
 // includeCluster is false for a single cluster, so the Cluster column is
 // absent rather than present and identical on every row.
@@ -20,6 +35,7 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       id: 'workload',
       header: 'Workload',
       accessorFn: row => row.name,
+      Filter: WorkloadNameFilter,
       // Plain text until the detail page lands: a link built now points at
       // nothing.
       gridTemplate: 'auto',
@@ -29,13 +45,20 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       header: 'Type',
       accessorFn: row => row.kind,
       filterVariant: 'multi-select',
+      Filter: SelectFilter,
+      filterFn: matchesAnySelected,
       gridTemplate: 'min-content',
     },
     {
       id: 'namespace',
       header: 'Namespace',
-      accessorFn: row => row.namespace,
+      // Cluster-scoped workloads have none. A blank value would show as a
+      // blank filter option and chip, so the cell and the filter use the same
+      // placeholder as Headlamp's own tables.
+      accessorFn: row => row.namespace || '-',
       filterVariant: 'multi-select',
+      Filter: SelectFilter,
+      filterFn: matchesAnySelected,
       gridTemplate: 'auto',
     },
     {
@@ -58,23 +81,12 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
     {
       id: 'age',
       header: 'Age',
-      // Negated so newest sorts first, which makes the raw value useless to
-      // filter on: the filter reads the timestamp instead.
+      // Negated so newest sorts first.
       accessorFn: row => -new Date(row.creationTimestamp).getTime(),
-      filterVariant: 'date-range',
-      filterFn: (row, _columnId, filterValue: [unknown, unknown]) => {
-        const [from, to] = filterValue ?? [];
-        const created = new Date(row.original.creationTimestamp).getTime();
-        if (from && created < new Date(from as string).getTime()) {
-          return false;
-        }
-        // The end of the chosen day, not its midnight, or a workload created
-        // during it would be excluded. In UTC, because a date-only value parses
-        // as UTC midnight and `from` is compared the same way: local hours
-        // would shift the bound by the viewer's offset.
-        const until = to ? new Date(to as string).setUTCHours(23, 59, 59, 999) : null;
-        return !(until && created > until);
-      },
+      // The date-range filter renders MUI X date pickers, which need a
+      // LocalizationProvider that Headlamp does not mount, so opening it
+      // crashes the page. Headlamp's own Age columns are unfiltered too.
+      enableColumnFilter: false,
       Cell: ({ row }) => <DateLabel date={row.original.creationTimestamp} format="mini" />,
       gridTemplate: 'min-content',
     },
@@ -86,6 +98,8 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       header: 'Cluster',
       accessorFn: row => row.cluster,
       filterVariant: 'multi-select',
+      Filter: SelectFilter,
+      filterFn: matchesAnySelected,
       gridTemplate: 'min-content',
     });
   }
@@ -94,7 +108,10 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
     id: 'components',
     header: 'Components',
     accessorFn: row => row.componentsCount,
-    filterVariant: 'range',
+    // The range filter is two text boxes with the table's debounced input, so
+    // clearing right after typing leaves the rows filtered under an empty
+    // box. Headlamp's own tables do not filter count columns either.
+    enableColumnFilter: false,
     gridTemplate: 'min-content',
   });
 

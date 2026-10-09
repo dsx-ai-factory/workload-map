@@ -327,6 +327,28 @@ func TestDescribeZeroPodLimitShowsEveryPod(t *testing.T) {
 	}
 }
 
+// A negative limit would otherwise pass through as "show every component".
+func TestDescribeRejectsANegativeComponentLimit(t *testing.T) {
+	describeCluster(t, jobSet("preprocess", 3))
+
+	_, errOut, code := runDescribeCmd(t, "jobset/preprocess", "--component-limit", "-1")
+	if code != ExitUsage {
+		t.Fatalf("expected exit %d, got %d\n%s", ExitUsage, code, errOut)
+	}
+	if !strings.Contains(errOut, "--component-limit must not be negative") {
+		t.Errorf("message missing the rejected flag\n%s", errOut)
+	}
+}
+
+// A hidden component is one a reader may need, so describe shows the whole tree
+// unless asked not to.
+func TestDescribeShowsEveryComponentByDefault(t *testing.T) {
+	flag := newDescribeCommand().Flags().Lookup(flagComponentLimit)
+	if flag == nil || flag.DefValue != "0" {
+		t.Fatalf("expected --%s to default to 0, got %+v", flagComponentLimit, flag)
+	}
+}
+
 // A definition can cover a type whose CRD was never installed, which is a
 // different miss from a workload that is merely absent.
 func TestDescribeUninstalledTypeIsItsOwnFailure(t *testing.T) {
@@ -368,6 +390,22 @@ func TestDescribeRejectsANegativePodLimit(t *testing.T) {
 	}
 	if !strings.Contains(errOut, "--pod-limit must not be negative") {
 		t.Errorf("message missing the rejected flag\n%s", errOut)
+	}
+}
+
+// A warning printed above the tree scrolls out of view on a large workload.
+func TestDescribePrintsWarningsAfterTheTree(t *testing.T) {
+	describeCluster(t, jobSet("preprocess", 1),
+		etlPod("preprocess-etl-0", "ml-team/preprocess", "node-01", true))
+	withLoadWarning(t, "the Karta CRD is not installed")
+
+	combined, code := runCombinedCmd(t, "describe", "jobset/preprocess")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, combined)
+	}
+	tree, warning := strings.Index(combined, "preprocess-etl-0"), strings.Index(combined, "warning: ")
+	if tree < 0 || warning < tree {
+		t.Errorf("expected the warning after the tree\n%s", combined)
 	}
 }
 

@@ -10,6 +10,9 @@ export interface UseKartaDefinitionsResult {
   definitions: Definition[];
   installed: boolean;
   crdMissing: boolean;
+  // Whether definitions are usable at all. The catalog alone satisfies that:
+  // cluster CRs refine it, so waiting on them would block what is already
+  // usable, and an unreachable cluster held the table for 7.3s that way.
   loading: boolean;
   error: Error | null;
 }
@@ -19,7 +22,7 @@ export interface UseKartaDefinitionsResult {
 // defaults to every selected cluster, and definitions merge by root GVK: two
 // clusters each defining Deployment would collapse into one entry, leaving a
 // workload liable to be read through the other cluster's definition.
-export function useKartaDefinitions(cluster: string): UseKartaDefinitionsResult {
+export function useKartaDefinitions(cluster: string, attempt = 0): UseKartaDefinitionsResult {
   const [catalog, setCatalog] = useState<Karta[]>([]);
   const [catalogError, setCatalogError] = useState<Error | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -27,6 +30,7 @@ export function useKartaDefinitions(cluster: string): UseKartaDefinitionsResult 
 
   useEffect(() => {
     let cancelled = false;
+    setCatalogError(null);
 
     listCatalog()
       .then(list => {
@@ -48,13 +52,8 @@ export function useKartaDefinitions(cluster: string): UseKartaDefinitionsResult 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
-  // useList reports a pending request as a null list with no error. Until it
-  // settles the cluster is neither known to have Karta installed nor known to
-  // have none, so reporting installed early would show catalog definitions as
-  // the whole truth.
-  const clusterLoading = clusterKartas === null && clusterError === null;
   const crdMissing = clusterError?.status === 404;
 
   // Only a 404 means the definitions are gone. Every other failure left them
@@ -75,7 +74,7 @@ export function useKartaDefinitions(cluster: string): UseKartaDefinitionsResult 
     definitions: mergeDefinitions(catalog, clusterDefinitions),
     installed,
     crdMissing,
-    loading: catalogLoading || clusterLoading,
+    loading: catalogLoading,
     error: catalogError ?? (clusterError && !crdMissing ? clusterError : null),
   };
 }

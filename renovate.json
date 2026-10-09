@@ -1,0 +1,44 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "github>run-ai/runai-actions//renovate/presets/go-common"
+  ],
+  "baseBranchPatterns": [
+    "NOTE: this list is replaced at run time. runai-actions .github/workflows/renovate.yml runs renovate/scan_candidates, which finds the newest release branches in this repository and starts one Renovate run per branch, each scoped to its own. This line is not a branch pattern and matches nothing."
+  ],
+  "includePaths": [
+    "NOTE: the rest of this list is added at run time. runai-actions .github/workflows/renovate.yml runs renovate/scan_candidates, which adds every Go module it finds safe to bump. Keep only entries it cannot work out from the module layout, such as a folder holding no Go module. This line is not a path and is dropped before the list reaches Renovate.",
+    ".github/**"
+  ],
+  "enabledManagers": [
+    "gomod",
+    "dockerfile",
+    "github-actions"
+  ],
+  "labels": [
+    "renovate"
+  ],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "build",
+  "semanticCommitScope": "deps",
+  "packageRules": [
+    {
+      "description": "After a Go update, regenerate what is generated from the dependencies -- DeepCopy, CRDs, mocks, NOTICE and THIRD_PARTY_LICENSES -- in the same commit. The runai-actions pipeline runs these after its tidy hook.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "make lib-generate lib-manifests lib-generate-mocks generate-licenses"
+        ],
+        "fileFilters": [
+          "pkg/**",
+          "charts/karta/crds/**",
+          "NOTICE",
+          "THIRD_PARTY_LICENSES"
+        ]
+      }
+    }
+  ]
+}

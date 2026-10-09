@@ -10,12 +10,16 @@ export interface UseKartaWasmResult {
   loading: boolean;
 }
 
-export function useKartaWasm(): UseKartaWasmResult {
+// attempt re-runs the load when it changes. getKartaWasm clears its cached
+// promise on failure, so a later attempt genuinely retries rather than
+// resolving the old rejection.
+export function useKartaWasm(attempt = 0): UseKartaWasmResult {
   const [karta, setKarta] = useState<KartaWasm | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setError(null);
 
     getKartaWasm()
       .then(loaded => {
@@ -32,7 +36,7 @@ export function useKartaWasm(): UseKartaWasmResult {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
   return { karta, error, loading: !karta && !error };
 }

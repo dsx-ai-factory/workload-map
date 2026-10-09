@@ -21,6 +21,7 @@ linters:
         path: _mock\.go
     paths:
       - bin
+      - headlamp-plugin/node_modules
       - vendor
       - third_party$
       - builtin$
@@ -32,11 +33,12 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/run-ai/karta
+        - github.com/dsx-ai-factory/workload-map
   exclusions:
     generated: lax
     paths:
       - bin
+      - headlamp-plugin/node_modules
       - vendor
       - third_party$
       - builtin$

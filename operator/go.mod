@@ -5,7 +5,7 @@ go 1.26.8
 godebug fips140=off
 
 require (
-	github.com/dsx-ai-factory/workload-map v0.0.0
+	github.com/dsx-ai-factory/workload-map v0.2.9
 	github.com/go-logr/logr v1.4.4
 	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.44.0
@@ -86,5 +86,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-replace github.com/dsx-ai-factory/workload-map => ../

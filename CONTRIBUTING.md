@@ -97,24 +97,33 @@ make helm-lint
 make helm-validate
 ```
 
-`make check` is the complete Go presubmit for the library, the CLI and the
-operator, and CI runs it verbatim. CI covers the Helm chart, the air-gap image
-lock and the shell scripts in separate steps, so run those four targets too
-before pushing if you touched them.
+`make check` is the complete Go presubmit for the library, CLI, operator,
+Karta WASM module, and release helper, and CI runs it verbatim. CI covers the
+Helm chart, air-gap image lock, and shell scripts in separate steps, so run
+those targets too before pushing if you touched them.
 
 There is one Makefile, at the repository root. Bare targets act on every
 component, and a component suffix narrows them:
 
 ```bash
-make test              # library, CLI and operator
+make test              # every Go component, including the release helper
 make test-cli          # just the CLI
-make check-operator    # just the operator, the full fmt/vet/lint/test set
+make check-operator    # operator checks, e2e compilation, tests, and version smoke
 make help              # every target, grouped
 ```
 
+`make build-operator` writes a binary for the host OS and architecture to
+`bin/karta-operator`. The operator version smoke test runs that host binary on
+every supported development host. The operator e2e suite is compiled during
+`make check`; its live cluster run remains a separate target.
+
+The root Go workspace contains the library, CLI, and operator modules. The
+separate release helper, Karta WASM module, and other nested modules are
+deliberately isolated. When running Go commands directly in those modules, set
+`GOWORK=off`. Make targets already do this where required.
+
 `make lint` never rewrites your files. `make fmt` and the per-component
-`fmt-lib`, `fmt-cli` and `fmt-operator` targets are the only ones that reformat,
-and nothing depends on them.
+`fmt-*` targets are the only ones that reformat, and nothing depends on them.
 
 ### Commit Messages
 
@@ -179,17 +188,81 @@ Adding one means, in order:
 
 1. The builder under `pkg/catalog/kartas/`, registered in
    `pkg/catalog/catalog.go`, then `make generate-samples` for the generated
-   file under `docs/catalog/`. Never hand-edit the generated file.
+   file under `docs/catalog/`. Never hand-edit the generated file. Add the
+   workload to the Pre-built Karta Definitions table in `README.md`, unless it
+   is a Kubernetes builtin (apps, batch, core): the table lists operator-backed
+   kinds only.
 2. A flow under `test/e2e/flows/` with its workload manifests under
-   `test/e2e/flows/testdata/<workload>/`, covering at least the states the
-   definition maps that a kind cluster can reach. Manifests pin image tags and
-   declare resource limits. If the operator install needs new pieces, extend
-   the operator's script under `hack/e2e/operators/` so `make e2e-up` still
-   provisions everything.
-3. The recorded fixtures from a live run: `make record-e2e
-   E2E_LABELS="<label>"` against a `make e2e-up` cluster, committed under
-   `test/e2e/recorded_data/`.
-4. `make test-replay` and `make verify-recordings` green.
+   `test/e2e/flows/testdata/<workload>/`. See `test/e2e/recorder/README.md`.
+   - Flow: record every mapped state, and each spec value a rule branches on
+     (a StatefulSet's `OnDelete`, paused, a partition, a restart policy), that
+     the kind's webhook accepts and a kind cluster can reach. Name the rest
+     unproven in the builder comment. When the definition can suspend a
+     running workload, one flow fires the suspend action from Running; a CR
+     created suspended does not prove it. State predicates read the CR's own
+     fields, never Karta; `AddState` order decides only a frame two
+     predicates match, least to most advanced.
+   - Manifests: pin image tags, declare resource requests and limits, set
+     `namespace: default` (the recorder overrides it), set
+     `automountServiceAccountToken: false` unless the pods call the API
+     server, and name objects `karta-e2e-<workload>-<flow>`.
+   - Install: if the operator is new or its install needs new pieces, follow
+     Adding an operator in `hack/e2e/README.md` (`install.sh`, `verify.sh`,
+     `smoke.yaml`, the version pin in `global.env`, `ALL_WORKLOADS` and
+     `version_of` in `up.sh`) so `make e2e-up` still provisions everything. A
+     new kind for an operator already installed keeps its directory, pin, and
+     `up.sh` entries; it extends any flag in `install.sh` that gates which
+     kinds the controller serves and adds a `<kind>-smoke.yaml` plus a
+     `run_smoke` line in `verify.sh`. A Kubernetes builtin needs none of
+     this.
+   - Naming: the operator directory takes the upstream project's short name
+     (`kuberay`, `spark-operator`). `Fixture.Operator` in the flow must equal
+     that directory name; that is how the recording is filed under the
+     operator version. The operator name is also the first `Label`; add the
+     kind as a second label when the operator ships several kinds. A builtin
+     has no directory: `Fixture.Operator` equals the first `Label`, and the
+     second label is `builtin`. Name the testdata directory and the
+     `<workload>` in object names after the kind in lowercase (`mpijob`,
+     `rayjob`; `pytorch` is a legacy name); single-kind operators may use the
+     operator name (`nim`). When the kind collides with a builtin or another
+     catalog entry (a Volcano `Job`), use the upstream short name (`vcjob`)
+     for the label, the directory, the object names, and the root component
+     name alike.
+3. The recorded fixtures from a live run, committed under
+   `test/e2e/recorded_data/<operator>/<version>/<kartaName>/`:
+
+   ```sh
+   make e2e-up CLUSTER_NAME=<name> WORKLOADS=<operator>
+   make record-e2e CLUSTER_NAME=<name> WORKLOADS=<operator>
+   ```
+
+   A non-default `CLUSTER_NAME` keeps the run on its own kubeconfig, so the
+   shared current-context is never switched. Use the same `CLUSTER_NAME` on
+   both commands: the recorder reads
+   `hack/e2e/operators/.installed-versions-<cluster>` to pick the version
+   directory, and without it files the fixtures under the Kubernetes version.
+   The fixtures already committed sit under `v1.34.0`; new ones go under the
+   operator's `version_of` string from `hack/e2e/up.sh`, which can be
+   composite (`v1.9.0+mpiv0.8.2` for kubeflow). For a new kind on an operator
+   that ships several, pass the kind label to `record-e2e`
+   (`WORKLOADS=tfjob`) so the sibling flows are not re-recorded. A Kubernetes
+   builtin has no operator: run `e2e-up` with `WORKLOADS=none` (`up.sh`
+   rejects other names) and `record-e2e` with the flow label; its fixtures
+   land under the cluster's Kubernetes version.
+   `FLOW=<name>` (or `FLOW="<a>|<b>"`) re-records only those flows, which is
+   the normal loop after a failure in a flow or its manifest. A change to a
+   status rule or a predicate re-records every flow of the kind. Fixtures are
+   recorder output and carry no SPDX header. `phases` lists the flow
+   predicates that matched a frame. In a new fixture, every state frame after
+   the controller's first status write should list one; the frames before it
+   read Undefined and match none, which is normal. Two mean the predicates
+   overlap, and since they mirror the status rules, karta-verify on that frame
+   shows whether the rules overlap too.
+4. `make test-replay` and `make verify-recordings` green. `make lint-shell`
+   green, and `GOWORK=off go vet ./...` and `gofmt -l .` clean in `test/e2e`;
+   `make check` covers none of these three. Commit the new files before
+   `make check`: the `validate` target treats untracked files as stale
+   generator output.
 
 ## Versioning
 
@@ -206,14 +279,13 @@ This is the same model used by [ai-dynamo/grove](https://github.com/ai-dynamo/gr
 
 ### Releasing
 
-```bash
-git tag v1.2.3
-git push origin v1.2.3
-```
+The root library, CLI module, and operator module use one synchronized version.
+The preparation, two-tag convention, local snapshot, guarded release command,
+credentials, and recovery procedure are documented in
+[RELEASE.md](RELEASE.md).
 
-Pushing the tag triggers `push-artifacts.yaml`, which publishes `oci://ghcr.io/dsx-ai-factory/workload-map/karta:1.2.3` with both `version` and `appVersion` set to `1.2.3`, and creates a corresponding GitHub release.
-
-No `Chart.yaml` bump is needed - the tag is the source of truth for versions. The one pre-tag step is adding the version's entry to [CHANGELOG.md](CHANGELOG.md); see [RELEASE.md](RELEASE.md) for the policy.
+No `Chart.yaml` bump is needed. The release tag remains the source of truth for
+the published chart version and app version.
 
 ## Code of Conduct
 

@@ -5,7 +5,8 @@
 # image has no shell, package manager, Python runtime, or third-party packages,
 # so it carries effectively no CVEs. The build uses the standard library only,
 # so it needs no module downloads.
-FROM golang:1.26.8-bookworm AS build
+ARG GO_VERSION
+FROM golang:${GO_VERSION}-bookworm AS build
 WORKDIR /src
 COPY go.mod .
 COPY main.go .

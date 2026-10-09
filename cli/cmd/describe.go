@@ -30,11 +30,15 @@ import (
 )
 
 const (
-	flagPodLimit = "pod-limit"
-	flagFile     = "file"
+	flagPodLimit       = "pod-limit"
+	flagComponentLimit = "component-limit"
+	flagFile           = "file"
 
 	usagePodLimit = "Maximum pod rows per component; the default shows every pod. " +
 		"When set, unhealthy pods are shown first. Table output only"
+	usageComponentLimit = "Maximum components shown under each parent in the tree; the default shows " +
+		"every component. When set, components with an unhealthy pod, then with missing pods, " +
+		"are kept first. Table output only"
 	usageFile = "Describe a workload that has not been submitted; \"-\" reads stdin. " +
 		"No cluster is needed, and no TYPE/NAME is accepted"
 
@@ -65,6 +69,9 @@ It answers what a workload would look like before it is submitted.`
   # Large workloads: cap the pod rows, unhealthy pods first
   kli describe pytorchjob/llama-finetune --pod-limit 10
 
+  # Workloads with many components: cap the tree, unhealthy components first
+  kli describe jobset/llama-train --component-limit 3
+
   # Preview a manifest before submitting it, no cluster needed
   kli describe -f jobset.yaml
 
@@ -89,8 +96,9 @@ var errNoDefinitions = errors.New("no Karta definitions available (catalog empty
 // describe accept the same TYPE/NAME forms as get.
 type describeOptions struct {
 	getOptions
-	podLimit int
-	file     string
+	podLimit       int
+	componentLimit int
+	file           string
 }
 
 // machineError is the shape a failure takes in the machine formats. Only the
@@ -140,10 +148,20 @@ func newDescribeCommand() *cobra.Command {
 			}
 			return nil
 		}),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			// -f takes the kind from the manifest, so no argument is accepted.
+			if opts.file != "" {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return completeWorkloads(cmd, args, toComplete)
+		},
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			// A negative limit collides with the ShowAllPods sentinel.
 			if opts.podLimit < 0 {
 				return usageError(cmd, fmt.Errorf("--%s must not be negative", flagPodLimit))
+			}
+			if opts.componentLimit < 0 {
+				return usageError(cmd, fmt.Errorf("--%s must not be negative", flagComponentLimit))
 			}
 			return nil
 		},
@@ -158,28 +176,39 @@ func newDescribeCommand() *cobra.Command {
 	// Zero is the default rather than ShowAllPods: both mean no limit, and only
 	// zero keeps pflag from advertising a value the flag then rejects.
 	cmd.Flags().IntVar(&opts.podLimit, flagPodLimit, 0, usagePodLimit)
+	cmd.Flags().IntVar(&opts.componentLimit, flagComponentLimit, 0, usageComponentLimit)
 	cmd.Flags().StringVarP(&opts.file, flagFile, "f", "", usageFile)
 
 	return cmd
 }
 
-func runDescribe(cmd *cobra.Command, opts *describeOptions, format generator.Output) error {
+func runDescribe(cmd *cobra.Command, opts *describeOptions, format generator.Output) (err error) {
 	ctx := cmd.Context()
 
-	view, err := resolveView(ctx, cmd, opts)
+	// Warnings go out last, after the tree and before main reports any error, so
+	// a long tree cannot scroll them out of view.
+	view, warnings, err := resolveView(ctx, cmd, opts)
+	defer func() {
+		if writeErr := printWarnings(cmd.ErrOrStderr(), warnings); err == nil {
+			err = writeErr
+		}
+	}()
 	if err != nil {
 		return reportNoDefinition(cmd, format, err)
 	}
 
 	return generator.RenderWorkload(cmd.OutOrStdout(), view, generator.DescribeOptions{
-		Output:   format,
-		PodLimit: opts.podLimit,
+		Output:         format,
+		PodLimit:       opts.podLimit,
+		ComponentLimit: opts.componentLimit,
 	})
 }
 
+// resolveView builds the view, returning the definition-loading warnings for
+// the caller to print once the view is out.
 func resolveView(
 	ctx context.Context, cmd *cobra.Command, opts *describeOptions,
-) (*workload.DescribeView, error) {
+) (*workload.DescribeView, []string, error) {
 	if opts.file != "" {
 		return describeManifest(ctx, cmd, opts)
 	}
@@ -189,55 +218,53 @@ func resolveView(
 // describeLive reads the named workload and its pods from the cluster.
 func describeLive(
 	ctx context.Context, cmd *cobra.Command, opts *describeOptions,
-) (*workload.DescribeView, error) {
-	look, err := resolveLookup(cmd, &opts.getOptions)
+) (*workload.DescribeView, []string, error) {
+	look, warnings, err := resolveLookup(cmd, &opts.getOptions)
 	if err != nil {
-		return nil, err
+		return nil, warnings, err
 	}
 
 	obj, err := getOne(ctx, look.dyn, look.mapper, look.definition, look.namespace, opts.name)
 	if err != nil {
-		return nil, err
+		return nil, warnings, err
 	}
 
 	// Pods are created beside the workload, so the list stays in its namespace.
 	// A cluster-scoped root has none, so there it is cluster-wide.
 	pods, err := workload.ListPods(ctx, look.dyn, obj.GetNamespace())
 	if err != nil {
-		return nil, fmt.Errorf("list pods: %w", err)
+		return nil, warnings, fmt.Errorf("list pods: %w", err)
 	}
 	owned, err := workload.NewPodAttributor(look.dyn, look.mapper).Filter(ctx, pods, obj.GetUID())
 	if err != nil {
-		return nil, fmt.Errorf("attribute pods: %w", err)
+		return nil, warnings, fmt.Errorf("attribute pods: %w", err)
 	}
 
 	view, err := workload.ResolveDescribe(ctx, obj, look.definition, owned)
 	if err != nil {
-		return nil, fmt.Errorf("describe %s %q: %w", obj.GetKind(), obj.GetName(), err)
+		return nil, warnings, fmt.Errorf("describe %s %q: %w", obj.GetKind(), obj.GetName(), err)
 	}
-	return view, nil
+	return view, warnings, nil
 }
 
 // describeManifest builds the view from a manifest alone. The kind comes from
 // the manifest, so no discovery is involved and no cluster is required.
 func describeManifest(
 	ctx context.Context, cmd *cobra.Command, opts *describeOptions,
-) (*workload.DescribeView, error) {
+) (*workload.DescribeView, []string, error) {
 	obj, err := readManifest(cmd, opts.file)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Read best-effort: an unreachable cluster degrades to the embedded catalog,
 	// which is what lets file mode work with no cluster at all.
-	resolver, warnings := loadDefinitions(ctx, clusterAccess())
-	if err := printWarnings(cmd.ErrOrStderr(), warningMessages(warnings)); err != nil {
-		return nil, err
-	}
+	resolver, loadWarnings := loadDefinitions(ctx, clusterAccess())
+	warnings := warningMessages(loadWarnings)
 
 	gvk := obj.GroupVersionKind()
 	if gvk.Kind == "" || gvk.Version == "" {
-		return nil, usageError(cmd, fmt.Errorf(
+		return nil, warnings, usageError(cmd, fmt.Errorf(
 			"%s declares no apiVersion and kind, so there is nothing to resolve it by", opts.file))
 	}
 
@@ -245,7 +272,7 @@ func describeManifest(
 	switch {
 	case err == nil:
 	case errors.Is(err, definitions.ErrAmbiguous):
-		return nil, usageError(cmd, err)
+		return nil, warnings, usageError(cmd, err)
 	default:
 		// A CRD serves several versions, and a definition covers the kind at
 		// one of them, so a manifest written at another still resolves.
@@ -257,11 +284,11 @@ func describeManifest(
 		}
 		switch len(matches) {
 		case 0:
-			return nil, noDefinitionFor(gvk)
+			return nil, warnings, noDefinitionFor(gvk)
 		case 1:
 			target = matches[0]
 		default:
-			return nil, usageError(cmd, ambiguous(gvk.GroupKind().String(), matches))
+			return nil, warnings, usageError(cmd, ambiguous(gvk.GroupKind().String(), matches))
 		}
 	}
 
@@ -269,10 +296,10 @@ func describeManifest(
 	// zeroes would read as a workload whose pods have all gone.
 	view, err := workload.ResolveDescribe(ctx, obj, target, nil)
 	if err != nil {
-		return nil, fmt.Errorf("describe %s: %w", opts.file, err)
+		return nil, warnings, fmt.Errorf("describe %s: %w", opts.file, err)
 	}
 	view.FileMode = true
-	return view, nil
+	return view, warnings, nil
 }
 
 // readManifest decodes one workload manifest, from stdin when path is "-".
@@ -339,9 +366,9 @@ func noDefinitionForType(token string) error {
 func noDefinitionFor(gvk schema.GroupVersionKind) error {
 	return noDefinitionNotFound{
 		exitError: exitError{code: ExitNotFound,
-			err: fmt.Errorf("%s: %s", noDefinitionMessage, gvk)},
+			err: fmt.Errorf("%s: %s", noDefinitionMessage, definitions.FormatGVK(gvk))},
 		subject: machineError{
-			Error: noDefinitionReason, GVK: gvk.String(),
+			Error: noDefinitionReason, GVK: definitions.FormatGVK(gvk),
 			Message: noDefinitionMessage, Hint: noDefinitionHint,
 		},
 	}

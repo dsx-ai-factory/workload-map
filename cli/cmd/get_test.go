@@ -33,6 +33,8 @@ import (
 var (
 	jobSetGVK = schema.GroupVersionKind{Group: "jobset.x-k8s.io", Version: "v1alpha2", Kind: "JobSet"}
 	jobSetGVR = jobSetGVK.GroupVersion().WithResource("jobsets")
+
+	namespaceGVR = schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
 )
 
 // jobSet builds a JobSet with one replicated job of the given parallelism.
@@ -62,14 +64,17 @@ func jobSetIn(namespace, name string, parallelism int64) *unstructured.Unstructu
 	}}
 }
 
-// fakeCluster points the get command at an in-memory cluster serving only the
-// JobSet type, and restores the real client factory afterwards.
+// fakeCluster points the get command at an in-memory cluster serving the
+// JobSet type and namespaces, and restores the real client factory afterwards.
 func fakeCluster(t *testing.T, objects ...runtime.Object) *dynamicfake.FakeDynamicClient {
 	t.Helper()
 
 	scheme := runtime.NewScheme()
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme,
-		map[schema.GroupVersionResource]string{jobSetGVR: "JobSetList"}, objects...)
+		map[schema.GroupVersionResource]string{
+			jobSetGVR:    "JobSetList",
+			namespaceGVR: "NamespaceList",
+		}, objects...)
 
 	mapper := meta.NewDefaultRESTMapper(nil)
 	mapper.AddSpecific(jobSetGVK, jobSetGVR, jobSetGVK.GroupVersion().WithResource("jobset"), meta.RESTScopeNamespace)
@@ -107,6 +112,37 @@ func runCmd(t *testing.T, sub string, args ...string) (string, string, int) {
 		errOut.WriteString("error: " + err.Error() + "\n")
 	}
 	return out.String(), errOut.String(), code
+}
+
+// runCombinedCmd is runCmd with stdout and stderr in one stream, the way a
+// terminal shows them, so a test can assert their relative order.
+func runCombinedCmd(t *testing.T, sub string, args ...string) (string, int) {
+	t.Helper()
+
+	root := NewRootCommand()
+	var combined bytes.Buffer
+	root.SetOut(&combined)
+	root.SetErr(&combined)
+	root.SetArgs(append([]string{sub}, args...))
+
+	code := 0
+	if err := root.Execute(); err != nil {
+		code = exitStatus(err)
+		combined.WriteString("error: " + err.Error() + "\n")
+	}
+	return combined.String(), code
+}
+
+// withLoadWarning serves the catalog definitions along with one load warning.
+func withLoadWarning(t *testing.T, message string) {
+	t.Helper()
+
+	restore := loadDefinitions
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+		return definitions.New([]*v1alpha1.Karta{kartas.Jobset()}, nil),
+			[]definitions.Warning{{Message: message}}
+	}
+	t.Cleanup(func() { loadDefinitions = restore })
 }
 
 func runGetCmd(t *testing.T, args ...string) (string, string, int) {
@@ -622,4 +658,34 @@ func decodeEnvelope(t *testing.T, out string) ([]map[string]any, int) {
 		t.Fatalf("decode %q: %v", out, err)
 	}
 	return envelope.Items, envelope.Count
+}
+
+// A warning printed above the table scrolls out of view on a long listing.
+func TestGetPrintsWarningsAfterTheTable(t *testing.T) {
+	fakeCluster(t, jobSet("preprocess", 3))
+	withLoadWarning(t, "the Karta CRD is not installed")
+
+	combined, code := runCombinedCmd(t, "get", "jobset")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, combined)
+	}
+	row, warning := strings.Index(combined, "preprocess"), strings.Index(combined, "warning: ")
+	if row < 0 || warning < row {
+		t.Errorf("expected the warning after the table\n%s", combined)
+	}
+}
+
+// The error is the last word: warnings explain it, so they come first.
+func TestGetPrintsWarningsBeforeTheError(t *testing.T) {
+	fakeCluster(t)
+	withLoadWarning(t, "the Karta CRD is not installed")
+
+	combined, code := runCombinedCmd(t, "get", "flinkdeployment")
+	if code == 0 {
+		t.Fatalf("expected a non-zero exit\n%s", combined)
+	}
+	warning, failure := strings.Index(combined, "warning: "), strings.Index(combined, "error: ")
+	if warning < 0 || failure < warning {
+		t.Errorf("expected the warning before the error\n%s", combined)
+	}
 }

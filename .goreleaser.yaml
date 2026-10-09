@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.18.1/www/static/schema.json
+
+version: 2
+project_name: karta
+
+builds:
+  - id: karta
+    dir: cli
+    main: ./cmd/kli
+    binary: kli
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+      - -buildvcs=false
+    ldflags:
+      - -X github.com/dsx-ai-factory/workload-map/pkg/version.version={{ .Env.VERSION }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: karta
+    ids:
+      - karta
+    formats:
+      - tar.gz
+    name_template: "karta_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    strip_binary_directory: true
+    # Every file carries the commit time rather than its checkout time, so a
+    # rerun of the same tag rebuilds byte-identical archives instead of moving
+    # the published checksums.
+    files:
+      - src: LICENSE
+        info:
+          mtime: "{{ .CommitDate }}"
+      - src: NOTICE
+        info:
+          mtime: "{{ .CommitDate }}"
+      - src: README.md
+        info:
+          mtime: "{{ .CommitDate }}"
+      - src: THIRD_PARTY_LICENSES
+        info:
+          mtime: "{{ .CommitDate }}"
+    builds_info:
+      mtime: "{{ .CommitDate }}"
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+  ids:
+    - karta
+
+source:
+  enabled: false
+
+sboms:
+  - disable: true
+
+release:
+  github:
+    owner: dsx-ai-factory
+    name: workload-map
+  ids:
+    - karta
+  replace_existing_artifacts: true
+  include_meta: false
+  preflight:
+    fail_on_error: true
+
+snapshot:
+  version_template: "{{ .Env.VERSION }}"
+
+changelog:
+  sort: asc

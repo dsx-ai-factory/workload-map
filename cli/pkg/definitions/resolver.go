@@ -113,7 +113,7 @@ func (r *Resolver) Resolve(gvk schema.GroupVersionKind) (Definition, error) {
 	}
 	switch len(defs) {
 	case 0:
-		return Definition{}, fmt.Errorf("%w: %s", ErrNotFound, gvk)
+		return Definition{}, fmt.Errorf("%w: %s", ErrNotFound, FormatGVK(gvk))
 	case 1:
 		return defs[0], nil
 	default:
@@ -121,7 +121,7 @@ func (r *Resolver) Resolve(gvk schema.GroupVersionKind) (Definition, error) {
 		for _, def := range defs {
 			names = append(names, fmt.Sprintf("%q", def.Karta.Name))
 		}
-		return Definition{}, fmt.Errorf("%w: %s: %s", ErrAmbiguous, gvk, strings.Join(names, ", "))
+		return Definition{}, fmt.Errorf("%w: %s: %s", ErrAmbiguous, FormatGVK(gvk), strings.Join(names, ", "))
 	}
 }
 
@@ -194,4 +194,11 @@ func (r *Resolver) Collisions() []Collision {
 	}
 	flush()
 	return out
+}
+
+// FormatGVK renders gvk as group/version/Kind, the apiVersion a manifest carries
+// followed by its kind. apimachinery's "group/version, Kind=Kind" reads as a Go
+// struct dump rather than as one name for the type.
+func FormatGVK(gvk schema.GroupVersionKind) string {
+	return gvk.GroupVersion().String() + "/" + gvk.Kind
 }

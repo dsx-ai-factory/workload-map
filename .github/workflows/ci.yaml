@@ -20,9 +20,15 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # pin-check compares the pin against the release tags.
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -33,18 +39,39 @@ jobs:
             go.sum
             operator/go.sum
             cli/go.sum
+            hack/release/go.sum
+
+      - name: Install helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.2.4
 
       - name: Cache bin tools
         uses: actions/cache@v6
         with:
-          path: bin
-          key: ${{ runner.os }}-bin-${{ hashFiles('Makefile') }}-${{ hashFiles('go.mod') }}
+          path: |
+            bin/controller-gen-*
+            bin/go-licence-detector-*
+            bin/golangci-lint-*
+            bin/goreleaser-*
+            bin/setup-envtest-*
+            bin/k8s
+          key: ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-${{ hashFiles('go.mod') }}
           restore-keys: |
-            ${{ runner.os }}-bin-${{ hashFiles('Makefile') }}-
-            ${{ runner.os }}-bin-
+            ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-
+            ${{ runner.os }}-tools-v1-
 
-      - name: Run checks
-        run: make check
+      - name: Validate GoReleaser configuration
+        run: make goreleaser-check
+
+      - name: Check the synchronized pin
+        if: github.event_name == 'pull_request'
+        run: make pin-check
+
+      - name: Run checks and build release executables
+        run: |
+          build_version="0.0.0-main-${GITHUB_SHA:0:7}"
+          make check VERSION="$build_version"
 
       - name: Lint helm chart
         run: make helm-lint

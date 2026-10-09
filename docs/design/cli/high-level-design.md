@@ -159,11 +159,14 @@ Key flags:
 - `-n, --namespace` - target namespace, kubectl semantics
 - `-f, --file <manifest>` - describe a manifest that has not been submitted; `-` reads stdin
 - `--pod-limit <n>` - maximum pod rows per component; the default renders every pod
+- `--component-limit <n>` - maximum components under each parent in the tree; the default renders every component
 - `-o <table|json|yaml>` - output format. `wide` is rejected: one workload has no extra columns to widen into
 
 Every section renders from a single `WorkloadView`, so the human output and the machine output cannot drift. `-o json` emits that view directly, without the `items`/`count` envelope the list commands carry: an envelope says nothing about a single subject and costs a consumer an `items[0]` hop. Values are typed - `replicas` is `{desired, current, ready}` numbers, never a `"3/4"` a consumer re-parses; an unscheduled pod carries a null node, not an empty string. The JSON shape is deliberately unstable until the CLI reaches v1.
 
 By default every pod row renders, the way `kubectl-tree` renders every descendant: the hidden pod is the one a reader most needs. `--pod-limit` opts into truncation, sorting unhealthy pods first so a failing pod is never what gets cut, and reporting what it hid.
+
+Components work the same way: every component renders by default, and `--component-limit` caps the components under each parent for a workload with dozens of replicated jobs. Rows go first to components with an unhealthy pod, then to components with fewer pods than desired, then to the rest. Missing pods rank second because the view cannot tell pods never created from pods cleaned up after finishing. The shown ones stay in declared order, and a closing row says how many were hidden, naming the unhealthy and missing-pod ones apart. The resources breakdown is never truncated, so its rows still sum to TOTAL.
 
 **Pod attribution.** A Karta `PodSelector` says which component type a pod plays, never which workload it belongs to: matching on the selector alone would claim every PyTorchJob worker in the namespace. So pods are scoped by ownership first - each candidate pod's controller owner-reference chain is walked, fetching intermediates, until it reaches the workload root - and only then placed by the definition's selectors. Intermediate fetches are cached hit and miss alike, so siblings sharing a ReplicaSet cost one read.
 
@@ -190,6 +193,8 @@ $ karta definition describe kubeflow-org-pytorchjob-v1
 $ karta definition validate ./my-custom-karta.yaml
 ✓ Valid Karta definition
 ```
+
+The COMPONENTS column lists the root and at most three child components, then `+N more`, so a definition with dozens of components stays on one line. `--component-limit <n>` changes the cap and `0` lists every component. json and yaml always carry the full definition.
 
 ---
 

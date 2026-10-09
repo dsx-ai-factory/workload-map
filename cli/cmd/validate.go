@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
 )
@@ -70,8 +71,8 @@ func newValidateCommand() *cobra.Command {
 					strings.Count(report, "\n")+1, name)
 			}
 
-			_, err = fmt.Fprintf(out, "OK: %s is a valid Karta definition (maps %s)\n",
-				name, catalog.RootKey(&karta))
+			_, err = fmt.Fprintf(out, "OK: %s is a valid Karta definition (GVK: %s)\n",
+				name, definitions.FormatGVK(catalog.RootKey(&karta)))
 			return err
 		},
 	}

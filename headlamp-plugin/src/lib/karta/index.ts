@@ -4,7 +4,7 @@
 export { getKartaWasm } from './karta';
 export type { Envelope, KartaWasm } from './karta';
 
-export { buildTree, listCatalog } from './kartaUtil';
+export { buildTree, evaluatePhases, listCatalog } from './kartaUtil';
 
 export type {
   ComponentNode,

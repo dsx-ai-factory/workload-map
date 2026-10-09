@@ -16,7 +16,7 @@ FROM golang:${GO_VERSION} AS build
 WORKDIR /src
 COPY . .
 WORKDIR /src/docs/examples/controller-runtime
-RUN CGO_ENABLED=0 GO111MODULE=on go build -trimpath -o /controller .
+RUN GOWORK=off CGO_ENABLED=0 GO111MODULE=on go build -trimpath -o /controller .
 
 FROM gcr.io/distroless/static-debian13:nonroot
 COPY --from=build /controller /controller

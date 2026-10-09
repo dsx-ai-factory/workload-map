@@ -238,6 +238,7 @@ Karta supports any workload type. The following are pre-built and tested Karta d
 | RayJob | Ray |
 | RayService | Ray |
 | InferenceService | KServe |
+| LLMInferenceService | KServe |
 | Knative Service | Knative |
 | MPIJob | Kubeflow |
 | NIM Service | NVIDIA |

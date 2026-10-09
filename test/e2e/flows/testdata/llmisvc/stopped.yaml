@@ -1,17 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 #
-# A router-less LLMInferenceService whose main container is overridden (by name,
-# the preset merge is per container) with a tiny CPU http server, so no GPU and
-# no real model are needed. The controller merges the well-known template
-# preset, creates the main Deployment, and Ready aggregates WorkloadsReady via
-# the Knative living condition set: Unknown while the pod comes up, True once
-# the workload is ready. The preset's probes (httpGet /health on 8000) are
-# inherited as-is; the fake server answers that path, so readiness is real.
+# The running service, stopped once Ready: the flow sets the
+# serving.kserve.io/stop annotation (KServe has no spec.suspend), the controller
+# scales the workload away, and the conditions go False with reason Stopped.
 apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:
-  name: karta-e2e-llmisvc-running
+  name: karta-e2e-llmisvc-stopped
   namespace: default
 spec:
   model:

@@ -1,0 +1,131 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1alpha2
+    kind: LLMInferenceService
+    metadata:
+      creationTimestamp: "2026-10-09T04:51:28Z"
+      finalizers:
+      - serving.kserve.io/llmisvc-finalizer
+      generation: 1
+      name: karta-e2e-llmisvc-missing-preset
+      namespace: test-47hmn
+      uid: 609e392d-14b8-48a4-aaca-015ca4c2f3b6
+    spec:
+      baseRefs:
+      - name: karta-e2e-llmisvc-absent-preset
+      model:
+        name: karta-e2e/fake-model
+        uri: pvc://karta-e2e-llmisvc-model
+      replicas: 1
+      template:
+        containers:
+        - command:
+          - sh
+          - -c
+          - mkdir -p /tmp/www && echo ok > /tmp/www/health && exec busybox httpd -f
+            -p 8000 -h /tmp/www
+          image: busybox:1.36
+          name: main
+          resources:
+            limits:
+              cpu: 50m
+              memory: 32Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+          securityContext:
+            runAsUser: 65532
+  phases:
+  - Undefined
+  resourceVersion: "7350"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: serving.kserve.io/v1alpha2
+    kind: LLMInferenceService
+    metadata:
+      creationTimestamp: "2026-10-09T04:51:28Z"
+      finalizers:
+      - serving.kserve.io/llmisvc-finalizer
+      generation: 1
+      name: karta-e2e-llmisvc-missing-preset
+      namespace: test-47hmn
+      uid: 609e392d-14b8-48a4-aaca-015ca4c2f3b6
+    spec:
+      baseRefs:
+      - name: karta-e2e-llmisvc-absent-preset
+      model:
+        name: karta-e2e/fake-model
+        uri: pvc://karta-e2e-llmisvc-model
+      replicas: 1
+      template:
+        containers:
+        - command:
+          - sh
+          - -c
+          - mkdir -p /tmp/www && echo ok > /tmp/www/health && exec busybox httpd -f
+            -p 8000 -h /tmp/www
+          image: busybox:1.36
+          name: main
+          resources:
+            limits:
+              cpu: 50m
+              memory: 32Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+          securityContext:
+            runAsUser: 65532
+    status:
+      annotations:
+        serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
+        serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
+        serving.kserve.io/config-llm-prefill-template: kserve-config-llm-prefill-template
+        serving.kserve.io/config-llm-prefill-worker-data-parallel: kserve-config-llm-prefill-worker-data-parallel
+        serving.kserve.io/config-llm-router-route: kserve-config-llm-router-route
+        serving.kserve.io/config-llm-scheduler: kserve-config-llm-scheduler
+        serving.kserve.io/config-llm-scheduler-latency-predictor: kserve-config-llm-scheduler-latency-predictor
+        serving.kserve.io/config-llm-template: kserve-config-llm-template
+        serving.kserve.io/config-llm-tracing: kserve-config-llm-tracing
+        serving.kserve.io/config-llm-worker-data-parallel: kserve-config-llm-worker-data-parallel
+      conditions:
+      - lastTransitionTime: "2026-10-09T04:51:32Z"
+        message: LLMInferenceServiceConfig "karta-e2e-llmisvc-absent-preset" not found
+          in namespaces [test-47hmn kserve]
+        reason: ConfigNotFound
+        severity: Info
+        status: "False"
+        type: PresetsCombined
+      - lastTransitionTime: "2026-10-09T04:51:32Z"
+        message: unsuccessfully observed a new generation
+        reason: NewObservedGenFailure
+        status: Unknown
+        type: Ready
+      - lastTransitionTime: "2026-10-09T04:51:32Z"
+        status: Unknown
+        type: RouterReady
+      - lastTransitionTime: "2026-10-09T04:51:32Z"
+        status: Unknown
+        type: WorkloadsReady
+      observedGeneration: 1
+  phases:
+  - Failed
+  resourceVersion: "7351"
+  state: Failed
+flow: missing-preset
+kartaFile: docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml
+kartaName: serving-kserve-io-llminferenceservice-v1alpha2
+operator: kserve
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 1
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Failed
+version: v0.20.0
+want: Failed

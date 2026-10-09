@@ -4,13 +4,13 @@ events:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-09-30T12:42:36Z"
+      creationTimestamp: "2026-10-09T04:51:05Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-failed
-      namespace: test-ltkrv
-      uid: 9e45d10e-a3be-4adb-b558-455d1a48b037
+      namespace: test-47hmn
+      uid: 2fd1e0c0-db35-4c59-abec-541fd3839623
     spec:
       model:
         name: karta-e2e/fake-model
@@ -39,20 +39,20 @@ events:
             runAsUser: 65532
   phases:
   - Undefined
-  resourceVersion: "1828505"
+  resourceVersion: "7110"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-09-30T12:42:36Z"
+      creationTimestamp: "2026-10-09T04:51:05Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-failed
-      namespace: test-ltkrv
-      uid: 9e45d10e-a3be-4adb-b558-455d1a48b037
+      namespace: test-47hmn
+      uid: 2fd1e0c0-db35-4c59-abec-541fd3839623
     spec:
       model:
         name: karta-e2e/fake-model
@@ -96,33 +96,33 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-09-30T12:42:41Z"
+      - lastTransitionTime: "2026-10-09T04:51:09Z"
         message: 'failed to reconcile main workload: failed to create v1.Deployment
-          test-ltkrv/karta-e2e-llmisvc-failed-kserve: Deployment.apps "karta-e2e-llmisvc-failed-kserve"
+          test-47hmn/karta-e2e-llmisvc-failed-kserve: Deployment.apps "karta-e2e-llmisvc-failed-kserve"
           is invalid: spec.template.spec.containers[0].readinessProbe.tcpSocket: Forbidden:
           may not specify more than 1 handler type'
         reason: ReconcileSingleNodeWorkloadError
         severity: Info
         status: "False"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-09-30T12:42:41Z"
+      - lastTransitionTime: "2026-10-09T04:51:09Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-09-30T12:42:41Z"
+      - lastTransitionTime: "2026-10-09T04:51:09Z"
         message: 'failed to reconcile main workload: failed to create v1.Deployment
-          test-ltkrv/karta-e2e-llmisvc-failed-kserve: Deployment.apps "karta-e2e-llmisvc-failed-kserve"
+          test-47hmn/karta-e2e-llmisvc-failed-kserve: Deployment.apps "karta-e2e-llmisvc-failed-kserve"
           is invalid: spec.template.spec.containers[0].readinessProbe.tcpSocket: Forbidden:
           may not specify more than 1 handler type'
         reason: ReconcileSingleNodeWorkloadError
         status: "False"
         type: Ready
-      - lastTransitionTime: "2026-09-30T12:42:41Z"
+      - lastTransitionTime: "2026-10-09T04:51:09Z"
         status: Unknown
         type: RouterReady
-      - lastTransitionTime: "2026-09-30T12:42:41Z"
+      - lastTransitionTime: "2026-10-09T04:51:09Z"
         message: 'failed to reconcile main workload: failed to create v1.Deployment
-          test-ltkrv/karta-e2e-llmisvc-failed-kserve: Deployment.apps "karta-e2e-llmisvc-failed-kserve"
+          test-47hmn/karta-e2e-llmisvc-failed-kserve: Deployment.apps "karta-e2e-llmisvc-failed-kserve"
           is invalid: spec.template.spec.containers[0].readinessProbe.tcpSocket: Forbidden:
           may not specify more than 1 handler type'
         reason: ReconcileSingleNodeWorkloadError
@@ -131,7 +131,7 @@ events:
       observedGeneration: 1
   phases:
   - Failed
-  resourceVersion: "1828553"
+  resourceVersion: "7146"
   state: Failed
 flow: failed
 kartaFile: docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml
@@ -147,5 +147,5 @@ summary:
 - amount: 1
   phases:
   - Failed
-version: v1.34.0
+version: v0.20.0
 want: Failed

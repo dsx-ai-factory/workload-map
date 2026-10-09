@@ -58,6 +58,14 @@ func LLMInferenceServiceV1alpha2() *v1alpha1.Karta {
 
 // llmInferenceService builds the definition for one served version. The paths
 // are version-independent; only the GVK and the object name change.
+//
+// Recorded on a router-less single-node service: Initializing, Running,
+// Failed from a reconcile error, Failed from a missing preset, and Suspended
+// from the stop annotation fired while Running. Unproven: the router reasons
+// (no Gateway implementation on kind), the autoscaler reasons, a rolling
+// LeaderWorkerSet, and the multi-node and disaggregated prefill components,
+// whose structure and gang grouping follow the controller source rather than
+// a recording.
 func llmInferenceService(version string) *v1alpha1.Karta {
 	condition := func(conditionType, status string) string {
 		return fmt.Sprintf(`any(.status.conditions[]?; .type == %q and .status == %q`, conditionType, status)

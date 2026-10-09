@@ -11,7 +11,7 @@
 apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:
-  name: karta-e2e-llmisvc
+  name: karta-e2e-llmisvc-running
   namespace: default
 spec:
   model:

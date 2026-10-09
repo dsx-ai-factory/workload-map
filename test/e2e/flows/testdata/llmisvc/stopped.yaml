@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# The running service, stopped once Ready: the flow sets the
+# serving.kserve.io/stop annotation (KServe has no spec.suspend), the controller
+# scales the workload away, and the conditions go False with reason Stopped.
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceService
+metadata:
+  name: karta-e2e-llmisvc-stopped
+  namespace: default
+spec:
+  model:
+    uri: pvc://karta-e2e-llmisvc-model
+    name: karta-e2e/fake-model
+  replicas: 1
+  template:
+    containers:
+      - name: main
+        image: busybox:1.36
+        # The preset pins runAsNonRoot and busybox defaults to root, so pick a
+        # non-root uid; /tmp is the preset's writable emptyDir.
+        securityContext:
+          runAsUser: 65532
+        command: ["sh", "-c", "mkdir -p /tmp/www && echo ok > /tmp/www/health && exec busybox httpd -f -p 8000 -h /tmp/www"]
+        resources:
+          requests: {cpu: 50m, memory: 32Mi}
+          limits: {cpu: 50m, memory: 32Mi}

@@ -4,13 +4,13 @@ events:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-09-30T12:42:15Z"
+      creationTimestamp: "2026-10-09T04:50:35Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
-      name: karta-e2e-llmisvc
-      namespace: test-ltkrv
-      uid: 3a47924e-5262-4dab-b08d-b6a90fb384a1
+      name: karta-e2e-llmisvc-running
+      namespace: test-47hmn
+      uid: bd1ffcb3-9e76-4084-afdc-7e496f45e649
     spec:
       model:
         name: karta-e2e/fake-model
@@ -36,20 +36,20 @@ events:
             runAsUser: 65532
   phases:
   - Undefined
-  resourceVersion: "1828250"
+  resourceVersion: "6886"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-09-30T12:42:15Z"
+      creationTimestamp: "2026-10-09T04:50:35Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
-      name: karta-e2e-llmisvc
-      namespace: test-ltkrv
-      uid: 3a47924e-5262-4dab-b08d-b6a90fb384a1
+      name: karta-e2e-llmisvc-running
+      namespace: test-47hmn
+      uid: bd1ffcb3-9e76-4084-afdc-7e496f45e649
     spec:
       model:
         name: karta-e2e/fake-model
@@ -75,7 +75,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-kserve-workload-svc.test-ltkrv.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-running-kserve-workload-svc.test-47hmn.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -92,23 +92,23 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-09-30T12:42:19Z"
+      - lastTransitionTime: "2026-10-09T04:50:51Z"
         reason: Progressing
         severity: Info
         status: "False"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-09-30T12:42:19Z"
+      - lastTransitionTime: "2026-10-09T04:50:51Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-09-30T12:42:19Z"
+      - lastTransitionTime: "2026-10-09T04:50:51Z"
         reason: Progressing
         status: "False"
         type: Ready
-      - lastTransitionTime: "2026-09-30T12:42:19Z"
+      - lastTransitionTime: "2026-10-09T04:50:51Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-09-30T12:42:19Z"
+      - lastTransitionTime: "2026-10-09T04:50:51Z"
         reason: Progressing
         status: "False"
         type: WorkloadsReady
@@ -117,27 +117,27 @@ events:
         primary:
           apiGroup: apps
           kind: Deployment
-          name: karta-e2e-llmisvc-kserve
+          name: karta-e2e-llmisvc-running-kserve
           readyReplicas: 0
         service:
           kind: Service
-          name: karta-e2e-llmisvc-kserve-workload-svc
+          name: karta-e2e-llmisvc-running-kserve-workload-svc
   phases:
   - Initializing
-  resourceVersion: "1828320"
+  resourceVersion: "6995"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-09-30T12:42:15Z"
+      creationTimestamp: "2026-10-09T04:50:35Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
-      name: karta-e2e-llmisvc
-      namespace: test-ltkrv
-      uid: 3a47924e-5262-4dab-b08d-b6a90fb384a1
+      name: karta-e2e-llmisvc-running
+      namespace: test-47hmn
+      uid: bd1ffcb3-9e76-4084-afdc-7e496f45e649
     spec:
       model:
         name: karta-e2e/fake-model
@@ -163,7 +163,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-kserve-workload-svc.test-ltkrv.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-running-kserve-workload-svc.test-47hmn.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -180,25 +180,25 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-09-30T12:42:25Z"
+      - lastTransitionTime: "2026-10-09T04:50:57Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         severity: Info
         status: "False"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-09-30T12:42:19Z"
+      - lastTransitionTime: "2026-10-09T04:50:57Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-09-30T12:42:25Z"
+      - lastTransitionTime: "2026-10-09T04:50:57Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
         type: Ready
-      - lastTransitionTime: "2026-09-30T12:42:19Z"
+      - lastTransitionTime: "2026-10-09T04:50:57Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-09-30T12:42:25Z"
+      - lastTransitionTime: "2026-10-09T04:50:57Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
@@ -208,27 +208,27 @@ events:
         primary:
           apiGroup: apps
           kind: Deployment
-          name: karta-e2e-llmisvc-kserve
+          name: karta-e2e-llmisvc-running-kserve
           readyReplicas: 0
         service:
           kind: Service
-          name: karta-e2e-llmisvc-kserve-workload-svc
+          name: karta-e2e-llmisvc-running-kserve-workload-svc
   phases:
   - Initializing
-  resourceVersion: "1828391"
+  resourceVersion: "7046"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-09-30T12:42:15Z"
+      creationTimestamp: "2026-10-09T04:50:35Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
-      name: karta-e2e-llmisvc
-      namespace: test-ltkrv
-      uid: 3a47924e-5262-4dab-b08d-b6a90fb384a1
+      name: karta-e2e-llmisvc-running
+      namespace: test-47hmn
+      uid: bd1ffcb3-9e76-4084-afdc-7e496f45e649
     spec:
       model:
         name: karta-e2e/fake-model
@@ -254,7 +254,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-kserve-workload-svc.test-ltkrv.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-running-kserve-workload-svc.test-47hmn.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -271,21 +271,21 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-09-30T12:42:36Z"
+      - lastTransitionTime: "2026-10-09T04:51:05Z"
         severity: Info
         status: "True"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-09-30T12:42:19Z"
+      - lastTransitionTime: "2026-10-09T04:50:57Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-09-30T12:42:36Z"
+      - lastTransitionTime: "2026-10-09T04:51:05Z"
         status: "True"
         type: Ready
-      - lastTransitionTime: "2026-09-30T12:42:19Z"
+      - lastTransitionTime: "2026-10-09T04:50:57Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-09-30T12:42:36Z"
+      - lastTransitionTime: "2026-10-09T04:51:05Z"
         status: "True"
         type: WorkloadsReady
       observedGeneration: 1
@@ -293,14 +293,14 @@ events:
         primary:
           apiGroup: apps
           kind: Deployment
-          name: karta-e2e-llmisvc-kserve
+          name: karta-e2e-llmisvc-running-kserve
           readyReplicas: 1
         service:
           kind: Service
-          name: karta-e2e-llmisvc-kserve-workload-svc
+          name: karta-e2e-llmisvc-running-kserve-workload-svc
   phases:
   - Running
-  resourceVersion: "1828497"
+  resourceVersion: "7094"
   state: Running
 flow: running
 kartaFile: docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml
@@ -319,5 +319,5 @@ summary:
 - amount: 1
   phases:
   - Running
-version: v1.34.0
+version: v0.20.0
 want: Running

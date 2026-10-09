@@ -14,6 +14,19 @@ import { WorkloadNameFilter } from './WorkloadNameFilter';
 // Hidden by default, toggleable through the column picker.
 export const OPTIONAL_COLUMN_IDS = ['components'] as const;
 
+// Matches a row whose value is exactly one of the selected ones. The table's
+// own multi-select match is a substring test, so picking "team" would also
+// keep "team-b", and picking "-" would keep every hyphenated namespace.
+function matchesAnySelected(
+  row: { getValue: (columnId: string) => unknown },
+  columnId: string,
+  selected: string[]
+) {
+  return selected.includes(row.getValue(columnId) as string);
+}
+// An emptied selection removes the filter, so the header stops showing one.
+matchesAnySelected.autoRemove = (selected?: string[]) => !selected?.length;
+
 // includeCluster is false for a single cluster, so the Cluster column is
 // absent rather than present and identical on every row.
 export function buildWorkloadColumns(includeCluster: boolean): TableColumn<WorkloadRow>[] {
@@ -33,14 +46,19 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       accessorFn: row => row.kind,
       filterVariant: 'multi-select',
       Filter: SelectFilter,
+      filterFn: matchesAnySelected,
       gridTemplate: 'min-content',
     },
     {
       id: 'namespace',
       header: 'Namespace',
-      accessorFn: row => row.namespace,
+      // Cluster-scoped workloads have none. A blank value would show as a
+      // blank filter option and chip, so the cell and the filter use the same
+      // placeholder as Headlamp's own tables.
+      accessorFn: row => row.namespace || '-',
       filterVariant: 'multi-select',
       Filter: SelectFilter,
+      filterFn: matchesAnySelected,
       gridTemplate: 'auto',
     },
     {
@@ -81,6 +99,7 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       accessorFn: row => row.cluster,
       filterVariant: 'multi-select',
       Filter: SelectFilter,
+      filterFn: matchesAnySelected,
       gridTemplate: 'min-content',
     });
   }
@@ -89,7 +108,10 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
     id: 'components',
     header: 'Components',
     accessorFn: row => row.componentsCount,
-    filterVariant: 'range',
+    // The range filter is two text boxes with the table's debounced input, so
+    // clearing right after typing leaves the rows filtered under an empty
+    // box. Headlamp's own tables do not filter count columns either.
+    enableColumnFilter: false,
     gridTemplate: 'min-content',
   });
 

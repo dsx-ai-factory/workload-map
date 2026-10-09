@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
+import { Icon } from '@iconify/react';
+import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
+import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
@@ -37,6 +42,7 @@ export function SelectFilter({
       ].sort()
     : selected;
   const header = String(column.columnDef.header);
+  const { clearFilter } = table.options.localization;
 
   return (
     <Select
@@ -53,7 +59,36 @@ export function SelectFilter({
         const next = event.target.value as string[];
         column.setFilterValue(next.length ? next : undefined);
       }}
-      renderValue={values => (values.length ? values.join(', ') : `Filter by ${header}`)}
+      // Chips that wrap, as the status filter shows its picks, so many picked
+      // values grow the cell in height rather than running past its width.
+      renderValue={values =>
+        values.length ? (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {values.map(value => (
+              <Chip key={value} label={value} size="small" />
+            ))}
+          </Box>
+        ) : (
+          `Filter by ${header}`
+        )
+      }
+      endAdornment={
+        selected.length ? (
+          // Clear of the dropdown arrow, which sits at the right edge. The
+          // mouse down is stopped so that pressing it does not open the menu.
+          <InputAdornment position="end" sx={{ mr: 3 }}>
+            <IconButton
+              size="small"
+              aria-label={clearFilter}
+              onMouseDown={event => event.stopPropagation()}
+              onClick={() => column.setFilterValue(undefined)}
+            >
+              <Icon icon="mdi:close" />
+            </IconButton>
+          </InputAdornment>
+        ) : null
+      }
+      sx={{ '& .MuiSelect-select': { height: 'auto', whiteSpace: 'normal' } }}
       inputProps={{ 'aria-label': `Filter by ${header}` }}
     >
       {options.map(option => (

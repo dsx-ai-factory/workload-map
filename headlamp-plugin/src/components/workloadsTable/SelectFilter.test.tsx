@@ -102,4 +102,48 @@ describe('SelectFilter', () => {
         .map(option => option.textContent)
     ).toEqual(['team-a', 'team-b', 'team-c']);
   });
+
+  // A cluster-scoped workload has no namespace. It is shown as "-", not as a
+  // blank option that gives a blank chip.
+  it('lists a workload without a namespace as "-" and filters by it', () => {
+    const { container } = render(<Table rows={[row('a', 'team-a'), row('node', '')]} />);
+
+    const menu = openNamespaceMenu();
+    expect(menu.getAllByRole('option').map(option => option.textContent)).toEqual(['-', 'team-a']);
+    fireEvent.click(menu.getByText('-'));
+
+    expect(shownNames(container)).toEqual(['node']);
+  });
+
+  // Joined into one line, many picks run past the column. Each is its own chip
+  // instead, which wraps.
+  it('shows each picked value as its own chip', () => {
+    render(<Table rows={[row('a', 'team-a'), row('b', 'team-b'), row('c', 'team-c')]} />);
+    const menu = openNamespaceMenu();
+    fireEvent.click(menu.getByText('team-a'));
+    fireEvent.click(menu.getByText('team-c'));
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+
+    const combobox = screen.getByRole('combobox', { name: 'Filter by Namespace' });
+
+    expect(
+      Array.from(combobox.querySelectorAll('.MuiChip-label')).map(chip => chip.textContent)
+    ).toEqual(['team-a', 'team-c']);
+  });
+
+  // The stock filters have a button that clears the picks in one go.
+  it('clears every pick with its clear button, without opening the menu', () => {
+    const { container } = render(<Table rows={rowsA} />);
+    fireEvent.click(openNamespaceMenu().getByText('team-a'));
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+    expect(shownNames(container)).toEqual(['a']);
+
+    const combobox = screen.getByRole('combobox', { name: 'Filter by Namespace' });
+    const clear = within(combobox.closest('th')!).getByRole('button', { name: 'Clear filter' });
+    fireEvent.mouseDown(clear);
+    fireEvent.click(clear);
+
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(shownNames(container)).toEqual(['a', 'b']);
+  });
 });

@@ -57,25 +57,51 @@ describe('buildWorkloadColumns', () => {
     }
   });
 
-  // Every column but age filters, each by the control its values suit.
-  it('offers each column but age a filter, picking the control from its values', () => {
+  // Age and components are not filtered, each for its own reason below.
+  it('offers each other column a filter, picking the control from its values', () => {
     const columns = buildWorkloadColumns(true);
     const variant = (id: string) => columns.find(column => column.id === id)?.filterVariant;
 
     expect(
       columns.filter(column => column.enableColumnFilter === false).map(column => column.id)
-    ).toEqual(['age']);
+    ).toEqual(['age', 'components']);
     for (const id of ['type', 'namespace', 'cluster', 'status']) {
       expect(variant(id)).toBe('multi-select');
     }
-    for (const id of ['components']) {
-      expect(variant(id)).toBe('range');
-    }
+    // The range filter is two debounced text boxes, which keep the rows
+    // filtered when cleared right after typing.
+    expect(variant('components')).toBeUndefined();
     // The date-range variant needs a LocalizationProvider Headlamp does not
     // mount, so opening it crashes the page.
     expect(variant('age')).toBeUndefined();
     // Names are typed, not picked: there are as many as there are workloads.
     expect(variant('workload')).toBeUndefined();
+  });
+
+  // The table's own multi-select match is a substring test, which kept
+  // "team-b" when "team" was picked.
+  it('matches type, namespace and cluster exactly, not by substring', () => {
+    const columns = buildWorkloadColumns(true);
+    for (const id of ['type', 'namespace', 'cluster']) {
+      const column = columns.find(candidate => candidate.id === id)!;
+      const match = (value: string, selected: string[]) =>
+        (column.filterFn as any)({ getValue: () => value }, id, selected);
+
+      expect(match('team', ['team'])).toBe(true);
+      expect(match('team-b', ['team'])).toBe(false);
+      expect(match('team-b', ['team', 'team-b'])).toBe(true);
+    }
+  });
+
+  // Unticking every value leaves [], which would keep the header showing a
+  // filter unless it is removed.
+  it('removes the filter once nothing is selected', () => {
+    const column = buildWorkloadColumns(false).find(candidate => candidate.id === 'namespace')!;
+    const autoRemove = (column.filterFn as any).autoRemove;
+
+    expect(autoRemove([])).toBe(true);
+    expect(autoRemove(undefined)).toBe(true);
+    expect(autoRemove(['team'])).toBe(false);
   });
 
   // The accessor joins the phases, so the default options would be

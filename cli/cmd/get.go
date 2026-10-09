@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
@@ -31,22 +32,26 @@ const (
 	flagPhase     = "phase"
 	flagSelector  = "selector"
 	flagChunkSize = "chunk-size"
+	flagAllTypes  = "all-types"
 
 	usagePhase     = "Filter by normalized phase; repeatable, and applied after resolution so it does not reduce API cost. One of "
 	usageSelector  = "Label selector on the workload root, kubectl syntax"
 	usageChunkSize = "API list page size; 0 lists without paging. Bounds per-request pressure, not total memory or time to first row"
+	usageAllTypes  = "List the top-level workloads of every type a Karta definition covers, instead of naming a TYPE"
 
 	// defaultChunkSize follows the kubectl convention for list page size.
 	defaultChunkSize = 500
 
-	getUse   = "get TYPE[/NAME] [NAME]"
-	getShort = "List workloads of a type"
+	getUse   = "get (TYPE[/NAME] [NAME] | --all-types)"
+	getShort = "List workloads of a type, or of every type"
 
 	getLong = `List workloads with a normalized phase, read through the Karta definition that
 covers each type.
 
 Type matching is lenient: case-insensitive, singular or plural, and kubectl short names
 all resolve.
+
+--all-types lists the top-level workloads of every covered type, with a TYPE column.
 
 The phase comes from the workload spec, so no pods are listed. -o wide adds the ORIGIN
 of the resolving definition; the component breakdown, requested GPUs and a NODES column
@@ -59,7 +64,10 @@ arrive with the describe command.`
   kli get jobset --phase Failed
 
   # Degraded or failed JobSets matching a selector, as JSON
-  kli get jobset --phase Degraded --phase Failed -l team=nlp -o json`
+  kli get jobset --phase Degraded --phase Failed -l team=nlp -o json
+
+  # Every running workload in the namespace, whatever its type
+  kli get --all-types --phase Running`
 )
 
 // loadDefinitions is a variable so tests can supply a definition set.
@@ -81,6 +89,22 @@ var newDynamicClient = func(rcg genericclioptions.RESTClientGetter) (dynamic.Int
 	return client, nil
 }
 
+// newMetadataClient is a variable so tests can inject a fake cluster. Owner
+// walks read through it, since they need object metadata alone.
+var newMetadataClient = func(rcg genericclioptions.RESTClientGetter) (metadata.Interface, error) {
+	cfg, err := RESTConfig(rcg)
+	if err != nil {
+		return nil, err
+	}
+	cfg.WarningHandler = rest.NoWarnings{}
+
+	client, err := metadata.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("kubernetes metadata client: %w", err)
+	}
+	return client, nil
+}
+
 // getOptions holds the resolved inputs for one run of the get command.
 type getOptions struct {
 	typeToken string
@@ -88,6 +112,7 @@ type getOptions struct {
 	phases    []string
 	selector  string
 	chunkSize int64
+	allTypes  bool
 }
 
 // newGetCommand builds the "kli get" command: one row per workload root.
@@ -103,11 +128,28 @@ func newGetCommand() *cobra.Command {
 		Short:   getShort,
 		Long:    getLong,
 		Example: getExample,
-		Args: usageArgs(cobra.MatchAll(
-			cobra.RangeArgs(1, 2),
-			func(_ *cobra.Command, args []string) error { return parseArgs(opts, args) },
-		)),
-		ValidArgsFunction: completeWorkloads,
+		// Flags are parsed before arguments are checked, so --all-types is set here.
+		Args: usageArgs(func(cmd *cobra.Command, args []string) error {
+			switch {
+			case opts.allTypes && len(args) > 0:
+				return fmt.Errorf("--%s cannot be combined with a TYPE", flagAllTypes)
+			case opts.allTypes:
+				return nil
+			case len(args) == 0:
+				return fmt.Errorf("a TYPE is required, or --%s", flagAllTypes)
+			}
+			if err := cobra.RangeArgs(1, 2)(cmd, args); err != nil {
+				return err
+			}
+			return parseArgs(opts, args)
+		}),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			// --all-types takes no TYPE, so offering one would complete to a usage error.
+			if opts.allTypes {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return completeWorkloads(cmd, args, toComplete)
+		},
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			opts.phases = phase.Get()
 			return validateOptions(cmd, opts)
@@ -121,6 +163,7 @@ func newGetCommand() *cobra.Command {
 	phase = withPhase(cmd, cmd.Flags())
 	cmd.Flags().StringVarP(&opts.selector, flagSelector, "l", "", usageSelector)
 	cmd.Flags().Int64Var(&opts.chunkSize, flagChunkSize, defaultChunkSize, usageChunkSize)
+	cmd.Flags().BoolVar(&opts.allTypes, flagAllTypes, false, usageAllTypes)
 
 	return cmd
 }
@@ -184,7 +227,18 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) (err 
 		return err
 	}
 
-	views, searched, listWarnings, err := collect(ctx, look.dyn, look.mapper, look.definition, look.namespace, opts)
+	var (
+		views        []workload.View
+		searched     = look.namespace
+		listWarnings []string
+		typeOf       func(workload.View) string
+	)
+	if opts.allTypes {
+		views, listWarnings, err = collectAllTypes(ctx, look, opts)
+		typeOf = typeColumn(look.resolver)
+	} else {
+		views, searched, listWarnings, err = collect(ctx, look.dyn, look.mapper, look.definition, look.namespace, opts)
+	}
 	warnings = append(warnings, listWarnings...)
 	if err != nil {
 		return err
@@ -194,6 +248,9 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) (err 
 	slices.SortStableFunc(views, func(a, b workload.View) int {
 		if !a.CreatedAt.Equal(b.CreatedAt) {
 			return b.CreatedAt.Compare(a.CreatedAt)
+		}
+		if a.Kind != b.Kind {
+			return strings.Compare(a.Kind, b.Kind)
 		}
 		return strings.Compare(a.Name, b.Name)
 	})
@@ -205,15 +262,19 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) (err 
 		// An empty namespace means the type is cluster-scoped, so the search
 		// spanned the cluster.
 		AllNamespaces: searched == "",
+		TypeOf:        typeOf,
 	})
 }
 
 // lookup is everything get and describe settle before they read the cluster:
 // where to look, how to reach it, and which definition covers the type asked for.
 type lookup struct {
-	namespace  string
-	dyn        dynamic.Interface
-	mapper     meta.RESTMapper
+	namespace string
+	dyn       dynamic.Interface
+	metadata  metadata.Interface
+	mapper    meta.RESTMapper
+	resolver  *definitions.Resolver
+	// definition is unset under --all-types, which names no type.
 	definition definitions.Definition
 }
 
@@ -242,13 +303,21 @@ func resolveLookup(cmd *cobra.Command, opts *getOptions) (lookup, []string, erro
 	if err != nil {
 		return lookup{}, warnings, err
 	}
-
-	definition, err := resolveTarget(opts, resolver, mapper)
+	metadataClient, err := newMetadataClient(access)
 	if err != nil {
 		return lookup{}, warnings, err
 	}
 
-	return lookup{namespace: namespace, dyn: dyn, mapper: mapper, definition: definition}, warnings, nil
+	look := lookup{namespace: namespace, dyn: dyn, metadata: metadataClient, mapper: mapper, resolver: resolver}
+	if opts.allTypes {
+		return look, warnings, nil
+	}
+
+	look.definition, err = resolveTarget(opts, resolver, mapper)
+	if err != nil {
+		return lookup{}, warnings, err
+	}
+	return look, warnings, nil
 }
 
 // resolveTarget maps the requested type to the definition that covers it.

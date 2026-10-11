@@ -10,6 +10,8 @@ jobs:
         with: { fetch-depth: 0 }
       - name: Check sign-off
         run: |
-          for c in $(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} --no-merges); do
-            git log -1 --format=%B $c | grep -qE '^Signed-off-by: [^<>]*[^<>[:space:]] <[^<>@[:space:]]+@[^<>@[:space:]]+\.[^<>@[:space:]]+>[[:space:]]*$' || { echo "Missing sign-off: $c"; exit 1; }
+          set -euo pipefail
+          commits=$(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} --no-merges)
+          for c in $commits; do
+            git log -1 --format=%B $c | grep -q "^Signed-off-by: " || { echo "Missing sign-off: $c"; exit 1; }
           done

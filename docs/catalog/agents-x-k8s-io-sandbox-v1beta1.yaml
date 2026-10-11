@@ -70,8 +70,6 @@ spec:
         ownerRef: sandbox
         specDefinition:
           podTemplateSpecPath: .spec.podTemplate
-        scaleDefinition:
-          replicasPath: if .spec.operatingMode == "Suspended" then 0 else 1 end
         podSelector:
           componentTypeSelector:
             keyPath: .metadata.labels["agents.x-k8s.io/sandbox-name-hash"]

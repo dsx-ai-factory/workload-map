@@ -105,9 +105,6 @@ func Sandbox() *v1alpha1.Karta {
 						SpecDefinition: &v1alpha1.SpecDefinition{
 							PodTemplateSpecPath: ptr.To(".spec.podTemplate"),
 						},
-						ScaleDefinition: &v1alpha1.ScaleDefinition{
-							ReplicasPath: ptr.To(`if .spec.operatingMode == "Suspended" then 0 else 1 end`),
-						},
 						PodSelector: &v1alpha1.PodSelector{
 							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
 								KeyPath: sandboxPodLabel,

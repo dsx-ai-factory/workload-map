@@ -21,8 +21,8 @@ var _ = Describe("Sandbox", Ordered, Label("agent-sandbox", "sandbox"), func() {
 		// Each state pairs the requested spec.operatingMode with the controller's conditions, so a
 		// condition the controller has not caught up on yet is recorded as the transition it is.
 		rec = recorder.New(cfg).
-			AddState(kartav1alpha1.InitializingStatus, AllOf(SandboxMode("Running"), CondFalse("Ready"), CondNotTrue("Suspended"))).
-			AddState(kartav1alpha1.RunningStatus, AllOf(SandboxMode("Running"), CondTrue("Ready"))).
+			AddState(kartav1alpha1.InitializingStatus, AllOf(SandboxMode("Running"), CondFalse("Ready"), CondFalse("Suspended"))).
+			AddState(kartav1alpha1.RunningStatus, AllOf(SandboxMode("Running"), CondTrue("Ready"), CondNotTrue("Suspended"))).
 			AddState(kartav1alpha1.SuspendingStatus, AllOf(SandboxMode("Suspended"), CondNotTrue("Suspended"))).
 			AddState(kartav1alpha1.SuspendedStatus, AllOf(SandboxMode("Suspended"), CondTrue("Suspended"))).
 			AddState(kartav1alpha1.ResumingStatus, AllOf(SandboxMode("Running"), CondTrue("Suspended")))

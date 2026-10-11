@@ -45,6 +45,22 @@ var _ = Describe("Sandbox", Ordered, Label("agent-sandbox", "sandbox"), func() {
 		Expect(err).To(Succeed())
 	})
 
+	It("suspended-from-running", func(ctx SpecContext) {
+		// Suspending a live Sandbox: the controller deletes the pod it owns and reports
+		// Suspending until the pod is gone, then Suspended. No scale flow exists because a
+		// Sandbox has no replica count, and no template-mutation flow exists because the
+		// controller never recreates a running pod on a podTemplate change; the change
+		// takes effect only when the next pod is created, as after a resume.
+		out, err := recorder.NewFlow(rec, "suspended-from-running", "testdata/sandbox/suspended-from-running.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus),
+			recorder.Reaches(kartav1alpha1.RunningStatus).Do(SuspendSandbox()),
+			recorder.Reaches(kartav1alpha1.SuspendingStatus),
+			recorder.Reaches(kartav1alpha1.SuspendedStatus),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
 	It("resumed", func(ctx SpecContext) {
 		// The controller reports each step: suspending while the pod is deleted, then resuming while
 		// the Suspended condition is still set after the mode returns to Running.

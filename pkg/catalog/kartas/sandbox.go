@@ -31,6 +31,12 @@ const sandboxPodLabel = `.metadata.labels["agents.x-k8s.io/sandbox-name-hash"]`
 // rather than as part of it, and the gang keys every pod on its owning Sandbox,
 // so they share the Sandbox's pod group. Their number is integration-specific,
 // so only the Sandbox pod counts toward minMember.
+//
+// A write through the pod template reaches the running pod for labels and
+// annotations only: the controller copies them onto the pod on every reconcile.
+// A change to the pod spec (image, resources, environment, scheduling) leaves the
+// running pod untouched and applies to the next pod the controller creates, after
+// a suspend and resume. A Sandbox has no replica count, so there is no scale.
 func Sandbox() *v1alpha1.Karta {
 	return &v1alpha1.Karta{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "run.ai/v1alpha1", Kind: "Karta"},

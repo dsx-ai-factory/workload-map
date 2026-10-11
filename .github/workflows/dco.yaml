@@ -11,5 +11,5 @@ jobs:
       - name: Check sign-off
         run: |
           for c in $(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} --no-merges); do
-            git log -1 --format=%B $c | grep -q "^Signed-off-by: " || { echo "Missing sign-off: $c"; exit 1; }
+            git log -1 --format=%B $c | grep -qE '^Signed-off-by: [^<>]*[^<>[:space:]] <[^<>@[:space:]]+@[^<>@[:space:]]+\.[^<>@[:space:]]+>[[:space:]]*$' || { echo "Missing sign-off: $c"; exit 1; }
           done

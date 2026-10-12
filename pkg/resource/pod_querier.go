@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 	"github.com/dsx-ai-factory/workload-map/pkg/jq/execution"
@@ -38,16 +39,24 @@ func (pq *PodQuerier) GetPodName() string {
 	return pq.pod.Name
 }
 
-// MatchesComponentType returns true if the pod matches the given component type selector
+// MatchesComponentType returns true if the pod matches every condition set on the given component type selector
 func (pq *PodQuerier) MatchesComponentType(ctx context.Context, selector *v1alpha1.ComponentTypeSelector) (bool, error) {
 	if selector == nil {
 		return false, nil
 	}
 
-	if selector.Value == nil {
+	if !labels.SelectorFromSet(selector.MatchLabels).Matches(labels.Set(pq.pod.Labels)) {
+		return false, nil
+	}
+
+	switch {
+	case selector.KeyPath == "":
+		// An empty set selects everything, so a selector with no conditions must not match
+		return len(selector.MatchLabels) > 0, nil
+	case selector.Value == nil:
 		// Existence check: key should exist and not be nil
 		return pq.checkKeyExists(ctx, selector.KeyPath)
-	} else {
+	default:
 		// Equality check: key should equal the specified value
 		return pq.checkKeyValue(ctx, selector.KeyPath, *selector.Value)
 	}

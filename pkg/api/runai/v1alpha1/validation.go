@@ -6,6 +6,11 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
+
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/dsx-ai-factory/workload-map/pkg/jq"
 )
@@ -158,12 +163,43 @@ func (v *KartaValidator) validateComponent(component ComponentDefinition) []erro
 		}
 	}
 
+	if err := validateComponentTypeSelector(component); err != nil {
+		errs = append(errs, err)
+	}
+
 	// Component's PodSelector has instance selector if has the component has instance id path defined or the opposite
 	if err := validateMultiInstanceComponent(component); err != nil {
 		errs = append(errs, err)
 	}
 
 	return errs
+}
+
+func validateComponentTypeSelector(component ComponentDefinition) error {
+	if component.PodSelector == nil || component.PodSelector.ComponentTypeSelector == nil {
+		return nil
+	}
+
+	selector := component.PodSelector.ComponentTypeSelector
+	switch {
+	// Mirrors the CRD's minProperties, which rejects an explicitly empty map even when keyPath is set
+	case selector.MatchLabels != nil && len(selector.MatchLabels) == 0:
+		return fmt.Errorf("component '%s' has component type selector with empty matchLabels", component.Name)
+	case selector.KeyPath == "" && len(selector.MatchLabels) == 0:
+		return fmt.Errorf("component '%s' has component type selector with neither keyPath nor matchLabels", component.Name)
+	case selector.KeyPath == "" && selector.Value != nil:
+		return fmt.Errorf("component '%s' has component type selector value without keyPath", component.Name)
+	}
+
+	labelErrs := metav1validation.ValidateLabels(selector.MatchLabels, field.NewPath("podSelector", "componentTypeSelector", "matchLabels"))
+	if len(labelErrs) == 0 {
+		return nil
+	}
+	// ValidateLabels walks the map in random order; sort so the message is stable across runs
+	slices.SortFunc(labelErrs, func(a, b *field.Error) int {
+		return strings.Compare(a.Error(), b.Error())
+	})
+	return fmt.Errorf("component '%s' has invalid matchLabels: %w", component.Name, labelErrs.ToAggregate())
 }
 
 func validateMultiInstanceComponent(component ComponentDefinition) error {

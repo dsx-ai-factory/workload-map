@@ -138,6 +138,25 @@ func TestDescribeRendersEverySection(t *testing.T) {
 	}
 }
 
+// The pod list spans the namespace, so a neighbour's unreadable owner must not
+// fail this workload's describe; it costs a warning, not the result.
+func TestDescribeWarnsAboutAPodItCannotAttribute(t *testing.T) {
+	describeCluster(t, jobSet("preprocess", 3),
+		etlPod("preprocess-etl-0", "ml-team/preprocess", "node-01", true),
+		object(podGVK, "etl-0", controlledBy(batchJobGVK, "etl")))
+
+	out, errOut, code := runDescribeCmd(t, "jobset/preprocess")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if !strings.Contains(out, "preprocess-etl-0") {
+		t.Errorf("expected this workload's pod\n%s", out)
+	}
+	if !strings.Contains(errOut, "warning: could not tell whether 1 pod(s) belong to this workload") {
+		t.Errorf("expected a warning for the unattributed pod, got %q", errOut)
+	}
+}
+
 // A selector says which role a pod plays, never which workload it belongs to,
 // so only ownership keeps a neighbour's pods out of this workload's tree.
 func TestDescribeShowsOnlyThisWorkloadsPods(t *testing.T) {

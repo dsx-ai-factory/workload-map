@@ -235,7 +235,8 @@ func describeLive(
 	if err != nil {
 		return nil, warnings, fmt.Errorf("list pods: %w", err)
 	}
-	owned, err := workload.NewPodAttributor(look.metadata, look.mapper).Filter(ctx, pods, obj.GetUID())
+	owned, attributeWarnings, err := workload.NewPodAttributor(look.metadata, look.mapper).Filter(ctx, pods, obj.GetUID())
+	warnings = append(warnings, attributeWarnings...)
 	if err != nil {
 		return nil, warnings, fmt.Errorf("attribute pods: %w", err)
 	}

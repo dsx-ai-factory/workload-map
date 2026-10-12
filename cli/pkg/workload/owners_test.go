@@ -31,6 +31,13 @@ func denyList(client *metadatafake.FakeMetadataClient) {
 	})
 }
 
+// denyGet makes reading a ReplicaSet by name forbidden.
+func denyGet(client *metadatafake.FakeMetadataClient) {
+	client.PrependReactor("get", "replicasets", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewForbidden(replicaSetsGR, "", errors.New("nope"))
+	})
+}
+
 // partialList builds one page of a metadata list, in the v1.List shape the
 // fake client decodes a reactor's answer from.
 func partialList(continueToken string, objects ...*unstructured.Unstructured) *metav1.List {
@@ -168,10 +175,33 @@ var _ = Describe("OwnerWalker.TopLevel", func() {
 		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeFalse())
 	})
 
-	// The question cannot be answered, so the caller must hear about it.
-	It("reports an owner kind it may not list, and keeps the object", func() {
+	// A role can grant get on an owner kind without list.
+	It("reads an owner by name when its kind may not be listed, once per owner", func() {
 		client, mapper := fakeCluster(deployment, replicaSet)
 		denyList(client)
+		reads := countReads(client)
+
+		walker := NewOwnerWalker(client, mapper)
+		for _, name := range []string{"web-abc-1", "web-abc-2"} {
+			p := pod(name, controllerOf(replicaSetGVK, "web-abc", "rs-uid"))
+			Expect(topLevel(walker, &p)).To(BeFalse())
+		}
+		Expect(reads).To(Equal(map[string]int{"list": 1, "get": 1}))
+	})
+
+	It("keeps an object whose owner is gone from an owner kind it may not list", func() {
+		client, mapper := fakeCluster()
+		denyList(client)
+
+		p := pod("orphan", controllerOf(replicaSetGVK, "gone", "gone-uid"))
+		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeTrue())
+	})
+
+	// The question cannot be answered, so the caller must hear about it.
+	It("reports an owner kind it may neither list nor get, and keeps the object", func() {
+		client, mapper := fakeCluster(deployment, replicaSet)
+		denyList(client)
+		denyGet(client)
 
 		p := pod("web-abc-1", controllerOf(replicaSetGVK, "web-abc", "rs-uid"))
 		top, err := NewOwnerWalker(client, mapper).TopLevel(context.Background(), &p, covered)

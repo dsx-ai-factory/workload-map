@@ -28,6 +28,7 @@ import (
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
 	"github.com/dsx-ai-factory/workload-map/pkg/catalog/kartas"
 )
 
@@ -76,7 +77,12 @@ func fakeMixedCluster(t *testing.T, objects ...runtime.Object) (*dynamicfake.Fak
 		podGVK:            "pods",
 	}
 	listKinds := map[schema.GroupVersionResource]string{}
-	mapper := meta.NewDefaultRESTMapper(nil)
+	// Default versions let an unversioned lookup find a kind, as discovery does.
+	var groupVersions []schema.GroupVersion
+	for gvk := range served {
+		groupVersions = append(groupVersions, gvk.GroupVersion())
+	}
+	mapper := meta.NewDefaultRESTMapper(groupVersions)
 	for gvk, resource := range served {
 		gvr := gvk.GroupVersion().WithResource(resource)
 		listKinds[gvr] = gvk.Kind + "List"
@@ -224,14 +230,39 @@ func TestGetAllTypesSkipsATypeItMayNotList(t *testing.T) {
 	}
 }
 
+// denyReplicaSets makes each verb forbidden on the ReplicaSet metadata.
+func denyReplicaSets(client *metadatafake.FakeMetadataClient, verbs ...string) {
+	for _, verb := range verbs {
+		client.PrependReactor(verb, "replicasets", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, apierrors.NewForbidden(
+				schema.GroupResource{Group: "apps", Resource: "replicasets"}, "", errors.New("nope"))
+		})
+	}
+}
+
+// A role may grant get on an owner kind without list, which still answers
+// whether the object is nested.
+func TestGetAllTypesReadsAnOwnerByNameWhenItMayNotList(t *testing.T) {
+	_, metadataClient := fakeMixedCluster(t, mixedNamespace()...)
+	denyReplicaSets(metadataClient, "list")
+
+	out, errOut, code := runGetCmd(t, "--all-types")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if got := rowNames(out); !slices.Equal(got, []string{"web", "preprocess", "debug-shell"}) {
+		t.Errorf("expected the top-level rows alone, got %v\n%s", got, out)
+	}
+	if errOut != "" {
+		t.Errorf("expected no warning, got %q", errOut)
+	}
+}
+
 // An owner that cannot be read leaves the question open; hiding the object
 // would drop a real workload with no signal.
 func TestGetAllTypesKeepsAnObjectWhoseOwnerItMayNotRead(t *testing.T) {
 	_, metadataClient := fakeMixedCluster(t, mixedNamespace()...)
-	metadataClient.PrependReactor("list", "replicasets", func(k8stesting.Action) (bool, runtime.Object, error) {
-		return true, nil, apierrors.NewForbidden(
-			schema.GroupResource{Group: "apps", Resource: "replicasets"}, "", errors.New("nope"))
-	})
+	denyReplicaSets(metadataClient, "list", "get")
 
 	out, errOut, code := runGetCmd(t, "--all-types")
 	if code != 0 {
@@ -336,5 +367,36 @@ func TestGetAllTypesReadsOwnersAsOneMetadataListPerKind(t *testing.T) {
 		if action.GetVerb() == "get" {
 			t.Errorf("owners must not be read as full objects: %v", action)
 		}
+	}
+}
+
+// A Karta maps one version's fields, so a kind served only at another version
+// is not listed. It must not stay covered either, or what it owns is hidden
+// behind an owner that never becomes a row.
+func TestGetAllTypesWarnsOnAKindServedAtAnUncoveredVersion(t *testing.T) {
+	fakeMixedCluster(t, jobSet("preprocess", 1),
+		object(podGVK, "preprocess-0", controlledBy(jobSetGVK, "preprocess")))
+
+	future := kartas.Jobset()
+	future.Name = "jobset-v99"
+	future.Spec.StructureDefinition.RootComponent.Kind.Version = "v99"
+	embedded := slices.DeleteFunc(slices.Clone(catalog.List()), func(k *v1alpha1.Karta) bool { return k.Name == kartas.Jobset().Name })
+	restore := loadDefinitions
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+		return definitions.New(embedded, []*v1alpha1.Karta{future}), nil
+	}
+	t.Cleanup(func() { loadDefinitions = restore })
+
+	out, errOut, code := runGetCmd(t, "--all-types")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if got := rowNames(out); !slices.Equal(got, []string{"preprocess-0"}) {
+		t.Errorf("expected the JobSet's pod to surface, got %v\n%s", got, out)
+	}
+	want := `warning: not listing JobSet: Karta "jobset-v99" covers jobset.x-k8s.io/v99/JobSet, ` +
+		"but the cluster serves jobset.x-k8s.io/v1alpha2/JobSet"
+	if !strings.Contains(errOut, want) {
+		t.Errorf("expected %q, got %q", want, errOut)
 	}
 }

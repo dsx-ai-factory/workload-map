@@ -34,28 +34,47 @@ func NewPodAttributor(client metadata.Interface, mapper meta.RESTMapper) *PodAtt
 }
 
 // Filter returns the pods whose owner-reference chain reaches rootUID, decoding
-// only the matches. pods may span namespaces, as in a cluster-wide search.
+// only the matches. pods may span namespaces, as in a cluster-wide search. A pod
+// whose chain cannot be walked is left out, and warnings say so once per cause,
+// since an unrelated pod can hit the same unreadable owner kind.
 func (a *PodAttributor) Filter(
 	ctx context.Context, pods []unstructured.Unstructured, rootUID types.UID,
-) ([]corev1.Pod, error) {
-	var matched []corev1.Pod
+) ([]corev1.Pod, []string, error) {
+	var (
+		matched []corev1.Pod
+		causes  []string
+	)
+	unresolved := map[string]int{}
 	for i := range pods {
-		// An unreadable owner chain is not a match.
 		owned, err := a.owners.climb(ctx, pods[i].GetOwnerReferences(), pods[i].GetNamespace(),
 			func(refs []metav1.OwnerReference) bool {
 				return slices.ContainsFunc(refs, func(ref metav1.OwnerReference) bool { return ref.UID == rootUID })
 			})
-		if err != nil || !owned {
+		if err != nil {
+			if unresolved[err.Error()] == 0 {
+				causes = append(causes, err.Error())
+			}
+			unresolved[err.Error()]++
+			continue
+		}
+		if !owned {
 			continue
 		}
 
 		var pod corev1.Pod
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(pods[i].Object, &pod); err != nil {
-			return nil, fmt.Errorf("decode pod %s: %w", pods[i].GetName(), err)
+			return nil, nil, fmt.Errorf("decode pod %s: %w", pods[i].GetName(), err)
 		}
 		matched = append(matched, pod)
 	}
-	return matched, nil
+
+	warnings := make([]string, 0, len(causes))
+	for _, cause := range causes {
+		warnings = append(warnings, fmt.Sprintf(
+			"could not tell whether %d pod(s) belong to this workload, so pod counts may be low: %s",
+			unresolved[cause], cause))
+	}
+	return matched, warnings, nil
 }
 
 // ListPods reads every pod in namespace once, left undecoded for Filter to

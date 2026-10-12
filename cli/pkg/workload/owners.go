@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -34,6 +35,9 @@ type OwnerWalker struct {
 	mapper meta.RESTMapper
 	// lists keeps failures too, so a broken chain is not re-read once per object.
 	lists map[listKey]ownerList
+	// named holds the owners read one by one, for a kind the caller may get
+	// but not list.
+	named map[namedKey]namedOwner
 }
 
 type listKey struct {
@@ -46,9 +50,22 @@ type ownerList struct {
 	err    error
 }
 
+type namedKey struct {
+	listKey
+	name string
+}
+
+type namedOwner struct {
+	owner *metav1.PartialObjectMetadata
+	err   error
+}
+
 // NewOwnerWalker returns a walker reading owners through client.
 func NewOwnerWalker(client metadata.Interface, mapper meta.RESTMapper) *OwnerWalker {
-	return &OwnerWalker{client: client, mapper: mapper, lists: map[listKey]ownerList{}}
+	return &OwnerWalker{
+		client: client, mapper: mapper,
+		lists: map[listKey]ownerList{}, named: map[namedKey]namedOwner{},
+	}
 }
 
 // TopLevel reports whether no object in obj's controller chain is of a covered
@@ -122,17 +139,40 @@ func (w *OwnerWalker) get(
 	if mapping.Scope.Name() != meta.RESTScopeNameNamespace {
 		namespace = ""
 	}
+	client := w.client.Resource(mapping.Resource).Namespace(namespace)
 	key := listKey{resource: mapping.Resource, namespace: namespace}
 	owners, cached := w.lists[key]
 	if !cached {
-		owners.byName, owners.err = listOwners(ctx, w.client.Resource(mapping.Resource).Namespace(namespace))
+		owners.byName, owners.err = listOwners(ctx, client)
 		w.lists[key] = owners
 	}
-	owner := owners.byName[ref.Name]
+	owner, err := owners.byName[ref.Name], owners.err
+
+	// A role can grant get on an owner kind without list, so read the owner by
+	// name rather than lose the chain.
+	if apierrors.IsForbidden(err) {
+		owner, err = w.getNamed(ctx, client, namedKey{key, ref.Name})
+	}
 	if owner == nil || owner.UID != ref.UID {
-		return nil, owners.err
+		return nil, err
 	}
 	return owner, nil
+}
+
+// getNamed reads one owner by name, or nil when it no longer exists. The result
+// is cached, failures too, so sibling objects share the read.
+func (w *OwnerWalker) getNamed(
+	ctx context.Context, client metadata.ResourceInterface, key namedKey,
+) (*metav1.PartialObjectMetadata, error) {
+	named, cached := w.named[key]
+	if !cached {
+		named.owner, named.err = client.Get(ctx, key.name, metav1.GetOptions{})
+		if apierrors.IsNotFound(named.err) {
+			named = namedOwner{}
+		}
+		w.named[key] = named
+	}
+	return named.owner, named.err
 }
 
 // listOwners reads every object of one kind in one namespace, indexed by name.

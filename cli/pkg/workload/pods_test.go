@@ -70,11 +70,13 @@ func pod(name string, owner *metav1.OwnerReference) unstructured.Unstructured {
 	return *owned(podGVK, name, "", owner)
 }
 
-// filter runs the attributor and fails the spec if a matched pod cannot decode.
+// filter runs the attributor and fails the spec if a matched pod cannot decode
+// or a chain cannot be walked.
 func filter(a *PodAttributor, pods []unstructured.Unstructured, rootUID types.UID) []corev1.Pod {
 	GinkgoHelper()
-	matched, err := a.Filter(context.Background(), pods, rootUID)
+	matched, warnings, err := a.Filter(context.Background(), pods, rootUID)
 	Expect(err).NotTo(HaveOccurred())
+	Expect(warnings).To(BeEmpty())
 	return matched
 }
 
@@ -191,13 +193,47 @@ var _ = Describe("PodAttributor", func() {
 		Expect(filter(NewPodAttributor(dyn, mapper), []unstructured.Unstructured{mine}, rootUID)).To(HaveLen(1))
 	})
 
-	// Malformed data can point an owner chain at itself; the walk must end.
-	It("gives up on a cycle rather than recursing forever", func() {
+	// Malformed data can point an owner chain at itself; the walk must end, and
+	// the pod it could not place must not pass for one that is not ours.
+	It("gives up on a cycle rather than recursing forever, and says so", func() {
 		loop := owned(replicaSetGVK, "loop", "loop-uid", controllerOf(replicaSetGVK, "loop", "loop-uid"))
 		dyn, mapper := fakeCluster(loop)
 
 		caught := pod("loop-1", controllerOf(replicaSetGVK, "loop", "loop-uid"))
-		Expect(filter(NewPodAttributor(dyn, mapper), []unstructured.Unstructured{caught}, rootUID)).To(BeEmpty())
+		matched, warnings, err := NewPodAttributor(dyn, mapper).Filter(
+			context.Background(), []unstructured.Unstructured{caught}, rootUID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(matched).To(BeEmpty())
+		Expect(warnings).To(ConsistOf(ContainSubstring(errChainTooLong.Error())))
+	})
+
+	// A role may grant get on ReplicaSets without list; the pods are still ours.
+	It("claims pods through an owner kind it may get but not list", func() {
+		dyn, mapper := fakeCluster(deployment, replicaSet)
+		denyList(dyn)
+
+		pods := []unstructured.Unstructured{
+			pod("web-abc-1", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
+			pod("web-abc-2", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
+		}
+		Expect(filter(NewPodAttributor(dyn, mapper), pods, rootUID)).To(HaveLen(2))
+	})
+
+	// An unreadable chain is not a confirmed miss, so it must not read as zero
+	// pods; one warning covers every pod with the same cause.
+	It("warns once per cause about pods it could not attribute", func() {
+		dyn, mapper := fakeCluster(deployment, replicaSet)
+		denyList(dyn)
+		denyGet(dyn)
+
+		pods := []unstructured.Unstructured{
+			pod("web-abc-1", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
+			pod("web-abc-2", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
+		}
+		matched, warnings, err := NewPodAttributor(dyn, mapper).Filter(context.Background(), pods, rootUID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(matched).To(BeEmpty())
+		Expect(warnings).To(ConsistOf(And(ContainSubstring("2 pod(s)"), ContainSubstring("forbidden"))))
 	})
 })
 

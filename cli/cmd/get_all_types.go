@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -23,6 +24,14 @@ import (
 // or an owner the caller cannot read degrades the result with a warning.
 func collectAllTypes(ctx context.Context, look lookup, opts *getOptions) ([]workload.View, []string, error) {
 	versions, kinds := coveredVersions(look.resolver)
+
+	// Every mapping is resolved before any owner walk, because a kind served
+	// only at versions no Karta covers leaves the covered set.
+	mappings, warnings, err := discoverKinds(look, versions, kinds)
+	if err != nil {
+		return nil, warnings, err
+	}
+
 	walker := workload.NewOwnerWalker(look.metadata, look.mapper)
 	topLevel := func(obj *unstructured.Unstructured) (bool, error) {
 		return walker.TopLevel(ctx, obj, func(gk schema.GroupKind) bool {
@@ -31,12 +40,13 @@ func collectAllTypes(ctx context.Context, look lookup, opts *getOptions) ([]work
 		})
 	}
 
-	var (
-		views    []workload.View
-		warnings []string
-	)
+	var views []workload.View
 	for _, gk := range kinds {
-		listed, listWarnings, err := listKind(ctx, look, opts, gk, versions[gk], topLevel)
+		mapping, ok := mappings[gk]
+		if !ok {
+			continue
+		}
+		listed, listWarnings, err := listKind(ctx, look, opts, mapping, topLevel)
 		warnings = append(warnings, listWarnings...)
 		if err != nil {
 			return nil, warnings, err
@@ -44,6 +54,54 @@ func collectAllTypes(ctx context.Context, look lookup, opts *getOptions) ([]work
 		views = append(views, listed...)
 	}
 	return views, warnings, nil
+}
+
+// discoverKinds maps each covered Kind to the version the cluster serves. A Kind
+// served only at versions no Karta covers is removed from versions with a
+// warning, so the owner walk treats it as uncovered.
+func discoverKinds(
+	look lookup, versions map[schema.GroupKind][]string, kinds []schema.GroupKind,
+) (map[schema.GroupKind]*meta.RESTMapping, []string, error) {
+	var warnings []string
+	mappings := map[schema.GroupKind]*meta.RESTMapping{}
+	for _, gk := range kinds {
+		mapping, err := look.mapper.RESTMapping(gk, versions[gk]...)
+		switch {
+		case err == nil:
+			mappings[gk] = mapping
+			continue
+		case !meta.IsNoMatchError(err):
+			return nil, warnings, fmt.Errorf("discover %s: %w", gk.Kind, err)
+		}
+		served, err := look.mapper.RESTMapping(gk)
+		switch {
+		case meta.IsNoMatchError(err):
+			// Most covered types are absent from any one cluster, so absence is not news.
+			continue
+		case err != nil:
+			return nil, warnings, fmt.Errorf("discover %s: %w", gk.Kind, err)
+		}
+		// A Karta maps the fields of one version, which another may not have.
+		// Treating the kind as uncovered lets the objects it owns surface
+		// instead of hiding behind an owner that is never listed.
+		warnings = append(warnings, fmt.Sprintf("not listing %s: %s, but the cluster serves %s",
+			gk.Kind, coveringKartas(look.resolver, gk), definitions.FormatGVK(served.GroupVersionKind)))
+		delete(versions, gk)
+	}
+	return mappings, warnings, nil
+}
+
+// coveringKartas names the Kartas covering gk and the versions they map, as in
+// `Karta "stack" covers example.com/v99/WorkloadStack`.
+func coveringKartas(resolver *definitions.Resolver, gk schema.GroupKind) string {
+	var covers []string
+	for _, def := range resolver.List() {
+		gvk := catalog.RootKey(def.Karta)
+		if gvk.GroupKind() == gk {
+			covers = append(covers, fmt.Sprintf("Karta %q covers %s", def.Karta.Name, definitions.FormatGVK(gvk)))
+		}
+	}
+	return strings.Join(covers, " and ")
 }
 
 // coveredVersions returns each covered Kind's versions, most stable first, so a
@@ -75,18 +133,10 @@ func coveredVersions(resolver *definitions.Resolver) (map[schema.GroupKind][]str
 // listKind lists one covered Kind and returns the views of its top-level
 // objects that pass --phase.
 func listKind(
-	ctx context.Context, look lookup, opts *getOptions, gk schema.GroupKind, versions []string,
+	ctx context.Context, look lookup, opts *getOptions, mapping *meta.RESTMapping,
 	topLevel func(*unstructured.Unstructured) (bool, error),
 ) ([]workload.View, []string, error) {
-	mapping, err := look.mapper.RESTMapping(gk, versions...)
-	switch {
-	case meta.IsNoMatchError(err):
-		// Most covered types are absent from any one cluster, so absence is not news.
-		return nil, nil, nil
-	case err != nil:
-		return nil, nil, fmt.Errorf("discover %s: %w", gk.Kind, err)
-	}
-
+	gk := mapping.GroupVersionKind.GroupKind()
 	def, err := look.resolver.Resolve(mapping.GroupVersionKind)
 	if err != nil {
 		return nil, []string{fmt.Sprintf("not listing %s: %v", gk.Kind, err)}, nil

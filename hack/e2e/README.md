@@ -13,6 +13,13 @@ as it installs, so a broken install fails provisioning rather than a later run.
 ```
 hack/e2e/
   up.sh                 orchestrator: base + selected operators (install then verify)
+  check-updates.sh       report upstream workload and infrastructure operator tags
+  _updates.sh           update-check helpers, independent of cluster provisioning
+  infra/<name>/         cert-manager, fake-gpu-operator, and KAI Scheduler
+    install.sh          standalone: installs the infrastructure operator
+    verify.sh           standalone: smoke-tests it via run_smoke
+    check-updates.sh     standalone: report upstream tag updates
+    smoke.yaml          the throwaway infrastructure smoke resources
   down.sh               tear the cluster down (and its kubeconfig for named clusters)
   global.env            single source of truth for versions and runtime defaults
   kind-config.yaml      kind cluster shape (1 control-plane + 2 workers)
@@ -26,9 +33,14 @@ hack/e2e/
     <name>/
       install.sh        standalone: installs that workload operator (a subprocess)
       verify.sh         standalone: smoke-tests it via run_smoke
+      check-updates.sh   standalone: report upstream tag updates
       smoke.yaml        the throwaway workload the smoke test applies
       <config>.yaml     optional co-located config (e.g. grove/values.yaml)
 ```
+
+The shared tag checker lives in its own Go module at `hack/operator-updates/`.
+Its [README](../operator-updates/README.md) describes the CLI and release mapping
+contract.
 
 ## Usage
 
@@ -45,16 +57,39 @@ make e2e-down                        # tear down
 The base is the kind cluster, the fake-gpu-operator, and the Karta operator.
 Selecting a subset keeps a run light, and `none` keeps only the base, which is what
 the operator e2e wants. Dependencies are added automatically: kserve pulls
-knative, dynamo pulls grove.
+knative, dynamo pulls grove. `up.sh` installs and verifies infrastructure first:
+Fake GPU Operator is always included, cert-manager follows `CERT_MANAGER` and
+webhook/dependency settings, and KAI Scheduler is included whenever Grove is
+selected. `--list` shows both infrastructure and workloads.
+
+## Check for operator updates
+
+```sh
+make e2e-operators-check-latest-supported-versions
+make e2e-operators-check-latest-supported-versions OPERATORS="jobset infra"
+```
+
+The check compares pins in `global.env` with upstream tags and reports which
+operators have newer releases. Tags are candidates, not proof of upstream
+support or Karta compatibility. It does not change pins or use a cluster.
+See the [checker README](../operator-updates/README.md) for selection rules,
+options, exit codes, and the required checker when adding an operator.
 
 ## How up.sh runs an operator
 
-For each selected operator, up.sh runs `operators/<name>/install.sh` then
-`operators/<name>/verify.sh` as `bash <script>` subprocesses. The only contract is
+For each selected infrastructure operator, `up.sh` runs `infra/<name>/install.sh`
+then `infra/<name>/verify.sh`. It uses the same runner for workload operators
+under `operators/<name>/`. Both phases run as `bash <script>` subprocesses. The only contract is
 the exit code: any non-zero exit is a failed install/smoke and fails provisioning
 fast (the `main()` wrapper in the scripts is just convention). up.sh groups each
 operator in the CI log (`::group::`) and writes an install summary table to the run's
-Summary page (operator, version, install time, smoke time).
+Summary page (operator, version, install time, smoke time). Successful infrastructure
+and workload versions are recorded in the per-cluster installed-version file.
+
+The infrastructure smoke checks prove certificate issuance, a pod starting with
+a simulated GPU, and a pod scheduled by KAI. They use `run_smoke` to clean up
+throwaway resources after success or failure. `go test ./hack/e2e` exercises
+planning, install/verify ordering, and failure propagation offline.
 
 ## Shared helpers (`operators/_common.sh`)
 
@@ -78,6 +113,12 @@ pins in one step. Available helpers:
   is documented at the top of `_common.sh`.
 
 ## Adding an operator
+
+Every external workload and infrastructure operator requires installation,
+smoke verification, and an executable `check-updates.sh`. The update checker
+reports candidate versions; `verify.sh` still proves the installed operator can
+run its smoke workload. Kubernetes builtins and Karta built from this checkout
+have no upstream operator release to check and are exempt.
 
 Install side (this directory):
 
@@ -119,8 +160,36 @@ Install side (this directory):
 
 3. Pin the version(s) in `global.env`, and add a `version_of` case in `up.sh` so
    the operator shows in the install summary.
-4. Add `<name>` to `ALL_WORKLOADS` in `up.sh` (in install order), and a `deps_of`
+4. Add an executable `operators/<name>/check-updates.sh`, register it in
+   `check-updates.sh`, and add offline tests. Follow the
+   [checker contract](../operator-updates/README.md#add-an-operator), including
+   inspecting a local upstream clone to identify the installed artifact's
+   release convention.
+5. Add `<name>` to `ALL_WORKLOADS` in `up.sh` (in install order), and a `deps_of`
    entry only if it depends on another operator.
 
-Before pushing: `make lint-shell` (shellcheck), then provision just that operator to
-confirm it installs and smoke-tests clean, for example `make e2e-up WORKLOADS=<name>`.
+Infrastructure follows the same module pattern under `infra/<name>/`: executable
+`install.sh`, `verify.sh`, and `check-updates.sh`, plus `smoke.yaml`. Installation
+and verification source `../../operators/_common.sh`. Add its version to
+`version_of` and select it in `up.sh`'s infrastructure plan before its dependents;
+workload installers must not install infrastructure themselves. Register its
+update checker in both `ALL_OPERATORS` and the `infra` selector. The same
+release-source documentation and offline test requirements apply. A new kind
+served by an existing operator reuses its checker; extend it when installation
+adds a separately versioned component.
+
+The offline Go tests require checkers for workload installer modules and
+infrastructure directories and check their aggregate registration. Include the
+executable bit and registration in the same change as a new operator.
+
+Before pushing, run `make test-e2e-updates` and `make lint-shell`, then provision
+the smallest plan that selects the operator to confirm installation and smoke
+verification:
+
+- Workload operators: `make e2e-up WORKLOADS=<name>`.
+- Fake GPU Operator: `make e2e-up WORKLOADS=none`.
+- cert-manager: `make e2e-up WORKLOADS=none CERT_MANAGER=true`.
+- KAI Scheduler: `make e2e-up WORKLOADS=grove`.
+
+For new infrastructure, document its selection condition and validation command.
+Run `make check` as required by the contributing guide.

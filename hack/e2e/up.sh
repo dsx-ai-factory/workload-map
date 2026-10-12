@@ -12,6 +12,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OPERATORS_DIR="${REPO_ROOT}/hack/e2e/operators"
+INFRA_DIR="${REPO_ROOT}/hack/e2e/infra"
 # Shared helpers + GitHub Actions logging. Sourcing this also loads
 # hack/e2e/global.env (version pins and the CLUSTER_NAME/IMAGE runtime defaults).
 # shellcheck source=/dev/null
@@ -28,7 +29,7 @@ if [ -z "${KUBECONFIG:-}" ] && [ "${CLUSTER_NAME}" != "${DEFAULT_CLUSTER}" ]; th
   mkdir -p "$(dirname "${KUBECONFIG}")"
   export KUBECONFIG
 fi
-# karta-operator/ and operators/<name>/ each run install.sh and verify.sh as
+# karta-operator/, infra/<name>/, and operators/<name>/ run install.sh and verify.sh as
 # subprocesses; export what they need (version pins come from global.env).
 export CLUSTER_NAME IMAGE REPO_ROOT KARTA_WEBHOOK_MODE
 
@@ -48,6 +49,9 @@ deps_of() {
 # version_of <workload> prints its pinned version, for the job-summary table.
 version_of() {
   case "$1" in
+    cert-manager) echo "${CERT_MANAGER_VERSION}" ;;
+    fake-gpu-operator) echo "${FAKE_GPU_VERSION}" ;;
+    kai-scheduler) echo "${KAI_SCHEDULER_VERSION}" ;;
     lws) echo "${LWS_VERSION}" ;;
     jobset) echo "${JOBSET_VERSION}" ;;
     kuberay) echo "${KUBERAY_VERSION}" ;;
@@ -117,32 +121,14 @@ setup_cluster() {
   kubectl wait --for=condition=Ready nodes --all --timeout=120s
 }
 
-install_cert_manager() {
-  kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml"
-  for d in cert-manager cert-manager-webhook cert-manager-cainjector; do
-    rollout_wait cert-manager "deploy/${d}"
-  done
-}
+# --- infrastructure and workload operators ------------------------------------
 
-install_fake_gpu() {
-  # Label every worker (by role selector, not a hardcoded node name) so this still
-  # works if kind-config.yaml grows more workers.
-  kubectl label nodes -l '!node-role.kubernetes.io/control-plane' \
-    run.ai/simulated-gpu-node-pool=default --overwrite
-  # --wait so later steps do not race a not-yet-ready operator.
-  helm upgrade -i fake-gpu-operator oci://ghcr.io/run-ai/fake-gpu-operator/fake-gpu-operator \
-    -n gpu-operator --create-namespace --version "${FAKE_GPU_VERSION}" \
-    --set computeDomainDraPlugin.enabled=true --wait --timeout 3m >/dev/null
-}
-
-# --- selectable workload operators -------------------------------------------
-
-# run_operator <name>: run the operator's standalone install.sh then verify.sh,
+# run_operator <name> [directory]: run standalone install.sh then verify.sh,
 # each as a subprocess, grouped in the CI log and recording a job-summary row.
 # Exits non-zero on the first failure so a broken operator fails provisioning fast
 # rather than partway through the e2e suite.
 run_operator() {
-  local name="$1" dir="${OPERATORS_DIR}/$1"
+  local name="$1" dir="${2:-${OPERATORS_DIR}/$1}"
   local ver
   ver="$(version_of "${name}")"
   [ -f "${dir}/install.sh" ] || { fail "no install.sh for operator ${name}"; exit 1; }
@@ -265,6 +251,13 @@ main() {
       ;;
   esac
 
+  local infra_plan=()
+  if [ "${install_cm}" = true ]; then infra_plan+=(cert-manager); fi
+  infra_plan+=(fake-gpu-operator)
+  for w in ${plan[@]+"${plan[@]}"}; do
+    if [ "$w" = grove ]; then infra_plan+=(kai-scheduler); break; fi
+  done
+
   if [ "$plan_only" = true ]; then
     echo "base: kind cluster, fake-gpu-operator, karta (webhook: ${KARTA_WEBHOOK_MODE})"
     if [ "${install_cm}" = true ]; then
@@ -272,6 +265,7 @@ main() {
     else
       echo "cert-manager: no"
     fi
+    echo "infrastructure: ${infra_plan[*]}"
     if [ "${#plan[@]}" -gt 0 ]; then echo "workloads: ${plan[*]}"; else echo "workloads: (none)"; fi
     exit 0
   fi
@@ -281,17 +275,14 @@ main() {
   if [ "${install_cm}" = false ] && kubectl get namespace cert-manager >/dev/null 2>&1; then
     warn "cert-manager is already on ${CLUSTER_NAME}; not installing it does not remove it"
   fi
-  if [ "${install_cm}" = true ]; then
-    group "cert-manager ${CERT_MANAGER_VERSION}"; install_cert_manager; endgroup
-  fi
-  group "fake-gpu-operator ${FAKE_GPU_VERSION}"; install_fake_gpu; endgroup
   # Fresh provision, fresh version list (gitignored; read by the e2e flows).
   : > "${OPERATORS_DIR}/.installed-versions-${CLUSTER_NAME}"
+  summary "## E2E install: ${CLUSTER_NAME}"
+  summary ""
+  summary "|  | Operator | Version | Install | Smoke |"
+  summary "|---|---|---|---|---|"
+  for w in "${infra_plan[@]}"; do run_operator "$w" "${INFRA_DIR}/$w"; done
   if [ "${#plan[@]}" -gt 0 ]; then
-    summary "## E2E install: ${CLUSTER_NAME}"
-    summary ""
-    summary "|  | Operator | Version | Install | Smoke |"
-    summary "|---|---|---|---|---|"
     for w in "${plan[@]}"; do run_operator "$w"; done
   fi
   group "karta operator"

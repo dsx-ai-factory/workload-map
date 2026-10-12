@@ -37,6 +37,7 @@ config/crd/_.yaml
 # built hack tool binaries, named after their directory by `go build`
 /hack/imagelock/imagelock
 /hack/release/release
+/hack/operator-updates/operator-updates
 
 # Generated WASM engine build artifacts (make headlamp-plugin-wasm)
 /karta-wasm/karta.wasm

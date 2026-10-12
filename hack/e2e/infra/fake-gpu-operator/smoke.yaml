@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Ready proves the simulated GPU is advertised, scheduled and allocated to a Pod.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fake-gpu-operator-smoke
+  namespace: default
+spec:
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  nodeSelector:
+    run.ai/simulated-gpu-node-pool: default
+  containers:
+    - name: worker
+      image: registry.k8s.io/pause:3.10
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+          nvidia.com/gpu: 1
+        limits:
+          cpu: 100m
+          memory: 64Mi
+          nvidia.com/gpu: 1

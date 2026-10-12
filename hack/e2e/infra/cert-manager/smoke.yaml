@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Certificate Ready proves issuance and a matching keypair in the generated Secret.
+# Deleting the namespace also removes that Secret and any CertificateRequests.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager-smoke
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: cert-manager-smoke
+  namespace: cert-manager-smoke
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-manager-smoke
+  namespace: cert-manager-smoke
+spec:
+  secretName: cert-manager-smoke-tls
+  dnsNames:
+    - cert-manager-smoke.example.com
+  issuerRef:
+    name: cert-manager-smoke
+    kind: Issuer
+    group: cert-manager.io

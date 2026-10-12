@@ -72,7 +72,7 @@ func (w *OwnerWalker) climb(
 	ctx context.Context, refs []metav1.OwnerReference, namespace string,
 	match func([]metav1.OwnerReference) bool,
 ) (bool, error) {
-	for range maxOwnerDepth {
+	for depth := 0; ; depth++ {
 		if match(refs) {
 			return true, nil
 		}
@@ -80,13 +80,15 @@ func (w *OwnerWalker) climb(
 		if controller == nil {
 			return false, nil
 		}
+		if depth == maxOwnerDepth {
+			return false, errChainTooLong
+		}
 		owner, err := w.get(ctx, *controller, namespace)
 		if err != nil || owner == nil {
 			return false, err
 		}
 		refs = owner.GetOwnerReferences()
 	}
-	return false, errChainTooLong
 }
 
 // controllerRef returns the single owner reference with Controller set, the

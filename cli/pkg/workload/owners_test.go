@@ -6,6 +6,7 @@ package workload
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	metadatafake "k8s.io/client-go/metadata/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
@@ -135,6 +137,35 @@ var _ = Describe("OwnerWalker.TopLevel", func() {
 		top, err := NewOwnerWalker(client, mapper).TopLevel(context.Background(), &p, covered)
 		Expect(err).To(MatchError(errChainTooLong))
 		Expect(top).To(BeTrue())
+	})
+
+	// uncoveredChain builds maxOwnerDepth ReplicaSets, each controlled by the
+	// next and the last by top, and a pod controlled by the first.
+	uncoveredChain := func(top *metav1.OwnerReference) (unstructured.Unstructured, []*unstructured.Unstructured) {
+		chain := make([]*unstructured.Unstructured, maxOwnerDepth)
+		owner := top
+		for i := maxOwnerDepth; i >= 1; i-- {
+			name := fmt.Sprintf("rs-%d", i)
+			uid := types.UID(name + "-uid")
+			chain[i-1] = owned(replicaSetGVK, name, uid, owner)
+			owner = controllerOf(replicaSetGVK, name, uid)
+		}
+		return pod("deep", owner), chain
+	}
+
+	// The last owner the walk may read still ends the chain on its own.
+	It("keeps an object whose chain ends at the deepest owner it reads", func() {
+		p, chain := uncoveredChain(nil)
+		client, mapper := fakeCluster(chain...)
+
+		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeTrue())
+	})
+
+	It("drops an object whose deepest owner it reads is controlled by a covered kind", func() {
+		p, chain := uncoveredChain(controllerOf(deploymentGVK, "web", "deploy-uid"))
+		client, mapper := fakeCluster(chain...)
+
+		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeFalse())
 	})
 
 	// The question cannot be answered, so the caller must hear about it.

@@ -90,16 +90,22 @@ homebrew_casks:
       template: "https://github.com/{{ .Env.RELEASE_REPOSITORY }}/releases/download/v{{ .Version }}/{{ .ArtifactName }}"
     homepage: "https://github.com/{{ .Env.RELEASE_REPOSITORY }}"
     description: Workload-aware visibility for any Kubernetes workload type
-    commit_msg_template: "build(release): update the kli cask to {{ .Version }}"
-    # With no committer on the API call, GitHub signs the commit as the App,
-    # which the default branch's signed-commit rule requires.
+    commit_msg_template: |-
+      build(release): update the kli cask to {{ .Version }}
+
+      Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+    # GoReleaser commits the cask and opens the pull request with the workflow's
+    # GITHUB_TOKEN (repository.token defaults to it). With no committer on the
+    # API call, GitHub signs the commit as github-actions[bot], which the
+    # default branch's signed-commit rule requires; use_github_app_token's only
+    # effect is that committer omission, despite the name. The sign-off above is
+    # what the dco check on the pull request looks for.
     commit_author:
       use_github_app_token: true
     repository:
       owner: "{{ dir .Env.RELEASE_REPOSITORY }}"
       name: "{{ base .Env.RELEASE_REPOSITORY }}"
-      branch: "kli-cask-{{ .Version }}"
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      branch: "kli-cask/{{ .Version }}"
       # No base: the pull request targets this repository's default branch.
       pull_request:
         enabled: true

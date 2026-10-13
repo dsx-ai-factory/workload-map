@@ -17,6 +17,8 @@ on:
 permissions:
   contents: write
   packages: write
+  # GoReleaser opens the kli cask pull request with GITHUB_TOKEN.
+  pull-requests: write
 
 
 jobs:
@@ -104,26 +106,28 @@ jobs:
       - name: Lint and validate helm chart
         run: make helm-lint helm-validate
 
-      # Before anything is published: without the karta/sdk/vX.Y.Z tag on this
-      # commit, the image and chart would ship and only `make release` would fail.
+      # Publishing the GitHub Release creates the vX.Y.Z tag; the library module
+      # needs its own karta/sdk/vX.Y.Z tag on the same commit. Create it here,
+      # before anything is validated or published, so a release is driven
+      # entirely from the Release UI. Idempotent, so a rerun reuses the tag.
+      - name: Tag the library module
+        if: github.event_name == 'release'
+        run: |
+          LIB_TAG="karta/sdk/v${PACKAGE_VERSION}"
+          if git rev-parse -q --verify "refs/tags/${LIB_TAG}" >/dev/null; then
+            echo "${LIB_TAG} already exists, leaving it"
+          else
+            git tag "${LIB_TAG}" "${GITHUB_SHA}"
+            git push origin "${LIB_TAG}"
+          fi
+
+      # Before anything is published: with the karta/sdk/vX.Y.Z tag now on this
+      # commit, confirm both tags point here and the library module is
+      # publishable, or the image and chart would ship and only `make release`
+      # would fail.
       - name: Validate release version, library module, and release tags
         if: github.event_name == 'release'
         run: make release-validate VERSION="$PACKAGE_VERSION" REQUIRE_TAGS=1
-
-      # Also before anything is published: GoReleaser opens the kli cask pull
-      # request with this token, and a release that cannot open it must not
-      # start. A pull request opened with GITHUB_TOKEN would not run the CI
-      # check the default branch requires, so it could never merge. The token
-      # covers only this repository and lasts an hour, which outlives the job.
-      - name: Mint the Homebrew tap token
-        id: tap-token
-        if: github.ref_type == 'tag'
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ vars.HOMEBREW_TAP_APP_CLIENT_ID }}
-          private-key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
-          permission-contents: write
-          permission-pull-requests: write
 
       - name: Run checks
         if: github.event_name == 'release'
@@ -133,7 +137,7 @@ jobs:
       # config change that breaks the archives or the cask would otherwise
       # surface inside `make release`, after the image and chart are pushed.
       - name: Verify the CLI release snapshot
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'release'
         run: make release-snapshot release-verify VERSION="$PACKAGE_VERSION"
 
       - name: Set up Docker Buildx
@@ -172,7 +176,6 @@ jobs:
         if: github.event_name == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ steps.tap-token.outputs.token }}
         run: make release VERSION="$PACKAGE_VERSION"
 
       - name: Generate air-gap image lock

@@ -289,11 +289,12 @@ This is the same model used by [ai-dynamo/grove](https://github.com/ai-dynamo/gr
 
 ### Releasing
 
-A release tags the product as `vX.Y.Z` and the `karta/sdk/` library module as
-`karta/sdk/vX.Y.Z` on the same commit, then publishes the GitHub Release for
-`vX.Y.Z`, which starts the release workflow. The two-tag convention, local
-snapshot, guarded release command, Homebrew cask pull request, credentials, and
-recovery procedure are documented in [RELEASE.md](RELEASE.md).
+A release publishes the GitHub Release for `vX.Y.Z` from the merged commit,
+which creates the `vX.Y.Z` tag and starts the release workflow; the workflow
+then tags the `karta/sdk/` library module as `karta/sdk/vX.Y.Z` on the same
+commit. The two tags, local snapshot, guarded release command, Homebrew cask
+pull request, credentials, and recovery procedure are documented in
+[RELEASE.md](RELEASE.md).
 
 No `Chart.yaml` bump is needed. The release tag remains the source of truth for
 the published chart version and app version.

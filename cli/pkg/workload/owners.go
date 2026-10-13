@@ -123,6 +123,39 @@ func controllerRef(refs []metav1.OwnerReference) *metav1.OwnerReference {
 func (w *OwnerWalker) get(
 	ctx context.Context, ref metav1.OwnerReference, namespace string,
 ) (*metav1.PartialObjectMetadata, error) {
+	mapping, err := w.restMapping(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	// A cluster-scoped owner is not addressed by namespace, and a namespaced
+	// request for one is a 404 that would end the chain early.
+	if mapping.Scope.Name() != meta.RESTScopeNameNamespace {
+		namespace = ""
+	}
+	client := w.client.Resource(mapping.Resource).Namespace(namespace)
+	key := listKey{resource: mapping.Resource, namespace: namespace}
+	owner, err := w.listed(ctx, client, key, ref.Name)
+
+	// A role can grant get on an owner kind without list, so read the owner by
+	// name rather than lose the chain.
+	if apierrors.IsForbidden(err) {
+		listErr := err
+		owner, err = w.getNamed(ctx, client, namedKey{key, ref.Name})
+		// Report the kind-wide denial, worded the same for every owner, so
+		// callers can group it.
+		if apierrors.IsForbidden(err) {
+			err = listErr
+		}
+	}
+	if owner == nil || owner.UID != ref.UID {
+		return nil, err
+	}
+	return owner, nil
+}
+
+// restMapping maps the kind ref names to the resource to read it from.
+func (w *OwnerWalker) restMapping(ref metav1.OwnerReference) (*meta.RESTMapping, error) {
 	gv, err := schema.ParseGroupVersion(ref.APIVersion)
 	if err != nil {
 		return nil, fmt.Errorf("parse owner apiVersion %q: %w", ref.APIVersion, err)
@@ -137,35 +170,20 @@ func (w *OwnerWalker) get(
 	if err != nil {
 		return nil, fmt.Errorf("discover %s: %w", gvk.Kind, err)
 	}
+	return mapping, nil
+}
 
-	// A cluster-scoped owner is not addressed by namespace, and a namespaced
-	// request for one is a 404 that would end the chain early.
-	if mapping.Scope.Name() != meta.RESTScopeNameNamespace {
-		namespace = ""
-	}
-	client := w.client.Resource(mapping.Resource).Namespace(namespace)
-	key := listKey{resource: mapping.Resource, namespace: namespace}
+// listed returns the owner called name from the list of key, reading the list
+// once per key.
+func (w *OwnerWalker) listed(
+	ctx context.Context, client metadata.ResourceInterface, key listKey, name string,
+) (*metav1.PartialObjectMetadata, error) {
 	owners, cached := w.lists[key]
 	if !cached {
 		owners.byName, owners.err = listOwners(ctx, client)
 		w.lists[key] = owners
 	}
-	owner, err := owners.byName[ref.Name], owners.err
-
-	// A role can grant get on an owner kind without list, so read the owner by
-	// name rather than lose the chain.
-	if apierrors.IsForbidden(err) {
-		owner, err = w.getNamed(ctx, client, namedKey{key, ref.Name})
-		// Report the kind-wide denial, worded the same for every owner, so
-		// callers can group it.
-		if apierrors.IsForbidden(err) {
-			err = owners.err
-		}
-	}
-	if owner == nil || owner.UID != ref.UID {
-		return nil, err
-	}
-	return owner, nil
+	return owners.byName[name], owners.err
 }
 
 // getNamed reads one owner by name, or nil when it no longer exists. The result
@@ -201,4 +219,32 @@ func listOwners(ctx context.Context, client metadata.ResourceInterface) (map[str
 			return owners, nil
 		}
 	}
+}
+
+// WalkFailures groups the objects whose owner chain could not be walked by the
+// error that stopped each walk, in the order the causes were first met.
+type WalkFailures struct {
+	causes  []string
+	objects map[string][]string
+}
+
+// Add records object under the cause err names.
+func (f *WalkFailures) Add(err error, object string) {
+	cause := err.Error()
+	if f.objects == nil {
+		f.objects = map[string][]string{}
+	}
+	if _, seen := f.objects[cause]; !seen {
+		f.causes = append(f.causes, cause)
+	}
+	f.objects[cause] = append(f.objects[cause], object)
+}
+
+// Warnings renders one warning per cause.
+func (f *WalkFailures) Warnings(warning func(cause string, objects []string) string) []string {
+	warnings := make([]string, 0, len(f.causes))
+	for _, cause := range f.causes {
+		warnings = append(warnings, warning(cause, f.objects[cause]))
+	}
+	return warnings
 }

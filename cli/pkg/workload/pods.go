@@ -39,20 +39,16 @@ func (a *PodAttributor) Filter(
 	ctx context.Context, pods []unstructured.Unstructured, rootUID types.UID,
 ) ([]corev1.Pod, []string, error) {
 	var (
-		matched []corev1.Pod
-		causes  []string
+		matched  []corev1.Pod
+		failures WalkFailures
 	)
-	unresolved := map[string]int{}
 	for i := range pods {
 		owned, err := a.owners.climb(ctx, pods[i].GetOwnerReferences(), pods[i].GetNamespace(),
 			func(refs []metav1.OwnerReference) bool {
 				return slices.ContainsFunc(refs, func(ref metav1.OwnerReference) bool { return ref.UID == rootUID })
 			})
 		if err != nil {
-			if unresolved[err.Error()] == 0 {
-				causes = append(causes, err.Error())
-			}
-			unresolved[err.Error()]++
+			failures.Add(err, pods[i].GetName())
 			continue
 		}
 		if !owned {
@@ -66,12 +62,10 @@ func (a *PodAttributor) Filter(
 		matched = append(matched, pod)
 	}
 
-	warnings := make([]string, 0, len(causes))
-	for _, cause := range causes {
-		warnings = append(warnings, fmt.Sprintf(
-			"could not tell whether %d pod(s) belong to this workload, so pod counts may be low: %s",
-			unresolved[cause], cause))
-	}
+	warnings := failures.Warnings(func(cause string, pods []string) string {
+		return fmt.Sprintf("could not tell whether %d pod(s) belong to this workload, so pod counts may be low: %s",
+			len(pods), cause)
+	})
 	return matched, warnings, nil
 }
 

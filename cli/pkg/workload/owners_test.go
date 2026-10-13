@@ -238,3 +238,24 @@ var _ = Describe("OwnerWalker.TopLevel", func() {
 		Expect(page).To(Equal(2))
 	})
 })
+
+var _ = Describe("WalkFailures", func() {
+	It("groups objects by cause, in the order the causes were first met", func() {
+		var failures WalkFailures
+		failures.Add(errChainTooLong, "a")
+		failures.Add(errors.New("forbidden"), "b")
+		failures.Add(errChainTooLong, "c")
+
+		Expect(failures.Warnings(func(cause string, objects []string) string {
+			return fmt.Sprintf("%s: %v", cause, objects)
+		})).To(Equal([]string{
+			errChainTooLong.Error() + ": [a c]",
+			"forbidden: [b]",
+		}))
+	})
+
+	It("renders no warning when every walk succeeded", func() {
+		var failures WalkFailures
+		Expect(failures.Warnings(func(string, []string) string { return "x" })).To(BeEmpty())
+	})
+})

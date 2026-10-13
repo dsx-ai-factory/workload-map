@@ -65,16 +65,19 @@ func controlledBy(gvk schema.GroupVersionKind, name string) *metav1.OwnerReferen
 	}
 }
 
-// fakeMixedCluster serves JobSet, Deployment, ReplicaSet and Pod, so a listing
-// across types meets nested objects. Every other covered type is absent.
+// fakeMixedCluster serves JobSet, Deployment, ReplicaSet, Pod, Job and
+// InferenceService, so a listing across types meets nested objects. Every other
+// covered type is absent.
 func fakeMixedCluster(t *testing.T, objects ...runtime.Object) (*dynamicfake.FakeDynamicClient, *metadatafake.FakeMetadataClient) {
 	t.Helper()
 
 	served := map[schema.GroupVersionKind]string{
-		jobSetGVK:         "jobsets",
-		appsDeploymentGVK: "deployments",
-		appsReplicaSetGVK: "replicasets",
-		podGVK:            "pods",
+		jobSetGVK:           "jobsets",
+		appsDeploymentGVK:   "deployments",
+		appsReplicaSetGVK:   "replicasets",
+		podGVK:              "pods",
+		batchJobGVK:         "jobs",
+		inferenceServiceGVK: "inferenceservices",
 	}
 	listKinds := map[schema.GroupVersionResource]string{}
 	// Default versions let an unversioned lookup find a kind, as discovery does.
@@ -367,6 +370,26 @@ func TestGetAllTypesReadsOwnersAsOneMetadataListPerKind(t *testing.T) {
 		if action.GetVerb() == "get" {
 			t.Errorf("owners must not be read as full objects: %v", action)
 		}
+	}
+}
+
+// Discovery can miss a group, as when one aggregated API is down, and a covered
+// kind then looks absent. Its children must not be hidden behind an owner that
+// is never listed.
+func TestGetAllTypesShowsAChildOfAKindDiscoveryMissed(t *testing.T) {
+	rayClusterGVK := schema.GroupVersionKind{Group: "ray.io", Version: "v1", Kind: "RayCluster"}
+	fakeMixedCluster(t, append(mixedNamespace(),
+		object(podGVK, "ray-head", controlledBy(rayClusterGVK, "ray")))...)
+
+	out, errOut, code := runGetCmd(t, "--all-types")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if !slices.Contains(rowNames(out), "ray-head") {
+		t.Errorf("expected the pod to be listed\n%s", out)
+	}
+	if !strings.Contains(errOut, "warning: listing Pod/ray-head, though it may belong to another workload: discover RayCluster") {
+		t.Errorf("expected a warning for the unmapped owner, got %q", errOut)
 	}
 }
 

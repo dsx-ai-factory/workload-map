@@ -25,8 +25,8 @@ import (
 func collectAllTypes(ctx context.Context, look lookup, opts *getOptions) ([]workload.View, []string, error) {
 	versions, kinds := coveredVersions(look.resolver)
 
-	// Every mapping is resolved before any owner walk, because a kind served
-	// only at versions no Karta covers leaves the covered set.
+	// Every mapping is resolved before any owner walk, because a kind that
+	// cannot be mapped at a covered version leaves the covered set.
 	mappings, warnings, err := discoverKinds(look, versions, kinds)
 	if err != nil {
 		return nil, warnings, err
@@ -57,8 +57,9 @@ func collectAllTypes(ctx context.Context, look lookup, opts *getOptions) ([]work
 }
 
 // discoverKinds maps each covered Kind to the version the cluster serves. A Kind
-// served only at versions no Karta covers is removed from versions with a
-// warning, so the owner walk treats it as uncovered.
+// it cannot map is removed from versions, so the owner walk treats it as
+// uncovered: an object it owns is never hidden behind an owner that is not
+// listed. A Kind served only at versions no Karta covers also warns.
 func discoverKinds(
 	look lookup, versions map[schema.GroupKind][]string, kinds []schema.GroupKind,
 ) (map[schema.GroupKind]*meta.RESTMapping, []string, error) {
@@ -76,7 +77,10 @@ func discoverKinds(
 		served, err := look.mapper.RESTMapping(gk)
 		switch {
 		case meta.IsNoMatchError(err):
-			// Most covered types are absent from any one cluster, so absence is not news.
+			// Most covered types are absent from any one cluster, so absence is
+			// not news. No object names an absent kind as its owner, unless
+			// discovery missed a group, and then the walk warns on that object.
+			delete(versions, gk)
 			continue
 		case err != nil:
 			return nil, warnings, fmt.Errorf("discover %s: %w", gk.Kind, err)

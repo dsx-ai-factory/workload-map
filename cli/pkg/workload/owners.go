@@ -69,8 +69,7 @@ func NewOwnerWalker(client metadata.Interface, mapper meta.RESTMapper) *OwnerWal
 }
 
 // TopLevel reports whether no object in obj's controller chain is of a covered
-// kind. A chain that cannot be walked to its end leaves that open and is the
-// error.
+// kind. An error means the chain could not be walked to its end.
 func (w *OwnerWalker) TopLevel(
 	ctx context.Context, obj *unstructured.Unstructured, covered func(schema.GroupKind) bool,
 ) (bool, error) {
@@ -119,8 +118,8 @@ func controllerRef(refs []metav1.OwnerReference) *metav1.OwnerReference {
 	return nil
 }
 
-// get returns the owner ref names, or nil when it no longer exists. A
-// same-name object with another UID is a replacement, not that owner.
+// get returns the owner ref points to, or nil when it is gone or was replaced
+// by a same-name object with another UID.
 func (w *OwnerWalker) get(
 	ctx context.Context, ref metav1.OwnerReference, namespace string,
 ) (*metav1.PartialObjectMetadata, error) {
@@ -157,8 +156,8 @@ func (w *OwnerWalker) get(
 	// name rather than lose the chain.
 	if apierrors.IsForbidden(err) {
 		owner, err = w.getNamed(ctx, client, namedKey{key, ref.Name})
-		// Denied by name too, the cause is the kind's, and the list denial says
-		// so in the same words for every owner, which lets callers group it.
+		// Report the kind-wide denial, worded the same for every owner, so
+		// callers can group it.
 		if apierrors.IsForbidden(err) {
 			err = owners.err
 		}

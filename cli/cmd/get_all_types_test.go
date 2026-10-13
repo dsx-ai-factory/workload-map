@@ -66,8 +66,7 @@ func controlledBy(gvk schema.GroupVersionKind, name string) *metav1.OwnerReferen
 }
 
 // fakeMixedCluster serves JobSet, Deployment, ReplicaSet, Pod, Job and
-// InferenceService, so a listing across types meets nested objects. Every other
-// covered type is absent.
+// InferenceService. Every other covered type is absent.
 func fakeMixedCluster(t *testing.T, objects ...runtime.Object) (*dynamicfake.FakeDynamicClient, *metadatafake.FakeMetadataClient) {
 	t.Helper()
 
@@ -441,9 +440,7 @@ func TestGetAllTypesReadsOwnersAsOneMetadataListPerKind(t *testing.T) {
 	}
 }
 
-// Discovery can miss a group, as when one aggregated API is down, and a covered
-// kind then looks absent. Its children must not be hidden behind an owner that
-// is never listed.
+// A kind discovery missed looks absent, and must not hide its children.
 func TestGetAllTypesShowsAChildOfAKindDiscoveryMissed(t *testing.T) {
 	rayClusterGVK := schema.GroupVersionKind{Group: "ray.io", Version: "v1", Kind: "RayCluster"}
 	fakeMixedCluster(t, append(mixedNamespace(),
@@ -461,9 +458,7 @@ func TestGetAllTypesShowsAChildOfAKindDiscoveryMissed(t *testing.T) {
 	}
 }
 
-// A Karta maps one version's fields, so a kind served only at another version
-// is not listed. It must not stay covered either, or what it owns is hidden
-// behind an owner that never becomes a row.
+// A kind served only at an uncovered version is skipped, and must not hide its children.
 func TestGetAllTypesWarnsOnAKindServedAtAnUncoveredVersion(t *testing.T) {
 	fakeMixedCluster(t, jobSet("preprocess", 1),
 		object(podGVK, "preprocess-0", controlledBy(jobSetGVK, "preprocess")))

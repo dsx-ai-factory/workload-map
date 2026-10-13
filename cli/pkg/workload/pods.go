@@ -33,10 +33,8 @@ func NewPodAttributor(client metadata.Interface, mapper meta.RESTMapper) *PodAtt
 	return &PodAttributor{owners: NewOwnerWalker(client, mapper)}
 }
 
-// Filter returns the pods whose owner-reference chain reaches rootUID, decoding
-// only the matches. pods may span namespaces, as in a cluster-wide search. A pod
-// whose chain cannot be walked is left out, and warnings say so once per cause,
-// since an unrelated pod can hit the same unreadable owner kind.
+// Filter returns the pods whose owner chain reaches rootUID, decoding only the
+// matches. A pod whose chain cannot be walked is left out and reported once per cause.
 func (a *PodAttributor) Filter(
 	ctx context.Context, pods []unstructured.Unstructured, rootUID types.UID,
 ) ([]corev1.Pod, []string, error) {

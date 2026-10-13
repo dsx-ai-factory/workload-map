@@ -130,6 +130,11 @@ func (w *OwnerWalker) get(
 	}
 	gvk := gv.WithKind(ref.Kind)
 	mapping, err := w.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if meta.IsNoMatchError(err) {
+		// The reference may name a version the CRD no longer serves, and a
+		// metadata read is the same at any served version.
+		mapping, err = w.mapper.RESTMapping(gvk.GroupKind())
+	}
 	if err != nil {
 		return nil, fmt.Errorf("discover %s: %w", gvk.Kind, err)
 	}
@@ -152,6 +157,11 @@ func (w *OwnerWalker) get(
 	// name rather than lose the chain.
 	if apierrors.IsForbidden(err) {
 		owner, err = w.getNamed(ctx, client, namedKey{key, ref.Name})
+		// Denied by name too, the cause is the kind's, and the list denial says
+		// so in the same words for every owner, which lets callers group it.
+		if apierrors.IsForbidden(err) {
+			err = owners.err
+		}
 	}
 	if owner == nil || owner.UID != ref.UID {
 		return nil, err

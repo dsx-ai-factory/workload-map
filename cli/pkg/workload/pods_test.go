@@ -83,7 +83,10 @@ func filter(a *PodAttributor, pods []unstructured.Unstructured, rootUID types.UI
 // fakeCluster serves the metadata of objects, the only part an owner walk
 // reads, through a mapper that knows the kinds an owner chain climbs through.
 func fakeCluster(objects ...*unstructured.Unstructured) (*metadatafake.FakeMetadataClient, meta.RESTMapper) {
-	mapper := meta.NewDefaultRESTMapper(nil)
+	// Default versions let an unversioned lookup find a kind, as discovery does.
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{
+		deploymentGVK.GroupVersion(), podGVK.GroupVersion(), clusterOwnerGVK.GroupVersion(),
+	})
 	for _, gvk := range []schema.GroupVersionKind{deploymentGVK, replicaSetGVK, podGVK} {
 		mapper.Add(gvk, meta.RESTScopeNamespace)
 	}
@@ -220,15 +223,16 @@ var _ = Describe("PodAttributor", func() {
 	})
 
 	// An unreadable chain is not a confirmed miss, so it must not read as zero
-	// pods; one warning covers every pod with the same cause.
+	// pods; one warning covers every pod with the same cause, across owners.
 	It("warns once per cause about pods it could not attribute", func() {
-		dyn, mapper := fakeCluster(deployment, replicaSet)
+		other := owned(replicaSetGVK, "web-def", "rs-def-uid", controllerOf(deploymentGVK, "web", rootUID))
+		dyn, mapper := fakeCluster(deployment, replicaSet, other)
 		denyList(dyn)
 		denyGet(dyn)
 
 		pods := []unstructured.Unstructured{
 			pod("web-abc-1", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
-			pod("web-abc-2", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
+			pod("web-def-1", controllerOf(replicaSetGVK, "web-def", "rs-def-uid")),
 		}
 		matched, warnings, err := NewPodAttributor(dyn, mapper).Filter(context.Background(), pods, rootUID)
 		Expect(err).NotTo(HaveOccurred())

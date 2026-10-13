@@ -31,10 +31,12 @@ func denyList(client *metadatafake.FakeMetadataClient) {
 	})
 }
 
-// denyGet makes reading a ReplicaSet by name forbidden.
+// denyGet makes reading a ReplicaSet by name forbidden, naming it in the error
+// as the apiserver does.
 func denyGet(client *metadatafake.FakeMetadataClient) {
-	client.PrependReactor("get", "replicasets", func(k8stesting.Action) (bool, runtime.Object, error) {
-		return true, nil, apierrors.NewForbidden(replicaSetsGR, "", errors.New("nope"))
+	client.PrependReactor("get", "replicasets", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		name := action.(k8stesting.GetAction).GetName()
+		return true, nil, apierrors.NewForbidden(replicaSetsGR, name, errors.New("nope"))
 	})
 }
 
@@ -207,6 +209,16 @@ var _ = Describe("OwnerWalker.TopLevel", func() {
 		top, err := NewOwnerWalker(client, mapper).TopLevel(context.Background(), &p, covered)
 		Expect(apierrors.IsForbidden(err)).To(BeTrue())
 		Expect(top).To(BeTrue())
+	})
+
+	// A CRD can stop serving the version an old owner reference names.
+	It("follows an owner reference at a version the cluster no longer serves", func() {
+		client, mapper := fakeCluster(deployment, replicaSet)
+
+		old := controllerOf(replicaSetGVK, "web-abc", "rs-uid")
+		old.APIVersion = "apps/v1beta2"
+		p := pod("web-abc-1", old)
+		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeFalse())
 	})
 
 	// A page boundary must not hide an owner from the index.

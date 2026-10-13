@@ -25,33 +25,85 @@ import (
 func collectAllTypes(ctx context.Context, look lookup, opts *getOptions) ([]workload.View, []string, error) {
 	versions, kinds := coveredVersions(look.resolver)
 
-	// Every mapping is resolved before any owner walk, because a kind that
-	// cannot be mapped at a covered version leaves the covered set.
+	// Every kind is mapped and listed before any owner walk, because a kind
+	// that cannot be read leaves the covered set, and what it owns must not
+	// hide behind an owner that is never listed.
 	mappings, warnings, err := discoverKinds(look, versions, kinds)
 	if err != nil {
 		return nil, warnings, err
 	}
-
-	walker := workload.NewOwnerWalker(look.metadata, look.mapper)
-	topLevel := func(obj *unstructured.Unstructured) (bool, error) {
-		return walker.TopLevel(ctx, obj, func(gk schema.GroupKind) bool {
-			_, ok := versions[gk]
-			return ok
-		})
-	}
-
-	var views []workload.View
+	var listed []*listedKind
 	for _, gk := range kinds {
 		mapping, ok := mappings[gk]
 		if !ok {
 			continue
 		}
-		listed, listWarnings, err := listKind(ctx, look, opts, mapping, topLevel)
-		warnings = append(warnings, listWarnings...)
-		if err != nil {
+		kind, warning, err := listKind(ctx, look, opts, mapping)
+		switch {
+		case err != nil:
 			return nil, warnings, err
+		case kind == nil:
+			if warning != "" {
+				warnings = append(warnings, warning)
+			}
+			delete(versions, gk)
+		default:
+			listed = append(listed, kind)
 		}
-		views = append(views, listed...)
+	}
+
+	walker := workload.NewOwnerWalker(look.metadata, look.mapper)
+	covered := func(gk schema.GroupKind) bool {
+		_, ok := versions[gk]
+		return ok
+	}
+
+	// An owner kind the caller cannot read fails the walk of every object under
+	// it, so the objects are grouped into one warning per cause.
+	var (
+		views      []workload.View
+		causes     []string
+		unanswered = map[string][]string{}
+	)
+	for _, kind := range listed {
+		for i := range kind.objects {
+			object := &kind.objects[i]
+			// The walk runs first: after the first list of each owner kind it is
+			// a cached lookup, while resolving is not, and most nested objects
+			// are dropped here.
+			top, walkErr := walker.TopLevel(ctx, object, covered)
+			if !top {
+				continue
+			}
+			view, err := workload.Resolve(ctx, object, kind.def)
+			if err != nil {
+				warnings = append(warnings, fmt.Sprintf("could not resolve %s/%s: %v", kind.gk.Kind, object.GetName(), err))
+				continue
+			}
+			if !matchesPhase(view, opts.phases) {
+				continue
+			}
+			if walkErr != nil {
+				// Hiding the object would drop a real workload over a permission
+				// error, with nothing to tell the caller.
+				cause := walkErr.Error()
+				if _, seen := unanswered[cause]; !seen {
+					causes = append(causes, cause)
+				}
+				unanswered[cause] = append(unanswered[cause], kind.gk.Kind+"/"+object.GetName())
+			}
+			views = append(views, *view)
+		}
+	}
+	for _, cause := range causes {
+		objects := unanswered[cause]
+		if len(objects) == 1 {
+			warnings = append(warnings, fmt.Sprintf("listing %s, though it may belong to another workload: %s",
+				objects[0], cause))
+			continue
+		}
+		warnings = append(warnings, fmt.Sprintf("listing %s and %d more, though they may belong to another workload: %s",
+			objects[0], len(objects)-1, cause))
 	}
 	return views, warnings, nil
 }
@@ -134,16 +186,23 @@ func coveredVersions(resolver *definitions.Resolver) (map[schema.GroupKind][]str
 	return versions, kinds
 }
 
-// listKind lists one covered Kind and returns the views of its top-level
-// objects that pass --phase.
+// listedKind is one covered Kind's objects, with the definition that reads them.
+type listedKind struct {
+	gk      schema.GroupKind
+	def     definitions.Definition
+	objects []unstructured.Unstructured
+}
+
+// listKind lists one covered Kind. A nil result leaves the Kind out, with a
+// warning when the caller should hear why: a Kind the caller may not list or
+// resolve does, while one the server stopped serving since discovery does not.
 func listKind(
 	ctx context.Context, look lookup, opts *getOptions, mapping *meta.RESTMapping,
-	topLevel func(*unstructured.Unstructured) (bool, error),
-) ([]workload.View, []string, error) {
+) (*listedKind, string, error) {
 	gk := mapping.GroupVersionKind.GroupKind()
 	def, err := look.resolver.Resolve(mapping.GroupVersionKind)
 	if err != nil {
-		return nil, []string{fmt.Sprintf("not listing %s: %v", gk.Kind, err)}, nil
+		return nil, fmt.Sprintf("not listing %s: %v", gk.Kind, err), nil
 	}
 
 	namespace := look.namespace
@@ -153,39 +212,15 @@ func listKind(
 	objects, err := list(ctx, look.dyn, mapping, namespace, opts)
 	switch {
 	case err == nil:
+		return &listedKind{gk: gk, def: def, objects: objects}, "", nil
 	case apierrors.IsForbidden(err):
-		return nil, []string{fmt.Sprintf("not allowed to list %s, so the result leaves it out", gk.Kind)}, nil
+		return nil, fmt.Sprintf("not allowed to list %s, so the result leaves it out", gk.Kind), nil
+	case apierrors.IsNotFound(err):
+		// A cached discovery can outlive an uninstalled CRD.
+		return nil, "", nil
 	default:
-		return nil, nil, fmt.Errorf("list %s: %w", gk.Kind, err)
+		return nil, "", fmt.Errorf("list %s: %w", gk.Kind, err)
 	}
-
-	var (
-		views    []workload.View
-		warnings []string
-	)
-	for i := range objects {
-		object := &objects[i]
-		view, err := workload.Resolve(ctx, object, def)
-		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("could not resolve %s/%s: %v", gk.Kind, object.GetName(), err))
-			continue
-		}
-		// Filtering first spares the owner reads of objects --phase drops.
-		if !matchesPhase(view, opts.phases) {
-			continue
-		}
-		top, err := topLevel(object)
-		if err != nil {
-			// Hiding the object would drop a real workload over a permission
-			// error, with nothing to tell the caller.
-			warnings = append(warnings, fmt.Sprintf("listing %s/%s, though it may belong to another workload: %v",
-				gk.Kind, object.GetName(), err))
-		}
-		if top {
-			views = append(views, *view)
-		}
-	}
-	return views, warnings, nil
 }
 
 // typeColumn names a row by Kind, as Kind.group where covered groups share it.

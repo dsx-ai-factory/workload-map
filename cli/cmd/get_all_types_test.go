@@ -233,12 +233,17 @@ func TestGetAllTypesSkipsATypeItMayNotList(t *testing.T) {
 	}
 }
 
-// denyReplicaSets makes each verb forbidden on the ReplicaSet metadata.
+// denyReplicaSets makes each verb forbidden on the ReplicaSet metadata. A denied
+// get names its object, as the apiserver does.
 func denyReplicaSets(client *metadatafake.FakeMetadataClient, verbs ...string) {
 	for _, verb := range verbs {
-		client.PrependReactor(verb, "replicasets", func(k8stesting.Action) (bool, runtime.Object, error) {
+		client.PrependReactor(verb, "replicasets", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			var name string
+			if get, ok := action.(k8stesting.GetAction); ok {
+				name = get.GetName()
+			}
 			return true, nil, apierrors.NewForbidden(
-				schema.GroupResource{Group: "apps", Resource: "replicasets"}, "", errors.New("nope"))
+				schema.GroupResource{Group: "apps", Resource: "replicasets"}, name, errors.New("nope"))
 		})
 	}
 }
@@ -258,6 +263,69 @@ func TestGetAllTypesReadsAnOwnerByNameWhenItMayNotList(t *testing.T) {
 	}
 	if errOut != "" {
 		t.Errorf("expected no warning, got %q", errOut)
+	}
+}
+
+// A kind left out of the listing is not covered either, or what it owns is
+// hidden behind an owner that never becomes a row.
+func TestGetAllTypesListsTheChildrenOfAKindItMayNotList(t *testing.T) {
+	client, _ := fakeMixedCluster(t, append(mixedNamespace(),
+		object(batchJobGVK, "preprocess-etl", controlledBy(jobSetGVK, "preprocess")))...)
+	client.PrependReactor("list", "jobsets", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewForbidden(schema.GroupResource{Group: "jobset.x-k8s.io", Resource: "jobsets"}, "", errors.New("nope"))
+	})
+
+	out, errOut, code := runGetCmd(t, "--all-types")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if !slices.Contains(rowNames(out), "preprocess-etl") {
+		t.Errorf("expected the JobSet's Job to be listed\n%s", out)
+	}
+	if !strings.Contains(errOut, "warning: not allowed to list JobSet") {
+		t.Errorf("expected a warning naming the type, got %q", errOut)
+	}
+}
+
+// A cached discovery can outlive an uninstalled CRD, whose list is then a 404.
+// That one type must not fail the whole listing.
+func TestGetAllTypesSkipsAKindTheServerNoLongerServes(t *testing.T) {
+	client, _ := fakeMixedCluster(t, mixedNamespace()...)
+	client.PrependReactor("list", "jobsets", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewNotFound(schema.GroupResource{Group: "jobset.x-k8s.io", Resource: "jobsets"}, "")
+	})
+
+	out, errOut, code := runGetCmd(t, "--all-types")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if got := rowNames(out); !slices.Equal(got, []string{"web", "debug-shell"}) {
+		t.Errorf("expected the other types, got %v\n%s", got, out)
+	}
+	if errOut != "" {
+		t.Errorf("expected no warning, got %q", errOut)
+	}
+}
+
+// One unreadable owner kind fails the walk of every object under it, which
+// must cost one warning, not one per object.
+func TestGetAllTypesWarnsOncePerCause(t *testing.T) {
+	_, metadataClient := fakeMixedCluster(t, append(mixedNamespace(),
+		object(podGVK, "web-abc-2", controlledBy(appsReplicaSetGVK, "web-abc")),
+		object(appsReplicaSetGVK, "web-def", controlledBy(appsDeploymentGVK, "web")),
+		object(podGVK, "web-def-1", controlledBy(appsReplicaSetGVK, "web-def")),
+	)...)
+	denyReplicaSets(metadataClient, "list", "get")
+
+	_, errOut, code := runGetCmd(t, "--all-types")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if n := strings.Count(errOut, "warning:"); n != 1 {
+		t.Errorf("expected one warning, got %d\n%s", n, errOut)
+	}
+	if !strings.Contains(errOut, "and 2 more, though they may belong to another workload") {
+		t.Errorf("expected the three pods in one warning, got %q", errOut)
 	}
 }
 

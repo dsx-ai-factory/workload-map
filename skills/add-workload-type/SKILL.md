@@ -473,7 +473,7 @@ Operator install under `hack/e2e/`:
   `apply_with_retry` and a comment naming their users.
 - Namespaced objects the pods need: a ClusterRole in the RBAC manifest, the
   objects created in the flow's `BeforeAll` through a helper in
-  `karta/sdk/test/e2e/flows/setup_test.go`, and any new API group registered in
+  `test/e2e/flows/setup_test.go`, and any new API group registered in
   `suite_test.go`. A CR with no pod template takes the Manifests pod
   conventions in that object.
 - Pin the manifest by preference: release asset, raw manifest at the tag,
@@ -503,7 +503,7 @@ Operator install under `hack/e2e/`:
   `.installed-versions-<cluster>`.
 - `make lint-shell` must pass on the new scripts.
 
-Flow under `karta/sdk/test/e2e/flows/` (read `karta/sdk/test/e2e/recorder/README.md` first):
+Flow under `test/e2e/flows/` (read `test/e2e/recorder/README.md` first):
 
 - One Ginkgo file whose `recorder.Fixture` `Operator` equals the directory name
   under `hack/e2e/operators/` (a builtin has none; see above); a mismatch
@@ -519,7 +519,7 @@ Flow under `karta/sdk/test/e2e/flows/` (read `karta/sdk/test/e2e/recorder/README
 - Predicates read the CR's fields, never Karta. Each `AddState` predicate holds
   on exactly the frames its `statusMappings` rule matches, step 5 guards
   included.
-- Reuse the helpers in `karta/sdk/test/e2e/flows/predicates.go`; add a named predicate
+- Reuse the helpers in `test/e2e/flows/predicates.go`; add a named predicate
   only when none fits. `CondReason` requires True; `CondNotTrue` also matches
   Unknown. A missing shape (status plus reason, condition absent, any-of,
   negation, at-most with absent as 0) is added as a generic helper next to the
@@ -528,7 +528,7 @@ Flow under `karta/sdk/test/e2e/flows/` (read `karta/sdk/test/e2e/recorder/README
   parameter, keep existing callers on the old path, and compose extra guards
   with `AllOf`. A state judged by comparing several counters gets one named
   predicate per state.
-- Prove the predicates offline first: a scratch `TestX` in `karta/sdk/test/e2e/flows`
+- Prove the predicates offline first: a scratch `TestX` in `test/e2e/flows`
   decodes each step 7 CR through `yaml.YAMLToJSON` (never plain
   `yaml.Unmarshal`) and asserts exactly one predicate holds, naming the status
   karta-verify printed. Delete it afterwards (Proving predicates offline in
@@ -549,10 +549,10 @@ Flow under `karta/sdk/test/e2e/flows/` (read `karta/sdk/test/e2e/recorder/README
   as allowed, not predicted. Do not copy a sibling flow's revisit.
 - Raise the 3 minute deadline with `SetTimeout` only when a run hits it, with a
   comment saying why.
-- Actions are generic merge-patch helpers in `karta/sdk/test/e2e/flows/actions.go`, not
+- Actions are generic merge-patch helpers in `test/e2e/flows/actions.go`, not
   named after the workload; suspend and resume share them, side by side. An
   action other than suspend, resume, or scale needs an `ActionType` constant in
-  `karta/sdk/test/e2e/recorder/flow.go`. A pod template rollout or rerun uses
+  `test/e2e/recorder/flow.go`. A pod template rollout or rerun uses
   `Annotate(key, value, path...)`, a merge patch at any annotations map, with
   `ActionRollout` (`"Rollout"`); add them when missing.
 - A `suspendDefinition` that can pause a running workload needs a flow
@@ -571,7 +571,7 @@ Flow under `karta/sdk/test/e2e/flows/` (read `karta/sdk/test/e2e/recorder/README
   `ACTION`. With a string or absent `observedGeneration`, the `With()` gate is
   the only protection against a late write.
 
-Manifests under `karta/sdk/test/e2e/flows/testdata/<workload>/`:
+Manifests under `test/e2e/flows/testdata/<workload>/`:
 
 - Name objects `karta-e2e-<workload>-<flow>`; set `namespace: default`.
 - Pin image tags, declare requests and limits, add the SPDX header, and keep
@@ -634,13 +634,13 @@ Reading fixtures in `reference/recorded-flow.md`):
 Before `make check`:
 
 - `make lint-shell`, `make test-replay`, and `make verify-recordings` must be
-  green, and in `karta/sdk/test/e2e` `GOWORK=off go vet ./...` and `gofmt -l .` clean,
+  green, and in `test/e2e` `GOWORK=off go vet ./...` and `gofmt -l .` clean,
   which `make check` does not cover. Then run `make check`; do not skip it.
   It first downloads the pinned tools missing from `bin/` and prints nothing
   for minutes; run it in the background with its output in a log file.
 - `make test-replay` prints only `ok`. To see the new fixtures replayed, run
   `GOWORK=off go test -count=1 -v ./replay_tests/... -args -ginkgo.v` in
-  `karta/sdk/test/e2e` and grep the output for the `kartaName`.
+  `test/e2e` and grep the output for the `kartaName`.
 - Commit the new files, fixtures included, before `make check`; `validate`
   needs a clean tree.
 - Fixtures carry no SPDX header; do not add one.

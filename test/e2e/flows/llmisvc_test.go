@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/karta/sdk/test/e2e/recorder"
+	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
 )
 
 // llmStartupReasons mirrors the definition's list of Ready=False reasons the controller reports while it

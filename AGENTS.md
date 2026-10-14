@@ -59,7 +59,7 @@ For vulnerability handling and disclosure, `SECURITY.md` is authoritative.
 
 ## Repo Layout
 
-- `karta/sdk/` Karta Go library module (`karta/sdk/pkg/`), its tests, and its e2e recordings (`karta/sdk/test/e2e`)
+- `karta/sdk/` Karta Go library module (`karta/sdk/pkg/`), its tests, and its e2e recordings (`test/e2e`)
 - `cli/` `kli` CLI module
 - `operator/` operator module
 - `charts/` Helm chart (CRDs auto-generated)
@@ -72,7 +72,7 @@ One `Makefile` at the repository root is the only one in the repo; there is no p
 `make check` is the full Go presubmit and CI runs it verbatim, but CI also runs `helm-lint`, `helm-validate`, `image-lock-verify`, `image-lock-test` and `lint-shell`, so a green `check` alone does not guarantee a green CI. `lint` is read-only; `fmt` and the per-component `fmt-*` targets are the only ones that rewrite files. For a single test use `go test` inside the module's directory.
 
 The library is the `karta/sdk/` module, and there is no `go.work`. `cli`, `operator`,
-`karta-wasm`, `karta/sdk/test/e2e`, and `docs/examples` require it at `v0.0.0` with a
+`karta-wasm`, `test/e2e`, and `docs/examples` require it at `v0.0.0` with a
 relative `replace`, so each module builds against the library in the same
 checkout. Run Go commands from a module's directory. The root `go.mod` is a
 deprecation stub for the library's old path: it has no packages, and nothing may

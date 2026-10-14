@@ -202,8 +202,8 @@ Adding one means, in order:
    workload to the Pre-built Karta Definitions table in `README.md`, unless it
    is a Kubernetes builtin (apps, batch, core): the table lists operator-backed
    kinds only.
-2. A flow under `karta/sdk/test/e2e/flows/` with its workload manifests under
-   `karta/sdk/test/e2e/flows/testdata/<workload>/`. See `karta/sdk/test/e2e/recorder/README.md`.
+2. A flow under `test/e2e/flows/` with its workload manifests under
+   `test/e2e/flows/testdata/<workload>/`. See `test/e2e/recorder/README.md`.
    - Flow: record every mapped state, and each spec value a rule branches on
      (a StatefulSet's `OnDelete`, paused, a partition, a restart policy), that
      the kind's webhook accepts and a kind cluster can reach. Name the rest
@@ -239,7 +239,7 @@ Adding one means, in order:
      for the label, the directory, the object names, and the root component
      name alike.
 3. The recorded fixtures from a live run, committed under
-   `karta/sdk/test/e2e/recorded_data/<operator>/<version>/<kartaName>/`:
+   `test/e2e/recorded_data/<operator>/<version>/<kartaName>/`:
 
    ```sh
    make e2e-up CLUSTER_NAME=<name> WORKLOADS=<operator>
@@ -269,7 +269,7 @@ Adding one means, in order:
    overlap, and since they mirror the status rules, karta-verify on that frame
    shows whether the rules overlap too.
 4. `make test-replay` and `make verify-recordings` green. `make lint-shell`
-   green, and `GOWORK=off go vet ./...` and `gofmt -l .` clean in `karta/sdk/test/e2e`;
+   green, and `GOWORK=off go vet ./...` and `gofmt -l .` clean in `test/e2e`;
    `make check` covers none of these three. Commit the new files before
    `make check`: the `validate` target treats untracked files as stale
    generator output.

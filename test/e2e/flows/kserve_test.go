@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/karta/sdk/test/e2e/recorder"
+	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
 )
 
 var _ = Describe("KServe InferenceService", Ordered, Label("kserve"), func() {

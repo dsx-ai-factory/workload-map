@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/karta/sdk/test/e2e/recorder"
+	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
 )
 
 // Set in BeforeSuite; the recorder gets its setup through the cfg we pass to New.
@@ -32,7 +32,7 @@ var (
 	cfg           recorder.Config
 )
 
-// recordedData is where recordings are written, relative to the flows package dir (karta/sdk/test/e2e/flows).
+// recordedData is where recordings are written, relative to the flows package dir (test/e2e/flows).
 const recordedData = "../recorded_data"
 
 func TestFlows(t *testing.T) {

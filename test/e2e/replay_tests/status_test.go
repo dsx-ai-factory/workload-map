@@ -14,11 +14,11 @@ import (
 
 	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
-	"github.com/dsx-ai-factory/workload-map/karta/sdk/test/e2e/recorder"
+	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
 )
 
 const (
-	repoRoot     = "../../../../.."
+	repoRoot     = "../../.."
 	recordedGlob = "../recorded_data/*/*/*/*.yaml"
 )
 
@@ -29,7 +29,7 @@ var _ = Describe("Karta reads the recorded state", func() {
 	recordings, _ := filepath.Glob(recordedGlob)
 	if len(recordings) == 0 {
 		It("has recordings to replay", func() {
-			Fail("no recordings under karta/sdk/test/e2e/recorded_data; run make record-e2e")
+			Fail("no recordings under test/e2e/recorded_data; run make record-e2e")
 		})
 		return
 	}

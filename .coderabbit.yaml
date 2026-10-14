@@ -17,7 +17,7 @@ reviews:
   high_level_summary: true
   high_level_summary_instructions: >-
     If karta/sdk/pkg/catalog/kartas/ changes, list which of hack/e2e/operators/,
-    karta/sdk/test/e2e/flows/ and karta/sdk/test/e2e/recorded_data/ the PR also touches. A
+    test/e2e/flows/ and test/e2e/recorded_data/ the PR also touches. A
     definition without a flow and recorded fixtures is a claim without
     evidence; say so. Only a new operator, or a new kind on an installed one,
     needs a hack/e2e/operators/ change; a Kubernetes builtin (apps, batch,
@@ -49,8 +49,8 @@ reviews:
         Companions: a new or changed definition ships in the same PR with the
         builder registered in karta/sdk/pkg/catalog/catalog.go, the generated file under
         docs/catalog/ from `make generate-samples`, a flow under
-        karta/sdk/test/e2e/flows/ with manifests under karta/sdk/test/e2e/flows/testdata/, fixtures
-        recorded from a live run under karta/sdk/test/e2e/recorded_data/, and
+        test/e2e/flows/ with manifests under test/e2e/flows/testdata/, fixtures
+        recorded from a live run under test/e2e/recorded_data/, and
         `make test-replay` plus `make verify-recordings` green. A new operator
         also ships e2e install support under hack/e2e/operators/<operator>/
         with the version pinned in hack/e2e/global.env. A new kind on an
@@ -124,7 +124,7 @@ reviews:
         version skips probe the artifact with curl first; the script is
         idempotent on a re-run. Bumping an operator pin re-records that
         operator's fixtures in the same PR. `make lint-shell` must stay clean.
-    - path: "karta/sdk/test/e2e/flows/**"
+    - path: "test/e2e/flows/**"
       instructions: >-
         Recorder predicates read the workload's own fields only, never Karta,
         and mirror the definition's StatusMappings exactly, reasons included; a
@@ -136,7 +136,7 @@ reviews:
         constraints (inherited preset probes and security contexts, no model
         URIs that trigger real downloads). The reason a step is Optional should
         be findable in the flow file, on the step or on the flow.
-    - path: "karta/sdk/test/e2e/recorded_data/**"
+    - path: "test/e2e/recorded_data/**"
       instructions: >-
         Written by `make record-e2e`; flag hand edits. Check each fixture's
         state sequence reads as the controller behaves (Undefined before the

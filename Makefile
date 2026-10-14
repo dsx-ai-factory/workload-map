@@ -27,7 +27,7 @@ COMPONENTS := lib cli operator karta-wasm release-helper
 # Every Go module in the repo. The tidy target fans out over this rather than
 # COMPONENTS because an untidy manifest in a module that ships no
 # binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
-GO_MODULES := karta/sdk cli karta-wasm operator karta/sdk/test/e2e hack/imagelock \
+GO_MODULES := karta/sdk cli karta-wasm operator test/e2e hack/imagelock \
 	docs/examples/quickstart docs/examples/controller-runtime \
 	hack/e2e/operators/nim/image
 
@@ -183,7 +183,7 @@ lint-lib: golangci-lint ## Lint the library module (set VERBOSE=1 for -v)
 .PHONY: test-lib
 test-lib: lib-generate-mocks ## Run the library tests, plus the offline e2e recorder tests
 	cd karta/sdk && go test ./...
-	cd karta/sdk/test/e2e && go test ./recorder/...
+	cd test/e2e && go test ./recorder/...
 
 # The library is the one published module, so a replace in it would break every
 # consumer's `go get`. The other modules carry one on purpose.
@@ -596,8 +596,8 @@ endif
 
 .PHONY: test-replay
 test-replay: ## Replay the recorded fixtures through Karta offline (no cluster)
-	cd karta/sdk/test/e2e && go build ./...
-	cd karta/sdk/test/e2e && go test ./replay_tests/...
+	cd test/e2e && go build ./...
+	cd test/e2e && go test ./replay_tests/...
 
 # Defaults and accepted values live in hack/e2e/global.env.
 KARTA_WEBHOOK_MODE ?= auto
@@ -639,13 +639,13 @@ e2e-down: ## Tear down the e2e cluster (set CLUSTER_NAME for a named one)
 record-e2e: ## Record the fixtures against the current cluster - kind from e2e-up or your own (WORKLOADS="pod" a subset, FLOW="running" one flow, CLUSTER_NAME for a named kind cluster)
 	@if [ "$(strip $(WORKLOADS))" = "none" ]; then \
 		echo "record-e2e: WORKLOADS=none selects no cases"; exit 2; fi
-	cd karta/sdk/test/e2e && go test -count=1 ./recorder
-	cd karta/sdk/test/e2e && CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) go test -count=1 -v -timeout $(E2E_TIMEOUT) ./flows $(if $(E2E_FOCUS)$(E2E_LABELS),-args $(if $(E2E_FOCUS),-ginkgo.focus="$(E2E_FOCUS)") $(if $(E2E_LABELS),-ginkgo.label-filter="$(E2E_LABELS)"))
+	cd test/e2e && go test -count=1 ./recorder
+	cd test/e2e && CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) go test -count=1 -v -timeout $(E2E_TIMEOUT) ./flows $(if $(E2E_FOCUS)$(E2E_LABELS),-args $(if $(E2E_FOCUS),-ginkgo.focus="$(E2E_FOCUS)") $(if $(E2E_LABELS),-ginkgo.label-filter="$(E2E_LABELS)"))
 
 .PHONY: verify-recordings
 verify-recordings: ## Fail if any recorded fixture ended with succeeded false (re-record it clean before pushing)
-	@test -d karta/sdk/test/e2e/recorded_data || { echo "no karta/sdk/test/e2e/recorded_data dir"; exit 1; }
-	@bad=$$(grep -rlE '^  succeeded: false' karta/sdk/test/e2e/recorded_data --include='*.yaml'); \
+	@test -d test/e2e/recorded_data || { echo "no test/e2e/recorded_data dir"; exit 1; }
+	@bad=$$(grep -rlE '^  succeeded: false' test/e2e/recorded_data --include='*.yaml'); \
 	if [ -n "$$bad" ]; then echo "recordings that did not succeed:"; echo "$$bad"; exit 1; fi; \
 	echo "all recordings succeeded"
 

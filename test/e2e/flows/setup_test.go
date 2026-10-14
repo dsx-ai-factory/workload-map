@@ -40,7 +40,7 @@ func installKarta(ctx context.Context, kartaFile, kartaName string) {
 	}, time.Minute, 2*time.Second).Should(Succeed())
 }
 
-// readE2E reads a path relative to karta/sdk/test/e2e (the flows package runs from karta/sdk/test/e2e/flows).
+// readE2E reads a path relative to test/e2e (the flows package runs from test/e2e/flows).
 func readE2E(path string) []byte {
 	b, err := os.ReadFile(filepath.Join("..", path))
 	Expect(err).NotTo(HaveOccurred(), "read %s", path)
@@ -55,7 +55,7 @@ func operatorVersion(op string) string {
 	if cluster == "" {
 		cluster = "karta-e2e"
 	}
-	b, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "hack", "e2e", "operators", ".installed-versions-"+cluster))
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "hack", "e2e", "operators", ".installed-versions-"+cluster))
 	if err == nil {
 		for _, line := range strings.Split(string(b), "\n") {
 			if k, v, ok := strings.Cut(line, "="); ok && strings.TrimSpace(k) == op {

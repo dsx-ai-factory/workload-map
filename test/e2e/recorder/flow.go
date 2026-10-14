@@ -59,7 +59,7 @@ type namedState struct {
 	Match StateCheck
 }
 
-// NewFlow starts a flow seeded from a manifest (path relative to karta/sdk/test/e2e); declare its journey with Through.
+// NewFlow starts a flow seeded from a manifest (path relative to test/e2e); declare its journey with Through.
 func NewFlow(r *Recorder, name, manifest string) *Flow {
 	return &Flow{rec: r, name: name, manifest: manifest}
 }

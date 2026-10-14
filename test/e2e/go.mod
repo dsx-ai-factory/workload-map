@@ -1,4 +1,4 @@
-module github.com/dsx-ai-factory/workload-map/karta/sdk/test/e2e
+module github.com/dsx-ai-factory/workload-map/test/e2e
 
 go 1.26.8
 
@@ -81,4 +81,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
 
-replace github.com/dsx-ai-factory/workload-map/karta/sdk => ../..
+replace github.com/dsx-ai-factory/workload-map/karta/sdk => ../../karta/sdk

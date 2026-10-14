@@ -76,10 +76,8 @@ sboms:
 #   brew install dsx-ai-factory/kli/kli
 #
 # The default branch takes only reviewed pull requests, so the cask lands on a
-# kli-cask-<version> branch and GoReleaser opens the pull request with the
-# GitHub App token the release workflow mints. A pull request opened by an App
-# runs CI, unlike one opened with GITHUB_TOKEN. The cask reaches users when a
-# maintainer approves and merges it.
+# kli-cask/<version> branch and GoReleaser opens a pull request for it. The
+# cask reaches users when a maintainer runs CI on it, approves, and merges it.
 homebrew_casks:
   - name: kli
     ids:

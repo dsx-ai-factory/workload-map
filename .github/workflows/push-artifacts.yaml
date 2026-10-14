@@ -5,12 +5,11 @@ name: Upload artifacts to GitHub Container Registry
 on:
   push:
     branches: [ main ]
-  # A release runs when its GitHub Release is released, not when its tags are
-  # pushed: vX.Y.Z and karta/sdk/vX.Y.Z are pushed first, then the release is
-  # published from the existing vX.Y.Z tag. `released` fires when a full
-  # release is published or a prerelease is changed to a full release. A draft
-  # or a prerelease fires nothing, so a release published as a prerelease by
-  # mistake starts when the box is unchecked.
+  # A release runs when its GitHub Release is released. Publishing it creates
+  # vX.Y.Z, and the run creates karta/sdk/vX.Y.Z on the same commit. `released`
+  # fires when a full release is published or a prerelease is changed to a full
+  # release. A draft or a prerelease fires nothing, so a release published as a
+  # prerelease by mistake starts when the box is unchecked.
   release:
     types: [ released ]
 

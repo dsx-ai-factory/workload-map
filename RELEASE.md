@@ -151,8 +151,8 @@ make release VERSION=1.2.3
 
 It fails unless the checkout is clean and at the matching `vX.Y.Z` tag, both
 tags point to `HEAD`, `karta/sdk/go.mod` carries no `replace` or `exclude`
-directive, and both `GITHUB_TOKEN` and `HOMEBREW_TAP_TOKEN` are set. It must
-normally run only in the release workflow.
+directive, and `GITHUB_TOKEN` is set. It must normally run only in the release
+workflow.
 
 ## Release credentials
 
@@ -211,7 +211,9 @@ validates and reuses the chart and image from the first attempt instead of
 overwriting them. GoReleaser replaces matching assets on an existing GitHub
 Release and updates `Casks/kli.rb` in place on the existing `kli-cask/<version>`
 branch. If the cask pull request is already open, GoReleaser logs a warning
-instead of opening a second one. After it succeeds, confirm that the workflow
+instead of opening a second one. If it was already merged, GoReleaser opens a
+new cask pull request for the same version. Its cask is already on the default
+branch, so close it without merging. After it succeeds, confirm that the workflow
 attached the chart and both image locks to the same release, that the assets
 match `checksums.txt`, and that a cask pull request for the version is open or
 merged.

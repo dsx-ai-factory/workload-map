@@ -105,6 +105,11 @@ prerelease starts nothing. A release published as a prerelease by mistake starts
 the workflow once "Set as a pre-release" is unchecked; nothing needs to be
 deleted.
 
+The tag must be exactly `vX.Y.Z`. A tag without the leading `v`, or with a
+suffix such as `-rc.1`, fails the workflow at its first step, before anything is
+tagged or published. Delete that release and its tag, then publish again with
+the right name.
+
 The library module is tagged by the workflow, not by hand. Its first step on a
 release creates `karta/sdk/v1.2.3` on the release's commit, so the library can
 be fetched with `go get` once the workflow reaches that step. The product tag

@@ -51,6 +51,13 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            # A release event fires for any tag name the release form accepts.
+            # Stop a malformed one here, before the library tag or any artifact
+            # exists; this also rejects prerelease suffixes such as -rc.1.
+            if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Release tag '$RELEASE_TAG' must be vX.Y.Z" >&2
+              exit 1
+            fi
             echo "Release: using its tag as the version (strip the leading 'v')"
             PACKAGE_VERSION=${RELEASE_TAG#v}
           else
@@ -112,7 +119,15 @@ jobs:
       # entirely from the Release UI. Idempotent, so a rerun reuses the tag.
       - name: Tag the library module
         if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          # Only tag the library on the commit the release tag names.
+          RELEASE_COMMIT=$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")
+          if [[ "$RELEASE_COMMIT" != "$GITHUB_SHA" ]]; then
+            echo "Release tag ${RELEASE_TAG} points to ${RELEASE_COMMIT}, not ${GITHUB_SHA}" >&2
+            exit 1
+          fi
           LIB_TAG="karta/sdk/v${PACKAGE_VERSION}"
           if git rev-parse -q --verify "refs/tags/${LIB_TAG}" >/dev/null; then
             echo "${LIB_TAG} already exists, leaving it"

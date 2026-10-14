@@ -16,7 +16,7 @@ var _ = Describe("MPIJob", Ordered, Label("kubeflow", "mpijob"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../../docs/catalog/kubeflow-org-mpijob-v2beta1.yaml", "kubeflow-org-mpijob-v2beta1")
+		installKarta(ctx, "../../docs/catalog/kubeflow-org-mpijob-v2beta1.yaml", "kubeflow-org-mpijob-v2beta1")
 		fx = recorder.Fixture{Operator: "kubeflow", Version: operatorVersion("kubeflow"), KartaName: "kubeflow-org-mpijob-v2beta1", KartaFile: "docs/catalog/kubeflow-org-mpijob-v2beta1.yaml"}
 		rec = recorder.New(cfg).
 			AddState(kartav1alpha1.InitializingStatus, CondTrue("Created")).

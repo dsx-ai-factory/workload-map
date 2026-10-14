@@ -16,7 +16,7 @@ var _ = Describe("StatefulSet (built-in)", Ordered, Label("statefulset", "builti
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../../docs/catalog/apps-statefulset-v1.yaml", "apps-statefulset-v1")
+		installKarta(ctx, "../../docs/catalog/apps-statefulset-v1.yaml", "apps-statefulset-v1")
 		fx = recorder.Fixture{Operator: "statefulset", Version: operatorVersion("statefulset"), KartaName: "apps-statefulset-v1", KartaFile: "docs/catalog/apps-statefulset-v1.yaml"}
 		rec = recorder.New(cfg).
 			AddState(kartav1alpha1.InitializingStatus, ReplicasInitializing()).

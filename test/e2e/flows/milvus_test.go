@@ -18,7 +18,7 @@ var _ = Describe("Milvus", Ordered, Label("milvus"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../../docs/catalog/milvus-io-milvus-v1beta1.yaml", "milvus-io-milvus-v1beta1")
+		installKarta(ctx, "../../docs/catalog/milvus-io-milvus-v1beta1.yaml", "milvus-io-milvus-v1beta1")
 		fx = recorder.Fixture{Operator: "milvus", Version: operatorVersion("milvus"), KartaName: "milvus-io-milvus-v1beta1", KartaFile: "docs/catalog/milvus-io-milvus-v1beta1.yaml"}
 		rec = recorder.New(cfg).
 			SetTimeout(8*time.Minute).

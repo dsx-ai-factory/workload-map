@@ -18,7 +18,7 @@ var _ = Describe("PyTorchJob", Ordered, Label("kubeflow", "pytorch"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../../docs/catalog/kubeflow-org-pytorchjob-v1.yaml", "kubeflow-org-pytorchjob-v1")
+		installKarta(ctx, "../../docs/catalog/kubeflow-org-pytorchjob-v1.yaml", "kubeflow-org-pytorchjob-v1")
 		fx = recorder.Fixture{Operator: "kubeflow", Version: operatorVersion("kubeflow"), KartaName: "kubeflow-org-pytorchjob-v1", KartaFile: "docs/catalog/kubeflow-org-pytorchjob-v1.yaml"}
 		rec = recorder.New(cfg).
 			SetTimeout(4*time.Minute).

@@ -18,7 +18,7 @@ var _ = Describe("KServe InferenceService", Ordered, Label("kserve"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../../docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml", "serving-kserve-io-inferenceservice-v1beta1")
+		installKarta(ctx, "../../docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml", "serving-kserve-io-inferenceservice-v1beta1")
 		fx = recorder.Fixture{Operator: "kserve", Version: operatorVersion("kserve"), KartaName: "serving-kserve-io-inferenceservice-v1beta1", KartaFile: "docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml"}
 		// The definition maps no Initializing for an InferenceService (the deploy window only reports
 		// Unknown conditions), so the journeys start at the first mapped state and the deploy frames

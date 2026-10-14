@@ -18,7 +18,7 @@ var _ = Describe("RayCluster", Ordered, Label("kuberay", "raycluster"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../../docs/catalog/ray-io-raycluster-v1.yaml", "ray-io-raycluster-v1")
+		installKarta(ctx, "../../docs/catalog/ray-io-raycluster-v1.yaml", "ray-io-raycluster-v1")
 		fx = recorder.Fixture{Operator: "kuberay", Version: operatorVersion("kuberay"), KartaName: "ray-io-raycluster-v1", KartaFile: "docs/catalog/ray-io-raycluster-v1.yaml"}
 		// The definition maps no Initializing for a RayCluster (bring-up only reports False
 		// conditions and an empty state), so the journeys start at the first mapped state and the

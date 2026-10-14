@@ -18,7 +18,7 @@ var _ = Describe("RayJob", Ordered, Label("kuberay", "rayjob"), func() {
 	var fx recorder.Fixture
 
 	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../../docs/catalog/ray-io-rayjob-v1.yaml", "ray-io-rayjob-v1")
+		installKarta(ctx, "../../docs/catalog/ray-io-rayjob-v1.yaml", "ray-io-rayjob-v1")
 		fx = recorder.Fixture{Operator: "kuberay", Version: operatorVersion("kuberay"), KartaName: "ray-io-rayjob-v1", KartaFile: "docs/catalog/ray-io-rayjob-v1.yaml"}
 		rec = recorder.New(cfg).
 			SetTimeout(6*time.Minute).

@@ -78,73 +78,50 @@ make release-verify VERSION=1.2.3
 
 `release-build` compiles both executable definitions only for the current
 runner target. `release-snapshot` builds the complete CLI release matrix and
-the Homebrew cask, `dist/homebrew/Casks/kli.rb`, without publishing. It does
-not need release credentials. `release-verify` checks the archives and that
-the cask installs exactly those archives, by checksum and download URL.
+the Homebrew cask without publishing. It does not need release credentials.
+`release-verify` checks the archives and that the cask installs exactly those
+archives.
 
-The release, the cask download URLs, and the tap follow `GITHUB_REPOSITORY`,
-which the workflow always sets, so a fork releases to itself with no edits. A
-local snapshot without it renders the upstream values.
+The release and the cask follow `GITHUB_REPOSITORY`, so a fork releases to
+itself. A local snapshot renders the upstream values.
 
 ## How a release is cut
 
 Before releasing, add the version entry to [CHANGELOG.md](CHANGELOG.md) and run
-the checks above. After that preparation change is merged, a release is one
-step: publish the GitHub Release for the new version from the merged commit,
-with the version's CHANGELOG.md entry as its notes. Use the Releases page,
-choose the target commit, and type the new tag `v1.2.3`, or:
+the checks above. After that preparation change is merged, publish the GitHub
+Release from the merged commit, with a new `v1.2.3` tag and the version's
+CHANGELOG.md entry as its notes. Use the Releases page, or:
 
 ```bash
 gh release create v1.2.3 --target <commit> --title v1.2.3 --notes-file notes.md
 ```
 
-Publishing creates the `v1.2.3` tag on that commit and runs the release
-workflow. The workflow runs on the `released` event, which fires when a full
-release is published or a prerelease is changed to a full release. A draft or a
-prerelease starts nothing. A release published as a prerelease by mistake starts
-the workflow once "Set as a pre-release" is unchecked; nothing needs to be
-deleted.
+Publishing creates the tag and starts the release workflow. Drafts and
+prereleases start nothing; a prerelease starts it once changed to a full
+release.
 
-The tag must be exactly `vX.Y.Z`. A tag without the leading `v`, or with a
-suffix such as `-rc.1`, fails the workflow at its first step, before anything is
-tagged or published. Delete that release and its tag, then publish again with
-the right name.
+The tag must be exactly `vX.Y.Z`. Any other tag fails the first step, before
+anything is tagged or published. Delete that release and its tag, and publish
+again.
 
-The library module is tagged by the workflow, not by hand. Once `make check`
-and the dry run of the CLI release pass, the workflow creates `karta/sdk/v1.2.3`
-on the release's commit, so the library can be fetched with `go get` once the
-workflow reaches that step. The tag waits for the checks because a module
-version stays in the Go module proxy once fetched, even if its tag is deleted.
-The product tag `v1.2.3` and the library tag are therefore not pushed together:
-if the workflow fails before the tag step, the release exists with no library
-tag, and rerunning the job creates it. No image, chart, or asset is published
-before it.
+Once `make check` and a dry run of the CLI release pass, the workflow creates
+`karta/sdk/v1.2.3` on the same commit. It waits for the checks because a
+fetched module version stays in the Go module proxy even if its tag is deleted.
+If the workflow fails before this step, Re-run jobs creates the tag.
 
-Creating `karta/sdk/v1.2.3` is a tag push by the workflow's `GITHUB_TOKEN`. The
-tag-protection ruleset restricts who may create tags, so `refs/tags/karta/sdk/**`
-must be in that ruleset's bypass or exclude list for the step to succeed.
-
-Before it publishes anything, the workflow runs `make check`, then
-`make release-snapshot` and `make release-verify`, a dry run of the CLI release
-that checks `karta/sdk/go.mod` carries no `replace` or `exclude` directive and
-stops a release whose archives or cask would be wrong. After the library tag
-step, it validates that both tags point to the release's commit. It then builds
-and pushes the multi-architecture operator image from source and publishes the
-Helm chart. GoReleaser then builds the four CLI archives and checksum manifest,
-uploads them to the release, keeping its notes, pushes the Homebrew cask to a
-`kli-cask/<version>` branch, and opens a pull request for it. Finally, the
-workflow generates the two image locks and attaches the chart and locks to the
-release. The release shows no assets until the workflow finishes.
+The workflow then checks both tags, pushes the operator image, and publishes
+the Helm chart. GoReleaser uploads the CLI archives and checksums to the
+release, keeping its notes, and opens a pull request that updates
+`Casks/kli.rb`. Finally, the workflow attaches the chart and the two image
+locks. The release shows no assets until the workflow finishes.
 
 The workflow uploads to a release that is already published, so the repository
 must not enable GitHub's immutable releases. An immutable release accepts no new
 assets, and GoReleaser stops with "already exists and is immutable".
 
-The cask reaches Homebrew users when that pull request merges, so the release
-is not complete until a maintainer approves and merges it. If the cask pull
-request of an earlier release is still open when a later release opens its
-own, merge the later one and close the earlier one. Merging the earlier one
-afterwards would move the cask back to the older version.
+The cask reaches Homebrew users when its pull request merges. A maintainer
+approves the held `CI` run, reviews, and squash-merges. If an older cask pull
+request is still open, close it; merging it would move the cask back.
 
 The guarded publishing command used by the workflow is:
 
@@ -154,76 +131,40 @@ make release VERSION=1.2.3
 
 It fails unless the checkout is clean and at the matching `vX.Y.Z` tag, both
 tags point to `HEAD`, `karta/sdk/go.mod` carries no `replace` or `exclude`
-directive, and `GITHUB_TOKEN` is set. It must normally run only in the release
-workflow.
+directive, and the required credentials are present. It must normally run
+only in the release workflow.
 
 ## Release credentials
 
-The release needs no credential beyond the workflow's own `GITHUB_TOKEN`, which
-covers the Karta GitHub Release, GHCR packages, release attachments, and the
-Homebrew cask pull request. There is no App, personal access token, or stored
-secret for the cask.
+The normal workflow `GITHUB_TOKEN` is used for the Karta GitHub Release, GHCR
+packages, release attachments, and the cask pull request. The release needs no
+other credential. GitHub signs the cask commit as `github-actions[bot]`, and its
+`Signed-off-by` trailer satisfies `dco`.
 
-GoReleaser commits `Casks/kli.rb` to a `kli-cask/<version>` branch and opens the
-pull request, both with `GITHUB_TOKEN`. Three details make that work under the
-default branch's rules:
+The repository, and any fork that releases, needs:
 
-- The commit is signed. GoReleaser omits the committer (the `use_github_app_token`
-  option, whose only effect is that omission), so GitHub signs the API commit as
-  `github-actions[bot]`. A bot's unattributed commit is verified, which the
-  signed-commit rule requires.
-- The pull request runs `CI`. A pull request opened with `GITHUB_TOKEN` starts
-  its workflows in an approval-required state, so a maintainer clicks to run `CI`
-  on it, then reviews and squash-merges. The repository setting "Allow GitHub
-  Actions to create and approve pull requests" must be on, or opening the pull
-  request fails with 403.
-- The commit carries a `Signed-off-by: github-actions[bot]` trailer, from the
-  cask commit message template, so the `dco` check on the pull request passes.
-
-The workflow needs `pull-requests: write` in addition to `contents: write`, both
-already declared. No credential is minted; if the Actions pull-request setting is
-off, the release fails when GoReleaser opens the pull request, after the image,
-chart, and release assets are already published, so the setting must be on before
-the first release.
-
-The repository rules decide what else the pull request needs:
-
-- Branch creation is restricted, so `refs/heads/kli-cask/**` must be in that
-  ruleset's exclude list (next to `dependabot/**` and `renovate/**`) for the
-  cask branch to be created.
-- The default branch requires a code owner approval, the `CI` check, the `dco`
-  check, and a squash merge, so a maintainer reviews and merges every cask
-  update.
-
-A fork that cuts a release needs the same Actions pull-request setting on and
-the same branch-creation exclude; it needs no secret.
+- "Allow GitHub Actions to create and approve pull requests" on. Without it, the
+  run fails after the assets are uploaded.
+- `refs/heads/kli-cask/**` excluded from the branch-creation ruleset.
+- `refs/tags/karta/sdk/**` excluded from the tag-protection ruleset.
 
 ## Recovery after a partial release
 
-If the workflow fails before it publishes any image, chart, or asset, nothing
-else needs cleaning up. Use Re-run jobs if the failure was transient. If the
-fix needs a code change, for example a release snapshot that fails
-verification, merge the fix and release the next patch version, because the
-tags do not move. Delete the GitHub Release of the failed version, which has
-notes but no assets, so it does not stay marked as the latest release.
+If the workflow fails before it publishes any image, chart, or asset, use
+Re-run jobs if the failure was transient. If the fix needs a code change, merge
+it and release the next patch version, because the tags do not move. Delete the
+failed GitHub Release so it does not stay marked as the latest.
 
 If the release workflow fails after publishing the operator image or Helm chart,
 do not create a second release, unpublish the release, or move any tag. Correct
 the failure and use Re-run jobs on the same workflow run. A later attempt
 validates and reuses the chart and image from the first attempt instead of
 overwriting them. GoReleaser replaces matching assets on an existing GitHub
-Release and updates `Casks/kli.rb` in place on the existing `kli-cask/<version>`
-branch. If the cask pull request is already open, GoReleaser logs a warning
-instead of opening a second one. If it was already merged, GoReleaser opens a
-new cask pull request for the same version. Its cask is already on the default
-branch, so close it without merging. After it succeeds, confirm that the workflow
-attached the chart and both image locks to the same release, that the assets
-match `checksums.txt`, and that a cask pull request for the version is open or
+Release and updates an open cask pull request. If the cask pull request already
+merged, the rerun opens a second one; close it. After it succeeds, confirm that
+the workflow attached the chart and both image locks to the same release, that
+the assets match `checksums.txt`, and that the cask pull request is open or
 merged.
-
-The cask is published after the release assets, so a failure there, such as the
-Actions pull-request setting being off, fails the run after the assets are
-uploaded. Correct it and use Re-run jobs on the same workflow run.
 
 ## Release notes and breaking changes
 

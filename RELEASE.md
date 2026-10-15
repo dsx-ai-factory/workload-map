@@ -110,24 +110,27 @@ suffix such as `-rc.1`, fails the workflow at its first step, before anything is
 tagged or published. Delete that release and its tag, then publish again with
 the right name.
 
-The library module is tagged by the workflow, not by hand. Its first step on a
-release creates `karta/sdk/v1.2.3` on the release's commit, so the library can
-be fetched with `go get` once the workflow reaches that step. The product tag
-`v1.2.3` and the library tag are therefore no longer pushed together: if the
-workflow fails before the tag step, the release exists with no library tag, and
-rerunning the job creates it. Nothing is published before it.
+The library module is tagged by the workflow, not by hand. Once `make check`
+and the dry run of the CLI release pass, the workflow creates `karta/sdk/v1.2.3`
+on the release's commit, so the library can be fetched with `go get` once the
+workflow reaches that step. The tag waits for the checks because a module
+version stays in the Go module proxy once fetched, even if its tag is deleted.
+The product tag `v1.2.3` and the library tag are therefore not pushed together:
+if the workflow fails before the tag step, the release exists with no library
+tag, and rerunning the job creates it. No image, chart, or asset is published
+before it.
 
 Creating `karta/sdk/v1.2.3` is a tag push by the workflow's `GITHUB_TOKEN`. The
 tag-protection ruleset restricts who may create tags, so `refs/tags/karta/sdk/**`
 must be in that ruleset's bypass or exclude list for the step to succeed.
 
-Before it publishes anything, the workflow validates that both tags point to the
-release's commit and that `karta/sdk/go.mod` carries no `replace` or `exclude`
-directive. It also runs `make release-snapshot` and `make release-verify`, a dry
-run of the CLI release that stops a release whose archives or cask would be
-wrong. It then builds and
-pushes the multi-architecture operator image from source and publishes the Helm
-chart. GoReleaser then builds the four CLI archives and checksum manifest,
+Before it publishes anything, the workflow runs `make check`, then
+`make release-snapshot` and `make release-verify`, a dry run of the CLI release
+that checks `karta/sdk/go.mod` carries no `replace` or `exclude` directive and
+stops a release whose archives or cask would be wrong. After the library tag
+step, it validates that both tags point to the release's commit. It then builds
+and pushes the multi-architecture operator image from source and publishes the
+Helm chart. GoReleaser then builds the four CLI archives and checksum manifest,
 uploads them to the release, keeping its notes, pushes the Homebrew cask to a
 `kli-cask/<version>` branch, and opens a pull request for it. Finally, the
 workflow generates the two image locks and attaches the chart and locks to the

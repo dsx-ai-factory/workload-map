@@ -112,10 +112,24 @@ jobs:
       - name: Lint and validate helm chart
         run: make helm-lint helm-validate
 
+      - name: Run checks
+        if: github.event_name == 'release'
+        run: make check VERSION="$PACKAGE_VERSION"
+
+      # A dry run of the CLI release, still before anything is published.
+      # release-snapshot first checks that the library module is publishable. A
+      # config change that breaks the archives or the cask would otherwise
+      # surface inside `make release`, after the image and chart are pushed.
+      - name: Verify the CLI release snapshot
+        if: github.event_name == 'release'
+        run: make release-snapshot release-verify VERSION="$PACKAGE_VERSION"
+
       # Publishing the GitHub Release creates the vX.Y.Z tag; the library module
-      # needs its own karta/sdk/vX.Y.Z tag on the same commit. Create it here,
-      # before anything is validated or published, so a release is driven
-      # entirely from the Release UI. Idempotent, so a rerun reuses the tag.
+      # needs its own karta/sdk/vX.Y.Z tag on the same commit. Create it only
+      # after the checks and the dry run pass: once fetched, a module version
+      # stays in the Go module proxy even if its tag is deleted. Still before
+      # the image, chart, or assets are published. Idempotent, so a rerun
+      # reuses the tag.
       - name: Tag the library module
         if: github.event_name == 'release'
         env:
@@ -135,24 +149,12 @@ jobs:
             git push origin "${LIB_TAG}"
           fi
 
-      # Before anything is published: with the karta/sdk/vX.Y.Z tag now on this
-      # commit, confirm both tags point here and the library module is
-      # publishable, or the image and chart would ship and only `make release`
+      # With the karta/sdk/vX.Y.Z tag now on this commit, confirm both tags
+      # point here before the image and chart ship, or only `make release`
       # would fail.
       - name: Validate release version, library module, and release tags
         if: github.event_name == 'release'
         run: make release-validate VERSION="$PACKAGE_VERSION" REQUIRE_TAGS=1
-
-      - name: Run checks
-        if: github.event_name == 'release'
-        run: make check VERSION="$PACKAGE_VERSION"
-
-      # A dry run of the CLI release, still before anything is published. A
-      # config change that breaks the archives or the cask would otherwise
-      # surface inside `make release`, after the image and chart are pushed.
-      - name: Verify the CLI release snapshot
-        if: github.event_name == 'release'
-        run: make release-snapshot release-verify VERSION="$PACKAGE_VERSION"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4

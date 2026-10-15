@@ -5,18 +5,15 @@ name: Upload artifacts to GitHub Container Registry
 on:
   push:
     branches: [ main ]
-  # A release runs when its GitHub Release is released. Publishing it creates
-  # vX.Y.Z, and the run creates karta/sdk/vX.Y.Z on the same commit. `released`
-  # fires when a full release is published or a prerelease is changed to a full
-  # release. A draft or a prerelease fires nothing, so a release published as a
-  # prerelease by mistake starts when the box is unchecked.
+  # Fires for a published full release or a prerelease promoted to one; drafts
+  # and prereleases fire nothing.
   release:
     types: [ released ]
 
 permissions:
   contents: write
   packages: write
-  # GoReleaser opens the kli cask pull request with GITHUB_TOKEN.
+  # For the kli cask pull request.
   pull-requests: write
 
 
@@ -50,9 +47,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
-            # A release event fires for any tag name the release form accepts.
-            # Stop a malformed one here, before the library tag or any artifact
-            # exists; this also rejects prerelease suffixes such as -rc.1.
+            # The release form accepts any tag name.
             if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               echo "Release tag '$RELEASE_TAG' must be vX.Y.Z" >&2
               exit 1
@@ -116,26 +111,18 @@ jobs:
         if: github.event_name == 'release'
         run: make check VERSION="$PACKAGE_VERSION"
 
-      # A dry run of the CLI release, still before anything is published.
-      # release-snapshot first checks that the library module is publishable. A
-      # config change that breaks the archives or the cask would otherwise
-      # surface inside `make release`, after the image and chart are pushed.
+      # Dry-run the CLI release before anything is published.
       - name: Verify the CLI release snapshot
         if: github.event_name == 'release'
         run: make release-snapshot release-verify VERSION="$PACKAGE_VERSION"
 
-      # Publishing the GitHub Release creates the vX.Y.Z tag; the library module
-      # needs its own karta/sdk/vX.Y.Z tag on the same commit. Create it only
-      # after the checks and the dry run pass: once fetched, a module version
-      # stays in the Go module proxy even if its tag is deleted. Still before
-      # the image, chart, or assets are published. Idempotent, so a rerun
-      # reuses the tag.
+      # After the checks: a fetched module version stays in the Go proxy even if
+      # its tag is deleted.
       - name: Tag the library module
         if: github.event_name == 'release'
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          # Only tag the library on the commit the release tag names.
           RELEASE_COMMIT=$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")
           if [[ "$RELEASE_COMMIT" != "$GITHUB_SHA" ]]; then
             echo "Release tag ${RELEASE_TAG} points to ${RELEASE_COMMIT}, not ${GITHUB_SHA}" >&2
@@ -149,9 +136,7 @@ jobs:
             git push origin "${LIB_TAG}"
           fi
 
-      # With the karta/sdk/vX.Y.Z tag now on this commit, confirm both tags
-      # point here before the image and chart ship, or only `make release`
-      # would fail.
+      # Both tags must point here before the image and chart ship.
       - name: Validate release version, library module, and release tags
         if: github.event_name == 'release'
         run: make release-validate VERSION="$PACKAGE_VERSION" REQUIRE_TAGS=1

@@ -22,17 +22,14 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-// quarantineStep is the postflight step that lets Gatekeeper run the
-// unnotarized executable Homebrew downloaded.
+// quarantineStep lets Gatekeeper run the unnotarized kli.
 const quarantineStep = `run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{staged_path}}/kli"]`
 
 var (
 	semanticVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 	caskStanza      = regexp.MustCompile(`^(version|sha256|url|homepage|binary) "([^"]*)"$`)
 	cliPlatforms    = []string{"linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"}
-	// Homebrew installs a stanza only on the platforms its enclosing blocks
-	// select, so kli must sit at the top level and the quarantine step only
-	// under on_macos.
+	// Homebrew applies a stanza only on the platforms its enclosing blocks select.
 	binaryScope     = []string{"cask"}
 	quarantineScope = []string{"cask", "postflight_steps", "on_macos"}
 )
@@ -238,11 +235,8 @@ func runVerifyArtifacts(args []string) error {
 	return nil
 }
 
-// verifyCask checks the cask GoReleaser generated against the archives it
-// installs. It follows the do/end nesting rather than evaluating Ruby, which
-// is enough for the generated layout: one sha256 and url inside each
-// on_<os> and on_<arch> pair, kli as the only binary, and the quarantine step
-// under postflight_steps and on_macos.
+// verifyCask checks the generated cask against the archives. It tracks do/end
+// nesting instead of evaluating Ruby, which is enough for GoReleaser's layout.
 func verifyCask(contents, version string, sums map[string]string) error {
 	type caskPackage struct{ sha256, url string }
 	packages := map[string]*caskPackage{}

@@ -5,9 +5,7 @@
 version: 2
 project_name: karta
 
-# The release, the cask download URLs and the tap follow the repository the
-# workflow runs in, so a fork releases to itself with no edits. A local
-# snapshot has no GITHUB_REPOSITORY and renders the upstream values.
+# Follow the workflow's repository, so a fork releases to itself.
 env:
   - RELEASE_REPOSITORY={{ envOrDefault "GITHUB_REPOSITORY" "dsx-ai-factory/workload-map" }}
 
@@ -39,10 +37,7 @@ archives:
       - tar.gz
     name_template: "karta_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     strip_binary_directory: true
-    # Every file carries the commit time rather than its checkout time, and
-    # root ownership rather than the builder's user, so a rerun of the same tag
-    # on any machine rebuilds byte-identical archives instead of moving the
-    # published checksums.
+    # Pinned time and owner, so any rebuild of a tag is byte-identical.
     files:
       - src: LICENSE
         info:
@@ -81,14 +76,9 @@ source:
 sboms:
   - disable: true
 
-# The tap is this repository. Users tap it by URL once, then install by full
-# name, which also makes Homebrew trust this one cask:
+# The tap is this repository:
 #   brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
 #   brew install dsx-ai-factory/kli/kli
-#
-# The default branch takes only reviewed pull requests, so the cask lands on a
-# kli-cask/<version> branch and GoReleaser opens a pull request for it. The
-# cask reaches users when a maintainer runs CI on it, approves, and merges it.
 homebrew_casks:
   - name: kli
     ids:
@@ -103,23 +93,17 @@ homebrew_casks:
       build(release): update the kli cask to {{ .Version }}
 
       Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-    # GoReleaser commits the cask and opens the pull request with the workflow's
-    # GITHUB_TOKEN (repository.token defaults to it). With no committer on the
-    # API call, GitHub signs the commit as github-actions[bot], which the
-    # default branch's signed-commit rule requires; use_github_app_token's only
-    # effect is that committer omission, despite the name. The sign-off above is
-    # what the dco check on the pull request looks for.
+    # Despite the name, this only omits the committer, so GitHub signs the
+    # GITHUB_TOKEN commit as github-actions[bot]. The sign-off is for dco.
     commit_author:
       use_github_app_token: true
     repository:
       owner: "{{ dir .Env.RELEASE_REPOSITORY }}"
       name: "{{ base .Env.RELEASE_REPOSITORY }}"
       branch: "kli-cask/{{ .Version }}"
-      # No base: the pull request targets this repository's default branch.
       pull_request:
         enabled: true
-    # Homebrew quarantines what it downloads, and Gatekeeper refuses to run an
-    # unnotarized executable that carries the attribute.
+    # Gatekeeper will not run the unnotarized kli while it is quarantined.
     custom_block: |
       postflight_steps do
         on_macos do

@@ -420,7 +420,7 @@ release-snapshot: goreleaser release-validate ## Build the complete release loca
 	VERSION=$(VERSION) $(GORELEASER) release --snapshot --clean
 
 .PHONY: release-verify
-release-verify: ## Verify the CLI archives and stamped executable versions in dist/
+release-verify: ## Verify the CLI archives, stamped executable versions, and Homebrew cask in dist/
 	cd $(RELEASE_HELPER_DIR) && go run . verify-artifacts --dist $(DIST_DIR) --version $(VERSION)
 
 # REQUIRE_TAGS=1 also requires vX.Y.Z and karta/sdk/vX.Y.Z at HEAD. The release

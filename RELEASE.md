@@ -77,53 +77,51 @@ make release-verify VERSION=1.2.3
 ```
 
 `release-build` compiles both executable definitions only for the current
-runner target. `release-snapshot` builds the complete CLI release matrix
-without publishing. It does not need release credentials.
+runner target. `release-snapshot` builds the complete CLI release matrix and
+the Homebrew cask without publishing. It does not need release credentials.
+`release-verify` checks the archives and that the cask installs exactly those
+archives.
+
+The release and the cask follow `GITHUB_REPOSITORY`, so a fork releases to
+itself. A local snapshot renders the upstream values.
 
 ## How a release is cut
 
-Before tagging, add the version entry to [CHANGELOG.md](CHANGELOG.md) and run
-the checks above. After that preparation change is merged, a release takes two
-steps.
-
-First, create both tags on the merged commit and push them in one atomic
-operation:
+Before releasing, add the version entry to [CHANGELOG.md](CHANGELOG.md) and run
+the checks above. After that preparation change is merged, publish the GitHub
+Release from the merged commit, with a new `v1.2.3` tag and the version's
+CHANGELOG.md entry as its notes. Use the Releases page, or:
 
 ```bash
-git tag -m "v1.2.3" v1.2.3
-git tag -m "karta/sdk/v1.2.3" karta/sdk/v1.2.3
-git push --atomic origin v1.2.3 karta/sdk/v1.2.3
+gh release create v1.2.3 --target <commit> --title v1.2.3 --notes-file notes.md
 ```
 
-Pushing the tags starts no workflow. With `--atomic`, the remote accepts both
-tags or neither. The library can be fetched with `go get` from this point.
+Publishing creates the tag and starts the release workflow. Drafts and
+prereleases start nothing; a prerelease starts it once changed to a full
+release.
 
-Then publish the GitHub Release from the existing `v1.2.3` tag, with the
-version's CHANGELOG.md entry as its notes. Use the Releases page and choose the
-existing tag, or:
+The tag must be exactly `vX.Y.Z`. Any other tag fails the first step, before
+anything is tagged or published. Delete that release and its tag, and publish
+again.
 
-```bash
-gh release create v1.2.3 --verify-tag --title v1.2.3 --notes-file notes.md
-```
+Once `make check` and a dry run of the CLI release pass, the workflow creates
+`karta/sdk/v1.2.3` on the same commit. It waits for the checks because a
+fetched module version stays in the Go module proxy even if its tag is deleted.
+If the workflow fails before this step, Re-run jobs creates the tag.
 
-`--verify-tag` refuses to create `v1.2.3` when the first step did not push it.
-The workflow runs on the `released` event, which fires when a full release is
-published or a prerelease is changed to a full release. A draft or a prerelease
-starts nothing. A release published as a prerelease by mistake starts the
-workflow once "Set as a pre-release" is unchecked; nothing needs to be deleted.
-
-Publishing the release runs the release workflow. Before it publishes anything,
-the workflow checks that both tags point to the release's commit and that
-`karta/sdk/go.mod` carries no `replace` or `exclude` directive. It then builds and
-pushes the multi-architecture operator image from source and publishes the Helm
-chart. GoReleaser then builds the four CLI archives and checksum manifest and
-uploads them to the release, keeping its notes. Finally, the workflow generates
-the two image locks and attaches the chart and locks to the release. The release
-shows no assets until the workflow finishes.
+The workflow then checks both tags, pushes the operator image, and publishes
+the Helm chart. GoReleaser uploads the CLI archives and checksums to the
+release, keeping its notes, and opens a pull request that updates
+`Casks/kli.rb`. Finally, the workflow attaches the chart and the two image
+locks. The release shows no assets until the workflow finishes.
 
 The workflow uploads to a release that is already published, so the repository
 must not enable GitHub's immutable releases. An immutable release accepts no new
 assets, and GoReleaser stops with "already exists and is immutable".
+
+The cask reaches Homebrew users when its pull request merges. A maintainer
+approves the held `CI` run, reviews, and squash-merges. If an older cask pull
+request is still open, close it; merging it would move the cask back.
 
 The guarded publishing command used by the workflow is:
 
@@ -139,18 +137,27 @@ only in the release workflow.
 ## Release credentials
 
 The normal workflow `GITHUB_TOKEN` is used for the Karta GitHub Release, GHCR
-packages, and release attachments. The release needs no other credential.
+packages, release attachments, and the cask pull request. The release needs no
+other credential. GitHub signs the cask commit as `github-actions[bot]`, and its
+`Signed-off-by` trailer satisfies `dco`.
 
 ## Recovery after a partial release
+
+If the workflow fails before it publishes any image, chart, or asset, use
+Re-run jobs if the failure was transient. If the fix needs a code change, merge
+it and release the next patch version, because the tags do not move. Delete the
+failed GitHub Release so it does not stay marked as the latest.
 
 If the release workflow fails after publishing the operator image or Helm chart,
 do not create a second release, unpublish the release, or move any tag. Correct
 the failure and use Re-run jobs on the same workflow run. A later attempt
 validates and reuses the chart and image from the first attempt instead of
-overwriting them. GoReleaser replaces matching assets
-on an existing GitHub Release. After it succeeds, confirm that the workflow
-attached the chart and both image locks to the same release, and that the assets
-match `checksums.txt`.
+overwriting them. GoReleaser replaces matching assets on an existing GitHub
+Release and updates an open cask pull request. If the cask pull request already
+merged, the rerun opens a second one; close it. After it succeeds, confirm that
+the workflow attached the chart and both image locks to the same release, that
+the assets match `checksums.txt`, and that the cask pull request is open or
+merged.
 
 ## Release notes and breaking changes
 

@@ -142,6 +142,7 @@ Owner reads:
 Degraded results:
 
 - A type the cluster does not serve is skipped silently.
+- A type whose API group failed discovery is skipped with a warning. A failed group no definition covers stays quiet.
 - A type served only at versions no definition covers is skipped with a warning.
 - A type the caller may not list is skipped with a warning.
 - A skipped type is treated as uncovered, so the objects it owns are shown rather than hidden. This also covers a group discovery missed.

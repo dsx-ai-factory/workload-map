@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -14,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
@@ -40,6 +43,29 @@ func collectAllTypes(ctx context.Context, look lookup, opts *getOptions) ([]work
 	return views, append(warnings, viewWarnings...), nil
 }
 
+// failedGroups returns the API groups discovery could not read. The mapper
+// leaves their kinds out, so without this they would read as absent.
+func failedGroups(access genericclioptions.RESTClientGetter) (map[string]error, error) {
+	client, err := access.ToDiscoveryClient()
+	if err != nil {
+		return nil, fmt.Errorf("kubernetes discovery: %w", err)
+	}
+	_, _, err = client.ServerGroupsAndResources()
+	var failed *discovery.ErrGroupDiscoveryFailed
+	switch {
+	case err == nil:
+		return nil, nil
+	case errors.As(err, &failed):
+		groups := make(map[string]error, len(failed.Groups))
+		for gv, gvErr := range failed.Groups {
+			groups[gv.Group] = fmt.Errorf("%s: %w", gv, gvErr)
+		}
+		return groups, nil
+	default:
+		return nil, fmt.Errorf("kubernetes discovery: %w", err)
+	}
+}
+
 // discoverKinds maps each covered Kind to its served version. A Kind it cannot
 // map, or finds only at an uncovered version, leaves versions, the latter with a warning.
 func discoverKinds(
@@ -59,7 +85,11 @@ func discoverKinds(
 		served, err := look.mapper.RESTMapping(gk)
 		switch {
 		case meta.IsNoMatchError(err):
-			// Absent types are the norm, so skipping one is silent.
+			// Absent types are the norm, so skipping one is silent, unless its
+			// group failed discovery and it may well exist.
+			if groupErr, failed := look.failedGroups[gk.Group]; failed {
+				warnings = append(warnings, fmt.Sprintf("not listing %s: API discovery failed for %v", gk.Kind, groupErr))
+			}
 			delete(versions, gk)
 			continue
 		case err != nil:

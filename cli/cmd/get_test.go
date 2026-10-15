@@ -531,7 +531,8 @@ func setupDynamoCluster(t *testing.T) *dynamicfake.FakeDynamicClient {
 	flags := genericclioptions.NewTestConfigFlags().
 		WithClientConfig(clientcmd.NewDefaultClientConfig(*clientcmdapi.NewConfig(), nil)).
 		WithNamespace("ml-team").
-		WithRESTMapper(mapper)
+		WithRESTMapper(mapper).
+		WithDiscoveryClient(&fakeDiscovery{})
 	restoreAccess := clusterAccess
 	clusterAccess = func() genericclioptions.RESTClientGetter { return flags }
 	t.Cleanup(func() { clusterAccess = restoreAccess })

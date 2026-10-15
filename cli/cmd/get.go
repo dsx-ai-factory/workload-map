@@ -276,6 +276,9 @@ type lookup struct {
 	resolver  *definitions.Resolver
 	// definition is unset under --all-types, which names no type.
 	definition definitions.Definition
+	// failedGroups holds the API groups discovery could not read, by group,
+	// and is read under --all-types only.
+	failedGroups map[string]error
 }
 
 // resolveLookup runs the prologue both commands share. The definition-loading
@@ -310,6 +313,10 @@ func resolveLookup(cmd *cobra.Command, opts *getOptions) (lookup, []string, erro
 
 	look := lookup{namespace: namespace, dyn: dyn, metadata: metadataClient, mapper: mapper, resolver: resolver}
 	if opts.allTypes {
+		look.failedGroups, err = failedGroups(access)
+		if err != nil {
+			return lookup{}, warnings, err
+		}
 		return look, warnings, nil
 	}
 

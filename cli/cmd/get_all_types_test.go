@@ -18,6 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
+	discoveryfake "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	metadatafake "k8s.io/client-go/metadata/fake"
@@ -65,6 +67,21 @@ func controlledBy(gvk schema.GroupVersionKind, name string) *metav1.OwnerReferen
 	}
 }
 
+// fakeDiscovery answers discovery with err, the way a cluster answers when some
+// API groups cannot be read.
+type fakeDiscovery struct {
+	discoveryfake.FakeDiscovery
+	err error
+}
+
+func (d *fakeDiscovery) ServerGroupsAndResources() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
+	return nil, nil, d.err
+}
+
+func (d *fakeDiscovery) Fresh() bool { return true }
+
+func (d *fakeDiscovery) Invalidate() {}
+
 // fakeMixedCluster serves JobSet, Deployment, ReplicaSet, Pod, Job and
 // InferenceService. Every other covered type is absent.
 func fakeMixedCluster(t *testing.T, objects ...runtime.Object) (*dynamicfake.FakeDynamicClient, *metadatafake.FakeMetadataClient) {
@@ -100,7 +117,8 @@ func fakeMixedCluster(t *testing.T, objects ...runtime.Object) (*dynamicfake.Fak
 	flags := genericclioptions.NewTestConfigFlags().
 		WithClientConfig(clientcmd.NewDefaultClientConfig(*clientcmdapi.NewConfig(), nil)).
 		WithNamespace("ml-team").
-		WithRESTMapper(mapper)
+		WithRESTMapper(mapper).
+		WithDiscoveryClient(&fakeDiscovery{})
 	restoreAccess := clusterAccess
 	clusterAccess = func() genericclioptions.RESTClientGetter { return flags }
 	t.Cleanup(func() { clusterAccess = restoreAccess })
@@ -455,6 +473,47 @@ func TestGetAllTypesShowsAChildOfAKindDiscoveryMissed(t *testing.T) {
 	}
 	if !strings.Contains(errOut, "warning: listing Pod/ray-head, though it may belong to another workload: discover RayCluster") {
 		t.Errorf("expected a warning for the unmapped owner, got %q", errOut)
+	}
+}
+
+// A workload with no children leaves no owner reference to warn on, so a covered
+// kind whose group failed discovery must say so itself. Other groups stay quiet.
+func TestGetAllTypesWarnsOnACoveredKindWhoseGroupFailedDiscovery(t *testing.T) {
+	fakeMixedCluster(t, mixedNamespace()...)
+	clusterAccess().(*genericclioptions.TestConfigFlags).WithDiscoveryClient(&fakeDiscovery{
+		err: &discovery.ErrGroupDiscoveryFailed{Groups: map[schema.GroupVersion]error{
+			{Group: "ray.io", Version: "v1"}:              errors.New("the server is currently unable to handle the request"),
+			{Group: "metrics.k8s.io", Version: "v1beta1"}: errors.New("the server is currently unable to handle the request"),
+		}},
+	})
+
+	out, errOut, code := runGetCmd(t, "--all-types")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if got := rowNames(out); !slices.Equal(got, []string{"web", "preprocess", "debug-shell"}) {
+		t.Errorf("expected the readable types, got %v\n%s", got, out)
+	}
+	for _, kind := range []string{"RayCluster", "RayJob", "RayService"} {
+		if !strings.Contains(errOut, "warning: not listing "+kind+": API discovery failed for ray.io/v1") {
+			t.Errorf("expected a warning naming %s, got %q", kind, errOut)
+		}
+	}
+	if strings.Contains(errOut, "metrics.k8s.io") {
+		t.Errorf("a group no Karta covers should stay quiet, got %q", errOut)
+	}
+}
+
+// Discovery failing outright is not a partial result to warn about.
+func TestGetAllTypesFailsWhenDiscoveryFails(t *testing.T) {
+	fakeMixedCluster(t, mixedNamespace()...)
+	clusterAccess().(*genericclioptions.TestConfigFlags).WithDiscoveryClient(&fakeDiscovery{
+		err: errors.New("connection refused"),
+	})
+
+	_, errOut, code := runGetCmd(t, "--all-types")
+	if code == 0 || !strings.Contains(errOut, "kubernetes discovery: connection refused") {
+		t.Errorf("expected a discovery error, got exit %d\n%s", code, errOut)
 	}
 }
 

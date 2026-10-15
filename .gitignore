@@ -5,8 +5,8 @@ bin/
 testbin/
 vendor/
 
-# go.work is source; module go.sum files are the reproducible checksum inputs.
-# Unanchored: the standalone examples carry their own workspace.
+# The modules reach each other through replace directives, not a workspace.
+go.work
 go.work.sum
 
 # Test binary, build with `go test -c`
@@ -37,6 +37,7 @@ config/crd/_.yaml
 # built hack tool binaries, named after their directory by `go build`
 /hack/imagelock/imagelock
 /hack/release/release
+/docs/examples/controller-runtime/controller-runtime
 
 # Generated WASM engine build artifacts (make headlamp-plugin-wasm)
 /karta-wasm/karta.wasm

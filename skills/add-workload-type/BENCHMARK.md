@@ -7,6 +7,10 @@ Model: claude-opus-5
 Date: 2026-08-18
 Evals: 1, 2, 3 from `evals/evals.json` (3 runs each per configuration, 18 runs total)
 
+These figures measure the skill as it was on that date, before step 8 (the
+catalog entry and recorded flow) and the later rules. The current skill has not
+been re-run.
+
 Each eval prompt was run by an agent with the skill available and by a baseline
 agent without it. Both configurations had full repository access. Every produced
 definition was checked with `hack/karta-verify` and by querying the produced YAML

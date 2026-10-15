@@ -3,7 +3,7 @@
 
 # Changelog
 
-Notable changes per release. This file is the in-repo source of record: a release's entry is added here before the tag is pushed (see [RELEASE.md](RELEASE.md)), and the [GitHub Release](https://github.com/run-ai/karta/releases) body carries the same content, normalized to the repository Markdown rules in [AGENTS.md](AGENTS.md).
+Notable changes per release. This file is the in-repo source of record: a release's entry is added here before the tag is pushed (see [RELEASE.md](RELEASE.md)), and the [GitHub Release](https://github.com/dsx-ai-factory/workload-map/releases) body carries the same content, normalized to the repository Markdown rules in [AGENTS.md](AGENTS.md).
 
 Scope: this file covers releases tagged from `main`. Patch releases on a minor line are tagged from that line's release branch (`v0.1`, `v0.2`) and are documented in the changelog there. The v0.0.x releases predate that scheme and are summarized at the end.
 
@@ -17,9 +17,9 @@ This release extends Karta from a CRD and Go library into an optional runnable s
 
 | | |
 |---|---|
-| Controller / operator | The reconcile core, an operator Helm chart, and container images all land, so Karta can now run as a controller rather than only being a CRD plus library. ([#77](https://github.com/run-ai/karta/pull/77), [#97](https://github.com/run-ai/karta/pull/97), [#91](https://github.com/run-ai/karta/pull/91)) |
-| WorkloadTree | A `WorkloadTree` is the raw component hierarchy of a workload (its desired structure, scale, specs, and status) produced by the Karta library, giving clients a single shared tree to traverse and render. ([#87](https://github.com/run-ai/karta/pull/87))|
-| New pod-grouping API | `gangScheduling.podGroup` adds subgroups and topology constraints for better schedulers integration; the old `gangScheduling.podGroups` is deprecated but still honored. ([#145](https://github.com/run-ai/karta/pull/145)) |
+| Controller / operator | The reconcile core, an operator Helm chart, and container images all land, so Karta can now run as a controller rather than only being a CRD plus library. ([#77](https://github.com/dsx-ai-factory/workload-map/pull/77), [#97](https://github.com/dsx-ai-factory/workload-map/pull/97), [#91](https://github.com/dsx-ai-factory/workload-map/pull/91)) |
+| WorkloadTree | A `WorkloadTree` is the raw component hierarchy of a workload (its desired structure, scale, specs, and status) produced by the Karta library, giving clients a single shared tree to traverse and render. ([#87](https://github.com/dsx-ai-factory/workload-map/pull/87))|
+| New pod-grouping API | `gangScheduling.podGroup` adds subgroups and topology constraints for better schedulers integration; the old `gangScheduling.podGroups` is deprecated but still honored. ([#145](https://github.com/dsx-ai-factory/workload-map/pull/145)) |
 
 ---
 
@@ -38,7 +38,7 @@ go get github.com/run-ai/karta@v0.2.0
 ```
 
 ```go
-import karta "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+import karta "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 ```
 
 ---
@@ -90,47 +90,47 @@ Target shape of the new format:
 
 ### New features
 
-- Controller reconcile core - the operator's central reconcile logic. ([#77](https://github.com/run-ai/karta/pull/77) by @shaked-bouktus)
-- `WorkloadTree` data model and builder - a typed tree that assembles a workload's root and child components. ([#87](https://github.com/run-ai/karta/pull/87) by @rogirun)
-- Operator Helm chart - deploy the karta operator via Helm. ([#97](https://github.com/run-ai/karta/pull/97) by @shaked-bouktus)
-- Operator container images - Dockerfiles for the karta operator. ([#91](https://github.com/run-ai/karta/pull/91) by @shaked-bouktus)
-- Operator Makefile - build / run targets for the operator. ([#96](https://github.com/run-ai/karta/pull/96) by @shaked-bouktus)
-- `karta` CLI - CLI entrypoint and Cobra root command. ([#127](https://github.com/run-ai/karta/pull/127) by @rogirun)
-- New pod-grouping API - `gangScheduling.podGroup` with subgroups and topology. ([#145](https://github.com/run-ai/karta/pull/145) by @davidLif)
-- Kind-based e2e provisioner - `hack/e2e` spins up a kind cluster for end-to-end tests. ([#144](https://github.com/run-ai/karta/pull/144) by @AviadHayumi)
-- Expanded workload sample catalog - many additional built-in Karta samples across core, batch, training, serving, and Ray workloads. ([#155](https://github.com/run-ai/karta/pull/155) by @AviadHayumi)
-- Grove `PodCliqueSet` sample - `grove.io/v1alpha1` Karta example. ([#66](https://github.com/run-ai/karta/pull/66) by @shmuel-runai)
-- Milvus sample - `milvus.io/v1beta1` Karta example. ([#103](https://github.com/run-ai/karta/pull/103) by @ronlv10)
-- Controller example with LWS - a worked controller example over LeaderWorkerSet. ([#92](https://github.com/run-ai/karta/pull/92) by @yuval-gr)
-- Quickstart controller example - minimal controller to get started. ([#84](https://github.com/run-ai/karta/pull/84) by @yuval-gr)
+- Controller reconcile core - the operator's central reconcile logic. ([#77](https://github.com/dsx-ai-factory/workload-map/pull/77) by @shaked-bouktus)
+- `WorkloadTree` data model and builder - a typed tree that assembles a workload's root and child components. ([#87](https://github.com/dsx-ai-factory/workload-map/pull/87) by @rogirun)
+- Operator Helm chart - deploy the karta operator via Helm. ([#97](https://github.com/dsx-ai-factory/workload-map/pull/97) by @shaked-bouktus)
+- Operator container images - Dockerfiles for the karta operator. ([#91](https://github.com/dsx-ai-factory/workload-map/pull/91) by @shaked-bouktus)
+- Operator Makefile - build / run targets for the operator. ([#96](https://github.com/dsx-ai-factory/workload-map/pull/96) by @shaked-bouktus)
+- `karta` CLI - CLI entrypoint and Cobra root command. ([#127](https://github.com/dsx-ai-factory/workload-map/pull/127) by @rogirun)
+- New pod-grouping API - `gangScheduling.podGroup` with subgroups and topology. ([#145](https://github.com/dsx-ai-factory/workload-map/pull/145) by @davidLif)
+- Kind-based e2e provisioner - `hack/e2e` spins up a kind cluster for end-to-end tests. ([#144](https://github.com/dsx-ai-factory/workload-map/pull/144) by @AviadHayumi)
+- Expanded workload sample catalog - many additional built-in Karta samples across core, batch, training, serving, and Ray workloads. ([#155](https://github.com/dsx-ai-factory/workload-map/pull/155) by @AviadHayumi)
+- Grove `PodCliqueSet` sample - `grove.io/v1alpha1` Karta example. ([#66](https://github.com/dsx-ai-factory/workload-map/pull/66) by @shmuel-runai)
+- Milvus sample - `milvus.io/v1beta1` Karta example. ([#103](https://github.com/dsx-ai-factory/workload-map/pull/103) by @ronlv10)
+- Controller example with LWS - a worked controller example over LeaderWorkerSet. ([#92](https://github.com/dsx-ai-factory/workload-map/pull/92) by @yuval-gr)
+- Quickstart controller example - minimal controller to get started. ([#84](https://github.com/dsx-ai-factory/workload-map/pull/84) by @yuval-gr)
 
 ### Bug fixes
 
-- Fix native resource discovery. ([#132](https://github.com/run-ai/karta/pull/132) by @shaked-bouktus)
-- Avoid append aliasing of caller-owned component slices. ([#129](https://github.com/run-ai/karta/pull/129) by @ronlv10)
-- Fix rayjob worker `instanceIdPath` nesting in the sample. ([#133](https://github.com/run-ai/karta/pull/133) by @lavianalon)
-- Fix dependabot missing code generation failing CI. ([#150](https://github.com/run-ai/karta/pull/150) by @Isan-Rivkin)
+- Fix native resource discovery. ([#132](https://github.com/dsx-ai-factory/workload-map/pull/132) by @shaked-bouktus)
+- Avoid append aliasing of caller-owned component slices. ([#129](https://github.com/dsx-ai-factory/workload-map/pull/129) by @ronlv10)
+- Fix rayjob worker `instanceIdPath` nesting in the sample. ([#133](https://github.com/dsx-ai-factory/workload-map/pull/133) by @lavianalon)
+- Fix dependabot missing code generation failing CI. ([#150](https://github.com/dsx-ai-factory/workload-map/pull/150) by @Isan-Rivkin)
 
 ### Maintenance
 
-- Bump Go to 1.26.3 and update dependencies. ([#75](https://github.com/run-ai/karta/pull/75) by @yuval-gr)
-- Update `golang.org/x` dependencies to latest. ([#93](https://github.com/run-ai/karta/pull/93) by @yuval-gr)
-- Bump the go-minor-patch dependency group. ([#136](https://github.com/run-ai/karta/pull/136), [#147](https://github.com/run-ai/karta/pull/147) by @dependabot)
-- Add `dependabot.yml` for version updates. ([#120](https://github.com/run-ai/karta/pull/120) by @yuval-gr)
-- Create verified dependabot codegen commits via the GitHub API. ([#153](https://github.com/run-ai/karta/pull/153) by @Isan-Rivkin)
-- CI action bumps: checkout 4->7 ([#123](https://github.com/run-ai/karta/pull/123)), cache 4->6 ([#122](https://github.com/run-ai/karta/pull/122)), setup-go 5->6 ([#121](https://github.com/run-ai/karta/pull/121)), setup-buildx 3->4 ([#146](https://github.com/run-ai/karta/pull/146)). (by @dependabot)
+- Bump Go to 1.26.3 and update dependencies. ([#75](https://github.com/dsx-ai-factory/workload-map/pull/75) by @yuval-gr)
+- Update `golang.org/x` dependencies to latest. ([#93](https://github.com/dsx-ai-factory/workload-map/pull/93) by @yuval-gr)
+- Bump the go-minor-patch dependency group. ([#136](https://github.com/dsx-ai-factory/workload-map/pull/136), [#147](https://github.com/dsx-ai-factory/workload-map/pull/147) by @dependabot)
+- Add `dependabot.yml` for version updates. ([#120](https://github.com/dsx-ai-factory/workload-map/pull/120) by @yuval-gr)
+- Create verified dependabot codegen commits via the GitHub API. ([#153](https://github.com/dsx-ai-factory/workload-map/pull/153) by @Isan-Rivkin)
+- CI action bumps: checkout 4->7 ([#123](https://github.com/dsx-ai-factory/workload-map/pull/123)), cache 4->6 ([#122](https://github.com/dsx-ai-factory/workload-map/pull/122)), setup-go 5->6 ([#121](https://github.com/dsx-ai-factory/workload-map/pull/121)), setup-buildx 3->4 ([#146](https://github.com/dsx-ai-factory/workload-map/pull/146)). (by @dependabot)
 
 ### Documentation
 
-- Add an authoring tutorial and troubleshooting guide. ([#130](https://github.com/run-ai/karta/pull/130) by @lavianalon)
-- Add ROADMAP and GOVERNANCE. ([#89](https://github.com/run-ai/karta/pull/89) by @lavianalon)
-- Add a maintainer ladder / emeritus policy and RELEASE.md. ([#128](https://github.com/run-ai/karta/pull/128) by @lavianalon)
-- Harden OSS health docs (security policy, code of conduct, contributing). ([#111](https://github.com/run-ai/karta/pull/111) by @lavianalon)
-- Add README badges, community section, and CoC link. ([#125](https://github.com/run-ai/karta/pull/125) by @lavianalon)
-- Add AGENTS.md guide for AI coding agents. ([#73](https://github.com/run-ai/karta/pull/73) by @lavianalon)
-- Add a CLI high-level design document. ([#31](https://github.com/run-ai/karta/pull/31) by @ronlv10)
-- Add KAI Scheduler to the "who uses Karta" section. ([#156](https://github.com/run-ai/karta/pull/156) by @lavianalon)
-- Drop the API group rename from the roadmap and governance. ([#119](https://github.com/run-ai/karta/pull/119) by @lavianalon)
+- Add an authoring tutorial and troubleshooting guide. ([#130](https://github.com/dsx-ai-factory/workload-map/pull/130) by @lavianalon)
+- Add ROADMAP and GOVERNANCE. ([#89](https://github.com/dsx-ai-factory/workload-map/pull/89) by @lavianalon)
+- Add a maintainer ladder / emeritus policy and RELEASE.md. ([#128](https://github.com/dsx-ai-factory/workload-map/pull/128) by @lavianalon)
+- Harden OSS health docs (security policy, code of conduct, contributing). ([#111](https://github.com/dsx-ai-factory/workload-map/pull/111) by @lavianalon)
+- Add README badges, community section, and CoC link. ([#125](https://github.com/dsx-ai-factory/workload-map/pull/125) by @lavianalon)
+- Add AGENTS.md guide for AI coding agents. ([#73](https://github.com/dsx-ai-factory/workload-map/pull/73) by @lavianalon)
+- Add a CLI high-level design document. ([#31](https://github.com/dsx-ai-factory/workload-map/pull/31) by @ronlv10)
+- Add KAI Scheduler to the "who uses Karta" section. ([#156](https://github.com/dsx-ai-factory/workload-map/pull/156) by @lavianalon)
+- Drop the API group rename from the roadmap and governance. ([#119](https://github.com/dsx-ai-factory/workload-map/pull/119) by @lavianalon)
 
 ---
 
@@ -153,9 +153,9 @@ plus automated dependency updates from [@dependabot](https://github.com/dependab
 
 ---
 
-Full changelog: https://github.com/run-ai/karta/compare/v0.1.0...v0.2.0
+Full changelog: https://github.com/dsx-ai-factory/workload-map/compare/v0.1.0...v0.2.0
 Helm chart: `oci://ghcr.io/run-ai/karta:0.2.0`
-Container images: see [packages page](https://github.com/run-ai/karta/pkgs/container/karta)
+Container images: see [packages page](https://github.com/dsx-ai-factory/workload-map/pkgs/container/karta)
 
 ## v0.1.0 - 2026-05-12
 
@@ -167,9 +167,9 @@ This release completes the project rename from `ri` / `krt` to karta, decouples 
 
 | | |
 |---|---|
-| Project rename to `karta` | API group is now `run.ai/v1alpha1`, the CRD `Kind` is `Karta`, and the Helm chart is named `karta`. ([#42](https://github.com/run-ai/karta/pull/42), [#50](https://github.com/run-ai/karta/pull/50)) |
-| Zero controller-runtime dependency | karta no longer imports `sigs.k8s.io/controller-runtime`. Consumers that only need the CRD types or the resource helpers no longer inherit it transitively. ([#62](https://github.com/run-ai/karta/pull/62)) |
-| Suspend / Resume support | New `SuspendDefinition` field on the CRD, and new resource statuses `Suspended`, `Suspending`, `Resuming`. ([#56](https://github.com/run-ai/karta/pull/56)) |
+| Project rename to `karta` | API group is now `run.ai/v1alpha1`, the CRD `Kind` is `Karta`, and the Helm chart is named `karta`. ([#42](https://github.com/dsx-ai-factory/workload-map/pull/42), [#50](https://github.com/dsx-ai-factory/workload-map/pull/50)) |
+| Zero controller-runtime dependency | karta no longer imports `sigs.k8s.io/controller-runtime`. Consumers that only need the CRD types or the resource helpers no longer inherit it transitively. ([#62](https://github.com/dsx-ai-factory/workload-map/pull/62)) |
+| Suspend / Resume support | New `SuspendDefinition` field on the CRD, and new resource statuses `Suspended`, `Suspending`, `Resuming`. ([#56](https://github.com/dsx-ai-factory/workload-map/pull/56)) |
 
 ---
 
@@ -188,7 +188,7 @@ go get github.com/run-ai/karta@v0.1.0
 ```
 
 ```go
-import karta "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+import karta "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 ```
 
 ---
@@ -211,7 +211,7 @@ import karta "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
 |---|---|
 | CRD `Kind` `ResourceInterface` | `Karta` |
 | API group `optimization.nvidia.com/v1alpha1` | `run.ai/v1alpha1` |
-| Go package `github.com/run-ai/karta/pkg/api/optimization/v1alpha1` | `github.com/run-ai/karta/pkg/api/runai/v1alpha1` |
+| Go package `github.com/dsx-ai-factory/workload-map/pkg/api/optimization/v1alpha1` | `github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1` |
 | Field on `ComponentFactory`: `ri *ResourceInterface` | `karta *Karta` |
 | Helm chart `krt` | `karta` |
 
@@ -228,8 +228,8 @@ kubectl delete crd resourceinterfaces.optimization.nvidia.com
 Go consumer migration:
 
 ```diff
-- import ri "github.com/run-ai/karta/pkg/api/optimization/v1alpha1"
-+ import karta "github.com/run-ai/karta/pkg/api/runai/v1alpha1"
+- import ri "github.com/dsx-ai-factory/workload-map/pkg/api/optimization/v1alpha1"
++ import karta "github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
 
 - var obj ri.ResourceInterface
 + var obj karta.Karta
@@ -271,26 +271,26 @@ This is the dominant pattern across major K8s OSS - see the same idiom in [kubev
 
 ### New features
 
-- Suspend / Resume definitions and statuses - new `SuspendDefinition` on the CRD, plus new resource statuses `Suspended`, `Suspending`, `Resuming`. ([#56](https://github.com/run-ai/karta/pull/56) by @TomB30)
-- `ValidateParsedJQ` is now exported - external consumers that already hold a compiled `*gojq.Query` can run the read-only / safe-expression check without re-parsing. ([#53](https://github.com/run-ai/karta/pull/53) by @AviadHayumi)
-- Helm chart published to GHCR on every release - pull with `helm install karta oci://ghcr.io/run-ai/karta --version 0.1.0`. ([#27](https://github.com/run-ai/karta/pull/27) by @AviadHayumi)
-- Chart version bump enforcement in CI - `ct lint` blocks PRs that change the chart without bumping `Chart.yaml` version. Matches the prometheus-operator / argo enforcement model. ([#48](https://github.com/run-ai/karta/pull/48) by @AviadHayumi)
-- `docs/examples/*.yaml` validated in CI - example Kartas are exercised by CI so docs cannot silently drift from the schema. ([#61](https://github.com/run-ai/karta/pull/61) by @Isan-Rivkin)
-- Issue templates + code of conduct - bug / feature templates plus a contributor CoC. ([#38](https://github.com/run-ai/karta/pull/38) by @yuval-gr)
-- Helm chart annotated with OCI source - `helm.sh/chart-source` annotation links chart back to the GHCR package page. ([#49](https://github.com/run-ai/karta/pull/49) by @AviadHayumi)
+- Suspend / Resume definitions and statuses - new `SuspendDefinition` on the CRD, plus new resource statuses `Suspended`, `Suspending`, `Resuming`. ([#56](https://github.com/dsx-ai-factory/workload-map/pull/56) by @TomB30)
+- `ValidateParsedJQ` is now exported - external consumers that already hold a compiled `*gojq.Query` can run the read-only / safe-expression check without re-parsing. ([#53](https://github.com/dsx-ai-factory/workload-map/pull/53) by @AviadHayumi)
+- Helm chart published to GHCR on every release - pull with `helm install karta oci://ghcr.io/run-ai/karta --version 0.1.0`. ([#27](https://github.com/dsx-ai-factory/workload-map/pull/27) by @AviadHayumi)
+- Chart version bump enforcement in CI - `ct lint` blocks PRs that change the chart without bumping `Chart.yaml` version. Matches the prometheus-operator / argo enforcement model. ([#48](https://github.com/dsx-ai-factory/workload-map/pull/48) by @AviadHayumi)
+- `docs/examples/*.yaml` validated in CI - example Kartas are exercised by CI so docs cannot silently drift from the schema. ([#61](https://github.com/dsx-ai-factory/workload-map/pull/61) by @Isan-Rivkin)
+- Issue templates + code of conduct - bug / feature templates plus a contributor CoC. ([#38](https://github.com/dsx-ai-factory/workload-map/pull/38) by @yuval-gr)
+- Helm chart annotated with OCI source - `helm.sh/chart-source` annotation links chart back to the GHCR package page. ([#49](https://github.com/dsx-ai-factory/workload-map/pull/49) by @AviadHayumi)
 
 ### Bug fixes
 
-- Repaired `docs/examples/mpijob.yaml` and simplified the pytorch running mapping. ([#58](https://github.com/run-ai/karta/pull/58) by @lavianalon)
-- Removed accidentally pushed `docs/ri-studio/` directory. ([#40](https://github.com/run-ai/karta/pull/40) by @ronlv10)
-- Fixed formatting and validation in issue templates. ([#41](https://github.com/run-ai/karta/pull/41) by @yuval-gr)
+- Repaired `docs/examples/mpijob.yaml` and simplified the pytorch running mapping. ([#58](https://github.com/dsx-ai-factory/workload-map/pull/58) by @lavianalon)
+- Removed accidentally pushed `docs/ri-studio/` directory. ([#40](https://github.com/dsx-ai-factory/workload-map/pull/40) by @ronlv10)
+- Fixed formatting and validation in issue templates. ([#41](https://github.com/dsx-ai-factory/workload-map/pull/41) by @yuval-gr)
 
 ### Maintenance
 
-- Renamed `ri` -> `krt` across the codebase (first half of the rename to karta). ([#42](https://github.com/run-ai/karta/pull/42) by @AviadHayumi)
-- Renamed Helm chart `krt` -> `karta` (finishing the rename). ([#50](https://github.com/run-ai/karta/pull/50) by @AviadHayumi)
-- Bumped `golang.org/x/net` to v0.51.0 (security). ([#45](https://github.com/run-ai/karta/pull/45) by @yuval-gr)
-- Updated Go toolchain to 1.25.9. ([#30](https://github.com/run-ai/karta/pull/30) by @yuval-gr)
+- Renamed `ri` -> `krt` across the codebase (first half of the rename to karta). ([#42](https://github.com/dsx-ai-factory/workload-map/pull/42) by @AviadHayumi)
+- Renamed Helm chart `krt` -> `karta` (finishing the rename). ([#50](https://github.com/dsx-ai-factory/workload-map/pull/50) by @AviadHayumi)
+- Bumped `golang.org/x/net` to v0.51.0 (security). ([#45](https://github.com/dsx-ai-factory/workload-map/pull/45) by @yuval-gr)
+- Updated Go toolchain to 1.25.9. ([#30](https://github.com/dsx-ai-factory/workload-map/pull/30) by @yuval-gr)
 
 ---
 
@@ -323,9 +323,9 @@ thanks to everyone who shipped this release:
 
 ---
 
-Full changelog: https://github.com/run-ai/karta/compare/v0.0.12...v0.1.0
+Full changelog: https://github.com/dsx-ai-factory/workload-map/compare/v0.0.12...v0.1.0
 Helm chart: `oci://ghcr.io/run-ai/karta:0.1.0`
 
 ## v0.0.1 through v0.0.12 - 2025-09-03 to 2026-04-14
 
-Pre-rename development releases under the earlier project name. See the [release list](https://github.com/run-ai/karta/releases) for individual notes.
+Pre-rename development releases under the earlier project name. See the [release list](https://github.com/dsx-ai-factory/workload-map/releases) for individual notes.

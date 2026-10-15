@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Smoke test for the Agent Sandbox install: up.sh creates this Sandbox and waits
+# for the controller to report it Ready before the e2e suite relies on it. The
+# container only sleeps, so it reaches a stable state on a CPU-only node.
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: sandbox-smoke
+  namespace: default
+spec:
+  podTemplate:
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: agent
+          image: busybox:1.36
+          command: ["sleep", "infinity"]
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {cpu: 50m, memory: 32Mi}

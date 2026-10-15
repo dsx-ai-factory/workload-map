@@ -155,6 +155,7 @@ var _ = Describe("Release validation", func() {
 			"karta_1.2.3_linux_arm64.tar.gz":  strings.Repeat("c", 64),
 			"karta_1.2.3_linux_amd64.tar.gz":  strings.Repeat("d", 64),
 		}
+		postflight := "  postflight_steps do\n    on_macos do\n      " + quarantineStep + "\n    end\n  end\n"
 
 		It("accepts the cask GoReleaser generates", func() {
 			Expect(verifyCask(generatedCask, "1.2.3", sums)).To(Succeed())
@@ -185,11 +186,23 @@ var _ = Describe("Release validation", func() {
 			Entry("a homepage on another repository",
 				`homepage "https://github.com/dsx-ai-factory/workload-map"`, `homepage "https://github.com/example/karta"`,
 				"cask homepage"),
-			Entry("no kli binary", `binary "kli"`, `binary "karta"`, "does not install the kli binary"),
+			Entry("no binary", "  binary \"kli\"\n", "", "does not install the kli binary"),
+			Entry("another binary", `binary "kli"`, `binary "karta"`, `cask installs binary "karta" in cask,`),
+			Entry("an extra binary",
+				`binary "kli"`, "binary \"kli\"\n  binary \"absent-binary\"", `cask installs binary "absent-binary" in cask,`),
+			Entry("kli twice", `binary "kli"`, "binary \"kli\"\n  binary \"kli\"", "installs the kli binary twice"),
+			Entry("kli inside on_linux",
+				"  on_linux do\n", "  on_linux do\n    binary \"kli\"\n", `cask installs binary "kli" in cask > on_linux,`),
 			Entry("no quarantine step", quarantineStep, "", "does not remove the macOS quarantine"),
 			Entry("a quarantine step outside on_macos",
 				"    on_macos do\n      "+quarantineStep+"\n    end\n", "    "+quarantineStep+"\n",
-				"does not remove the macOS quarantine"),
+				"runs the quarantine step in cask > postflight_steps,"),
+			Entry("a quarantine step wrapped in on_linux",
+				postflight, "  on_linux do\n"+postflight+"  end\n",
+				"runs the quarantine step in cask > on_linux > postflight_steps > on_macos,"),
+			Entry("a quarantine step under contradictory OS blocks",
+				quarantineStep, "on_linux do\n"+quarantineStep+"\nend",
+				"runs the quarantine step in cask > postflight_steps > on_macos > on_linux,"),
 			Entry("a package outside an architecture block",
 				"    on_intel do\n      sha256 \""+strings.Repeat("d", 64)+"\"", "    sha256 \""+strings.Repeat("d", 64)+"\"\n    on_intel do",
 				"cask sets sha256 outside an operating system and architecture block"),

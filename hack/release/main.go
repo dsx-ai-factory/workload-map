@@ -30,6 +30,11 @@ var (
 	semanticVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 	caskStanza      = regexp.MustCompile(`^(version|sha256|url|homepage|binary) "([^"]*)"$`)
 	cliPlatforms    = []string{"linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"}
+	// Homebrew installs a stanza only on the platforms its enclosing blocks
+	// select, so kli must sit at the top level and the quarantine step only
+	// under on_macos.
+	binaryScope     = []string{"cask"}
+	quarantineScope = []string{"cask", "postflight_steps", "on_macos"}
 )
 
 type artifact struct {
@@ -236,7 +241,8 @@ func runVerifyArtifacts(args []string) error {
 // verifyCask checks the cask GoReleaser generated against the archives it
 // installs. It follows the do/end nesting rather than evaluating Ruby, which
 // is enough for the generated layout: one sha256 and url inside each
-// on_<os> and on_<arch> pair.
+// on_<os> and on_<arch> pair, kli as the only binary, and the quarantine step
+// under postflight_steps and on_macos.
 func verifyCask(contents, version string, sums map[string]string) error {
 	type caskPackage struct{ sha256, url string }
 	packages := map[string]*caskPackage{}
@@ -256,7 +262,11 @@ func verifyCask(contents, version string, sums map[string]string) error {
 			blocks = append(blocks, strings.Fields(line)[0])
 			continue
 		case line == quarantineStep:
-			removesQuarantine = slices.Contains(blocks, "postflight_steps") && slices.Contains(blocks, "on_macos")
+			if !slices.Equal(blocks, quarantineScope) {
+				return fmt.Errorf("cask runs the quarantine step in %s, want %s",
+					strings.Join(blocks, " > "), strings.Join(quarantineScope, " > "))
+			}
+			removesQuarantine = true
 			continue
 		}
 		match := caskStanza.FindStringSubmatch(line)
@@ -269,7 +279,14 @@ func verifyCask(contents, version string, sums map[string]string) error {
 		case "homepage":
 			homepage = value
 		case "binary":
-			installsKli = installsKli || value == "kli"
+			if value != "kli" || !slices.Equal(blocks, binaryScope) {
+				return fmt.Errorf("cask installs binary %q in %s, want only kli in %s",
+					value, strings.Join(blocks, " > "), strings.Join(binaryScope, " > "))
+			}
+			if installsKli {
+				return errors.New("cask installs the kli binary twice")
+			}
+			installsKli = true
 		case "sha256", "url":
 			var goos, goarch string
 			for _, block := range blocks {

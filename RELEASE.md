@@ -141,13 +141,6 @@ packages, release attachments, and the cask pull request. The release needs no
 other credential. GitHub signs the cask commit as `github-actions[bot]`, and its
 `Signed-off-by` trailer satisfies `dco`.
 
-The repository, and any fork that releases, needs:
-
-- "Allow GitHub Actions to create and approve pull requests" on. Without it, the
-  run fails after the assets are uploaded.
-- `refs/heads/kli-cask/**` excluded from the branch-creation ruleset.
-- `refs/tags/karta/sdk/**` excluded from the tag-protection ruleset.
-
 ## Recovery after a partial release
 
 If the workflow fails before it publishes any image, chart, or asset, use

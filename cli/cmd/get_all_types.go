@@ -20,7 +20,7 @@ import (
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/catalog"
 )
 
 // collectAllTypes lists the top-level workloads of every covered type. A type

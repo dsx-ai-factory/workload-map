@@ -39,24 +39,35 @@ archives:
       - tar.gz
     name_template: "karta_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     strip_binary_directory: true
-    # Every file carries the commit time rather than its checkout time, so a
-    # rerun of the same tag rebuilds byte-identical archives instead of moving
-    # the published checksums.
+    # Every file carries the commit time rather than its checkout time, and
+    # root ownership rather than the builder's user, so a rerun of the same tag
+    # on any machine rebuilds byte-identical archives instead of moving the
+    # published checksums.
     files:
       - src: LICENSE
         info:
           mtime: "{{ .CommitDate }}"
+          owner: root
+          group: root
       - src: NOTICE
         info:
           mtime: "{{ .CommitDate }}"
+          owner: root
+          group: root
       - src: README.md
         info:
           mtime: "{{ .CommitDate }}"
+          owner: root
+          group: root
       - src: THIRD_PARTY_LICENSES
         info:
           mtime: "{{ .CommitDate }}"
+          owner: root
+          group: root
     builds_info:
       mtime: "{{ .CommitDate }}"
+      owner: root
+      group: root
 
 checksum:
   name_template: checksums.txt

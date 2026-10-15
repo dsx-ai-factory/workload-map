@@ -126,10 +126,11 @@ make help              # every target, grouped
 every supported development host. The operator e2e suite is compiled during
 `make check`; its live cluster run remains a separate target.
 
-The root Go workspace contains the library, CLI, and operator modules. The
-separate release helper, Karta WASM module, and other nested modules are
-deliberately isolated. When running Go commands directly in those modules, set
-`GOWORK=off`. Make targets already do this where required.
+There is no Go workspace. The library is the `karta/sdk/` module, and the CLI,
+operator, and other modules reach it through a relative `replace` directive in
+their own `go.mod`. Run Go commands from a module's directory, for example
+`cd karta && go test ./pkg/...`. The root `go.mod` only marks the library's old
+module path as deprecated and has no packages.
 
 `make lint` never rewrites your files. `make fmt` and the per-component
 `fmt-*` targets are the only ones that reformat, and nothing depends on them.
@@ -195,8 +196,8 @@ recording is a claim; the recording is the evidence.
 
 Adding one means, in order:
 
-1. The builder under `pkg/catalog/kartas/`, registered in
-   `pkg/catalog/catalog.go`, then `make generate-samples` for the generated
+1. The builder under `karta/sdk/pkg/catalog/kartas/`, registered in
+   `karta/sdk/pkg/catalog/catalog.go`, then `make generate-samples` for the generated
    file under `docs/catalog/`. Never hand-edit the generated file. Add the
    workload to the Pre-built Karta Definitions table in `README.md`, unless it
    is a Kubernetes builtin (apps, batch, core): the table lists operator-backed
@@ -280,7 +281,7 @@ Adding one means, in order:
 | Trigger | Published `version` and `appVersion` |
 |---|---|
 | Push to `main` (dev build) | `0.0.0-main-<short-sha>` |
-| Tag push (release) | the tag (e.g. tag `v1.2.3` → `1.2.3`) |
+| Published GitHub Release | the release's tag (e.g. tag `v1.2.3` -> `1.2.3`) |
 
 Consumers pin a specific release by chart `version` (which equals the tag), e.g. `version: 1.2.3` in the consumer's `Chart.yaml` dependency entry.
 
@@ -288,10 +289,11 @@ This is the same model used by [ai-dynamo/grove](https://github.com/ai-dynamo/gr
 
 ### Releasing
 
-The root library, CLI module, and operator module use one synchronized version.
-The preparation, two-tag convention, local snapshot, guarded release command,
-credentials, and recovery procedure are documented in
-[RELEASE.md](RELEASE.md).
+A release tags the product as `vX.Y.Z` and the `karta/sdk/` library module as
+`karta/sdk/vX.Y.Z` on the same commit, then publishes the GitHub Release for
+`vX.Y.Z`, which starts the release workflow. The two-tag convention, local
+snapshot, guarded release command, credentials, and recovery procedure are
+documented in [RELEASE.md](RELEASE.md).
 
 No `Chart.yaml` bump is needed. The release tag remains the source of truth for
 the published chart version and app version.

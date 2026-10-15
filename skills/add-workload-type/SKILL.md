@@ -37,7 +37,11 @@ Load these as needed; confirm field names and rules here, never guess.
 ## Two ways to use this skill
 
 In the karta repository, every step applies: the definition becomes a catalog
-entry, so step 8 ships it with an operator install and a recorded flow.
+entry, so step 8 ships it with an operator install and a recorded flow. Run
+every `go run ./hack/karta-verify` below from the `karta/sdk/` directory, where
+file arguments resolve: a definition under the repository's `docs/catalog/` is
+`../docs/catalog/<file>.yaml`, and any other file needs its path relative to
+`karta/sdk/` or an absolute path.
 
 Anywhere else, steps 1 to 7 apply and step 8 is replaced by applying the Karta
 to the cluster that runs Karta. Nothing needs a checkout:
@@ -45,11 +49,12 @@ to the cluster that runs Karta. Nothing needs a checkout:
 - Run karta-verify from the public module instead of `./hack/karta-verify`:
 
   ```bash
-  go run github.com/dsx-ai-factory/workload-map/hack/karta-verify@main \
+  go run github.com/dsx-ai-factory/workload-map/karta/sdk/hack/karta-verify@main \
     --karta <definition.yaml> --workload <real-cr.yaml>
   ```
 
-  Pin `@main` to a commit or a release tag that ships karta-verify. Every
+  Pin `@main` to a commit or to a library release, written `@vX.Y.Z` for the
+  `karta/sdk/vX.Y.Z` tag, that ships karta-verify. Every
   `go run` below works in this form; for the binary,
   `GOBIN=<scratch> go install` the same argument.
 - Fetch a sample from the catalog by URL instead of `docs/catalog/`:
@@ -421,8 +426,8 @@ examples: `reference/recorded-flow.md`.
 
 Catalog entry:
 
-- The source is a Go builder, `pkg/catalog/kartas/<name>.go`, registered in
-  `pkg/catalog/catalog.go`. `make generate-samples` writes `docs/catalog/`;
+- The source is a Go builder, `karta/sdk/pkg/catalog/kartas/<name>.go`, registered in
+  `karta/sdk/pkg/catalog/catalog.go`. `make generate-samples` writes `docs/catalog/`;
   never hand-edit it. Rerun steps 6 and 7 on the generated file.
 - The builder comment holds what code cannot show: the controller's order of
   checks, why each guard exists, what is unproven, the unmapped fault signals.

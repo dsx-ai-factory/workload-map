@@ -42,3 +42,41 @@ lets a maintainer trigger or retry one.
 
 Every commit carries a `Signed-off-by` trailer for the bot identity, so the DCO
 check passes.
+
+## Testing a configuration change
+
+### Dry run
+
+A dry run reads `renovate.json` from the working tree instead of the default
+branch, looks up every dependency, and logs the branches, PRs and commit
+messages it would create. It pushes nothing and opens nothing. It needs Node
+24 and a GitHub token that can read the repository. Run it from the
+repository root:
+
+```bash
+RENOVATE_TOKEN=$(gh auth token) \
+RENOVATE_CONFIG_FILE=renovate.json \
+RENOVATE_REQUIRE_CONFIG=ignored \
+RENOVATE_FORCE='{"baseBranchPatterns":["main","v0.2"]}' \
+LOG_LEVEL=debug \
+npx --yes renovate@44.132.2 --platform=github --dry-run=full dsx-ai-factory/workload-map
+```
+
+List in `baseBranchPatterns` the branches to check, and use the Renovate
+version pinned in `.github/workflows/renovate.yaml`. A dry run does not run
+the post-upgrade `make` command and does not exercise the workflow or the
+GitHub App token.
+
+### Workflow run
+
+The workflow can only be started by hand once it is on the default branch.
+Start it from Actions, Renovate, Run workflow, with the `debug` log level,
+and check:
+
+1. The token step passes. A failure here means the App is not installed on
+   the repository, or a repository secret is missing or wrong.
+2. The base branch step prints `main` and the three newest release branches.
+3. The identity step prints the App's bot name and its noreply address.
+4. The Dependency Dashboard issue exists and lists the pending updates.
+5. On a Go modules PR, the commit carries the regenerated files when they
+   changed, and the DCO and CI checks pass.

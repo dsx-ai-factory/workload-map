@@ -49,23 +49,27 @@ check passes.
 
 A dry run reads `renovate.json` from the working tree instead of the default
 branch, looks up every dependency, and logs the branches, PRs and commit
-messages it would create. It pushes nothing and opens nothing. It needs Node
-24 and a GitHub token that can read the repository. Run it from the
-repository root:
+messages it would create. It pushes nothing and opens nothing. It needs a
+GitHub token that can read the repository. Renovate requires Node 24, so the
+command fetches it through `npx` whatever the local Node version is. Run it
+from the repository root:
 
 ```bash
 RENOVATE_TOKEN=$(gh auth token) \
 RENOVATE_CONFIG_FILE=renovate.json \
 RENOVATE_REQUIRE_CONFIG=ignored \
 RENOVATE_FORCE='{"baseBranchPatterns":["main","v0.2"]}' \
-LOG_LEVEL=debug \
-npx --yes renovate@44.132.2 --platform=github --dry-run=full dsx-ai-factory/workload-map
+LOG_LEVEL=info \
+npx --yes --package=node@24 --package=renovate@44.132.2 -- \
+  renovate --platform=github --dry-run=full dsx-ai-factory/workload-map
 ```
 
 List in `baseBranchPatterns` the branches to check, and use the Renovate
 version pinned in `.github/workflows/renovate.yaml`. A dry run does not run
 the post-upgrade `make` command and does not exercise the workflow or the
-GitHub App token.
+GitHub App token. Two warnings are expected: the post-upgrade task does not
+match `allowedCommands`, and the default `gitAuthor` is used. The workflow
+sets both.
 
 ### Workflow run
 

@@ -42,24 +42,3 @@ lets a maintainer trigger or retry one.
 
 Every commit carries a `Signed-off-by` trailer for the bot identity, so the DCO
 check passes.
-
-## GitHub App setup
-
-Renovate authenticates with a GitHub App installed on this repository only.
-
-1. Create a GitHub App owned by the organization. No webhook is needed.
-2. Grant these repository permissions:
-   - Contents: read and write
-   - Pull requests: read and write
-   - Issues: read and write (Dependency Dashboard)
-   - Workflows: read and write (updates to `.github/workflows/`)
-   - Checks: read
-   - Commit statuses: read
-   - Dependabot alerts: read (security PRs)
-   - Metadata: read
-3. Install the App on this repository.
-4. In the repository settings, add:
-   - Variable `RENOVATE_APP_CLIENT_ID`: the App's client ID.
-   - Secret `RENOVATE_APP_PRIVATE_KEY`: a private key generated for the App.
-
-The workflow skips itself on forks, which have no App credentials.

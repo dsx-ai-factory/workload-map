@@ -162,7 +162,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Build Headlamp plugin
         run: make headlamp-plugin-build

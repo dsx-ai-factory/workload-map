@@ -173,9 +173,10 @@
       "enabled": false
     },
     {
-      "description": "After a Go update, tidy every module and regenerate what is generated from the dependencies (DeepCopy, CRDs, mocks, NOTICE and THIRD_PARTY_LICENSES) in the same commit.",
+      "description": "After a Go module, Go version or build tool update, tidy every module and regenerate what is generated from the dependencies and tools (DeepCopy, CRDs, mocks, NOTICE and THIRD_PARTY_LICENSES) in the same commit.",
       "matchManagers": [
-        "gomod"
+        "gomod",
+        "custom.regex"
       ],
       "postUpgradeTasks": {
         "commands": [

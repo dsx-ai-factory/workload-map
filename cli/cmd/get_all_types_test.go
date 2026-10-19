@@ -5,7 +5,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
@@ -23,6 +26,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	metadatafake "k8s.io/client-go/metadata/fake"
+	"k8s.io/client-go/rest"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -67,20 +71,60 @@ func controlledBy(gvk schema.GroupVersionKind, name string) *metav1.OwnerReferen
 	}
 }
 
-// fakeDiscovery answers discovery with err, the way a cluster answers when some
-// API groups cannot be read.
+// fakeDiscovery is a discovery cache that reads as healthy, while server
+// answers live reads.
 type fakeDiscovery struct {
 	discoveryfake.FakeDiscovery
-	err error
+	server *httptest.Server
 }
 
 func (d *fakeDiscovery) ServerGroupsAndResources() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
-	return nil, nil, d.err
+	return nil, nil, nil
+}
+
+func (d *fakeDiscovery) RESTClient() rest.Interface {
+	return discovery.NewDiscoveryClientForConfigOrDie(&rest.Config{Host: d.server.URL}).RESTClient()
 }
 
 func (d *fakeDiscovery) Fresh() bool { return true }
 
 func (d *fakeDiscovery) Invalidate() {}
+
+// discoveryServer serves discovery for groups, and 503 for each group version
+// in failed.
+func discoveryServer(t *testing.T, groups []schema.GroupVersion, failed ...schema.GroupVersion) *httptest.Server {
+	t.Helper()
+
+	list := metav1.APIGroupList{TypeMeta: metav1.TypeMeta{Kind: "APIGroupList", APIVersion: "v1"}}
+	for _, gv := range append(groups, failed...) {
+		if gv.Group == "" {
+			continue
+		}
+		version := metav1.GroupVersionForDiscovery{GroupVersion: gv.String(), Version: gv.Version}
+		list.Groups = append(list.Groups, metav1.APIGroup{
+			Name: gv.Group, Versions: []metav1.GroupVersionForDiscovery{version}, PreferredVersion: version,
+		})
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body any
+		switch path := strings.TrimPrefix(r.URL.Path, "/apis/"); {
+		case r.URL.Path == "/api":
+			body = metav1.APIVersions{TypeMeta: metav1.TypeMeta{Kind: "APIVersions"}, Versions: []string{"v1"}}
+		case r.URL.Path == "/apis":
+			body = list
+		case slices.ContainsFunc(failed, func(gv schema.GroupVersion) bool { return gv.String() == path }):
+			http.Error(w, "the server is currently unable to handle the request", http.StatusServiceUnavailable)
+			return
+		default:
+			gv := strings.TrimPrefix(path, "/api/")
+			body = metav1.APIResourceList{TypeMeta: metav1.TypeMeta{Kind: "APIResourceList", APIVersion: "v1"}, GroupVersion: gv}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(body)
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
 
 // fakeMixedCluster serves JobSet, Deployment, ReplicaSet, Pod, Job and
 // InferenceService. Every other covered type is absent.
@@ -118,7 +162,7 @@ func fakeMixedCluster(t *testing.T, objects ...runtime.Object) (*dynamicfake.Fak
 		WithClientConfig(clientcmd.NewDefaultClientConfig(*clientcmdapi.NewConfig(), nil)).
 		WithNamespace("ml-team").
 		WithRESTMapper(mapper).
-		WithDiscoveryClient(&fakeDiscovery{})
+		WithDiscoveryClient(&fakeDiscovery{server: discoveryServer(t, groupVersions)})
 	restoreAccess := clusterAccess
 	clusterAccess = func() genericclioptions.RESTClientGetter { return flags }
 	t.Cleanup(func() { clusterAccess = restoreAccess })
@@ -476,15 +520,14 @@ func TestGetAllTypesShowsAChildOfAKindDiscoveryMissed(t *testing.T) {
 	}
 }
 
-// A workload with no children leaves no owner reference to warn on, so a covered
-// kind whose group failed discovery must say so itself. Other groups stay quiet.
+// A covered kind whose group fails live discovery warns itself, as a childless
+// workload leaves no owner reference to warn on. Other groups stay quiet.
 func TestGetAllTypesWarnsOnACoveredKindWhoseGroupFailedDiscovery(t *testing.T) {
 	fakeMixedCluster(t, mixedNamespace()...)
 	clusterAccess().(*genericclioptions.TestConfigFlags).WithDiscoveryClient(&fakeDiscovery{
-		err: &discovery.ErrGroupDiscoveryFailed{Groups: map[schema.GroupVersion]error{
-			{Group: "ray.io", Version: "v1"}:              errors.New("the server is currently unable to handle the request"),
-			{Group: "metrics.k8s.io", Version: "v1beta1"}: errors.New("the server is currently unable to handle the request"),
-		}},
+		server: discoveryServer(t, nil,
+			schema.GroupVersion{Group: "ray.io", Version: "v1"},
+			schema.GroupVersion{Group: "metrics.k8s.io", Version: "v1beta1"}),
 	})
 
 	out, errOut, code := runGetCmd(t, "--all-types")
@@ -507,12 +550,12 @@ func TestGetAllTypesWarnsOnACoveredKindWhoseGroupFailedDiscovery(t *testing.T) {
 // Discovery failing outright is not a partial result to warn about.
 func TestGetAllTypesFailsWhenDiscoveryFails(t *testing.T) {
 	fakeMixedCluster(t, mixedNamespace()...)
-	clusterAccess().(*genericclioptions.TestConfigFlags).WithDiscoveryClient(&fakeDiscovery{
-		err: errors.New("connection refused"),
-	})
+	server := discoveryServer(t, nil)
+	server.Close()
+	clusterAccess().(*genericclioptions.TestConfigFlags).WithDiscoveryClient(&fakeDiscovery{server: server})
 
 	_, errOut, code := runGetCmd(t, "--all-types")
-	if code == 0 || !strings.Contains(errOut, "kubernetes discovery: connection refused") {
+	if code == 0 || !strings.Contains(errOut, "kubernetes discovery:") || !strings.Contains(errOut, "connection refused") {
 		t.Errorf("expected a discovery error, got exit %d\n%s", code, errOut)
 	}
 }

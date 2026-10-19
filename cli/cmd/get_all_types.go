@@ -43,14 +43,14 @@ func collectAllTypes(ctx context.Context, look lookup, opts *getOptions) ([]work
 	return views, append(warnings, viewWarnings...), nil
 }
 
-// failedGroups returns the API groups discovery could not read. The mapper
-// leaves their kinds out, so without this they would read as absent.
+// failedGroups returns the API groups live discovery cannot read, whose kinds
+// the mapper would report as absent. A cached read may predate the failure.
 func failedGroups(access genericclioptions.RESTClientGetter) (map[string]error, error) {
 	client, err := access.ToDiscoveryClient()
 	if err != nil {
 		return nil, fmt.Errorf("kubernetes discovery: %w", err)
 	}
-	_, _, err = client.ServerGroupsAndResources()
+	_, _, err = discovery.NewDiscoveryClient(client.RESTClient()).ServerGroupsAndResources()
 	var failed *discovery.ErrGroupDiscoveryFailed
 	switch {
 	case err == nil:

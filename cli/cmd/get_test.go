@@ -532,7 +532,7 @@ func setupDynamoCluster(t *testing.T) *dynamicfake.FakeDynamicClient {
 		WithClientConfig(clientcmd.NewDefaultClientConfig(*clientcmdapi.NewConfig(), nil)).
 		WithNamespace("ml-team").
 		WithRESTMapper(mapper).
-		WithDiscoveryClient(&fakeDiscovery{})
+		WithDiscoveryClient(&fakeDiscovery{server: discoveryServer(t, []schema.GroupVersion{dynamoGVK.GroupVersion()})})
 	restoreAccess := clusterAccess
 	clusterAccess = func() genericclioptions.RESTClientGetter { return flags }
 	t.Cleanup(func() { clusterAccess = restoreAccess })

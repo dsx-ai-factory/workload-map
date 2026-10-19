@@ -1,8 +1,9 @@
 module github.com/dsx-ai-factory/workload-map/cli
 
-go 1.26.8
+go 1.27.2
 
 require (
+	github.com/dsx-ai-factory/workload-map/karta/sdk v0.0.0
 	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.44.0
 	github.com/spf13/cobra v1.10.2
@@ -21,7 +22,6 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dsx-ai-factory/workload-map/karta/sdk v0.0.0
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect

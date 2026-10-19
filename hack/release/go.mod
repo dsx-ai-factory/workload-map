@@ -1,6 +1,6 @@
 module github.com/dsx-ai-factory/workload-map/hack/release
 
-go 1.26.8
+go 1.27.2
 
 require (
 	github.com/onsi/ginkgo/v2 v2.32.1

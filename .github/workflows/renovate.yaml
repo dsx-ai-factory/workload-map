@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 60
     env:
       # renovate: datasource=npm depName=renovate
-      RENOVATE_VERSION: 44.132.2
+      RENOVATE_VERSION: 44.168.4
     steps:
       - name: Mint GitHub App token
         id: app-token

@@ -28,13 +28,6 @@ export function buildWorkloadRow(definition: Definition, workload: Workload, clu
     apiGroup: kind?.group ?? '',
     creationTimestamp: workload.metadata.creationTimestamp ?? '',
     phases: [],
-    podsReady: null,
-    podsDesired: null,
-    gpusRequested: null,
-    cpuRequestMillis: null,
-    memoryRequestBytes: null,
     componentsCount: componentsCount(karta),
-    instancesCount: null,
-    rawPhase: null,
   };
 }

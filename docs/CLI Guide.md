@@ -10,17 +10,16 @@ install it and how to set up shell completion.
 
 ## Install a release
 
-Install the latest synchronized Go module release:
-
-```bash
-go install github.com/dsx-ai-factory/workload-map/cli/cmd/kli@latest
-```
-
-Or download a prebuilt archive from the
+Download a prebuilt archive from the
 [releases page](https://github.com/dsx-ai-factory/workload-map/releases).
 Each release publishes archives for Linux and macOS on amd64 and arm64, with a
-`checksums.txt` manifest. Put the `kli` executable on your `PATH`, then run
-`kli --version` to print the release version.
+`checksums.txt` manifest. Check the archive against `checksums.txt`, put the
+`kli` executable on your `PATH`, then run `kli --version` to print the release
+version.
+
+`go install` is not a supported way to install the CLI. The CLI module builds
+against the library in the same commit through a `replace` directive, which
+`go install` refuses.
 
 ## Shell completion
 

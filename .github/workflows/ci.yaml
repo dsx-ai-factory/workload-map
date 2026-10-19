@@ -24,19 +24,18 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # pin-check compares the pin against the release tags.
           fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: 'go.mod'
+          go-version-file: 'karta/sdk/go.mod'
           cache: true
           cache-dependency-path: |
-            go.sum
+            karta/sdk/go.sum
             operator/go.sum
             cli/go.sum
             hack/release/go.sum
@@ -44,10 +43,10 @@ jobs:
       - name: Install helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v4.2.4
+          version: v4.3.1
 
       - name: Cache bin tools
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             bin/controller-gen-*
@@ -56,17 +55,13 @@ jobs:
             bin/goreleaser-*
             bin/setup-envtest-*
             bin/k8s
-          key: ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-${{ hashFiles('go.mod') }}
+          key: ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-${{ hashFiles('karta/sdk/go.mod') }}
           restore-keys: |
             ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-
             ${{ runner.os }}-tools-v1-
 
       - name: Validate GoReleaser configuration
         run: make goreleaser-check
-
-      - name: Check the synchronized pin
-        if: github.event_name == 'pull_request'
-        run: make pin-check
 
       - name: Run checks and build release executables
         run: |
@@ -101,15 +96,15 @@ jobs:
         webhook: [auto, cert-manager, disabled]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: 'go.mod'
+          go-version-file: 'karta/sdk/go.mod'
           cache: true
           cache-dependency-path: |
-            go.sum
+            karta/sdk/go.sum
             operator/go.sum
 
       - name: Read pinned tool versions
@@ -119,7 +114,7 @@ jobs:
           echo "KUBECTL_VERSION=$KUBECTL_VERSION" >> "$GITHUB_ENV"
 
       - name: Install kind and kubectl
-        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
         with:
           install_only: true
           version: ${{ env.KIND_VERSION }}
@@ -137,7 +132,7 @@ jobs:
 
       - name: Upload diagnostics
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: operator-e2e-artifacts-${{ matrix.webhook }}
           path: .artifacts/
@@ -155,17 +150,17 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: 'go.mod'
+          go-version-file: 'karta/sdk/go.mod'
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
 

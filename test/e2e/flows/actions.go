@@ -34,7 +34,24 @@ func Resume() *recorder.Action {
 	return &recorder.Action{Type: recorder.ActionResume, Patch: []byte(`{"spec":{"suspend":false}}`)}
 }
 
+// KServeStop sets the serving.kserve.io/stop annotation, which KServe reads in place of a spec.suspend
+// field: the controller scales the workload away and marks its conditions False with reason Stopped.
+func KServeStop() *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionSuspend, Patch: []byte(`{"metadata":{"annotations":{"serving.kserve.io/stop":"true"}}}`)}
+}
+
 // ScaleParallelism sets a batch Job's spec.parallelism.
 func ScaleParallelism(n int) *recorder.Action {
 	return &recorder.Action{Type: recorder.ActionScale, Patch: []byte(fmt.Sprintf(`{"spec":{"parallelism":%d}}`, n))}
+}
+
+// SuspendSandbox sets an Agent Sandbox's spec.operatingMode to Suspended, which deletes its pod while
+// keeping the Sandbox and its volumes.
+func SuspendSandbox() *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionSuspend, Patch: []byte(`{"spec":{"operatingMode":"Suspended"}}`)}
+}
+
+// ResumeSandbox sets an Agent Sandbox's spec.operatingMode back to Running.
+func ResumeSandbox() *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionResume, Patch: []byte(`{"spec":{"operatingMode":"Running"}}`)}
 }

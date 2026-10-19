@@ -1,0 +1,17 @@
+name: DCO
+on: pull_request
+jobs:
+  dco:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { fetch-depth: 0 }
+      - name: Check sign-off
+        run: |
+          set -euo pipefail
+          commits=$(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} --no-merges)
+          for c in $commits; do
+            git log -1 --format=%B $c | grep -qE '^Signed-off-by: [^<>]*[^<>[:space:]] <[^<>@[:space:]]+@[^<>@[:space:]]+\.[^<>@[:space:]]+>[[:space:]]*$' || { echo "Missing sign-off: $c"; exit 1; }
+          done

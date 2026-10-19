@@ -1,20 +1,26 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Base branches: renovate.yaml forces main plus the three newest v*/release-* branches at run time; main alone applies otherwise.",
   "extends": [
     "config:recommended",
-    "github>run-ai/runai-actions//renovate/presets/go-common"
+    ":dependencyDashboard",
+    "helpers:pinGitHubActionDigests"
   ],
   "baseBranchPatterns": [
-    "NOTE: this list is replaced at run time. runai-actions .github/workflows/renovate.yml runs renovate/scan_candidates, which finds the newest release branches in this repository and starts one Renovate run per branch, each scoped to its own. This line is not a branch pattern and matches nothing."
-  ],
-  "includePaths": [
-    "NOTE: the rest of this list is added at run time. runai-actions .github/workflows/renovate.yml runs renovate/scan_candidates, which adds every Go module it finds safe to bump. Keep only entries it cannot work out from the module layout, such as a folder holding no Go module. This line is not a path and is dropped before the list reaches Renovate.",
-    ".github/**"
+    "main"
   ],
   "enabledManagers": [
     "gomod",
     "dockerfile",
-    "github-actions"
+    "github-actions",
+    "npm",
+    "custom.regex"
+  ],
+  "ignoreDeps": [
+    "github.com/dsx-ai-factory/workload-map/karta/sdk"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**"
   ],
   "labels": [
     "renovate"
@@ -22,22 +28,169 @@
   "semanticCommits": "enabled",
   "semanticCommitType": "build",
   "semanticCommitScope": "deps",
+  "commitBody": "Signed-off-by: {{{gitAuthor}}}",
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 0,
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": [
+      "renovate",
+      "security"
+    ]
+  },
+  "osvVulnerabilityAlerts": true,
+  "customManagers": [
+    {
+      "description": "Versions annotated with a '# renovate:' comment on the line above, in the Makefile and workflow env blocks.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)Makefile$/",
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s*\\n\\s*[A-Z_]+_VERSION\\s*(?:\\?=|:)\\s*[\"']?(?<currentValue>[^\"'\\s]+)"
+      ]
+    },
+    {
+      "description": "Go version in the GO_VERSION build argument of the Dockerfiles.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile$/"
+      ],
+      "matchStrings": [
+        "ARG GO_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "go",
+      "datasourceTemplate": "golang-version"
+    }
+  ],
   "packageRules": [
     {
-      "description": "After a Go update, regenerate what is generated from the dependencies -- DeepCopy, CRDs, mocks, NOTICE and THIRD_PARTY_LICENSES -- in the same commit. The runai-actions pipeline runs these after its tidy hook.",
+      "description": "Bump the go directive itself; the default range strategy treats it as a floor and never moves it.",
+      "matchDatasources": [
+        "golang-version"
+      ],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "One PR for the Go version across every go.mod and Dockerfile, so the toolchain never drifts between modules.",
+      "matchDatasources": [
+        "golang-version"
+      ],
+      "groupName": "Go toolchain"
+    },
+    {
+      "description": "golang base images follow the Go toolchain group; the GO_VERSION argument already carries the version.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "golang"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Group non-major Go module updates.",
       "matchManagers": [
         "gomod"
+      ],
+      "matchDatasources": [
+        "go"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "Go modules"
+    },
+    {
+      "description": "Group non-major GitHub Actions updates and digest pins.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "description": "Group non-major container image updates.",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "container images"
+    },
+    {
+      "description": "Group non-major headlamp-plugin npm updates.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "headlamp-plugin npm"
+    },
+    {
+      "description": "Group non-major Makefile and workflow tool updates, Renovate included.",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "matchDatasources": [
+        "!golang-version"
+      ],
+      "groupName": "build tools"
+    },
+    {
+      "description": "Release branches only take patch and digest updates; vulnerability fixes still pass through vulnerabilityAlerts.",
+      "matchBaseBranches": [
+        "/^(v|release-)\\d+\\.\\d+$/"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "pin",
+        "pinDigest"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "After a Go module, Go version or build tool update, tidy every module and regenerate what is generated from the dependencies and tools (DeepCopy, CRDs, mocks, NOTICE and THIRD_PARTY_LICENSES) in the same commit.",
+      "matchManagers": [
+        "gomod",
+        "custom.regex"
       ],
       "postUpgradeTasks": {
         "commands": [
           "make lib-generate lib-manifests lib-generate-mocks generate-licenses"
         ],
         "fileFilters": [
-          "pkg/**",
+          "**/go.mod",
+          "**/go.sum",
+          "karta/sdk/**",
           "charts/karta/crds/**",
           "NOTICE",
           "THIRD_PARTY_LICENSES"
-        ]
+        ],
+        "executionMode": "branch"
       }
     }
   ]

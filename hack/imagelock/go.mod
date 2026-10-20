@@ -5,7 +5,7 @@
 // never enters Karta's shipped dependency graph or its generated license list.
 module github.com/dsx-ai-factory/workload-map/hack/imagelock
 
-go 1.26.8
+go 1.27.2
 
 require (
 	github.com/google/go-containerregistry v0.22.1

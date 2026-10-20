@@ -3,16 +3,16 @@
 
 module github.com/dsx-ai-factory/workload-map/docs/examples/quickstart
 
-go 1.26.8
+go 1.27.2
 
 require (
+	github.com/dsx-ai-factory/workload-map/karta/sdk v0.0.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
-	github.com/dsx-ai-factory/workload-map/karta/sdk v0.0.0
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/itchyny/gojq v0.12.19 // indirect

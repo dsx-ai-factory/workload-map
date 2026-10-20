@@ -38,10 +38,17 @@ spec:
         - name: karta-metrics-exporter
           image: "{{ required "exporter.image.repository is required" .Values.exporter.image.repository }}:{{ .Values.exporter.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.exporter.image.pullPolicy }}
-          {{- if ne $fipsMode "off" }}
+          {{- $submittedBy := .Values.exporter.attribution.submittedByExpression }}
+          {{- if or (ne $fipsMode "off") $submittedBy }}
           env:
+            {{- if ne $fipsMode "off" }}
             - name: GODEBUG
               value: "fips140={{ $fipsMode }}"
+            {{- end }}
+            {{- with $submittedBy }}
+            - name: KARTA_SUBMITTED_BY_EXPRESSION
+              value: {{ . | toJson }}
+            {{- end }}
           {{- end }}
           securityContext:
             allowPrivilegeEscalation: false

@@ -92,6 +92,12 @@ Third-party Dependencies:
 - gopkg.in/evanphx/json-patch.v4 (BSD-3-Clause)
 - sigs.k8s.io/kustomize/api (Apache-2.0)
 - sigs.k8s.io/kustomize/kyaml (Apache-2.0)
+- github.com/google/cel-go (Apache-2.0)
+- cel.dev/expr (Apache-2.0)
+- github.com/antlr4-go/antlr/v4 (BSD-3-Clause)
+- golang.org/x/exp (BSD-3-Clause)
+- google.golang.org/genproto/googleapis/api (Apache-2.0)
+- google.golang.org/genproto/googleapis/rpc (Apache-2.0)
 
 
 Full license texts for these dependencies are available in the THIRD_PARTY_LICENSES file.

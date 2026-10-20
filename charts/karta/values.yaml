@@ -17,6 +17,11 @@ exporter:
     # When empty, falls back to .Chart.AppVersion.
     tag: ""
     pullPolicy: IfNotPresent
+  attribution:
+    # CEL expression returning the submitter identity as a string. It sees
+    # labels, annotations and resource (namespace, name, group, version,
+    # kind). Empty disables extraction; an invalid expression fails startup.
+    submittedByExpression: ""
 
 # Overrides for resource names. Rarely needed.
 fullnameOverride: ""

@@ -421,6 +421,36 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v0.21.1
 - License: Apache-2.0
 
+### github.com/google/cel-go
+- Name: github.com/google/cel-go
+- Version: v0.29.2
+- License: Apache-2.0
+
+### cel.dev/expr
+- Name: cel.dev/expr
+- Version: v0.25.1
+- License: Apache-2.0
+
+### github.com/antlr4-go/antlr/v4
+- Name: github.com/antlr4-go/antlr/v4
+- Version: v4.13.1
+- License: BSD-3-Clause
+
+### golang.org/x/exp
+- Name: golang.org/x/exp
+- Version: v0.0.0-20240823005443-9b4947da3948
+- License: BSD-3-Clause
+
+### google.golang.org/genproto/googleapis/api
+- Name: google.golang.org/genproto/googleapis/api
+- Version: v0.0.0-20240826202546-f6391c0de4c7
+- License: Apache-2.0
+
+### google.golang.org/genproto/googleapis/rpc
+- Name: google.golang.org/genproto/googleapis/rpc
+- Version: v0.0.0-20240826202546-f6391c0de4c7
+- License: Apache-2.0
+
 
 ## License Texts
 

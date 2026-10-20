@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/submitterextractor"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/version"
 )
 
@@ -28,10 +29,17 @@ func main() {
 		return
 	}
 
+	submittedBy := os.Getenv("KARTA_SUBMITTED_BY_EXPRESSION")
+	if _, err := submitterextractor.New(submittedBy); err != nil {
+		slog.Error("Invalid submitter expression", "error", err)
+		os.Exit(1)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	slog.Info("Karta metrics exporter scaffold started; metrics collection is not implemented", "version", version.String())
+	slog.Info("Karta metrics exporter scaffold started; metrics collection is not implemented",
+		"version", version.String(), "submitterExtraction", submittedBy != "")
 	<-ctx.Done()
 	slog.Info("Karta metrics exporter stopped")
 }

@@ -1,6 +1,6 @@
 module github.com/dsx-ai-factory/workload-map/karta/sdk
 
-go 1.26.8
+go 1.27.2
 
 require (
 	github.com/itchyny/gojq v0.12.19

@@ -37,10 +37,10 @@ KARTA_CRDS_DIR := $(KARTA_CHART_DIR)/crds
 HELM_CHART_VERSION ?= 0.0.1
 
 # Tool versions. Override on the command line, e.g.
-#   make lint GOLANGCI_LINT_VERSION=v2.13.0
+#   make lint GOLANGCI_LINT_VERSION=v2.15.0
 # The "# renovate:" comments let Renovate bump the version on the next line.
 # renovate: datasource=github-releases depName=golangci/golangci-lint
-GOLANGCI_LINT_VERSION       ?= v2.12.2
+GOLANGCI_LINT_VERSION       ?= v2.15.0
 # renovate: datasource=go depName=sigs.k8s.io/controller-tools
 CONTROLLER_TOOLS_VERSION    ?= v0.16.5
 # renovate: datasource=go depName=go.elastic.co/go-licence-detector

@@ -192,6 +192,30 @@
         ],
         "executionMode": "branch"
       }
+    },
+    {
+      "description": "Release branches predate the move of the library to karta/sdk and keep the older make target names and layout, so their regeneration runs those.",
+      "matchManagers": [
+        "gomod",
+        "custom.regex"
+      ],
+      "matchBaseBranches": [
+        "/^(v|release-)\\d+\\.\\d+$/"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "make generate manifests generate-mocks generate-licenses"
+        ],
+        "fileFilters": [
+          "**/go.mod",
+          "**/go.sum",
+          "pkg/**",
+          "charts/karta/crds/**",
+          "NOTICE",
+          "THIRD_PARTY_LICENSES"
+        ],
+        "executionMode": "branch"
+      }
     }
   ]
 }

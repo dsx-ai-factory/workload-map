@@ -111,6 +111,8 @@ jobs:
           RENOVATE_BINARY_SOURCE: global
           RENOVATE_GIT_AUTHOR: ${{ steps.identity.outputs.author }}
           RENOVATE_FORCE: ${{ steps.branches.outputs.force }}
-          RENOVATE_ALLOWED_COMMANDS: '["^make lib-generate lib-manifests lib-generate-mocks generate-licenses$"]'
+          # The second command is the regeneration on release branches, which
+          # keep the make target names from before the karta/sdk move.
+          RENOVATE_ALLOWED_COMMANDS: '["^make lib-generate lib-manifests lib-generate-mocks generate-licenses$", "^make generate manifests generate-mocks generate-licenses$"]'
           LOG_LEVEL: ${{ inputs.log-level || 'info' }}
         run: npx --yes "renovate@${RENOVATE_VERSION}"

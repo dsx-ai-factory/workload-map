@@ -90,3 +90,9 @@ install) and crd-upgrader-job.yaml reads fipsMode independently of that flag.
 {{- end -}}
 {{- $fipsMode -}}
 {{- end -}}
+
+{{/* Exporter labels use a distinct name to avoid matching operator selectors. */}}
+{{- define "karta.exporter.selectorLabels" -}}
+app.kubernetes.io/name: {{ printf "%s-metrics-exporter" .Chart.Name | trunc 63 | trimSuffix "-" }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}

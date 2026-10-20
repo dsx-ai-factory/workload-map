@@ -5,9 +5,18 @@ global:
   # Go FIPS 140-3 runtime mode: off, on, or only. See docs/FIPS.md.
   fipsMode: "off"
 
-# Set false to install only the CRD, without deploying the operator workload.
+# Set false to skip the operator workload.
 operator:
   enabled: true
+
+# Process scaffold only; no metrics endpoint is implemented yet.
+exporter:
+  enabled: false
+  image:
+    repository: ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter
+    # When empty, falls back to .Chart.AppVersion.
+    tag: ""
+    pullPolicy: IfNotPresent
 
 # Overrides for resource names. Rarely needed.
 fullnameOverride: ""

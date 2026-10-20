@@ -22,12 +22,12 @@ GO_LDFLAGS  := -X $(VERSION_PKG).version=$(VERSION)
 LDFLAGS     := -ldflags "$(GO_LDFLAGS)"
 
 # The component inventory every aggregate fans out over.
-COMPONENTS := lib cli operator karta-wasm release-helper
+COMPONENTS := lib cli operator exporter karta-wasm release-helper
 
 # Every Go module in the repo. The tidy target fans out over this rather than
 # COMPONENTS because an untidy manifest in a module that ships no
 # binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
-GO_MODULES := karta/sdk cli karta-wasm operator test/e2e hack/imagelock \
+GO_MODULES := karta/sdk cli karta-wasm operator karta-metrics-exporter test/e2e hack/imagelock \
 	docs/examples/quickstart docs/examples/controller-runtime \
 	hack/e2e/operators/nim/image
 
@@ -106,7 +106,7 @@ test: $(addprefix test-,$(COMPONENTS)) ## Test every component
 check: $(addprefix check-,$(COMPONENTS)) ## Everything CI runs for Go. Run this before pushing
 
 .PHONY: build
-build: build-cli build-operator ## Build every binary into bin/ (the library has no artifact)
+build: build-cli build-operator build-exporter ## Build every binary into bin/ (the library has no artifact)
 
 # Keeps the pinned tools and envtest assets in bin/; clean-all removes them too.
 # The output directories can be overridden and are deleted recursively, so refuse
@@ -121,7 +121,7 @@ clean: ## Remove build outputs, coverage profiles, and release and plugin artifa
 		echo "refusing to clean $$dir: not a directory inside $(PROJECT_DIR)" >&2; \
 		exit 1; \
 	done
-	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64"
+	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64" "$(LOCALBIN)/karta-metrics-exporter"
 	rm -fv "$(LOCALBIN)"/*-tidy.mod "$(LOCALBIN)"/*-tidy.sum "$(LOCALBIN)"/*-license.mod "$(LOCALBIN)"/*-license.sum "$(LOCALBIN)"/*deps.json
 	rm -fv operator/cover-unit.out operator/cover-integration.out
 	rm -fv karta-wasm/karta.wasm karta-wasm/wasm_exec.js
@@ -306,10 +306,11 @@ install-cli-completion-local: ## Run install-cli-completion, preferring the kli 
 uninstall-cli-completion: ## Stop loading kli completion from your bash or zsh rc file
 	hack/kli-completion.sh uninstall
 
-.PHONY: modules-check-cli modules-check-operator
+.PHONY: modules-check-cli modules-check-operator modules-check-exporter
 modules-check-cli: MODULE := cli
 modules-check-operator: MODULE := operator
-modules-check-cli modules-check-operator: ## Verify the module's requirements are tidy
+modules-check-exporter: MODULE := karta-metrics-exporter
+modules-check-cli modules-check-operator modules-check-exporter: ## Verify the module's requirements are tidy
 	cd $(MODULE) && go mod tidy -diff
 
 .PHONY: check-cli
@@ -406,6 +407,60 @@ operator-image-buildx-push: ## Build and push a multi-arch operator image via Bu
 		--push \
 		.
 
+##@ Metrics exporter
+
+.PHONY: fmt-exporter
+fmt-exporter: ## Format the exporter module
+	cd karta-metrics-exporter && go fmt ./...
+
+.PHONY: fmt-check-exporter
+fmt-check-exporter: ## Check exporter formatting without modifying files
+	@set -e; \
+	cd karta-metrics-exporter; \
+	dirs="$$(go list -f '{{.Dir}}' ./...)"; \
+	unformatted="$$(gofmt -l $$dirs)"; \
+	test -z "$$unformatted" || { echo "go fmt required:"; echo "$$unformatted"; exit 1; }
+
+.PHONY: vet-exporter
+vet-exporter: ## go vet the exporter module
+	cd karta-metrics-exporter && go vet ./...
+
+.PHONY: lint-exporter
+lint-exporter: golangci-lint ## Lint the exporter module
+	cd karta-metrics-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+
+.PHONY: test-exporter
+test-exporter: ## Run the exporter module tests
+	cd karta-metrics-exporter && go test ./...
+
+.PHONY: build-exporter
+build-exporter: $(LOCALBIN) ## Build the karta-metrics-exporter binary for the host OS/arch
+	cd karta-metrics-exporter && go build -trimpath $(LDFLAGS) -o $(LOCALBIN)/karta-metrics-exporter ./cmd
+
+.PHONY: exporter-version-smoke
+exporter-version-smoke: build-exporter ## Verify the exporter reports the stamped version
+	@set -e; \
+	out="$$($(LOCALBIN)/karta-metrics-exporter --version)"; \
+	echo "$$out"; \
+	[ "$$out" = "$(VERSION)" ] || { \
+		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
+
+.PHONY: check-exporter
+check-exporter: fmt-check-exporter vet-exporter lint-exporter modules-check-exporter test-exporter exporter-version-smoke ## Full exporter presubmit
+
+EXPORTER_GO_VERSION := $(shell awk '/^go /{print $$2; exit}' karta-metrics-exporter/go.mod)
+EXPORTER_IMAGE_REPOSITORY ?= $(IMAGE_REGISTRY)/karta-metrics-exporter
+
+.PHONY: exporter-image
+exporter-image: ## Build the exporter image for the host arch
+	$(CONTAINER_TOOL) build $(BUILD_ARGS) \
+		--build-arg TARGETARCH=$(shell go env GOARCH) \
+		--build-arg GO_VERSION=$(EXPORTER_GO_VERSION) \
+		--build-arg GO_LDFLAGS="$(GO_LDFLAGS)" \
+		--tag $(EXPORTER_IMAGE_REPOSITORY):$(IMAGE_TAG) \
+		-f karta-metrics-exporter/Dockerfile \
+		.
+
 ##@ Release
 
 .PHONY: goreleaser-check
@@ -477,7 +532,7 @@ generate-samples: ## Regenerate docs/catalog/ from karta/sdk/pkg/catalog
 	cd karta/sdk && go run ./hack/gen-samples
 
 # go mod download skips a module replaced by a local directory, so the library
-# itself never lands in the cli or karta-wasm inventories.
+# itself never lands in the CLI, WASM or exporter inventories.
 .PHONY: generate-licenses
 generate-licenses: tidy go-licence-detector ## Regenerate NOTICE and THIRD_PARTY_LICENSES from current dependencies
 	@set -eu; \
@@ -485,7 +540,8 @@ generate-licenses: tidy go-licence-detector ## Regenerate NOTICE and THIRD_PARTY
 	(cd karta/sdk && go mod download -json) > $(LOCALBIN)/karta-deps.json; \
 	(cd cli && go mod download -json) > $(LOCALBIN)/cli-deps.json; \
 	(cd karta-wasm && go mod download -json) > $(LOCALBIN)/karta-wasm-deps.json; \
-	python3 hack/merge-go-deps.py $(LOCALBIN)/karta-deps.json $(LOCALBIN)/cli-deps.json $(LOCALBIN)/karta-wasm-deps.json > $(LOCALBIN)/deps.json; \
+	(cd karta-metrics-exporter && go mod download -json) > $(LOCALBIN)/exporter-deps.json; \
+	python3 hack/merge-go-deps.py $(LOCALBIN)/karta-deps.json $(LOCALBIN)/cli-deps.json $(LOCALBIN)/karta-wasm-deps.json $(LOCALBIN)/exporter-deps.json > $(LOCALBIN)/deps.json; \
 	$(GO_LICENCE_DETECTOR) -in $(LOCALBIN)/deps.json \
 		-noticeTemplate=hack/licenses/notice.tpl \
 		-noticeOut=NOTICE \

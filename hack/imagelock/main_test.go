@@ -6,6 +6,7 @@ package main
 import (
 	"net/http/httptest"
 	"net/url"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -43,6 +44,17 @@ spec:
       containers:
         - name: apply
           image: registry.k8s.io/kubectl:v1.34.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karta-metrics-exporter
+spec:
+  template:
+    spec:
+      containers:
+        - name: exporter
+          image: ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter:1.2.3
 `
 
 func TestImageRefs(t *testing.T) {
@@ -51,6 +63,7 @@ func TestImageRefs(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
+		"ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter:1.2.3",
 		"ghcr.io/dsx-ai-factory/workload-map/karta-operator:1.2.3",
 		"registry.k8s.io/kubectl:v1.34.0",
 	}
@@ -110,8 +123,59 @@ func TestImagesFromManifestClassifiesKnown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 2 || got[0].name != "crd-upgrader" || got[1].name != "operator" {
+	if len(got) != 3 || got[0].name != "crd-upgrader" || got[1].name != "metrics-exporter" || got[2].name != "operator" {
 		t.Fatalf("imagesFromManifest = %+v", got)
+	}
+}
+
+func TestImagesFromManifestExporterCustomRegistry(t *testing.T) {
+	const repo = "registry.example.com:5000/mirror/karta-metrics-exporter"
+	got, err := imagesFromManifest([]byte("kind: Pod\nspec:\n  containers:\n    - image: " + repo + ":1.2.3\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := chartImage{name: "metrics-exporter", repo: repo, tag: "1.2.3"}
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("imagesFromManifest = %+v, want %+v", got, want)
+	}
+}
+
+func TestRenderChartIncludesExporterAtReleaseVersion(t *testing.T) {
+	helm, err := exec.LookPath("helm")
+	if err != nil {
+		t.Skip("helm is required to render the chart")
+	}
+	for _, repo := range []string{
+		"ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter",
+		"registry.example.com:5000/mirror/karta-metrics-exporter",
+	} {
+		t.Run(repo, func(t *testing.T) {
+			manifest, err := renderChart(options{
+				chart: "../../charts/karta", helmBin: helm, version: "1.2.3",
+				setArgs: []string{
+					"exporter.enabled=false",
+					"exporter.image.tag=wrong-version",
+					"exporter.image.repository=" + repo,
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			images, err := imagesFromManifest(manifest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := chartImage{name: "metrics-exporter", repo: repo, tag: "1.2.3"}
+			for _, image := range images {
+				if image.name == want.name {
+					if image != want {
+						t.Fatalf("exporter image = %+v, want %+v", image, want)
+					}
+					return
+				}
+			}
+			t.Fatalf("exporter image missing from %+v", images)
+		})
 	}
 }
 

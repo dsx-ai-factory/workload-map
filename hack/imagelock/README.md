@@ -13,7 +13,9 @@ enters Karta's shipped dependency graph or its generated license list.
 ## What it does
 
 1. Renders the Helm chart with `helm template`, every optional toggle forced on.
-2. Collects every container image the render would run (operator plus hook images).
+   The exporter is always enabled, and its tag uses the requested release version,
+   even when `--set` overrides specify otherwise.
+2. Collects every container image the render would run (operator, optional metrics exporter, and hook images).
 3. Classifies each against a known-name map. An unknown image stops the release,
    so a new image must be named on purpose before it can ship.
 4. Resolves each tag to its digest with go-containerregistry: the multi-arch index
@@ -65,13 +67,17 @@ done
 
 The chart pins images by `repository:tag` (it has no digest field), so mirroring the
 digest under its tag means the tag in the private registry now points at the exact
-bits. Install pointing both repositories at their full source path:
+bits. Install pointing the repositories at their full source path:
 
 ```bash
 helm install karta ./karta-X.Y.Z.tgz \
   --set image.repository=$INTERNAL_REGISTRY/ghcr.io/dsx-ai-factory/workload-map/karta-operator \
-  --set crdUpgrader.image.repository=$INTERNAL_REGISTRY/registry.k8s.io/kubectl
+  --set crdUpgrader.image.repository=$INTERNAL_REGISTRY/registry.k8s.io/kubectl \
+  --set exporter.image.repository=$INTERNAL_REGISTRY/ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter
 ```
+
+The metrics exporter remains disabled unless `exporter.enabled=true` is set at
+installation. Its image is included in the lock so it can be enabled later.
 
 ## Adding a new image
 

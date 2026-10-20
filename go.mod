@@ -8,4 +8,4 @@
 // Deprecated: the library moved to github.com/dsx-ai-factory/workload-map/karta/sdk
 module github.com/dsx-ai-factory/workload-map
 
-go 1.27.2
+go 1.27.3

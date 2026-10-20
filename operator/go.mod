@@ -1,6 +1,6 @@
 module github.com/dsx-ai-factory/workload-map/operator
 
-go 1.27.2
+go 1.27.3
 
 godebug fips140=off
 

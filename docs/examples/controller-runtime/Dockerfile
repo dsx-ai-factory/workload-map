@@ -11,7 +11,7 @@
 #
 # The default below is a fallback for a plain `docker build`; the command above is
 # the single source of truth.
-ARG GO_VERSION=1.27.2
+ARG GO_VERSION=1.27.3
 FROM golang:${GO_VERSION} AS build
 WORKDIR /src
 COPY . .

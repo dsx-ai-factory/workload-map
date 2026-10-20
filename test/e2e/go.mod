@@ -1,6 +1,6 @@
 module github.com/dsx-ai-factory/workload-map/test/e2e
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/dsx-ai-factory/workload-map/karta/sdk v0.0.0

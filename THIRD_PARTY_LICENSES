@@ -78,13 +78,13 @@ For complete license texts, please refer to the source repositories or the LICEN
  
 ### golang.org/x/net
 - Name: golang.org/x/net
-- Version: v0.51.0
-- License: [BSD-3-Clause](https://cs.opensource.google/go/x/net/+/v0.51.0:LICENSE)
+- Version: v0.60.0
+- License: [BSD-3-Clause](https://cs.opensource.google/go/x/net/+/v0.60.0:LICENSE)
  
 ### golang.org/x/text
 - Name: golang.org/x/text
-- Version: v0.34.0
-- License: [BSD-3-Clause](https://cs.opensource.google/go/x/text/+/v0.34.0:LICENSE)
+- Version: v0.42.0
+- License: [BSD-3-Clause](https://cs.opensource.google/go/x/text/+/v0.42.0:LICENSE)
  
 ### gopkg.in/inf.v0
 - Name: gopkg.in/inf.v0

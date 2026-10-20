@@ -123,32 +123,32 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### golang.org/x/mod
 - Name: golang.org/x/mod
-- Version: v0.37.0
+- Version: v0.41.0
 - License: BSD-3-Clause
 
 ### golang.org/x/net
 - Name: golang.org/x/net
-- Version: v0.56.0
+- Version: v0.60.0
 - License: BSD-3-Clause
 
 ### golang.org/x/sync
 - Name: golang.org/x/sync
-- Version: v0.22.0
+- Version: v0.23.0
 - License: BSD-3-Clause
 
 ### golang.org/x/sys
 - Name: golang.org/x/sys
-- Version: v0.46.0
+- Version: v0.48.0
 - License: BSD-3-Clause
 
 ### golang.org/x/text
 - Name: golang.org/x/text
-- Version: v0.40.0
+- Version: v0.42.0
 - License: BSD-3-Clause
 
 ### golang.org/x/tools
 - Name: golang.org/x/tools
-- Version: v0.47.0
+- Version: v0.49.0
 - License: BSD-3-Clause
 
 ### gopkg.in/inf.v0

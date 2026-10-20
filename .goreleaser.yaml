@@ -5,6 +5,10 @@
 version: 2
 project_name: karta
 
+# Follow the workflow's repository, so a fork releases to itself.
+env:
+  - RELEASE_REPOSITORY={{ envOrDefault "GITHUB_REPOSITORY" "dsx-ai-factory/workload-map" }}
+
 builds:
   - id: karta
     dir: cli
@@ -33,24 +37,32 @@ archives:
       - tar.gz
     name_template: "karta_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     strip_binary_directory: true
-    # Every file carries the commit time rather than its checkout time, so a
-    # rerun of the same tag rebuilds byte-identical archives instead of moving
-    # the published checksums.
+    # Pinned time and owner, so any rebuild of a tag is byte-identical.
     files:
       - src: LICENSE
         info:
           mtime: "{{ .CommitDate }}"
+          owner: root
+          group: root
       - src: NOTICE
         info:
           mtime: "{{ .CommitDate }}"
+          owner: root
+          group: root
       - src: README.md
         info:
           mtime: "{{ .CommitDate }}"
+          owner: root
+          group: root
       - src: THIRD_PARTY_LICENSES
         info:
           mtime: "{{ .CommitDate }}"
+          owner: root
+          group: root
     builds_info:
       mtime: "{{ .CommitDate }}"
+      owner: root
+      group: root
 
 checksum:
   name_template: checksums.txt
@@ -64,10 +76,45 @@ source:
 sboms:
   - disable: true
 
+# The tap is this repository:
+#   brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
+#   brew install dsx-ai-factory/kli/kli
+homebrew_casks:
+  - name: kli
+    ids:
+      - karta
+    binaries:
+      - kli
+    url:
+      template: "https://github.com/{{ .Env.RELEASE_REPOSITORY }}/releases/download/v{{ .Version }}/{{ .ArtifactName }}"
+    homepage: "https://github.com/{{ .Env.RELEASE_REPOSITORY }}"
+    description: Workload-aware visibility for any Kubernetes workload type
+    commit_msg_template: |-
+      build(release): update the kli cask to {{ .Version }}
+
+      Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+    # Despite the name, this only omits the committer, so GitHub signs the
+    # GITHUB_TOKEN commit as github-actions[bot]. The sign-off is for dco.
+    commit_author:
+      use_github_app_token: true
+    repository:
+      owner: "{{ dir .Env.RELEASE_REPOSITORY }}"
+      name: "{{ base .Env.RELEASE_REPOSITORY }}"
+      branch: "kli-cask/{{ .Version }}"
+      pull_request:
+        enabled: true
+    # Gatekeeper will not run the unnotarized kli while it is quarantined.
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{staged_path}}" }}/kli"]
+        end
+      end
+
 release:
   github:
-    owner: dsx-ai-factory
-    name: workload-map
+    owner: "{{ dir .Env.RELEASE_REPOSITORY }}"
+    name: "{{ base .Env.RELEASE_REPOSITORY }}"
   ids:
     - karta
   # A maintainer publishes the GitHub Release, with notes from CHANGELOG.md, and

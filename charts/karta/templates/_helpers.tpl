@@ -102,19 +102,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{/*
-Submitter admission policy names. The policies are cluster-scoped, so like the
-webhook configurations they follow karta.fullname.
+Submitter admission policy and binding name for a suffix. The policies are
+cluster-scoped, so like the webhook configurations they follow karta.fullname.
+Takes a list: the root context and the suffix.
 */}}
-{{- define "karta.submitter.captureName" -}}
-{{- printf "%s-submitter-capture" (include "karta.fullname" .) | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{- define "karta.submitter.createName" -}}
-{{- printf "%s-submitter-create" (include "karta.fullname" .) | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{- define "karta.submitter.immutableName" -}}
-{{- printf "%s-submitter-immutable" (include "karta.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- define "karta.submitter.name" -}}
+{{- printf "%s-submitter-%s" (include "karta.fullname" (index . 0)) (index . 1) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
@@ -209,5 +202,25 @@ resourceRules:
 {{- with $s.excludeResources }}
 excludeResourceRules:
   {{- include "karta.submitter.resourceRules" (dict "rules" . "operation" "CREATE" "field" "admissionPolicies.submitter.excludeResources") | trim | nindent 2 }}
+{{- end }}
+{{- end -}}
+
+
+{{/*
+matchConditions shared by the capture MAP and the CREATE VAP. Capture applies to
+workload roots only: a controller copying a parent's annotations onto a child
+it creates is not the submitter and must not be rejected. User conditions follow;
+the karta- name prefix is reserved for the chart's own conditions.
+*/}}
+{{- define "karta.submitter.captureMatchConditions" -}}
+- name: karta-submitter-root
+  expression: '!has(object.metadata.ownerReferences) || !object.metadata.ownerReferences.exists(r, has(r.controller) && r.controller)'
+{{- range $i, $c := .Values.admissionPolicies.submitter.matchConditions }}
+{{- if hasPrefix "karta-" (toString $c.name) }}
+{{- fail (printf "admissionPolicies.submitter.matchConditions[%d]: name %q uses the reserved karta- prefix" $i $c.name) }}
+{{- end }}
+{{- end }}
+{{- with .Values.admissionPolicies.submitter.matchConditions }}
+{{ toYaml . }}
 {{- end }}
 {{- end -}}

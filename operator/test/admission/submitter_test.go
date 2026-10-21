@@ -12,6 +12,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	batchv1ac "k8s.io/client-go/applyconfigurations/batch/v1"
+	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -94,6 +97,15 @@ var _ = Describe("Submitter admission policies", Ordered, func() {
 			Expect(job.Annotations).NotTo(HaveKey(submittedBy))
 		})
 
+		It("ignores objects created by a controller", func() {
+			job := newJob(capturedNS, map[string]string{submittedBy: "alice"})
+			job.OwnerReferences = []metav1.OwnerReference{{
+				APIVersion: "batch/v1", Kind: "CronJob", Name: "nightly", UID: "0000-0000", Controller: ptr.To(true),
+			}}
+			Expect(userClients[serviceAccountUser].Create(testCtx, job)).To(Succeed())
+			Expect(job.Annotations).To(HaveKeyWithValue(submittedBy, "alice"))
+		})
+
 		It("leaves the annotation editable", func() {
 			job := createJob("alice", capturedNS, nil)
 			job.Annotations[submittedBy] = "bob"
@@ -115,6 +127,13 @@ var _ = Describe("Submitter admission policies", Ordered, func() {
 			expectImmutable(job)
 		})
 
+		It("rejects adding the annotation on update", func() {
+			unannotated := createJob("alice", uncapturedNS, nil)
+			unannotated.Annotations = map[string]string{submittedBy: "alice"}
+			err := userClients["alice"].Update(testCtx, unannotated)
+			Expect(apierrors.IsForbidden(err)).To(BeTrue(), "got %v", err)
+		})
+
 		It("allows other updates", func() {
 			Expect(userClients["alice"].Get(testCtx, client.ObjectKeyFromObject(job), job)).To(Succeed())
 			job.Labels = map[string]string{"team": "a"}
@@ -129,6 +148,27 @@ var _ = Describe("Submitter admission policies", Ordered, func() {
 			current.Annotations[submittedBy] = "bob"
 			err := userClients["bob"].Status().Update(testCtx, current)
 			Expect(apierrors.IsForbidden(err)).To(BeTrue(), "got %v", err)
+		})
+
+		// The mutation is not attributed to the applying field manager, so an apply
+		// that omits the annotation does not remove it.
+		It("keeps the annotation across server-side applies that omit it", func() {
+			jobCount++
+			name := fmt.Sprintf("applied-%d", jobCount)
+			apply := func(labels map[string]string) error {
+				job := batchv1ac.Job(name, capturedNS).WithLabels(labels).WithSpec(batchv1ac.JobSpec().
+					WithTemplate(corev1ac.PodTemplateSpec().WithSpec(corev1ac.PodSpec().
+						WithRestartPolicy(corev1.RestartPolicyNever).
+						WithContainers(corev1ac.Container().WithName("main").WithImage("registry.example.com/main:v1")))))
+				return userClients["alice"].Apply(testCtx, job, client.FieldOwner("gitops"))
+			}
+			Expect(apply(map[string]string{"rev": "1"})).To(Succeed())
+			Expect(apply(map[string]string{"rev": "2"})).To(Succeed())
+
+			current := &batchv1.Job{}
+			Expect(adminClient.Get(testCtx, client.ObjectKey{Namespace: capturedNS, Name: name}, current)).To(Succeed())
+			Expect(current.Labels).To(HaveKeyWithValue("rev", "2"))
+			Expect(current.Annotations).To(HaveKeyWithValue(submittedBy, "alice"))
 		})
 
 		It("protects annotations outside the capture scope", func() {
@@ -218,6 +258,9 @@ admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{oper
 	Entry("empty rule field", `
 admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{apiGroups: [batch], apiVersions: [], resources: [jobs]}]}}`,
 		"resources[0].apiVersions must be a nonempty list"),
+	Entry("reserved matchConditions name", `
+admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}], matchConditions: [{name: karta-x, expression: "true"}]}}`,
+		`name "karta-x" uses the reserved karta- prefix`),
 	Entry("subresource", `
 admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs/status]}]}}`,
 		`subresource "jobs/status" is not supported`),
@@ -268,7 +311,7 @@ func expectImmutable(job *batchv1.Job) {
 		change(current.Annotations)
 		err := userClients["alice"].Update(testCtx, current)
 		Expect(apierrors.IsForbidden(err)).To(BeTrue(), "got %v", err)
-		Expect(err).To(MatchError(ContainSubstring("karta.run.ai/submitted-by is immutable")))
+		Expect(err).To(MatchError(ContainSubstring("karta.run.ai/submitted-by is immutable and can only be set on create")))
 	}
 }
 

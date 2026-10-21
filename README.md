@@ -102,14 +102,27 @@ The structure in this view comes from Karta path expressions: the group, leader,
 
 ### Install the CLI
 
-Each release publishes prebuilt `kli` archives for Linux and macOS on amd64 and
-arm64, with a `checksums.txt` manifest, on the
-[GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
-Download the archive for your platform, check it against `checksums.txt`, and
-put the `kli` executable on your `PATH`. Run `kli --version` to print the
-release version.
+Install `kli` with Homebrew on macOS or Linux. This repository is its own tap,
+so add it by URL once, then install by full name:
 
-`go install` is not a supported way to install the CLI.
+```bash
+brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
+brew install dsx-ai-factory/kli/kli
+```
+
+The URL is required because the short form of `brew tap` only resolves
+repositories named `homebrew-<name>`. Installing by full name also makes
+Homebrew trust this one cask, which it requires for any tap it does not
+maintain. `brew upgrade kli` installs later releases.
+
+Each release also publishes prebuilt `kli` archives for Linux and macOS on
+amd64 and arm64, with a `checksums.txt` manifest, on the
+[GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
+To install without Homebrew, download the archive for your platform, check it
+against `checksums.txt`, and put the `kli` executable on your `PATH`.
+
+Run `kli --version` to print the release version. `go install` is not a
+supported way to install the CLI.
 
 See the [CLI Guide](docs/CLI%20Guide.md) for shell completion and for installing
 from a clone with make.
@@ -283,6 +296,7 @@ See [ADOPTERS.md](ADOPTERS.md) for the full list of adopters. If you use Karta, 
 - [Technical Guide](docs/Technical%20Guide.md) - Full Karta spec, path syntax (jq), validation rules
 - [Webhook Certificates](docs/Webhook%20Certificates.md) - Webhook cert modes (auto self-signed or manual) and how to wire cert-manager
 - [FIPS 140-3](docs/FIPS.md) - Running the operator with Go's FIPS 140-3 crypto module
+- [Dependency Updates](docs/Dependency%20Updates.md) - How Renovate keeps dependencies current and how to test a configuration change
 - [Karta definitions](docs/catalog/) - Real-world Karta definitions for common workload types
 - [Runnable examples](docs/examples/) - Offline quickstart and an installable controller-runtime example
 - [API Reference](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map) - Go package documentation

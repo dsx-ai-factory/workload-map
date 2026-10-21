@@ -37,12 +37,17 @@ KARTA_CRDS_DIR := $(KARTA_CHART_DIR)/crds
 HELM_CHART_VERSION ?= 0.0.1
 
 # Tool versions. Override on the command line, e.g.
-#   make lint GOLANGCI_LINT_VERSION=v2.13.0
-GOLANGCI_LINT_VERSION       ?= v2.12.2
-CONTROLLER_TOOLS_VERSION    ?= v0.16.5
-GO_LICENCE_DETECTOR_VERSION ?= v0.10.0
+#   make lint GOLANGCI_LINT_VERSION=v2.15.0
+# The "# renovate:" comments let Renovate bump the version on the next line.
+# renovate: datasource=github-releases depName=golangci/golangci-lint
+GOLANGCI_LINT_VERSION       ?= v2.15.0
+# renovate: datasource=go depName=sigs.k8s.io/controller-tools
+CONTROLLER_TOOLS_VERSION    ?= v0.23.0
+# renovate: datasource=go depName=go.elastic.co/go-licence-detector
+GO_LICENCE_DETECTOR_VERSION ?= v0.11.1
 ENVTEST_VERSION             ?= release-0.23
-GORELEASER_VERSION          ?= v2.18.1
+# renovate: datasource=go depName=github.com/goreleaser/goreleaser/v2
+GORELEASER_VERSION          ?= v2.18.3
 # Kubernetes control-plane (apiserver, etcd, kubectl) version envtest downloads.
 ENVTEST_K8S_VERSION         ?= 1.31.0
 
@@ -475,7 +480,7 @@ release-snapshot: goreleaser release-validate ## Build the complete release loca
 	VERSION=$(VERSION) $(GORELEASER) release --snapshot --clean
 
 .PHONY: release-verify
-release-verify: ## Verify the CLI archives and stamped executable versions in dist/
+release-verify: ## Verify the CLI archives, stamped executable versions, and Homebrew cask in dist/
 	cd $(RELEASE_HELPER_DIR) && go run . verify-artifacts --dist $(DIST_DIR) --version $(VERSION)
 
 # REQUIRE_TAGS=1 also requires vX.Y.Z and karta/sdk/vX.Y.Z at HEAD. The release
@@ -622,6 +627,19 @@ image-lock-verify: ## Fail if the chart renders a container image the lock gener
 image-lock-test: ## Run the image-lock generator unit tests
 	cd hack/imagelock && go test ./...
 
+##@ Commit attribution
+
+COMMIT_BASE ?= origin/main
+COMMIT_HEAD ?= HEAD
+
+.PHONY: commit-attribution-check
+commit-attribution-check: commit-attribution-validate ## Check commit attribution (COMMIT_BASE=origin/main COMMIT_HEAD=HEAD)
+	bash hack/commit-attribution/check-commit-attribution.sh "$(COMMIT_BASE)" "$(COMMIT_HEAD)"
+
+.PHONY: commit-attribution-validate
+commit-attribution-validate: ## Validate the commit attribution checker
+	bash hack/commit-attribution/check-commit-attribution_validate.sh
+
 ##@ E2E
 
 # Cluster name for the e2e targets. Override to run isolated clusters in parallel,
@@ -714,8 +732,8 @@ E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh \
 	$(wildcard hack/e2e/operators/*/verify.sh)
 
 .PHONY: lint-shell
-lint-shell: ## shellcheck the e2e shell scripts (-x follows sourced files)
-	shellcheck -x $(E2E_SHELL)
+lint-shell: ## shellcheck the e2e and commit attribution scripts (-x follows sourced files)
+	shellcheck -x $(E2E_SHELL) hack/commit-attribution/*.sh
 
 ##@ Tools
 

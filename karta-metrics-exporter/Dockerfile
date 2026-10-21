@@ -3,7 +3,7 @@
 
 # Build from the repository root so the SDK replace directive resolves locally.
 # make exporter-image supplies the module's Go version and version linker flags.
-ARG GO_VERSION=1.26.8
+ARG GO_VERSION=1.27.3
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
 
 ARG TARGETOS

@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# Self-hosted Renovate. Repository policy lives in renovate.json; this workflow
+# only supplies what Renovate cannot work out itself: the GitHub App token, the
+# base branches (main plus the three newest v*/release-* branches) and the
+# sign-off identity. Overview: docs/Dependency Updates.md.
+name: Renovate
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+    inputs:
+      log-level:
+        description: Renovate log level
+        type: choice
+        default: info
+        options: [info, debug]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    name: Renovate
+    # Forks have no App credentials.
+    if: github.repository == 'dsx-ai-factory/workload-map'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # renovate: datasource=npm depName=renovate
+      RENOVATE_VERSION: 44.172.1
+    steps:
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          # Narrows the token to what Renovate uses, so a permission added to
+          # the App later does not reach this workflow. The App must grant
+          # each of these; metadata read is implicit.
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-workflows: write
+          permission-checks: write
+          permission-statuses: write
+          permission-vulnerability-alerts: read
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # postUpgradeTasks run make and go on this runner (binarySource=global).
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: karta/sdk/go.mod
+          cache: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+
+      - name: Select base branches
+        id: branches
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Listed outside the pipeline so an API error fails the step instead
+          # of silently leaving only main.
+          branches=$(gh api --paginate "repos/$REPO/branches" --jq '.[].name')
+          # v0.3 and release-0.3 sort as the same version; ties both count
+          # toward the three. No matching branch is a valid result.
+          mapfile -t release < <(
+            printf '%s\n' "$branches" \
+              | { grep -E '^(v|release-)[0-9]+\.[0-9]+$' || true; } \
+              | awk '{ v = $0; sub(/^(v|release-)/, "", v); print v "\t" $0 }' \
+              | sort -V -k1,1 | tail -n 3 | cut -f2)
+          force=$(jq -cn '{baseBranchPatterns: (["main"] + $ARGS.positional)}' --args "${release[@]}")
+          echo "Renovate base branches: $force"
+          echo "force=$force" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve bot identity
+        id: identity
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          id=$(gh api "users/${SLUG}[bot]" --jq .id)
+          echo "author=${SLUG}[bot] <${id}+${SLUG}[bot]@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+
+      - name: Run Renovate
+        env:
+          RENOVATE_TOKEN: ${{ steps.app-token.outputs.token }}
+          RENOVATE_PLATFORM: github
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_ONBOARDING: "false"
+          RENOVATE_REQUIRE_CONFIG: required
+          RENOVATE_BINARY_SOURCE: global
+          RENOVATE_GIT_AUTHOR: ${{ steps.identity.outputs.author }}
+          RENOVATE_FORCE: ${{ steps.branches.outputs.force }}
+          # The second command is the regeneration on release branches, which
+          # keep the make target names from before the karta/sdk move.
+          RENOVATE_ALLOWED_COMMANDS: '["^make lib-generate lib-manifests lib-generate-mocks generate-licenses$", "^make generate manifests generate-mocks generate-licenses$"]'
+          LOG_LEVEL: ${{ inputs.log-level || 'info' }}
+        run: npx --yes "renovate@${RENOVATE_VERSION}"

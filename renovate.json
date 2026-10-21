@@ -146,6 +146,16 @@
       "groupName": "headlamp-plugin npm"
     },
     {
+      "description": "Rewrite npm overrides entries even within range. Without it Renovate updates only the lockfile, with npm install <name>@<version>, which npm rejects with EOVERRIDE for a package that appears only under overrides.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "overrides"
+      ],
+      "rangeStrategy": "bump"
+    },
+    {
       "description": "Group non-major Makefile and workflow tool updates, Renovate included.",
       "matchManagers": [
         "custom.regex"

@@ -5,13 +5,13 @@ package submitterextractor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"strings"
-	"testing"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -26,269 +26,164 @@ var (
 	deploymentGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
 )
 
-func TestEvaluate(t *testing.T) {
-	tests := []struct {
-		name       string
-		expression string
-		labels     map[string]string
-		annotation map[string]string
-		gvk        schema.GroupVersionKind
-		want       string
-	}{
-		{
-			name:       "annotation source",
-			expression: dualSourceExpression,
-			annotation: map[string]string{"karta.run.ai/submitted-by": "alice"},
-			gvk:        jobGVK,
-			want:       "alice",
-		},
-		{
-			name:       "label source",
-			expression: dualSourceExpression,
-			labels:     map[string]string{"example.com/submitted-by": "bob"},
-			gvk:        jobGVK,
-			want:       "bob",
-		},
-		{
-			name:       "annotation wins over label",
-			expression: dualSourceExpression,
-			labels:     map[string]string{"example.com/submitted-by": "bob"},
-			annotation: map[string]string{"karta.run.ai/submitted-by": "alice"},
-			gvk:        jobGVK,
-			want:       "alice",
-		},
-		{
-			name:       "missing values are unknown",
-			expression: dualSourceExpression,
-			gvk:        jobGVK,
-			want:       "",
-		},
-		{
-			name:       "empty configuration is disabled",
-			expression: "",
-			labels:     map[string]string{"example.com/submitted-by": "bob"},
-			gvk:        jobGVK,
-			want:       "",
-		},
-		{
-			name:       "whitespace configuration is disabled",
-			expression: "  \n",
-			gvk:        jobGVK,
-			want:       "",
-		},
-		{
-			name:       "kind selects metadata",
-			expression: `resource.kind == "Job" ? labels["job-owner"] : labels["deploy-owner"]`,
-			labels:     map[string]string{"job-owner": "carol", "deploy-owner": "dave"},
-			gvk:        deploymentGVK,
-			want:       "dave",
-		},
-		{
-			name:       "resource fields",
-			expression: `resource.namespace + "/" + resource.name + "/" + resource.group + "/" + resource.version`,
-			gvk:        jobGVK,
-			want:       "team-a/train/batch/v1",
-		},
-	}
+func mustNew(cfg Config) Interface {
+	GinkgoHelper()
+	extractor, err := New(cfg)
+	Expect(err).NotTo(HaveOccurred())
+	return extractor
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			extractor, err := New(Config{Expression: tt.expression})
-			if err != nil {
-				t.Fatalf("New() error = %v", err)
-			}
-			obj := &metav1.ObjectMeta{
-				Namespace:   "team-a",
-				Name:        "train",
-				Labels:      tt.labels,
-				Annotations: tt.annotation,
-			}
+var _ = Describe("CEL submitter extractor", func() {
+	DescribeTable("Evaluate",
+		func(expression string, labels, annotations map[string]string, gvk schema.GroupVersionKind, want string) {
+			obj := &metav1.ObjectMeta{Namespace: "team-a", Name: "train", Labels: labels, Annotations: annotations}
 
-			got, err := extractor.Evaluate(context.Background(), obj, tt.gvk)
-			if err != nil {
-				t.Fatalf("Evaluate() error = %v", err)
+			got, err := mustNew(Config{Expression: expression}).Evaluate(context.Background(), obj, gvk)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.Identity).To(Equal(want))
+		},
+		Entry("annotation source", dualSourceExpression,
+			nil, map[string]string{"karta.run.ai/submitted-by": "alice"}, jobGVK, "alice"),
+		Entry("label source", dualSourceExpression,
+			map[string]string{"example.com/submitted-by": "bob"}, nil, jobGVK, "bob"),
+		Entry("annotation wins over label", dualSourceExpression,
+			map[string]string{"example.com/submitted-by": "bob"},
+			map[string]string{"karta.run.ai/submitted-by": "alice"}, jobGVK, "alice"),
+		Entry("missing values are unknown", dualSourceExpression, nil, nil, jobGVK, ""),
+		Entry("empty configuration is disabled", "",
+			map[string]string{"example.com/submitted-by": "bob"}, nil, jobGVK, ""),
+		Entry("whitespace configuration is disabled", "  \n", nil, nil, jobGVK, ""),
+		Entry("kind selects metadata", `resource.kind == "Job" ? labels["job-owner"] : labels["deploy-owner"]`,
+			map[string]string{"job-owner": "carol", "deploy-owner": "dave"}, nil, deploymentGVK, "dave"),
+		Entry("resource fields", `resource.namespace + "/" + resource.name + "/" + resource.group + "/" + resource.version`,
+			nil, nil, jobGVK, "team-a/train/batch/v1"),
+	)
+
+	It("does not mutate the object", func() {
+		obj := &metav1.ObjectMeta{
+			Labels:      map[string]string{"example.com/submitted-by": "bob"},
+			Annotations: map[string]string{"a": "b"},
+		}
+		before := obj.DeepCopy()
+
+		_, err := mustNew(Config{Expression: dualSourceExpression}).Evaluate(context.Background(), obj, jobGVK)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(obj).To(Equal(before))
+	})
+
+	DescribeTable("New rejects invalid expressions",
+		func(expression string, wantErr error) {
+			_, err := New(Config{Expression: expression})
+			Expect(err).To(HaveOccurred())
+			if wantErr != nil {
+				Expect(err).To(MatchError(wantErr))
 			}
-			if got.Identity != tt.want {
-				t.Errorf("Identity = %q, want %q", got.Identity, tt.want)
-			}
+		},
+		Entry("syntax error", `labels[`, nil),
+		Entry("undeclared variable", `spec.owner`, nil),
+		Entry("non-string result", `1 + 1`, ErrNotString),
+		Entry("map result", `labels`, ErrNotString),
+		Entry("too long", `"`+strings.Repeat("a", DefaultMaxExpressionBytes)+`"`, ErrExpressionTooLong),
+	)
+
+	It("returns an error for a missing key", func() {
+		_, err := mustNew(Config{Expression: `labels["absent"]`}).Evaluate(context.Background(), &metav1.ObjectMeta{}, jobGVK)
+		Expect(err).To(HaveOccurred())
+	})
+
+	Context("cancellation", func() {
+		It("returns context.Canceled for a cancelled context", func() {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			_, err := mustNew(Config{Expression: dualSourceExpression}).Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
+			Expect(err).To(MatchError(context.Canceled))
 		})
-	}
-}
 
-func TestEvaluateDoesNotMutateObject(t *testing.T) {
-	extractor, err := New(Config{Expression: dualSourceExpression})
-	if err != nil {
-		t.Fatalf("New() error = %v", err)
-	}
-	obj := &metav1.ObjectMeta{
-		Labels:      map[string]string{"example.com/submitted-by": "bob"},
-		Annotations: map[string]string{"a": "b"},
-	}
-
-	if _, err := extractor.Evaluate(context.Background(), obj, jobGVK); err != nil {
-		t.Fatalf("Evaluate() error = %v", err)
-	}
-	if len(obj.Labels) != 1 || len(obj.Annotations) != 1 || obj.Name != "" {
-		t.Errorf("object was mutated: %+v", obj)
-	}
-}
-
-func TestNewInvalid(t *testing.T) {
-	tests := []struct {
-		name       string
-		expression string
-		wantErr    error
-	}{
-		{name: "syntax error", expression: `labels[`},
-		{name: "undeclared variable", expression: `spec.owner`},
-		{name: "non-string result", expression: `1 + 1`, wantErr: ErrNotString},
-		{name: "map result", expression: `labels`, wantErr: ErrNotString},
-		{name: "too long", expression: `"` + strings.Repeat("a", DefaultMaxExpressionBytes) + `"`},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(Config{Expression: tt.expression})
-			if err == nil {
-				t.Fatal("New() error = nil, want error")
-			}
-			if tt.wantErr != nil && !errors.Is(err, tt.wantErr) {
-				t.Errorf("New() error = %v, want %v", err, tt.wantErr)
-			}
+		It("returns context.DeadlineExceeded for an expired context", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 0)
+			DeferCleanup(cancel)
+			_, err := mustNew(Config{Expression: dualSourceExpression}).Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
+			Expect(err).To(MatchError(context.DeadlineExceeded))
 		})
-	}
-}
 
-func TestEvaluateMissingKeyIsError(t *testing.T) {
-	extractor, err := New(Config{Expression: `labels["absent"]`})
-	if err != nil {
-		t.Fatalf("New() error = %v", err)
-	}
+		// Six nested comprehensions run a million iterations: far longer than the deadline.
+		const list = "[1,2,3,4,5,6,7,8,9,10]"
+		longExpression := fmt.Sprintf(
+			"string(size(%[1]s.map(a, %[1]s.map(b, %[1]s.map(c, %[1]s.map(d, %[1]s.map(e, %[1]s.map(f, a+b+c+d+e+f))))))))",
+			list)
 
-	if _, err := extractor.Evaluate(context.Background(), &metav1.ObjectMeta{}, jobGVK); err == nil {
-		t.Error("Evaluate() error = nil, want error")
-	}
-}
+		DescribeTable("interrupts a long evaluation",
+			func(frequency uint) {
+				extractor := mustNew(Config{
+					Expression:              longExpression,
+					CostLimit:               math.MaxUint64,
+					InterruptCheckFrequency: frequency,
+				})
+				// Cancel after Evaluate has started, so only a mid-evaluation check can stop it.
+				ctx, cancel := context.WithCancel(context.Background())
+				DeferCleanup(cancel)
+				time.AfterFunc(5*time.Millisecond, cancel)
 
-func TestEvaluateCancellation(t *testing.T) {
-	extractor, err := New(Config{Expression: dualSourceExpression})
-	if err != nil {
-		t.Fatalf("New() error = %v", err)
-	}
+				start := time.Now()
+				_, err := extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
+				Expect(err).To(MatchError(context.Canceled))
+				Expect(time.Since(start)).To(BeNumerically("<", time.Second))
+			},
+			Entry("default frequency (0)", uint(0)),
+			Entry("frequency 1", uint(1)),
+			Entry("frequency 1000", uint(1000)),
+		)
+	})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if _, err := extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK); !errors.Is(err, context.Canceled) {
-		t.Errorf("Evaluate() error = %v, want context.Canceled", err)
-	}
+	Context("limits", func() {
+		obj := &metav1.ObjectMeta{Annotations: map[string]string{"karta.run.ai/submitted-by": "alice"}}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 0)
-	defer cancel()
-	if _, err := extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK); !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("Evaluate() error = %v, want context.DeadlineExceeded", err)
-	}
-}
-
-func TestEvaluateInterruptsLongEvaluation(t *testing.T) {
-	// Six nested comprehensions run a million iterations: far longer than the deadline.
-	const list = "[1,2,3,4,5,6,7,8,9,10]"
-	expression := fmt.Sprintf(
-		"string(size(%[1]s.map(a, %[1]s.map(b, %[1]s.map(c, %[1]s.map(d, %[1]s.map(e, %[1]s.map(f, a+b+c+d+e+f))))))))",
-		list)
-
-	for _, frequency := range []uint{0, 1, 1000} {
-		t.Run(fmt.Sprintf("frequency %d", frequency), func(t *testing.T) {
-			extractor, err := New(Config{
-				Expression:              expression,
-				CostLimit:               math.MaxUint64,
-				InterruptCheckFrequency: frequency,
-			})
-			if err != nil {
-				t.Fatalf("New() error = %v", err)
-			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
-			defer cancel()
-			if _, err := extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK); !errors.Is(err, context.DeadlineExceeded) {
-				t.Errorf("Evaluate() error = %v, want context.DeadlineExceeded", err)
-			}
+		It("enforces the default cost limit", func() {
+			// Nested comprehensions over a large range exceed the cost budget.
+			const list = "[1,2,3,4,5,6,7,8,9,10]"
+			expression := fmt.Sprintf(
+				"string(size(%[1]s.map(a, %[1]s.map(b, %[1]s.map(c, %[1]s.map(d, %[1]s.map(e, a+b+c+d+e)))))))", list)
+			_, err := mustNew(Config{Expression: expression}).Evaluate(context.Background(), &metav1.ObjectMeta{}, jobGVK)
+			Expect(err).To(HaveOccurred())
 		})
-	}
-}
 
-func TestEvaluateCostLimit(t *testing.T) {
-	// Nested comprehensions over a large range exceed the cost budget.
-	extractor, err := New(Config{Expression: `string(size([1,2,3,4,5,6,7,8,9,10].map(a, [1,2,3,4,5,6,7,8,9,10].map(b, [1,2,3,4,5,6,7,8,9,10].map(c, [1,2,3,4,5,6,7,8,9,10].map(d, [1,2,3,4,5,6,7,8,9,10].map(e, a+b+c+d+e)))))))`})
-	if err != nil {
-		t.Fatalf("New() error = %v", err)
-	}
+		It("enforces the default identity limit", func() {
+			big := &metav1.ObjectMeta{Labels: map[string]string{"big": strings.Repeat("a", DefaultMaxIdentityBytes+1)}}
+			_, err := mustNew(Config{Expression: `labels["big"]`}).Evaluate(context.Background(), big, jobGVK)
+			Expect(err).To(MatchError(ErrIdentityTooLong))
+		})
 
-	if _, err := extractor.Evaluate(context.Background(), &metav1.ObjectMeta{}, jobGVK); err == nil {
-		t.Error("Evaluate() error = nil, want cost limit error")
-	}
-}
+		It("applies a configured cost limit", func() {
+			_, err := mustNew(Config{Expression: dualSourceExpression, CostLimit: 1}).Evaluate(context.Background(), obj, jobGVK)
+			Expect(err).To(HaveOccurred())
+		})
 
-func TestEvaluateOutputLimit(t *testing.T) {
-	extractor, err := New(Config{Expression: `labels["big"]`})
-	if err != nil {
-		t.Fatalf("New() error = %v", err)
-	}
-	obj := &metav1.ObjectMeta{Labels: map[string]string{"big": strings.Repeat("a", DefaultMaxIdentityBytes+1)}}
+		It("applies a configured identity limit", func() {
+			_, err := mustNew(Config{Expression: dualSourceExpression, MaxIdentityBytes: 4}).Evaluate(context.Background(), obj, jobGVK)
+			Expect(err).To(MatchError(ErrIdentityTooLong))
+		})
 
-	if _, err := extractor.Evaluate(context.Background(), obj, jobGVK); !errors.Is(err, ErrIdentityTooLong) {
-		t.Errorf("Evaluate() error = %v, want ErrIdentityTooLong", err)
-	}
-}
+		It("applies a configured expression limit", func() {
+			_, err := New(Config{Expression: dualSourceExpression, MaxExpressionBytes: 16})
+			Expect(err).To(MatchError(ErrExpressionTooLong))
+		})
 
-func TestConfiguredLimits(t *testing.T) {
-	obj := &metav1.ObjectMeta{Annotations: map[string]string{"karta.run.ai/submitted-by": "alice"}}
+		It("allows a longer identity when the limit is raised", func() {
+			long := strings.Repeat("a", DefaultMaxIdentityBytes+1)
+			extractor := mustNew(Config{Expression: `labels["big"]`, MaxIdentityBytes: 2 * DefaultMaxIdentityBytes})
 
-	t.Run("cost limit", func(t *testing.T) {
-		extractor, err := New(Config{Expression: dualSourceExpression, CostLimit: 1})
-		if err != nil {
-			t.Fatalf("New() error = %v", err)
-		}
-		if _, err := extractor.Evaluate(context.Background(), obj, jobGVK); err == nil {
-			t.Error("Evaluate() error = nil, want cost limit error")
-		}
+			got, err := extractor.Evaluate(context.Background(), &metav1.ObjectMeta{Labels: map[string]string{"big": long}}, jobGVK)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.Identity).To(Equal(long))
+		})
+
+		DescribeTable("rejects negative limits",
+			func(cfg Config) {
+				_, err := New(cfg)
+				Expect(err).To(MatchError(ErrNegativeLimit))
+			},
+			Entry("expression bytes", Config{Expression: dualSourceExpression, MaxExpressionBytes: -1}),
+			Entry("identity bytes", Config{Expression: dualSourceExpression, MaxIdentityBytes: -1}),
+		)
 	})
-
-	t.Run("identity limit", func(t *testing.T) {
-		extractor, err := New(Config{Expression: dualSourceExpression, MaxIdentityBytes: 4})
-		if err != nil {
-			t.Fatalf("New() error = %v", err)
-		}
-		if _, err := extractor.Evaluate(context.Background(), obj, jobGVK); !errors.Is(err, ErrIdentityTooLong) {
-			t.Errorf("Evaluate() error = %v, want ErrIdentityTooLong", err)
-		}
-	})
-
-	t.Run("expression limit", func(t *testing.T) {
-		if _, err := New(Config{Expression: dualSourceExpression, MaxExpressionBytes: 16}); err == nil {
-			t.Error("New() error = nil, want expression length error")
-		}
-	})
-
-	t.Run("raised limits", func(t *testing.T) {
-		long := strings.Repeat("a", DefaultMaxIdentityBytes+1)
-		extractor, err := New(Config{Expression: `labels["big"]`, MaxIdentityBytes: 2 * DefaultMaxIdentityBytes})
-		if err != nil {
-			t.Fatalf("New() error = %v", err)
-		}
-		got, err := extractor.Evaluate(context.Background(), &metav1.ObjectMeta{Labels: map[string]string{"big": long}}, jobGVK)
-		if err != nil || got.Identity != long {
-			t.Errorf("Evaluate() = %q, %v; want the long identity", got.Identity, err)
-		}
-	})
-
-	t.Run("negative limits", func(t *testing.T) {
-		for _, cfg := range []Config{
-			{Expression: dualSourceExpression, MaxExpressionBytes: -1},
-			{Expression: dualSourceExpression, MaxIdentityBytes: -1},
-		} {
-			if _, err := New(cfg); err == nil {
-				t.Errorf("New(%+v) error = nil, want error", cfg)
-			}
-		}
-	})
-}
+})

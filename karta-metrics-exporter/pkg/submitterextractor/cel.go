@@ -31,6 +31,10 @@ var (
 	ErrIdentityTooLong = errors.New("submitter identity exceeds the maximum length")
 	// ErrNotString is returned when an expression does not produce a string.
 	ErrNotString = errors.New("submitter expression must produce a string")
+	// ErrExpressionTooLong is returned when the expression exceeds Config.MaxExpressionBytes.
+	ErrExpressionTooLong = errors.New("submitter expression exceeds the maximum length")
+	// ErrNegativeLimit is returned when a Config limit is negative.
+	ErrNegativeLimit = errors.New("submitter limits must not be negative")
 )
 
 // Config configures the extractor. A zero limit selects its default.
@@ -62,7 +66,7 @@ type disabledExtractor struct{}
 // negative limit is an error.
 func New(cfg Config) (Interface, error) {
 	if cfg.MaxExpressionBytes < 0 || cfg.MaxIdentityBytes < 0 {
-		return nil, fmt.Errorf("submitter limits must not be negative")
+		return nil, ErrNegativeLimit
 	}
 	if cfg.CostLimit == 0 {
 		cfg.CostLimit = DefaultCostLimit
@@ -83,7 +87,7 @@ func New(cfg Config) (Interface, error) {
 		return disabledExtractor{}, nil
 	}
 	if len(expression) > cfg.MaxExpressionBytes {
-		return nil, fmt.Errorf("submitter expression exceeds %d bytes", cfg.MaxExpressionBytes)
+		return nil, fmt.Errorf("%w (%d bytes)", ErrExpressionTooLong, cfg.MaxExpressionBytes)
 	}
 
 	env, err := cel.NewEnv(

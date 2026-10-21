@@ -11,7 +11,10 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+
+	"k8s.io/utils/ptr"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/submitterextractor"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/version"
@@ -19,18 +22,18 @@ import (
 
 func main() {
 	printVersion := flag.Bool("version", false, "Print the exporter version and exit.")
-	configPath := flag.String("config", "", "Path to the exporter config file. KARTA_* environment variables override it.")
+	configFlags := bindConfigFlags(flag.CommandLine)
 	flag.Parse()
 	if flag.NArg() != 0 {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if *printVersion {
+	if ptr.Deref(printVersion, false) {
 		fmt.Println(version.String())
 		return
 	}
 
-	cfg, err := loadConfig(*configPath)
+	cfg, err := configFlags.load(flag.CommandLine)
 	if err != nil {
 		slog.Error("Invalid exporter configuration", "error", err)
 		os.Exit(1)
@@ -51,7 +54,7 @@ func main() {
 	defer stop()
 
 	slog.Info("Karta metrics exporter scaffold started; metrics collection is not implemented",
-		"version", version.String(), "submitterExtraction", cfg.Attribution.SubmittedByExpression != "")
+		"version", version.String(), "submitterExtraction", strings.TrimSpace(attribution.SubmittedByExpression) != "")
 	<-ctx.Done()
 	slog.Info("Karta metrics exporter stopped")
 }

@@ -20,18 +20,19 @@ Each evaluation is bounded by a CEL cost limit, and the returned identity by a l
 The expression itself is bounded in size.
 Inside an evaluation, CEL checks for cancellation every `InterruptCheckFrequency` comprehension iterations.
 In `Config`, a zero value selects the default, and a negative value is an error.
-In the exporter config file, `interruptCheckFrequency` must be greater than 0, because CEL stops checking for cancellation at 0.
+In the exporter configuration, `interruptCheckFrequency` must be greater than 0, because CEL stops checking for cancellation at 0.
 
-| Setting | Default | Config key |
-| --- | --- | --- |
-| CEL cost per evaluation | 10000 | `attribution.limits.costLimit` |
-| Expression length (bytes) | 4096 | `attribution.limits.maxExpressionBytes` |
-| Identity length (bytes) | 1024 | `attribution.limits.maxIdentityBytes` |
-| Iterations between cancellation checks | 100 | `attribution.limits.interruptCheckFrequency` |
+| Setting | Default | Config key | Flag |
+| --- | --- | --- | --- |
+| CEL expression | empty (disabled) | `attribution.submittedByExpression` | `--submitted-by-expression` |
+| CEL cost per evaluation | 10000 | `attribution.limits.costLimit` | `--submitter-cost-limit` |
+| Expression length (bytes) | 4096 | `attribution.limits.maxExpressionBytes` | `--submitter-max-expression-bytes` |
+| Identity length (bytes) | 1024 | `attribution.limits.maxIdentityBytes` | `--submitter-max-identity-bytes` |
+| Iterations between cancellation checks | 100 | `attribution.limits.interruptCheckFrequency` | `--submitter-interrupt-check-frequency` |
 
-The exporter reads these settings from the `attribution` section of its config file (`--config`).
-`KARTA_*` environment variables override the file. A key path joins with underscores, for example `KARTA_ATTRIBUTION_SUBMITTEDBYEXPRESSION`.
-Unknown keys fail startup.
+The exporter reads these settings from the `attribution` section of its YAML config file (`--config`).
+A flag given on the command line overrides the file. Flags alone are enough to run the exporter locally.
+Unknown keys in the file fail startup.
 Helm renders `exporter.attribution` unchanged into a ConfigMap and mounts it as the config file.
 A config change rolls the exporter Pod.
 

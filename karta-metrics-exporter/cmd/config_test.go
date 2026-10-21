@@ -4,10 +4,13 @@
 package main
 
 import (
-	"errors"
+	"flag"
+	"io"
 	"os"
 	"path/filepath"
-	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/submitterextractor"
 )
@@ -17,33 +20,44 @@ const multiLineExpression = `("karta.run.ai/submitted-by" in annotations)
   : ""
 `
 
-func writeConfig(t *testing.T, content string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatal(err)
-	}
+var defaultLimits = AttributionLimits{
+	CostLimit:               submitterextractor.DefaultCostLimit,
+	MaxExpressionBytes:      submitterextractor.DefaultMaxExpressionBytes,
+	MaxIdentityBytes:        submitterextractor.DefaultMaxIdentityBytes,
+	InterruptCheckFrequency: submitterextractor.DefaultInterruptCheckFrequency,
+}
+
+func writeConfig(content string) string {
+	path := filepath.Join(GinkgoT().TempDir(), "config.yaml")
+	Expect(os.WriteFile(path, []byte(content), 0o600)).To(Succeed())
 	return path
 }
 
-func TestLoadConfigDefaults(t *testing.T) {
-	cfg, err := loadConfig("")
-	if err != nil {
-		t.Fatalf("loadConfig() error = %v", err)
+func loadWithArgs(args ...string) (*Config, error) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	flags := bindConfigFlags(fs)
+	if err := fs.Parse(args); err != nil {
+		return nil, err
 	}
-	want := AttributionConfig{Limits: AttributionLimits{
-		CostLimit:               submitterextractor.DefaultCostLimit,
-		MaxExpressionBytes:      submitterextractor.DefaultMaxExpressionBytes,
-		MaxIdentityBytes:        submitterextractor.DefaultMaxIdentityBytes,
-		InterruptCheckFrequency: submitterextractor.DefaultInterruptCheckFrequency,
-	}}
-	if cfg.Attribution != want {
-		t.Errorf("Attribution = %+v, want %+v", cfg.Attribution, want)
-	}
+	return flags.load(fs)
 }
 
-func TestLoadConfigFile(t *testing.T) {
-	path := writeConfig(t, `attribution:
+var _ = Describe("config loading", func() {
+	It("uses the defaults without a file or flags", func() {
+		cfg, err := loadWithArgs()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Attribution).To(Equal(AttributionConfig{Limits: defaultLimits}))
+	})
+
+	It("keeps the defaults for an empty file", func() {
+		cfg, err := loadWithArgs("--config", writeConfig(""))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Attribution).To(Equal(AttributionConfig{Limits: defaultLimits}))
+	})
+
+	It("reads a multi-line expression and limits from the file", func() {
+		path := writeConfig(`attribution:
   submittedByExpression: |
     ("karta.run.ai/submitted-by" in annotations)
       ? annotations["karta.run.ai/submitted-by"]
@@ -54,88 +68,89 @@ func TestLoadConfigFile(t *testing.T) {
     interruptCheckFrequency: 10
 `)
 
-	cfg, err := loadConfig(path)
-	if err != nil {
-		t.Fatalf("loadConfig() error = %v", err)
-	}
-	if got := cfg.Attribution.SubmittedByExpression; got != multiLineExpression {
-		t.Errorf("SubmittedByExpression = %q, want %q", got, multiLineExpression)
-	}
-	want := AttributionLimits{
-		CostLimit:               2000000,
-		MaxExpressionBytes:      submitterextractor.DefaultMaxExpressionBytes,
-		MaxIdentityBytes:        64,
-		InterruptCheckFrequency: 10,
-	}
-	if cfg.Attribution.Limits != want {
-		t.Errorf("Limits = %+v, want %+v", cfg.Attribution.Limits, want)
-	}
-}
+		cfg, err := loadWithArgs("--config", path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Attribution.SubmittedByExpression).To(Equal(multiLineExpression))
+		Expect(cfg.Attribution.Limits).To(Equal(AttributionLimits{
+			CostLimit:               2000000,
+			MaxExpressionBytes:      submitterextractor.DefaultMaxExpressionBytes,
+			MaxIdentityBytes:        64,
+			InterruptCheckFrequency: 10,
+		}))
+	})
 
-func TestLoadConfigEnvOverridesFile(t *testing.T) {
-	path := writeConfig(t, `attribution:
+	It("lets explicit flags override the file", func() {
+		path := writeConfig(`attribution:
   submittedByExpression: '"from-file"'
   limits:
     costLimit: 5
+    maxIdentityBytes: 64
 `)
-	t.Setenv("KARTA_ATTRIBUTION_SUBMITTEDBYEXPRESSION", `"from-env"`)
-	t.Setenv("KARTA_ATTRIBUTION_LIMITS_COSTLIMIT", "7")
 
-	cfg, err := loadConfig(path)
-	if err != nil {
-		t.Fatalf("loadConfig() error = %v", err)
-	}
-	if got := cfg.Attribution.SubmittedByExpression; got != `"from-env"` {
-		t.Errorf("SubmittedByExpression = %q, want env value", got)
-	}
-	if got := cfg.Attribution.Limits.CostLimit; got != 7 {
-		t.Errorf("CostLimit = %d, want 7", got)
-	}
-}
-
-func TestLoadConfigZeroInterruptCheckFrequency(t *testing.T) {
-	t.Run("file", func(t *testing.T) {
-		path := writeConfig(t, "attribution:\n  limits:\n    interruptCheckFrequency: 0\n")
-		if _, err := loadConfig(path); !errors.Is(err, errZeroInterruptCheckFrequency) {
-			t.Errorf("loadConfig() error = %v, want errZeroInterruptCheckFrequency", err)
-		}
+		cfg, err := loadWithArgs("--config", path,
+			"--"+flagSubmittedByExpression, `"from-flag"`,
+			"--"+flagCostLimit, "7",
+			"--"+flagInterruptCheckFrequency, "3")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Attribution.SubmittedByExpression).To(Equal(`"from-flag"`))
+		Expect(cfg.Attribution.Limits).To(Equal(AttributionLimits{
+			CostLimit:               7,
+			MaxExpressionBytes:      submitterextractor.DefaultMaxExpressionBytes,
+			MaxIdentityBytes:        64,
+			InterruptCheckFrequency: 3,
+		}))
 	})
 
-	t.Run("env", func(t *testing.T) {
-		t.Setenv("KARTA_ATTRIBUTION_LIMITS_INTERRUPTCHECKFREQUENCY", "0")
-		if _, err := loadConfig(""); !errors.Is(err, errZeroInterruptCheckFrequency) {
-			t.Errorf("loadConfig() error = %v, want errZeroInterruptCheckFrequency", err)
-		}
+	It("does not let unset flag defaults override the file", func() {
+		cfg, err := loadWithArgs("--config", writeConfig("attribution:\n  limits:\n    costLimit: 5\n"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Attribution.Limits.CostLimit).To(BeEquivalentTo(5))
 	})
 
-	t.Run("negative", func(t *testing.T) {
-		t.Setenv("KARTA_ATTRIBUTION_LIMITS_INTERRUPTCHECKFREQUENCY", "-1")
-		if _, err := loadConfig(""); err == nil {
-			t.Error("loadConfig() error = nil, want error")
-		}
+	It("works with flags alone", func() {
+		cfg, err := loadWithArgs("--"+flagSubmittedByExpression, `labels["owner"]`, "--"+flagMaxIdentityBytes, "32")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Attribution.SubmittedByExpression).To(Equal(`labels["owner"]`))
+		Expect(cfg.Attribution.Limits.MaxIdentityBytes).To(Equal(32))
 	})
-}
 
-func TestLoadConfigErrors(t *testing.T) {
-	tests := []struct {
-		name string
-		path func(t *testing.T) string
-	}{
-		{name: "missing file", path: func(t *testing.T) string { return filepath.Join(t.TempDir(), "absent.yaml") }},
-		{name: "unknown key", path: func(t *testing.T) string {
-			return writeConfig(t, "attribution:\n  submittedBy: x\n")
-		}},
-		{name: "wrong type", path: func(t *testing.T) string {
-			return writeConfig(t, "attribution:\n  limits:\n    costLimit: lots\n")
-		}},
-		{name: "malformed yaml", path: func(t *testing.T) string { return writeConfig(t, "attribution: [\n") }},
-	}
+	DescribeTable("rejects a zero interrupt check frequency",
+		func(args func() []string) {
+			_, err := loadWithArgs(args()...)
+			Expect(err).To(MatchError(errZeroInterruptCheckFrequency))
+		},
+		Entry("from the file", func() []string {
+			return []string{"--config", writeConfig("attribution:\n  limits:\n    interruptCheckFrequency: 0\n")}
+		}),
+		Entry("from a flag", func() []string { return []string{"--" + flagInterruptCheckFrequency, "0"} }),
+	)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if _, err := loadConfig(tt.path(t)); err == nil {
-				t.Error("loadConfig() error = nil, want error")
-			}
-		})
-	}
-}
+	DescribeTable("rejects invalid input",
+		func(args func() []string) {
+			_, err := loadWithArgs(args()...)
+			Expect(err).To(HaveOccurred())
+		},
+		Entry("missing file", func() []string {
+			return []string{"--config", filepath.Join(GinkgoT().TempDir(), "absent.yaml")}
+		}),
+		Entry("unknown key", func() []string {
+			return []string{"--config", writeConfig("attribution:\n  submittedBy: x\n")}
+		}),
+		Entry("wrong type", func() []string {
+			return []string{"--config", writeConfig("attribution:\n  limits:\n    costLimit: lots\n")}
+		}),
+		Entry("negative interrupt check frequency in the file", func() []string {
+			return []string{"--config", writeConfig("attribution:\n  limits:\n    interruptCheckFrequency: -1\n")}
+		}),
+		Entry("malformed yaml", func() []string { return []string{"--config", writeConfig("attribution: [\n")} }),
+		Entry("multiple documents", func() []string {
+			return []string{"--config", writeConfig("attribution: {}\n---\nattribution:\n  submittedByExpression: '\"x\"'\n")}
+		}),
+		Entry("malformed second document", func() []string {
+			return []string{"--config", writeConfig("attribution: {}\n---\nattribution: [\n")}
+		}),
+		Entry("negative interrupt check frequency flag", func() []string {
+			return []string{"--" + flagInterruptCheckFrequency, "-1"}
+		}),
+	)
+})

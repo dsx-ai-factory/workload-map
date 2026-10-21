@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+{{- $s := .Values.admissionPolicies.submitter }}
+{{- if $s.enabled }}
+{{- include "karta.submitter.requireVAP" . }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ include "karta.submitter.createName" . }}
+  labels:
+    {{- include "karta.labels" . | nindent 4 }}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    {{- include "karta.submitter.captureMatchConstraints" . | nindent 4 }}
+  {{- with $s.matchConditions }}
+  matchConditions:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  validations:
+    - expression: '!has(object.metadata.annotations) || !("karta.run.ai/submitted-by" in object.metadata.annotations) || object.metadata.annotations["karta.run.ai/submitted-by"] == request.userInfo.username'
+      message: karta.run.ai/submitted-by must be unset or name the requesting user
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ include "karta.submitter.createName" . }}
+  labels:
+    {{- include "karta.labels" . | nindent 4 }}
+spec:
+  policyName: {{ include "karta.submitter.createName" . }}
+  validationActions: [Deny]
+{{- end }}

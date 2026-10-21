@@ -50,6 +50,8 @@ ENVTEST_VERSION             ?= release-0.23
 GORELEASER_VERSION          ?= v2.18.3
 # Kubernetes control-plane (apiserver, etcd, kubectl) version envtest downloads.
 ENVTEST_K8S_VERSION         ?= 1.31.0
+# Control-plane version for the chart's admission policy tests; MutatingAdmissionPolicy v1 needs 1.36+.
+ENVTEST_ADMISSION_K8S_VERSION ?= 1.36.2
 
 # Tool binaries, all installed into the single LOCALBIN. The version is part of
 # the filename, and therefore part of make's target name, so bumping a version
@@ -352,8 +354,13 @@ test-operator-integration: envtest ## Run the operator envtest suite (downloads 
 	cd operator && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		go test -coverprofile=cover-integration.out ./test/integration/...
 
+.PHONY: test-chart-admission
+test-chart-admission: envtest ## Run the chart's admission policy tests against envtest (needs helm)
+	cd operator && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_ADMISSION_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		go test ./test/admission/...
+
 .PHONY: test-operator
-test-operator: test-operator-unit test-operator-integration ## Run the operator unit and envtest suites
+test-operator: test-operator-unit test-operator-integration test-chart-admission ## Run the operator unit and envtest suites, and the chart admission tests
 
 .PHONY: check-operator
 check-operator: fmt-check-operator vet-operator lint-operator modules-check-operator build-operator-e2e test-operator operator-version-smoke ## Full operator presubmit

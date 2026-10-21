@@ -100,3 +100,114 @@ install) and crd-upgrader-job.yaml reads fipsMode independently of that flag.
 app.kubernetes.io/name: {{ printf "%s-metrics-exporter" .Chart.Name | trunc 63 | trimSuffix "-" }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
+
+{{/*
+Submitter admission policy names. The policies are cluster-scoped, so like the
+webhook configurations they follow karta.fullname.
+*/}}
+{{- define "karta.submitter.captureName" -}}
+{{- printf "%s-submitter-capture" (include "karta.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "karta.submitter.createName" -}}
+{{- printf "%s-submitter-create" (include "karta.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "karta.submitter.immutableName" -}}
+{{- printf "%s-submitter-immutable" (include "karta.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Fails unless the cluster serves ValidatingAdmissionPolicy v1. An explicit
+admissionPolicies.submitter.apiVersion skips detection, since helm template and
+GitOps renderers see no cluster APIs.
+*/}}
+{{- define "karta.submitter.requireVAP" -}}
+{{- if not (or .Values.admissionPolicies.submitter.apiVersion (.Capabilities.APIVersions.Has "admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy")) -}}
+  {{- fail "admissionPolicies.submitter requires ValidatingAdmissionPolicy v1 (Kubernetes 1.30+); set admissionPolicies.submitter.apiVersion when rendering without a cluster" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Resolves the MutatingAdmissionPolicy API version, detecting it from the cluster
+unless admissionPolicies.submitter.apiVersion is set.
+*/}}
+{{- define "karta.submitter.mapAPIVersion" -}}
+{{- include "karta.submitter.requireVAP" . -}}
+{{- $v := .Values.admissionPolicies.submitter.apiVersion -}}
+{{- $caps := .Capabilities.APIVersions -}}
+{{- if not $v -}}
+  {{- if $caps.Has "admissionregistration.k8s.io/v1/MutatingAdmissionPolicy" -}}
+    {{- $v = "v1" -}}
+  {{- else if $caps.Has "admissionregistration.k8s.io/v1beta1/MutatingAdmissionPolicy" -}}
+    {{- $v = "v1beta1" -}}
+  {{- else -}}
+    {{- fail "admissionPolicies.submitter.enabled requires MutatingAdmissionPolicy: v1 on Kubernetes 1.36+, or v1beta1 enabled on 1.34-1.35; set admissionPolicies.submitter.apiVersion when rendering without a cluster" -}}
+  {{- end -}}
+{{- end -}}
+{{- if not (has $v (list "v1" "v1beta1")) -}}
+  {{- fail (printf "admissionPolicies.submitter.apiVersion must be v1 or v1beta1 (got %v)" $v) -}}
+{{- end -}}
+{{- printf "admissionregistration.k8s.io/%s" $v -}}
+{{- end -}}
+
+{{/*
+Renders admission resourceRules from group/version/resource entries, adding the
+operation and Namespaced scope. Users never set operations or scope: capture is
+CREATE only and immutability is UPDATE only. Users list main resources only;
+with subresources set, every subresource is matched as well, since some (such
+as jobs/status) accept metadata changes.
+Takes a dict: rules (nonempty list), operation (string), subresources (bool),
+field (value path for errors).
+*/}}
+{{- define "karta.submitter.resourceRules" -}}
+{{- if not .rules }}
+{{- fail (printf "%s must list at least one resource" .field) }}
+{{- end }}
+{{- range $i, $rule := .rules }}
+{{- range $key, $_ := $rule }}
+{{- if not (has $key (list "apiGroups" "apiVersions" "resources")) }}
+{{- fail (printf "%s[%d]: unsupported key %q; set only apiGroups, apiVersions and resources (the chart sets operations and scope)" $.field $i $key) }}
+{{- end }}
+{{- end }}
+{{- range $key := list "apiGroups" "apiVersions" "resources" }}
+{{- if not (index $rule $key) }}
+{{- fail (printf "%s[%d].%s must be a nonempty list" $.field $i $key) }}
+{{- end }}
+{{- end }}
+{{- range $rule.resources }}
+{{- if contains "/" . }}
+{{- fail (printf "%s[%d]: subresource %q is not supported; list the main resource" $.field $i .) }}
+{{- end }}
+{{- end }}
+{{- $resources := $rule.resources }}
+{{- if $.subresources }}
+{{- range $rule.resources }}
+{{- $resources = append $resources (printf "%s/*" .) }}
+{{- end }}
+{{- end }}
+- apiGroups: {{ toJson $rule.apiGroups }}
+  apiVersions: {{ toJson $rule.apiVersions }}
+  resources: {{ toJson $resources }}
+  operations: [{{ $.operation | quote }}]
+  scope: Namespaced
+{{- end }}
+{{- end -}}
+
+{{/*
+matchConstraints shared by the capture MAP and the CREATE VAP, so both always
+select the same requests.
+*/}}
+{{- define "karta.submitter.captureMatchConstraints" -}}
+{{- $s := .Values.admissionPolicies.submitter -}}
+namespaceSelector:
+  {{- toYaml ($s.namespaceSelector | default dict) | nindent 2 }}
+objectSelector:
+  {{- toYaml ($s.objectSelector | default dict) | nindent 2 }}
+resourceRules:
+  {{- include "karta.submitter.resourceRules" (dict "rules" $s.resources "operation" "CREATE" "field" "admissionPolicies.submitter.resources") | trim | nindent 2 }}
+{{- with $s.excludeResources }}
+excludeResourceRules:
+  {{- include "karta.submitter.resourceRules" (dict "rules" . "operation" "CREATE" "field" "admissionPolicies.submitter.excludeResources") | trim | nindent 2 }}
+{{- end }}
+{{- end -}}

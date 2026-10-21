@@ -6,13 +6,12 @@ package main
 import (
 	"bytes"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/urfave/cli/v3"
 	"go.yaml.in/yaml/v3"
-	"k8s.io/utils/ptr"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/submitterextractor"
 )
@@ -33,7 +32,7 @@ var errZeroInterruptCheckFrequency = errors.New("attribution.limits.interruptChe
 var errMultipleDocuments = errors.New("must contain a single YAML document")
 
 // Config is the exporter configuration. It is read from the YAML file named by
-// --config, and flags given explicitly on the command line override it.
+// --config. A flag, or its environment variable, overrides the file when set.
 type Config struct {
 	Attribution AttributionConfig `yaml:"attribution" json:"attribution"`
 }
@@ -60,41 +59,56 @@ var defaultAttributionLimits = AttributionLimits{
 	InterruptCheckFrequency: submitterextractor.DefaultInterruptCheckFrequency,
 }
 
-// configFlags holds the configuration flags until the file is loaded.
-type configFlags struct {
-	path                    *string
-	submittedByExpression   *string
-	costLimit               *uint64
-	maxExpressionBytes      *int
-	maxIdentityBytes        *int
-	interruptCheckFrequency *uint
-}
-
-func bindConfigFlags(fs *flag.FlagSet) *configFlags {
-	return &configFlags{
-		path: fs.String(flagConfig, "", "Path to the exporter YAML config file."),
-		submittedByExpression: fs.String(flagSubmittedByExpression, "",
-			"CEL expression returning the submitter identity. Overrides attribution.submittedByExpression."),
-		costLimit: fs.Uint64(flagCostLimit, defaultAttributionLimits.CostLimit,
-			"CEL cost units one submitter evaluation may spend. Overrides attribution.limits.costLimit."),
-		maxExpressionBytes: fs.Int(flagMaxExpressionBytes, defaultAttributionLimits.MaxExpressionBytes,
-			"Maximum length of the submitter expression. Overrides attribution.limits.maxExpressionBytes."),
-		maxIdentityBytes: fs.Int(flagMaxIdentityBytes, defaultAttributionLimits.MaxIdentityBytes,
-			"Maximum length of an extracted submitter identity. Overrides attribution.limits.maxIdentityBytes."),
-		interruptCheckFrequency: fs.Uint(flagInterruptCheckFrequency, defaultAttributionLimits.InterruptCheckFrequency,
-			"Comprehension iterations between cancellation checks; must be greater than 0. Overrides attribution.limits.interruptCheckFrequency."),
+// configFlags returns the configuration flags. Each one can also be set from
+// its KARTA_EXPORTER_* environment variable; the command line wins.
+func configFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:    flagConfig,
+			Usage:   "Path to the exporter YAML config file.",
+			Sources: cli.EnvVars("KARTA_EXPORTER_CONFIG"),
+		},
+		&cli.StringFlag{
+			Name:    flagSubmittedByExpression,
+			Usage:   "CEL expression returning the submitter identity. Overrides attribution.submittedByExpression.",
+			Sources: cli.EnvVars("KARTA_EXPORTER_SUBMITTED_BY_EXPRESSION"),
+		},
+		&cli.Uint64Flag{
+			Name:    flagCostLimit,
+			Value:   defaultAttributionLimits.CostLimit,
+			Usage:   "CEL cost units one submitter evaluation may spend. Overrides attribution.limits.costLimit.",
+			Sources: cli.EnvVars("KARTA_EXPORTER_SUBMITTER_COST_LIMIT"),
+		},
+		&cli.IntFlag{
+			Name:    flagMaxExpressionBytes,
+			Value:   defaultAttributionLimits.MaxExpressionBytes,
+			Usage:   "Maximum length of the submitter expression. Overrides attribution.limits.maxExpressionBytes.",
+			Sources: cli.EnvVars("KARTA_EXPORTER_SUBMITTER_MAX_EXPRESSION_BYTES"),
+		},
+		&cli.IntFlag{
+			Name:    flagMaxIdentityBytes,
+			Value:   defaultAttributionLimits.MaxIdentityBytes,
+			Usage:   "Maximum length of an extracted submitter identity. Overrides attribution.limits.maxIdentityBytes.",
+			Sources: cli.EnvVars("KARTA_EXPORTER_SUBMITTER_MAX_IDENTITY_BYTES"),
+		},
+		&cli.UintFlag{
+			Name:    flagInterruptCheckFrequency,
+			Value:   defaultAttributionLimits.InterruptCheckFrequency,
+			Usage:   "Comprehension iterations between cancellation checks; must be greater than 0. Overrides attribution.limits.interruptCheckFrequency.",
+			Sources: cli.EnvVars("KARTA_EXPORTER_SUBMITTER_INTERRUPT_CHECK_FREQUENCY"),
+		},
 	}
 }
 
-// load reads the config file, when set, and applies the flags set on fs, which
-// must already be parsed. Unknown keys in the file are an error.
-func (f *configFlags) load(fs *flag.FlagSet) (*Config, error) {
+// loadConfig reads the config file, when set, and applies the flags and
+// environment variables set on cmd. Unknown keys in the file are an error.
+func loadConfig(cmd *cli.Command) (Config, error) {
 	cfg := Config{Attribution: AttributionConfig{Limits: defaultAttributionLimits}}
 
-	if path := ptr.Deref(f.path, ""); path != "" {
+	if path := cmd.String(flagConfig); path != "" {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("config file %s: %w", path, err)
+			return Config{}, fmt.Errorf("config file %s: %w", path, err)
 		}
 		dec := yaml.NewDecoder(bytes.NewReader(data))
 		dec.KnownFields(true)
@@ -102,33 +116,33 @@ func (f *configFlags) load(fs *flag.FlagSet) (*Config, error) {
 		switch err := dec.Decode(&cfg); {
 		case errors.Is(err, io.EOF):
 		case err != nil:
-			return nil, fmt.Errorf("config file %s: %w", path, err)
+			return Config{}, fmt.Errorf("config file %s: %w", path, err)
 		default:
 			var extra any
 			if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
-				return nil, fmt.Errorf("config file %s: %w", path, errMultipleDocuments)
+				return Config{}, fmt.Errorf("config file %s: %w", path, errMultipleDocuments)
 			}
 		}
 	}
 
-	limits := &cfg.Attribution.Limits
-	fs.Visit(func(fl *flag.Flag) {
-		switch fl.Name {
-		case flagSubmittedByExpression:
-			cfg.Attribution.SubmittedByExpression = ptr.Deref(f.submittedByExpression, "")
-		case flagCostLimit:
-			limits.CostLimit = ptr.Deref(f.costLimit, 0)
-		case flagMaxExpressionBytes:
-			limits.MaxExpressionBytes = ptr.Deref(f.maxExpressionBytes, 0)
-		case flagMaxIdentityBytes:
-			limits.MaxIdentityBytes = ptr.Deref(f.maxIdentityBytes, 0)
-		case flagInterruptCheckFrequency:
-			limits.InterruptCheckFrequency = ptr.Deref(f.interruptCheckFrequency, 0)
-		}
-	})
-
-	if limits.InterruptCheckFrequency == 0 {
-		return nil, errZeroInterruptCheckFrequency
+	if cmd.IsSet(flagSubmittedByExpression) {
+		cfg.Attribution.SubmittedByExpression = cmd.String(flagSubmittedByExpression)
 	}
-	return &cfg, nil
+	if cmd.IsSet(flagCostLimit) {
+		cfg.Attribution.Limits.CostLimit = cmd.Uint64(flagCostLimit)
+	}
+	if cmd.IsSet(flagMaxExpressionBytes) {
+		cfg.Attribution.Limits.MaxExpressionBytes = cmd.Int(flagMaxExpressionBytes)
+	}
+	if cmd.IsSet(flagMaxIdentityBytes) {
+		cfg.Attribution.Limits.MaxIdentityBytes = cmd.Int(flagMaxIdentityBytes)
+	}
+	if cmd.IsSet(flagInterruptCheckFrequency) {
+		cfg.Attribution.Limits.InterruptCheckFrequency = cmd.Uint(flagInterruptCheckFrequency)
+	}
+
+	if cfg.Attribution.Limits.InterruptCheckFrequency == 0 {
+		return Config{}, errZeroInterruptCheckFrequency
+	}
+	return cfg, nil
 }

@@ -93,6 +93,7 @@ Third-party Dependencies:
 - sigs.k8s.io/kustomize/api (Apache-2.0)
 - sigs.k8s.io/kustomize/kyaml (Apache-2.0)
 - github.com/google/cel-go (Apache-2.0)
+- github.com/urfave/cli/v3 (MIT)
 - cel.dev/expr (Apache-2.0)
 - github.com/antlr4-go/antlr/v4 (BSD-3-Clause)
 - golang.org/x/exp (BSD-3-Clause)

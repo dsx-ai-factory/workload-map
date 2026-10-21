@@ -22,16 +22,17 @@ Inside an evaluation, CEL checks for cancellation every `InterruptCheckFrequency
 In `Config`, a zero value selects the default, and a negative value is an error.
 In the exporter configuration, `interruptCheckFrequency` must be greater than 0, because CEL stops checking for cancellation at 0.
 
-| Setting | Default | Config key | Flag |
-| --- | --- | --- | --- |
-| CEL expression | empty (disabled) | `attribution.submittedByExpression` | `--submitted-by-expression` |
-| CEL cost per evaluation | 10000 | `attribution.limits.costLimit` | `--submitter-cost-limit` |
-| Expression length (bytes) | 4096 | `attribution.limits.maxExpressionBytes` | `--submitter-max-expression-bytes` |
-| Identity length (bytes) | 1024 | `attribution.limits.maxIdentityBytes` | `--submitter-max-identity-bytes` |
-| Iterations between cancellation checks | 100 | `attribution.limits.interruptCheckFrequency` | `--submitter-interrupt-check-frequency` |
+| Setting | Default | Config key | Flag | Environment variable |
+| --- | --- | --- | --- | --- |
+| CEL expression | empty (disabled) | `attribution.submittedByExpression` | `--submitted-by-expression` | `KARTA_EXPORTER_SUBMITTED_BY_EXPRESSION` |
+| CEL cost per evaluation | 10000 | `attribution.limits.costLimit` | `--submitter-cost-limit` | `KARTA_EXPORTER_SUBMITTER_COST_LIMIT` |
+| Expression length (bytes) | 4096 | `attribution.limits.maxExpressionBytes` | `--submitter-max-expression-bytes` | `KARTA_EXPORTER_SUBMITTER_MAX_EXPRESSION_BYTES` |
+| Identity length (bytes) | 1024 | `attribution.limits.maxIdentityBytes` | `--submitter-max-identity-bytes` | `KARTA_EXPORTER_SUBMITTER_MAX_IDENTITY_BYTES` |
+| Iterations between cancellation checks | 100 | `attribution.limits.interruptCheckFrequency` | `--submitter-interrupt-check-frequency` | `KARTA_EXPORTER_SUBMITTER_INTERRUPT_CHECK_FREQUENCY` |
 
-The exporter reads these settings from the `attribution` section of its YAML config file (`--config`).
-A flag given on the command line overrides the file. Flags alone are enough to run the exporter locally.
+The exporter reads these settings from the `attribution` section of its YAML config file (`--config` or `KARTA_EXPORTER_CONFIG`).
+A setting's environment variable overrides the file, and its flag overrides both.
+Flags or environment variables alone are enough to run the exporter locally.
 Unknown keys in the file fail startup.
 Helm renders `exporter.attribution` unchanged into a ConfigMap and mounts it as the config file.
 A config change rolls the exporter Pod.

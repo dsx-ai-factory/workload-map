@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -14,47 +13,58 @@ import (
 	"strings"
 	"syscall"
 
-	"k8s.io/utils/ptr"
+	"github.com/urfave/cli/v3"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/submitterextractor"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/version"
 )
 
-func main() {
-	printVersion := flag.Bool("version", false, "Print the exporter version and exit.")
-	configFlags := bindConfigFlags(flag.CommandLine)
-	flag.Parse()
-	if flag.NArg() != 0 {
-		flag.Usage()
-		os.Exit(2)
-	}
-	if ptr.Deref(printVersion, false) {
-		fmt.Println(version.String())
-		return
-	}
+const flagVersion = "version"
 
-	cfg, err := configFlags.load(flag.CommandLine)
-	if err != nil {
-		slog.Error("Invalid exporter configuration", "error", err)
-		os.Exit(1)
-	}
-	attribution := cfg.Attribution
-	if _, err := submitterextractor.New(submitterextractor.Config{
-		Expression:              attribution.SubmittedByExpression,
-		CostLimit:               attribution.Limits.CostLimit,
-		MaxExpressionBytes:      attribution.Limits.MaxExpressionBytes,
-		MaxIdentityBytes:        attribution.Limits.MaxIdentityBytes,
-		InterruptCheckFrequency: attribution.Limits.InterruptCheckFrequency,
-	}); err != nil {
-		slog.Error("Invalid submitter configuration", "error", err)
-		os.Exit(1)
+func main() {
+	cmd := &cli.Command{
+		Name:  "karta-metrics-exporter",
+		Usage: "Export Karta workload metrics.",
+		Flags: append([]cli.Flag{
+			&cli.BoolFlag{Name: flagVersion, Usage: "Print the exporter version and exit."},
+		}, configFlags()...),
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if cmd.Bool(flagVersion) {
+				fmt.Println(version.String())
+				return nil
+			}
+			if cmd.NArg() != 0 {
+				return fmt.Errorf("unexpected arguments: %v", cmd.Args().Slice())
+			}
+
+			cfg, err := loadConfig(cmd)
+			if err != nil {
+				return fmt.Errorf("invalid exporter configuration: %w", err)
+			}
+			attribution := cfg.Attribution
+			if _, err := submitterextractor.New(submitterextractor.Config{
+				Expression:              attribution.SubmittedByExpression,
+				CostLimit:               attribution.Limits.CostLimit,
+				MaxExpressionBytes:      attribution.Limits.MaxExpressionBytes,
+				MaxIdentityBytes:        attribution.Limits.MaxIdentityBytes,
+				InterruptCheckFrequency: attribution.Limits.InterruptCheckFrequency,
+			}); err != nil {
+				return fmt.Errorf("invalid submitter configuration: %w", err)
+			}
+
+			slog.Info("Karta metrics exporter scaffold started; metrics collection is not implemented",
+				"version", version.String(), "submitterExtraction", strings.TrimSpace(attribution.SubmittedByExpression) != "")
+			<-ctx.Done()
+			slog.Info("Karta metrics exporter stopped")
+			return nil
+		},
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	slog.Info("Karta metrics exporter scaffold started; metrics collection is not implemented",
-		"version", version.String(), "submitterExtraction", strings.TrimSpace(attribution.SubmittedByExpression) != "")
-	<-ctx.Done()
-	slog.Info("Karta metrics exporter stopped")
+	err := cmd.Run(ctx, os.Args)
+	stop()
+	if err != nil {
+		slog.Error("Karta metrics exporter failed", "error", err)
+		os.Exit(1)
+	}
 }

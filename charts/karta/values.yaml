@@ -18,8 +18,8 @@ exporter:
     tag: ""
     pullPolicy: IfNotPresent
   # Rendered verbatim into the exporter's config file (ConfigMap). The CEL
-  # variables, limits and matching command-line flags are documented in
-  # karta-metrics-exporter/pkg/submitterextractor/README.md.
+  # variables, limits, and matching flags and environment variables are
+  # documented in karta-metrics-exporter/pkg/submitterextractor/README.md.
   attribution:
     # CEL expression returning the submitter identity as a string. It sees
     # labels, annotations and resource (namespace, name, group, version,

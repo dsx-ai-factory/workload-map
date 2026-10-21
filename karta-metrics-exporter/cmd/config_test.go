@@ -4,13 +4,14 @@
 package main
 
 import (
-	"flag"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/urfave/cli/v3"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/submitterextractor"
 )
@@ -33,14 +34,27 @@ func writeConfig(content string) string {
 	return path
 }
 
-func loadWithArgs(args ...string) (*Config, error) {
-	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	flags := bindConfigFlags(fs)
-	if err := fs.Parse(args); err != nil {
-		return nil, err
+func loadWithArgs(args ...string) (Config, error) {
+	var cfg Config
+	cmd := &cli.Command{
+		Name:      "test",
+		Flags:     configFlags(),
+		Writer:    io.Discard,
+		ErrWriter: io.Discard,
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			var err error
+			cfg, err = loadConfig(cmd)
+			return err
+		},
 	}
-	return flags.load(fs)
+	err := cmd.Run(context.Background(), append([]string{"test"}, args...))
+	return cfg, err
+}
+
+func setEnv(key, value string) {
+	GinkgoHelper()
+	DeferCleanup(os.Unsetenv, key)
+	Expect(os.Setenv(key, value)).To(Succeed())
 }
 
 var _ = Describe("config loading", func() {
@@ -114,6 +128,36 @@ var _ = Describe("config loading", func() {
 		Expect(cfg.Attribution.Limits.MaxIdentityBytes).To(Equal(32))
 	})
 
+	Context("environment variables", func() {
+		It("reads the config path and settings from the environment", func() {
+			setEnv("KARTA_EXPORTER_CONFIG", writeConfig("attribution:\n  limits:\n    maxIdentityBytes: 64\n"))
+			setEnv("KARTA_EXPORTER_SUBMITTED_BY_EXPRESSION", `labels["owner"]`)
+			setEnv("KARTA_EXPORTER_SUBMITTER_COST_LIMIT", "7")
+
+			cfg, err := loadWithArgs()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.Attribution.SubmittedByExpression).To(Equal(`labels["owner"]`))
+			Expect(cfg.Attribution.Limits.CostLimit).To(BeEquivalentTo(7))
+			Expect(cfg.Attribution.Limits.MaxIdentityBytes).To(Equal(64))
+		})
+
+		It("overrides the file", func() {
+			setEnv("KARTA_EXPORTER_SUBMITTER_MAX_IDENTITY_BYTES", "32")
+
+			cfg, err := loadWithArgs("--config", writeConfig("attribution:\n  limits:\n    maxIdentityBytes: 64\n"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.Attribution.Limits.MaxIdentityBytes).To(Equal(32))
+		})
+
+		It("is overridden by a flag", func() {
+			setEnv("KARTA_EXPORTER_SUBMITTER_COST_LIMIT", "7")
+
+			cfg, err := loadWithArgs("--"+flagCostLimit, "9")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.Attribution.Limits.CostLimit).To(BeEquivalentTo(9))
+		})
+	})
+
 	DescribeTable("rejects a zero interrupt check frequency",
 		func(args func() []string) {
 			_, err := loadWithArgs(args()...)
@@ -123,6 +167,10 @@ var _ = Describe("config loading", func() {
 			return []string{"--config", writeConfig("attribution:\n  limits:\n    interruptCheckFrequency: 0\n")}
 		}),
 		Entry("from a flag", func() []string { return []string{"--" + flagInterruptCheckFrequency, "0"} }),
+		Entry("from the environment", func() []string {
+			setEnv("KARTA_EXPORTER_SUBMITTER_INTERRUPT_CHECK_FREQUENCY", "0")
+			return nil
+		}),
 	)
 
 	DescribeTable("rejects invalid input",

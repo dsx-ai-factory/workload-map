@@ -244,7 +244,7 @@ plus automated dependency updates from [@dependabot](https://github.com/dependab
 
 Full changelog: https://github.com/dsx-ai-factory/workload-map/compare/v0.2.0...v0.3.0
 Helm chart: `oci://ghcr.io/dsx-ai-factory/workload-map/karta:0.3.0`
-Container images: see [packages page](https://github.com/dsx-ai-factory/workload-map/pkgs/container/karta)
+Container images: see the [karta-operator package](https://github.com/dsx-ai-factory/workload-map/pkgs/container/workload-map%2Fkarta-operator)
 
 ## v0.2.0 - 2026-07-15
 
@@ -394,7 +394,7 @@ plus automated dependency updates from [@dependabot](https://github.com/dependab
 
 Full changelog: https://github.com/dsx-ai-factory/workload-map/compare/v0.1.0...v0.2.0
 Helm chart: `oci://ghcr.io/run-ai/karta:0.2.0`
-Container images: see [packages page](https://github.com/dsx-ai-factory/workload-map/pkgs/container/karta)
+Container images: see the [karta-operator package](https://github.com/orgs/run-ai/packages/container/package/karta%2Fkarta-operator). The v0.2.0 images were published before the organization move and stayed under `run-ai`; later releases publish to the `dsx-ai-factory` package.
 
 ## v0.1.0 - 2026-05-12
 

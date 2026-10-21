@@ -15,39 +15,75 @@ import (
 )
 
 const (
-	// maxExpressionBytes bounds the configured expression before compilation.
-	maxExpressionBytes = 4096
-	// maxEvaluationCost bounds the CEL cost units spent on one evaluation.
-	maxEvaluationCost = 10000
-	// maxIdentityBytes bounds the identity a single evaluation may return.
-	maxIdentityBytes = 1024
-	// interruptCheckFrequency is how many comprehension iterations pass
+	// DefaultMaxExpressionBytes bounds the configured expression before compilation.
+	DefaultMaxExpressionBytes = 4096
+	// DefaultCostLimit bounds the CEL cost units spent on one evaluation.
+	DefaultCostLimit = 10000
+	// DefaultMaxIdentityBytes bounds the identity a single evaluation may return.
+	DefaultMaxIdentityBytes = 1024
+	// DefaultInterruptCheckFrequency is how many comprehension iterations pass
 	// between context cancellation checks.
-	interruptCheckFrequency = 100
+	DefaultInterruptCheckFrequency = 100
 )
 
 var (
-	// ErrIdentityTooLong is returned when an expression result exceeds maxIdentityBytes.
+	// ErrIdentityTooLong is returned when an expression result exceeds Config.MaxIdentityBytes.
 	ErrIdentityTooLong = errors.New("submitter identity exceeds the maximum length")
 	// ErrNotString is returned when an expression does not produce a string.
 	ErrNotString = errors.New("submitter expression must produce a string")
 )
 
+// Config configures the extractor. A zero limit selects its default.
+type Config struct {
+	// Expression is the CEL expression. Empty disables extraction.
+	Expression string
+	// CostLimit bounds the CEL cost units spent on one evaluation.
+	CostLimit uint64
+	// MaxExpressionBytes bounds the expression length.
+	MaxExpressionBytes int
+	// MaxIdentityBytes bounds the length of the returned identity.
+	MaxIdentityBytes int
+	// InterruptCheckFrequency is how many comprehension iterations pass between
+	// context cancellation checks. Zero selects the default rather than
+	// disabling the checks.
+	InterruptCheckFrequency uint
+}
+
 type celExtractor struct {
-	program cel.Program
+	program          cel.Program
+	maxIdentityBytes int
 }
 
 type disabledExtractor struct{}
 
 // New compiles the CEL expression once and returns an extractor for it.
 // An empty expression disables extraction: every evaluation yields an unknown
-// identity. An invalid expression, or one whose result is not a string, is an error.
-func New(expression string) (Interface, error) {
+// identity. An invalid expression, one whose result is not a string, or a
+// negative limit is an error.
+func New(cfg Config) (Interface, error) {
+	if cfg.MaxExpressionBytes < 0 || cfg.MaxIdentityBytes < 0 {
+		return nil, fmt.Errorf("submitter limits must not be negative")
+	}
+	if cfg.CostLimit == 0 {
+		cfg.CostLimit = DefaultCostLimit
+	}
+	if cfg.MaxExpressionBytes == 0 {
+		cfg.MaxExpressionBytes = DefaultMaxExpressionBytes
+	}
+	if cfg.MaxIdentityBytes == 0 {
+		cfg.MaxIdentityBytes = DefaultMaxIdentityBytes
+	}
+	// cel-go disables cancellation checks during evaluation at zero.
+	if cfg.InterruptCheckFrequency == 0 {
+		cfg.InterruptCheckFrequency = DefaultInterruptCheckFrequency
+	}
+
+	expression := cfg.Expression
 	if strings.TrimSpace(expression) == "" {
 		return disabledExtractor{}, nil
 	}
-	if len(expression) > maxExpressionBytes {
-		return nil, fmt.Errorf("submitter expression exceeds %d bytes", maxExpressionBytes)
+	if len(expression) > cfg.MaxExpressionBytes {
+		return nil, fmt.Errorf("submitter expression exceeds %d bytes", cfg.MaxExpressionBytes)
 	}
 
 	env, err := cel.NewEnv(
@@ -68,13 +104,13 @@ func New(expression string) (Interface, error) {
 	}
 
 	program, err := env.Program(ast,
-		cel.CostLimit(maxEvaluationCost),
-		cel.InterruptCheckFrequency(interruptCheckFrequency),
+		cel.CostLimit(cfg.CostLimit),
+		cel.InterruptCheckFrequency(cfg.InterruptCheckFrequency),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("building submitter program: %w", err)
 	}
-	return &celExtractor{program: program}, nil
+	return &celExtractor{program: program, maxIdentityBytes: cfg.MaxIdentityBytes}, nil
 }
 
 func (disabledExtractor) Evaluate(context.Context, metav1.Object, schema.GroupVersionKind) (Submitter, error) {
@@ -109,7 +145,7 @@ func (e *celExtractor) Evaluate(ctx context.Context, obj metav1.Object, gvk sche
 	if !ok {
 		return Submitter{}, ErrNotString
 	}
-	if len(identity) > maxIdentityBytes {
+	if len(identity) > e.maxIdentityBytes {
 		return Submitter{}, ErrIdentityTooLong
 	}
 	return Submitter{Identity: identity}, nil

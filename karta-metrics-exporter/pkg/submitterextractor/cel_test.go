@@ -6,8 +6,11 @@ package submitterextractor
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"strings"
 	"testing"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -90,7 +93,7 @@ func TestEvaluate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			extractor, err := New(tt.expression)
+			extractor, err := New(Config{Expression: tt.expression})
 			if err != nil {
 				t.Fatalf("New() error = %v", err)
 			}
@@ -113,7 +116,7 @@ func TestEvaluate(t *testing.T) {
 }
 
 func TestEvaluateDoesNotMutateObject(t *testing.T) {
-	extractor, err := New(dualSourceExpression)
+	extractor, err := New(Config{Expression: dualSourceExpression})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -140,12 +143,12 @@ func TestNewInvalid(t *testing.T) {
 		{name: "undeclared variable", expression: `spec.owner`},
 		{name: "non-string result", expression: `1 + 1`, wantErr: ErrNotString},
 		{name: "map result", expression: `labels`, wantErr: ErrNotString},
-		{name: "too long", expression: `"` + strings.Repeat("a", maxExpressionBytes) + `"`},
+		{name: "too long", expression: `"` + strings.Repeat("a", DefaultMaxExpressionBytes) + `"`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(tt.expression)
+			_, err := New(Config{Expression: tt.expression})
 			if err == nil {
 				t.Fatal("New() error = nil, want error")
 			}
@@ -157,7 +160,7 @@ func TestNewInvalid(t *testing.T) {
 }
 
 func TestEvaluateMissingKeyIsError(t *testing.T) {
-	extractor, err := New(`labels["absent"]`)
+	extractor, err := New(Config{Expression: `labels["absent"]`})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -168,7 +171,7 @@ func TestEvaluateMissingKeyIsError(t *testing.T) {
 }
 
 func TestEvaluateCancellation(t *testing.T) {
-	extractor, err := New(dualSourceExpression)
+	extractor, err := New(Config{Expression: dualSourceExpression})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -186,9 +189,36 @@ func TestEvaluateCancellation(t *testing.T) {
 	}
 }
 
+func TestEvaluateInterruptsLongEvaluation(t *testing.T) {
+	// Six nested comprehensions run a million iterations: far longer than the deadline.
+	const list = "[1,2,3,4,5,6,7,8,9,10]"
+	expression := fmt.Sprintf(
+		"string(size(%[1]s.map(a, %[1]s.map(b, %[1]s.map(c, %[1]s.map(d, %[1]s.map(e, %[1]s.map(f, a+b+c+d+e+f))))))))",
+		list)
+
+	for _, frequency := range []uint{0, 1, 1000} {
+		t.Run(fmt.Sprintf("frequency %d", frequency), func(t *testing.T) {
+			extractor, err := New(Config{
+				Expression:              expression,
+				CostLimit:               math.MaxUint64,
+				InterruptCheckFrequency: frequency,
+			})
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+			defer cancel()
+			if _, err := extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK); !errors.Is(err, context.DeadlineExceeded) {
+				t.Errorf("Evaluate() error = %v, want context.DeadlineExceeded", err)
+			}
+		})
+	}
+}
+
 func TestEvaluateCostLimit(t *testing.T) {
 	// Nested comprehensions over a large range exceed the cost budget.
-	extractor, err := New(`string(size([1,2,3,4,5,6,7,8,9,10].map(a, [1,2,3,4,5,6,7,8,9,10].map(b, [1,2,3,4,5,6,7,8,9,10].map(c, [1,2,3,4,5,6,7,8,9,10].map(d, [1,2,3,4,5,6,7,8,9,10].map(e, a+b+c+d+e)))))))`)
+	extractor, err := New(Config{Expression: `string(size([1,2,3,4,5,6,7,8,9,10].map(a, [1,2,3,4,5,6,7,8,9,10].map(b, [1,2,3,4,5,6,7,8,9,10].map(c, [1,2,3,4,5,6,7,8,9,10].map(d, [1,2,3,4,5,6,7,8,9,10].map(e, a+b+c+d+e)))))))`})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -199,13 +229,66 @@ func TestEvaluateCostLimit(t *testing.T) {
 }
 
 func TestEvaluateOutputLimit(t *testing.T) {
-	extractor, err := New(`labels["big"]`)
+	extractor, err := New(Config{Expression: `labels["big"]`})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	obj := &metav1.ObjectMeta{Labels: map[string]string{"big": strings.Repeat("a", maxIdentityBytes+1)}}
+	obj := &metav1.ObjectMeta{Labels: map[string]string{"big": strings.Repeat("a", DefaultMaxIdentityBytes+1)}}
 
 	if _, err := extractor.Evaluate(context.Background(), obj, jobGVK); !errors.Is(err, ErrIdentityTooLong) {
 		t.Errorf("Evaluate() error = %v, want ErrIdentityTooLong", err)
 	}
+}
+
+func TestConfiguredLimits(t *testing.T) {
+	obj := &metav1.ObjectMeta{Annotations: map[string]string{"karta.run.ai/submitted-by": "alice"}}
+
+	t.Run("cost limit", func(t *testing.T) {
+		extractor, err := New(Config{Expression: dualSourceExpression, CostLimit: 1})
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
+		if _, err := extractor.Evaluate(context.Background(), obj, jobGVK); err == nil {
+			t.Error("Evaluate() error = nil, want cost limit error")
+		}
+	})
+
+	t.Run("identity limit", func(t *testing.T) {
+		extractor, err := New(Config{Expression: dualSourceExpression, MaxIdentityBytes: 4})
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
+		if _, err := extractor.Evaluate(context.Background(), obj, jobGVK); !errors.Is(err, ErrIdentityTooLong) {
+			t.Errorf("Evaluate() error = %v, want ErrIdentityTooLong", err)
+		}
+	})
+
+	t.Run("expression limit", func(t *testing.T) {
+		if _, err := New(Config{Expression: dualSourceExpression, MaxExpressionBytes: 16}); err == nil {
+			t.Error("New() error = nil, want expression length error")
+		}
+	})
+
+	t.Run("raised limits", func(t *testing.T) {
+		long := strings.Repeat("a", DefaultMaxIdentityBytes+1)
+		extractor, err := New(Config{Expression: `labels["big"]`, MaxIdentityBytes: 2 * DefaultMaxIdentityBytes})
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
+		got, err := extractor.Evaluate(context.Background(), &metav1.ObjectMeta{Labels: map[string]string{"big": long}}, jobGVK)
+		if err != nil || got.Identity != long {
+			t.Errorf("Evaluate() = %q, %v; want the long identity", got.Identity, err)
+		}
+	})
+
+	t.Run("negative limits", func(t *testing.T) {
+		for _, cfg := range []Config{
+			{Expression: dualSourceExpression, MaxExpressionBytes: -1},
+			{Expression: dualSourceExpression, MaxIdentityBytes: -1},
+		} {
+			if _, err := New(cfg); err == nil {
+				t.Errorf("New(%+v) error = nil, want error", cfg)
+			}
+		}
+	})
 }

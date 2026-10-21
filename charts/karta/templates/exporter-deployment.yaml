@@ -6,7 +6,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ printf "%s-metrics-exporter" (.Values.fullnameOverride | default .Chart.Name | trunc 46 | trimSuffix "-") }}
+  name: {{ include "karta.exporter.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
@@ -22,6 +22,9 @@ spec:
     metadata:
       labels:
         {{- include "karta.exporter.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Roll the Pod when the config changes; the file is read once at startup.
+        checksum/config: {{ include (print $.Template.BasePath "/exporter-configmap.yaml") . | sha256sum }}
     spec:
       automountServiceAccountToken: false
       {{- with .Values.imagePullSecrets }}
@@ -38,22 +41,25 @@ spec:
         - name: karta-metrics-exporter
           image: "{{ required "exporter.image.repository is required" .Values.exporter.image.repository }}:{{ .Values.exporter.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.exporter.image.pullPolicy }}
-          {{- $submittedBy := .Values.exporter.attribution.submittedByExpression }}
-          {{- if or (ne $fipsMode "off") $submittedBy }}
+          args:
+            - --config=/etc/karta-metrics-exporter/config.yaml
+          {{- if ne $fipsMode "off" }}
           env:
-            {{- if ne $fipsMode "off" }}
             - name: GODEBUG
               value: "fips140={{ $fipsMode }}"
-            {{- end }}
-            {{- with $submittedBy }}
-            - name: KARTA_SUBMITTED_BY_EXPRESSION
-              value: {{ . | toJson }}
-            {{- end }}
           {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/karta-metrics-exporter
+              readOnly: true
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "karta.exporter.fullname" . }}
 {{- end }}

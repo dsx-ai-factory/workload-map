@@ -19,6 +19,7 @@ import (
 
 func main() {
 	printVersion := flag.Bool("version", false, "Print the exporter version and exit.")
+	configPath := flag.String("config", "", "Path to the exporter config file. KARTA_* environment variables override it.")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		flag.Usage()
@@ -29,9 +30,20 @@ func main() {
 		return
 	}
 
-	submittedBy := os.Getenv("KARTA_SUBMITTED_BY_EXPRESSION")
-	if _, err := submitterextractor.New(submittedBy); err != nil {
-		slog.Error("Invalid submitter expression", "error", err)
+	cfg, err := loadConfig(*configPath)
+	if err != nil {
+		slog.Error("Invalid exporter configuration", "error", err)
+		os.Exit(1)
+	}
+	attribution := cfg.Attribution
+	if _, err := submitterextractor.New(submitterextractor.Config{
+		Expression:              attribution.SubmittedByExpression,
+		CostLimit:               attribution.Limits.CostLimit,
+		MaxExpressionBytes:      attribution.Limits.MaxExpressionBytes,
+		MaxIdentityBytes:        attribution.Limits.MaxIdentityBytes,
+		InterruptCheckFrequency: attribution.Limits.InterruptCheckFrequency,
+	}); err != nil {
+		slog.Error("Invalid submitter configuration", "error", err)
 		os.Exit(1)
 	}
 
@@ -39,7 +51,7 @@ func main() {
 	defer stop()
 
 	slog.Info("Karta metrics exporter scaffold started; metrics collection is not implemented",
-		"version", version.String(), "submitterExtraction", submittedBy != "")
+		"version", version.String(), "submitterExtraction", cfg.Attribution.SubmittedByExpression != "")
 	<-ctx.Done()
 	slog.Info("Karta metrics exporter stopped")
 }

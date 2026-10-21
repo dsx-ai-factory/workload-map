@@ -139,14 +139,21 @@ Submitter capture is separate from the exporter and Karta operator. Helm install
 bindings. Both policies run inside the Kubernetes API server.
 
 ```yaml
-submitterAdmission:
-  enabled: true
+admissionPolicies:
+  submitter:
+    enabled: true
+    immutable: true # Optional; off by default.
+    resources:
+      - apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        resources: ["jobs"]
 ```
 
 When `kubectl apply` creates a workload within capture scope, MAP records the
 authenticated caller in `karta.run.ai/submitted-by`. VAP rejects a different
-identity supplied on CREATE. Captured identity must stay protected on UPDATE,
-even after capture scope narrows. The caller can be a service account.
+identity supplied on CREATE. With `immutable: true`, captured identity stays
+protected on UPDATE, even after capture scope narrows. The caller can be a
+service account.
 
 Kubernetes feature versions:
 

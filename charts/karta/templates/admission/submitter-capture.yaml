@@ -6,7 +6,7 @@
 apiVersion: {{ $apiVersion }}
 kind: MutatingAdmissionPolicy
 metadata:
-  name: {{ include "karta.submitter.captureName" . }}
+  name: {{ include "karta.submitter.name" (list . "capture") }}
   labels:
     {{- include "karta.labels" . | nindent 4 }}
 spec:
@@ -18,9 +18,7 @@ spec:
     # A supplied value is left for the CREATE validation to accept or reject.
     - name: karta-submitter-unset
       expression: '!has(object.metadata.annotations) || !("karta.run.ai/submitted-by" in object.metadata.annotations)'
-    {{- with $s.matchConditions }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- include "karta.submitter.captureMatchConditions" . | nindent 4 }}
   mutations:
     - patchType: ApplyConfiguration
       applyConfiguration:
@@ -29,9 +27,9 @@ spec:
 apiVersion: {{ $apiVersion }}
 kind: MutatingAdmissionPolicyBinding
 metadata:
-  name: {{ include "karta.submitter.captureName" . }}
+  name: {{ include "karta.submitter.name" (list . "capture") }}
   labels:
     {{- include "karta.labels" . | nindent 4 }}
 spec:
-  policyName: {{ include "karta.submitter.captureName" . }}
+  policyName: {{ include "karta.submitter.name" (list . "capture") }}
 {{- end }}

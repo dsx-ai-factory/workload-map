@@ -355,6 +355,7 @@ test-operator-integration: envtest ## Run the operator envtest suite (downloads 
 
 .PHONY: test-chart-admission
 test-chart-admission: envtest ## Run the chart's admission policy tests against envtest (needs helm)
+	@command -v helm >/dev/null || { echo "error: test-chart-admission renders the chart and needs helm on PATH (CI uses v4.3.1)"; exit 1; }
 	cd operator && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_ADMISSION_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		go test ./test/admission/...
 
@@ -554,6 +555,8 @@ CRD_CONFIGMAP_MAX_BYTES ?= 1000000
 helm-validate: ## Validate the chart renders and the CRD ConfigMap fits in etcd
 	helm template $(KARTA_CHART_DIR)
 	helm template $(KARTA_CHART_DIR) --set global.fipsMode=only
+	helm template $(KARTA_CHART_DIR) --set admissionPolicies.submitter.enabled=true --set admissionPolicies.submitter.immutable=true \
+		--set admissionPolicies.submitter.apiVersion=v1 --set-json 'admissionPolicies.submitter.resources=[{"apiGroups":["batch"],"apiVersions":["v1"],"resources":["jobs"]}]'
 	@set -e; tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; helm template $(KARTA_CHART_DIR) -s templates/hooks/pre/crd-upgrader-configmap.yaml > "$$tmp"; s=$$(wc -c < "$$tmp"); echo "crd-upgrader ConfigMap: $$s bytes (max $(CRD_CONFIGMAP_MAX_BYTES))"; test $$s -le $(CRD_CONFIGMAP_MAX_BYTES) || { echo "error: CRD ConfigMap is $$s bytes, over the $(CRD_CONFIGMAP_MAX_BYTES) limit; it must fit in a single ~1 MiB etcd object"; exit 1; }
 
 ##@ Air-gap

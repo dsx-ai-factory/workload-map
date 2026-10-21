@@ -6,17 +6,15 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
-  name: {{ include "karta.submitter.createName" . }}
+  name: {{ include "karta.submitter.name" (list . "create") }}
   labels:
     {{- include "karta.labels" . | nindent 4 }}
 spec:
   failurePolicy: Fail
   matchConstraints:
     {{- include "karta.submitter.captureMatchConstraints" . | nindent 4 }}
-  {{- with $s.matchConditions }}
   matchConditions:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- include "karta.submitter.captureMatchConditions" . | nindent 4 }}
   validations:
     - expression: '!has(object.metadata.annotations) || !("karta.run.ai/submitted-by" in object.metadata.annotations) || object.metadata.annotations["karta.run.ai/submitted-by"] == request.userInfo.username'
       message: karta.run.ai/submitted-by must be unset or name the requesting user
@@ -25,10 +23,10 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding
 metadata:
-  name: {{ include "karta.submitter.createName" . }}
+  name: {{ include "karta.submitter.name" (list . "create") }}
   labels:
     {{- include "karta.labels" . | nindent 4 }}
 spec:
-  policyName: {{ include "karta.submitter.createName" . }}
+  policyName: {{ include "karta.submitter.name" (list . "create") }}
   validationActions: [Deny]
 {{- end }}

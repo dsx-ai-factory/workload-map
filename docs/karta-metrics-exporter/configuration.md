@@ -187,7 +187,7 @@ admissionPolicies:
         apiVersions: ["v1"]
         resources: ["jobs"]
     excludeResources: [] # Same form; exclusions win.
-    namespaceSelector: # Default: the opt-in label below.
+    namespaceSelector: # Default: the opt-in label below. Set matchLabels: null to drop it.
       matchLabels:
         karta.run.ai/capture-submitter: "true"
       matchExpressions:
@@ -200,7 +200,11 @@ admissionPolicies:
 
 Capture follows [native Kubernetes matching](https://github.com/kubernetes/kubernetes/blob/v1.36.0/staging/src/k8s.io/api/admissionregistration/v1/types.go#L554-L642).
 It selects namespaced CREATE requests. Exclusions win and all conditions must
-pass. An empty namespace selector matches all namespaces. Direct Pod capture uses
+pass. Objects with a controller `ownerReference` are skipped: a controller that
+copies a parent's annotations onto a child is not the submitter. An empty
+namespace selector matches all namespaces. Helm merges maps with the defaults, so
+match all namespaces with `matchLabels: null`, not `{}`. Condition names starting
+with `karta-` are reserved. Direct Pod capture uses
 group `""`, version `v1`, resource `pods`. Subresources cannot be listed. These
 settings do not filter exporter watches.
 
@@ -211,8 +215,9 @@ the caller.
 
 `immutable: true` adds a validation policy for UPDATE on the listed resources and
 all their subresources. Some subresources, such as `jobs/status`, accept metadata
-changes. It rejects changing or removing an existing annotation. It skips objects
-that never had one. It ignores the selectors, exclusions and conditions, and stays
+changes. It rejects adding the annotation on UPDATE, and changing or removing an
+existing one, so a value can only come from CREATE. Updates where neither version
+has the annotation are skipped. It ignores the selectors, exclusions and conditions, and stays
 installed when `enabled` is false. Narrowing capture never unlocks a captured value.
 Removing a resource type from `resources` does lift its protection. It is off by
 default because it evaluates every update to the listed resources, including

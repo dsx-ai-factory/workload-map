@@ -9,7 +9,7 @@ metrics yet.
 
 | Package | Responsibility | Included here |
 | --- | --- | --- |
-| [submitterextractor](pkg/submitterextractor/) | Extract the submitter from object metadata. | Interface |
+| [submitterextractor](pkg/submitterextractor/) | Extract the submitter from object metadata. | `Evaluator` interface and CEL implementation |
 | [kartadefinitioninventory](pkg/kartadefinitioninventory/) | Select a Karta definition and retain its source. | Interface |
 | [discovery](pkg/discovery/) | Resolve ownership and interpret workloads with Karta. | README |
 | [controller](pkg/controller/) | Connect watches, work queues and calculations. | README |

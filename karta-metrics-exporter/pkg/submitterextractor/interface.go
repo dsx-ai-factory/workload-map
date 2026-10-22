@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-type Interface interface {
+type Evaluator interface {
 	Evaluate(context.Context, metav1.Object, schema.GroupVersionKind) (Submitter, error)
 }
 

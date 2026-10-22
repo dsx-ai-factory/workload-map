@@ -144,10 +144,7 @@ func (e *celExtractor) Evaluate(ctx context.Context, obj metav1.Object, gvk sche
 		},
 	})
 	if err != nil {
-		// CEL reports interruption with its own error; surface the context error instead.
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return Submitter{}, ctxErr
-		}
+		// On interruption, ContextEval wraps the context cause, so errors.Is still matches it.
 		return Submitter{}, fmt.Errorf("evaluating submitter expression: %w", err)
 	}
 

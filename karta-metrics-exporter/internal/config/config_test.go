@@ -171,7 +171,21 @@ var _ = Describe("config loading", func() {
 			return nil
 		}),
 		Entry("empty expression flag", func() []string { return []string{"--" + flagSubmittedByExpression + "="} }),
+		Entry("whitespace environment variables", func() []string {
+			setEnv("KARTA_EXPORTER_SUBMITTED_BY_EXPRESSION", "  \n")
+			setEnv("KARTA_EXPORTER_SUBMITTER_COST_LIMIT", " ")
+			return nil
+		}),
+		Entry("whitespace expression flag", func() []string { return []string{"--" + flagSubmittedByExpression, "  "} }),
 	)
+
+	It("falls back to the environment variable when the flag is whitespace", func() {
+		setEnv("KARTA_EXPORTER_SUBMITTED_BY_EXPRESSION", `"from-env"`)
+
+		cfg, err := loadWithArgs("--"+flagSubmittedByExpression, " ")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Attribution.SubmittedByExpression).To(Equal(`"from-env"`))
+	})
 
 	DescribeTable("rejects a zero interrupt check frequency",
 		func(args func() []string) {

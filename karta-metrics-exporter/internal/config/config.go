@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -141,7 +142,7 @@ func NewLoader(fs *flag.FlagSet, getenv func(string) string) *Loader {
 }
 
 // Load reads the config file, when set, and applies the environment variables
-// and then the flags, so a flag wins. Empty values count as unset. Unknown keys
+// and then the flags, so a flag wins. Empty or whitespace-only values count as unset. Unknown keys
 // in the file are an error. Call it after fs is parsed.
 func (l *Loader) Load() (Config, error) {
 	cfg := Config{Attribution: AttributionConfig{Limits: defaultAttributionLimits}}
@@ -174,7 +175,7 @@ func (l *Loader) Load() (Config, error) {
 	}
 
 	for _, s := range attributionSettings {
-		if v := l.value(s); v != "" {
+		if v := l.value(s); strings.TrimSpace(v) != "" {
 			if err := s.apply(&cfg.Attribution, v); err != nil {
 				return Config{}, fmt.Errorf("--%s (%s): %w", s.flag, s.env, err)
 			}
@@ -190,7 +191,7 @@ func (l *Loader) Load() (Config, error) {
 // value returns the setting's flag value, or its environment variable when the
 // flag is empty.
 func (l *Loader) value(s setting) string {
-	if v := *l.flags[s.flag]; v != "" {
+	if v := *l.flags[s.flag]; strings.TrimSpace(v) != "" {
 		return v
 	}
 	return l.getenv(s.env)

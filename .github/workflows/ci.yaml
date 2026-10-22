@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
 name: Pull Request
 
 on:
@@ -28,6 +31,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Check commit attribution
+        env:
+          COMMIT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          COMMIT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          COMMIT_DEFAULT_BRANCH: refs/remotes/origin/${{ github.event.repository.default_branch }}
+        run: make commit-attribution-check
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
@@ -165,7 +175,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Build Headlamp plugin
         run: make headlamp-plugin-build

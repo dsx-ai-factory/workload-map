@@ -151,6 +151,36 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`. When p
 git commit -s -m "fix(api): validate status mapping expressions before applying them"
 ```
 
+### Commit Attribution
+
+Commit co-author trailers identify human contributors. Do not add AI tools as
+co-authors. Human `Co-authored-by` trailers and the required human `Signed-off-by`
+trailer remain valid. AI-assisted contributions are allowed; this check does not
+detect or prohibit AI use.
+
+CI rejects parsed `Co-authored-by` trailers
+containing Claude, ChatGPT, Copilot, Codex, Devin, Cursor, Gemini, or Anthropic,
+case-insensitively. Merge, revert, and fixup commit messages are checked too.
+This is name matching, not an identity lookup. Unlisted names are outside the
+rule's scope. Normal prose mentioning these tools is allowed.
+
+PRs and updates to existing branches check the supplied base-to-head range.
+For a new branch push, GitHub supplies an all-zero base. CI then checks only
+commits not already on the repository's default branch. Creating a release
+branch does not recheck inherited history. Locally, this fallback uses
+`refs/remotes/origin/main`; set `COMMIT_DEFAULT_BRANCH` to use another ref.
+An unavailable base ref fails the check rather than skipping validation.
+
+Run the same check locally:
+
+```bash
+make commit-attribution-check COMMIT_BASE=origin/main COMMIT_HEAD=HEAD
+```
+
+If it fails, remove the AI co-author line from each reported commit message.
+Keep human attribution and DCO sign-offs. A new commit does not repair an earlier
+commit's message.
+
 ### Making Changes
 
 1. Fork the repository

@@ -146,6 +146,16 @@
       "groupName": "headlamp-plugin npm"
     },
     {
+      "description": "Rewrite npm overrides entries even within range. Without it Renovate updates only the lockfile, with npm install <name>@<version>, which npm rejects with EOVERRIDE for a package that appears only under overrides.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "overrides"
+      ],
+      "rangeStrategy": "bump"
+    },
+    {
       "description": "Group non-major Makefile and workflow tool updates, Renovate included.",
       "matchManagers": [
         "custom.regex"
@@ -186,6 +196,30 @@
           "**/go.mod",
           "**/go.sum",
           "karta/sdk/**",
+          "charts/karta/crds/**",
+          "NOTICE",
+          "THIRD_PARTY_LICENSES"
+        ],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Release branches predate the move of the library to karta/sdk and keep the older make target names and layout, so their regeneration runs those.",
+      "matchManagers": [
+        "gomod",
+        "custom.regex"
+      ],
+      "matchBaseBranches": [
+        "/^(v|release-)\\d+\\.\\d+$/"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "make generate manifests generate-mocks generate-licenses"
+        ],
+        "fileFilters": [
+          "**/go.mod",
+          "**/go.sum",
+          "pkg/**",
           "charts/karta/crds/**",
           "NOTICE",
           "THIRD_PARTY_LICENSES"

@@ -50,6 +50,8 @@ ENVTEST_VERSION             ?= release-0.23
 GORELEASER_VERSION          ?= v2.18.3
 # Kubernetes control-plane (apiserver, etcd, kubectl) version envtest downloads.
 ENVTEST_K8S_VERSION         ?= 1.31.0
+# Control-plane version for the chart's admission policy tests; MutatingAdmissionPolicy v1 needs 1.36+.
+ENVTEST_ADMISSION_K8S_VERSION ?= 1.36.2
 
 # Tool binaries, all installed into the single LOCALBIN. The version is part of
 # the filename, and therefore part of make's target name, so bumping a version
@@ -352,6 +354,11 @@ test-operator-integration: envtest ## Run the operator envtest suite (downloads 
 	cd operator && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		go test -coverprofile=cover-integration.out ./test/integration/...
 
+.PHONY: test-chart-admission
+test-chart-admission: envtest ## Run the chart's admission policy tests against envtest (needs helm)
+	cd operator && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_ADMISSION_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		go test ./test/admission/...
+
 .PHONY: test-operator
 test-operator: test-operator-unit test-operator-integration ## Run the operator unit and envtest suites
 
@@ -603,6 +610,8 @@ CRD_CONFIGMAP_MAX_BYTES ?= 1000000
 helm-validate: ## Validate the chart renders and the CRD ConfigMap fits in etcd
 	helm template $(KARTA_CHART_DIR)
 	helm template $(KARTA_CHART_DIR) --set global.fipsMode=only
+	helm template $(KARTA_CHART_DIR) --set admissionPolicies.submitter.enabled=true --set admissionPolicies.submitter.immutable=true \
+		--set admissionPolicies.submitter.apiVersion=v1 --set-json 'admissionPolicies.submitter.resources=[{"apiGroups":["batch"],"apiVersions":["v1"],"resources":["jobs"]}]'
 	@set -e; tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; helm template $(KARTA_CHART_DIR) -s templates/hooks/pre/crd-upgrader-configmap.yaml > "$$tmp"; s=$$(wc -c < "$$tmp"); echo "crd-upgrader ConfigMap: $$s bytes (max $(CRD_CONFIGMAP_MAX_BYTES))"; test $$s -le $(CRD_CONFIGMAP_MAX_BYTES) || { echo "error: CRD ConfigMap is $$s bytes, over the $(CRD_CONFIGMAP_MAX_BYTES) limit; it must fit in a single ~1 MiB etcd object"; exit 1; }
 
 ##@ Air-gap

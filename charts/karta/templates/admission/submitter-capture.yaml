@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+{{- $s := .Values.admissionPolicies.submitter }}
+{{- if $s.enabled }}
+{{- $apiVersion := include "karta.submitter.apiVersion" (dict "ctx" . "mutating" true) }}
+apiVersion: {{ $apiVersion }}
+kind: MutatingAdmissionPolicy
+metadata:
+  name: {{ include "karta.submitter.name" (list . "capture") }}
+  labels:
+    {{- include "karta.labels" . | nindent 4 }}
+spec:
+  failurePolicy: Fail
+  reinvocationPolicy: Never
+  matchConstraints:
+    {{- include "karta.submitter.captureMatchConstraints" . | nindent 4 }}
+  matchConditions:
+    # A supplied value is left for the CREATE validation to accept or reject.
+    - name: karta-submitter-unset
+      expression: '!has(object.metadata.annotations) || !("karta.run.ai/submitted-by" in object.metadata.annotations)'
+    {{- include "karta.submitter.captureMatchConditions" . | nindent 4 }}
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: 'Object{metadata: Object.metadata{annotations: {"karta.run.ai/submitted-by": request.userInfo.username}}}'
+---
+apiVersion: {{ $apiVersion }}
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: {{ include "karta.submitter.name" (list . "capture") }}
+  labels:
+    {{- include "karta.labels" . | nindent 4 }}
+spec:
+  policyName: {{ include "karta.submitter.name" (list . "capture") }}
+{{- end }}

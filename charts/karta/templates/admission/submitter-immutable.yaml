@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+{{- /*
+Matches only the resource types: namespace and object selectors, exclusions and
+matchConditions scope capture, so narrowing them never lifts protection from an
+annotation that was already captured.
+*/}}
+{{- $s := .Values.admissionPolicies.submitter }}
+{{- if $s.immutable }}
+{{- include "karta.submitter.apiVersion" (dict "ctx" . "mutating" false) }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ include "karta.submitter.name" (list . "immutable") }}
+  labels:
+    {{- include "karta.labels" . | nindent 4 }}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      {{- include "karta.submitter.resourceRules" (dict "rules" $s.resources "operation" "UPDATE" "subresources" true "field" "admissionPolicies.submitter.resources") | trim | nindent 6 }}
+  matchConditions:
+    # Skips updates where neither version carries the annotation.
+    - name: karta-submitter-present
+      expression: '(has(oldObject.metadata.annotations) && "karta.run.ai/submitted-by" in oldObject.metadata.annotations) || (has(object.metadata.annotations) && "karta.run.ai/submitted-by" in object.metadata.annotations)'
+  # Rejects adding the annotation on UPDATE as well as changing or removing it,
+  # so a value can only come from CREATE.
+  validations:
+    - expression: 'has(oldObject.metadata.annotations) && "karta.run.ai/submitted-by" in oldObject.metadata.annotations && has(object.metadata.annotations) && "karta.run.ai/submitted-by" in object.metadata.annotations && object.metadata.annotations["karta.run.ai/submitted-by"] == oldObject.metadata.annotations["karta.run.ai/submitted-by"]'
+      message: karta.run.ai/submitted-by is immutable and can only be set on create
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ include "karta.submitter.name" (list . "immutable") }}
+  labels:
+    {{- include "karta.labels" . | nindent 4 }}
+spec:
+  policyName: {{ include "karta.submitter.name" (list . "immutable") }}
+  validationActions: [Deny]
+{{- end }}

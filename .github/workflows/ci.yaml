@@ -88,6 +88,9 @@ jobs:
       - name: Validate helm chart renders
         run: make helm-validate
 
+      - name: Test chart admission policies
+        run: make test-chart-admission
+
       - name: Verify air-gap image lock coverage
         run: make image-lock-verify
 

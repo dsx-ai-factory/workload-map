@@ -88,6 +88,48 @@ webhook:
     # here, e.g. cert-manager.io/inject-ca-from: <namespace>/<certificate-name>
     annotations: {}
 
+# Native admission policies, run by the API server. They need neither the
+# operator nor the exporter, so operator.enabled does not affect them.
+admissionPolicies:
+  # Records the authenticated caller that creates a workload in the
+  # karta.run.ai/submitted-by annotation.
+  submitter:
+    # Capture: a MutatingAdmissionPolicy fills a missing annotation on CREATE,
+    # and a ValidatingAdmissionPolicy rejects a supplied value naming another
+    # caller. Objects with a controller ownerReference are skipped, since their
+    # creator is a controller, not the submitter. Requires MutatingAdmissionPolicy: v1 on Kubernetes 1.36+, or the
+    # v1beta1 API enabled on 1.34-1.35.
+    enabled: false
+    # Reject UPDATEs that add, change or remove the annotation. Off by default
+    # because it evaluates every update to the listed resources, including their
+    # status and other subresources, which can also change metadata. It ignores the
+    # selectors, exclusions and conditions below and stays in force when enabled
+    # is false, so narrowing capture never unlocks a captured value.
+    immutable: false
+    # MutatingAdmissionPolicy API version: v1 or v1beta1. Empty detects it from
+    # the cluster. Set it for helm template and GitOps tools, which cannot detect it.
+    apiVersion: ""
+    # Workload types, by API group, version and plural resource name. The chart
+    # sets operations and scope. Required when enabled or immutable is true.
+    # Example:
+    # - apiGroups: ["batch"]
+    #   apiVersions: ["v1"]
+    #   resources: ["jobs"]
+    resources: []
+    # Types to skip during capture, in the same form. Exclusions win.
+    excludeResources: []
+    # Capture in namespaces matching these labels. Helm merges maps with these
+    # defaults, so to match all namespaces set matchLabels: null rather than {}.
+    namespaceSelector:
+      matchLabels:
+        karta.run.ai/capture-submitter: "true"
+    # Capture objects matching these labels. {} matches all objects.
+    objectSelector: {}
+    # Extra CEL conditions on the CREATE request; all must pass for capture.
+    # An expression that fails to evaluate rejects the request. Names starting
+    # with karta- are reserved.
+    matchConditions: []
+
 logLevel: info
 
 # Extra flags appended after the chart's default args. Use this to add flags

@@ -426,11 +426,6 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v0.29.2
 - License: Apache-2.0
 
-### github.com/urfave/cli/v3
-- Name: github.com/urfave/cli/v3
-- Version: v3.14.0
-- License: MIT
-
 ### cel.dev/expr
 - Name: cel.dev/expr
 - Version: v0.25.1
@@ -440,6 +435,11 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Name: github.com/antlr4-go/antlr/v4
 - Version: v4.13.1
 - License: BSD-3-Clause
+
+### github.com/stretchr/testify
+- Name: github.com/stretchr/testify
+- Version: v1.12.1
+- License: MIT
 
 ### golang.org/x/exp
 - Name: golang.org/x/exp

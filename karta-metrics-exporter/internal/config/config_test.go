@@ -4,14 +4,13 @@
 package config
 
 import (
-	"context"
+	"flag"
 	"io"
 	"os"
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/urfave/cli/v3"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/submitterextractor"
 )
@@ -35,20 +34,13 @@ func writeConfig(content string) string {
 }
 
 func loadWithArgs(args ...string) (Config, error) {
-	var cfg Config
-	cmd := &cli.Command{
-		Name:      "test",
-		Flags:     Flags(),
-		Writer:    io.Discard,
-		ErrWriter: io.Discard,
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			var err error
-			cfg, err = Load(cmd)
-			return err
-		},
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	loader := NewLoader(fs, os.Getenv)
+	if err := fs.Parse(args); err != nil {
+		return Config{}, err
 	}
-	err := cmd.Run(context.Background(), append([]string{"test"}, args...))
-	return cfg, err
+	return loader.Load()
 }
 
 func setEnv(key, value string) {
@@ -226,5 +218,11 @@ var _ = Describe("config loading", func() {
 		Entry("negative interrupt check frequency flag", func() []string {
 			return []string{"--" + flagInterruptCheckFrequency, "-1"}
 		}),
+		Entry("non-numeric limit flag", func() []string { return []string{"--" + flagMaxIdentityBytes, "lots"} }),
+		Entry("non-numeric limit environment variable", func() []string {
+			setEnv("KARTA_EXPORTER_SUBMITTER_COST_LIMIT", "lots")
+			return nil
+		}),
+		Entry("unknown flag", func() []string { return []string{"--submitter-unknown", "1"} }),
 	)
 })

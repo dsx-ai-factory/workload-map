@@ -287,7 +287,7 @@ spec:
                             componentTypeSelector:
                               description: |-
                                 ComponentTypeSelector determines whether a pod belongs to this component type
-                                by matching a pod label or annotation value via a JQ path.
+                                by matching a pod label or annotation value via a JQ path, a set of pod labels, or both.
                                 This is the primary mechanism for pod-to-component membership.
                                 For example, LWS "leader" uses worker-index="0" to identify leader pods,
                                 and LWS "worker" checks for the existence of the leader-name annotation.
@@ -296,15 +296,29 @@ spec:
                                   description: |-
                                     KeyPath is the JQ path to the identifying key/label on the pod
                                     JQ path is evaluated against individual pod objects, not the root resource spec
+                                  minLength: 1
                                   type: string
+                                matchLabels:
+                                  additionalProperties:
+                                    type: string
+                                  description: |-
+                                    MatchLabels is a map of pod label key/value pairs. Each entry is an equality
+                                    requirement and all entries must match. Use it when a single label is not
+                                    enough to identify the component's pods (e.g., component=proxy and app=pulsar).
+                                  minProperties: 1
+                                  type: object
                                 value:
                                   description: Value is the expected value for the
                                     key (optional - if nil, only key existence is
                                     checked)
                                   type: string
-                              required:
-                              - keyPath
                               type: object
+                              x-kubernetes-validations:
+                              - message: at least one of keyPath or matchLabels must
+                                  be set
+                                rule: has(self.keyPath) || has(self.matchLabels)
+                              - message: value requires keyPath
+                                rule: '!has(self.value) || has(self.keyPath)'
                             replicaSelector:
                               description: |-
                                 ReplicaSelector identifies which replica index or group the pod belongs to.
@@ -1079,7 +1093,7 @@ spec:
                           componentTypeSelector:
                             description: |-
                               ComponentTypeSelector determines whether a pod belongs to this component type
-                              by matching a pod label or annotation value via a JQ path.
+                              by matching a pod label or annotation value via a JQ path, a set of pod labels, or both.
                               This is the primary mechanism for pod-to-component membership.
                               For example, LWS "leader" uses worker-index="0" to identify leader pods,
                               and LWS "worker" checks for the existence of the leader-name annotation.
@@ -1088,14 +1102,28 @@ spec:
                                 description: |-
                                   KeyPath is the JQ path to the identifying key/label on the pod
                                   JQ path is evaluated against individual pod objects, not the root resource spec
+                                minLength: 1
                                 type: string
+                              matchLabels:
+                                additionalProperties:
+                                  type: string
+                                description: |-
+                                  MatchLabels is a map of pod label key/value pairs. Each entry is an equality
+                                  requirement and all entries must match. Use it when a single label is not
+                                  enough to identify the component's pods (e.g., component=proxy and app=pulsar).
+                                minProperties: 1
+                                type: object
                               value:
                                 description: Value is the expected value for the key
                                   (optional - if nil, only key existence is checked)
                                 type: string
-                            required:
-                            - keyPath
                             type: object
+                            x-kubernetes-validations:
+                            - message: at least one of keyPath or matchLabels must
+                                be set
+                              rule: has(self.keyPath) || has(self.matchLabels)
+                            - message: value requires keyPath
+                              rule: '!has(self.value) || has(self.keyPath)'
                           replicaSelector:
                             description: |-
                               ReplicaSelector identifies which replica index or group the pod belongs to.

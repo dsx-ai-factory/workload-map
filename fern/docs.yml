@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# yaml-language-server: $schema=https://schema.buildwithfern.dev/docs-yml.json
+
+# TODO: the instance URL and custom domain are placeholders. Replace them with
+# the values registered for this site before publishing.
+instances:
+  - url: nvidia-workload-map.docs.buildwithfern.com/workload-map
+    custom-domain: docs.nvidia.com/workload-map
+
+title: NVIDIA Workload Map Documentation
+
+global-theme: nvidia
+
+logo:
+  right-text: Workload Map
+
+navbar-links:
+  - type: github
+    value: https://github.com/dsx-ai-factory/workload-map
+
+navigation:
+  - page: Home
+    path: ../docs/index.mdx
+    slug: /

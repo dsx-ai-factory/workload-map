@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# The universal NIM source uses create-model-store and skips profile discovery.
+# The CPU stub writes a marker to the real PVC; no model or credentials are used.
+apiVersion: apps.nvidia.com/v1alpha1
+kind: NIMCache
+metadata:
+  name: karta-e2e-nimcache-completed
+  namespace: default
+spec:
+  source:
+    ngc:
+      modelPuller: nim-cpu:e2e
+      authSecret: nimcache-auth
+      pullSecret: nimcache-pull
+      modelEndpoint: https://example.com/models/fictive
+  storage:
+    pvc:
+      create: true
+      size: 64Mi
+      volumeAccessMode: ReadWriteOnce
+  nodeSelector:
+    kubernetes.io/os: linux
+  resources:
+    cpu: 100m
+    memory: 64Mi
+  env:
+    - name: NIM_CACHE_TEST_DELAY
+      value: "15s"
+    - name: NIM_CACHE_TEST_FAIL
+      value: "false"

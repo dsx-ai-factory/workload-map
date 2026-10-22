@@ -21,7 +21,8 @@ var _ = Describe("Sandbox", Ordered, Label("agent-sandbox", "sandbox"), func() {
 		// Each state pairs the requested spec.operatingMode with the controller's conditions, so a
 		// condition the controller has not caught up on yet is recorded as the transition it is.
 		rec = recorder.New(cfg).
-			AddState(kartav1alpha1.InitializingStatus, AllOf(SandboxMode("Running"), CondFalse("Ready"), CondFalse("Suspended"))).
+			AddState(kartav1alpha1.ProgressingStatus, sandboxProgressing).
+			AddState(kartav1alpha1.PendingStatus, sandboxPending).
 			AddState(kartav1alpha1.RunningStatus, AllOf(SandboxMode("Running"), CondTrue("Ready"), CondNotTrue("Suspended"))).
 			AddState(kartav1alpha1.SuspendingStatus, AllOf(SandboxMode("Suspended"), CondNotTrue("Suspended"))).
 			AddState(kartav1alpha1.SuspendedStatus, AllOf(SandboxMode("Suspended"), CondTrue("Suspended"))).
@@ -30,7 +31,7 @@ var _ = Describe("Sandbox", Ordered, Label("agent-sandbox", "sandbox"), func() {
 
 	It("running", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "running", "testdata/sandbox/running.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus),
+			recorder.Reaches(kartav1alpha1.PendingStatus),
 			recorder.Reaches(kartav1alpha1.RunningStatus),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
@@ -52,7 +53,7 @@ var _ = Describe("Sandbox", Ordered, Label("agent-sandbox", "sandbox"), func() {
 		// controller never recreates a running pod on a podTemplate change; the change
 		// takes effect only when the next pod is created, as after a resume.
 		out, err := recorder.NewFlow(rec, "suspended-from-running", "testdata/sandbox/suspended-from-running.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus),
+			recorder.Reaches(kartav1alpha1.PendingStatus),
 			recorder.Reaches(kartav1alpha1.RunningStatus).Do(SuspendSandbox()),
 			recorder.Reaches(kartav1alpha1.SuspendingStatus),
 			recorder.Reaches(kartav1alpha1.SuspendedStatus),
@@ -65,12 +66,12 @@ var _ = Describe("Sandbox", Ordered, Label("agent-sandbox", "sandbox"), func() {
 		// The controller reports each step: suspending while the pod is deleted, then resuming while
 		// the Suspended condition is still set after the mode returns to Running.
 		out, err := recorder.NewFlow(rec, "resumed", "testdata/sandbox/resumed.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus),
+			recorder.Reaches(kartav1alpha1.PendingStatus),
 			recorder.Reaches(kartav1alpha1.RunningStatus).Do(SuspendSandbox()),
 			recorder.Reaches(kartav1alpha1.SuspendingStatus),
 			recorder.Reaches(kartav1alpha1.SuspendedStatus).Do(ResumeSandbox()),
 			recorder.Reaches(kartav1alpha1.ResumingStatus),
-			recorder.Reaches(kartav1alpha1.InitializingStatus),
+			recorder.Reaches(kartav1alpha1.PendingStatus),
 			recorder.Reaches(kartav1alpha1.RunningStatus),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())

@@ -1,0 +1,893 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      creationTimestamp: "2026-10-19T07:15:47Z"
+      finalizers:
+      - ray.io/rayservice-finalizer
+      generateName: karta-e2e-rayservice-
+      generation: 2
+      name: karta-e2e-rayservice-cjqbf
+      namespace: test-qpn52
+      uid: 87aa4323-3c58-4c67-aecf-81fb1e061400
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams:
+            dashboard-host: 0.0.0.0
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - env:
+                - name: PYTHONPATH
+                  value: /home/ray/e2e
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  tcpSocket:
+                    port: 6379
+                name: ray-head
+                ports:
+                - containerPort: 6379
+                  name: gcs-server
+                  protocol: TCP
+                - containerPort: 8265
+                  name: dashboard
+                  protocol: TCP
+                - containerPort: 10001
+                  name: client
+                  protocol: TCP
+                - containerPort: 8000
+                  name: serve
+                  protocol: TCP
+                readinessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  tcpSocket:
+                    port: 6379
+                resources:
+                  limits:
+                    cpu: "1"
+                    memory: 2Gi
+                  requests:
+                    cpu: 250m
+                    memory: 1Gi
+                volumeMounts:
+                - mountPath: /home/ray/e2e
+                  name: serve-app
+                  readOnly: true
+              volumes:
+              - configMap:
+                  name: karta-e2e-serve-app
+                name: serve-app
+        rayVersion: 2.40.0
+      serveConfigV2: |
+        proxy_location: HeadOnly
+        http_options:
+          host: 0.0.0.0
+          port: 8000
+        applications:
+          - name: e2e
+            route_prefix: /
+            import_path: serve_app.app
+            runtime_env:
+              env_vars:
+                PYTHONPATH: /home/ray/e2e
+            deployments:
+              - name: Ready
+                num_replicas: 1
+                ray_actor_options:
+                  num_cpus: 0.1
+  phases:
+  - Pending
+  resourceVersion: "887"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      creationTimestamp: "2026-10-19T07:15:47Z"
+      finalizers:
+      - ray.io/rayservice-finalizer
+      generateName: karta-e2e-rayservice-
+      generation: 2
+      name: karta-e2e-rayservice-cjqbf
+      namespace: test-qpn52
+      uid: 87aa4323-3c58-4c67-aecf-81fb1e061400
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams:
+            dashboard-host: 0.0.0.0
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - env:
+                - name: PYTHONPATH
+                  value: /home/ray/e2e
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  tcpSocket:
+                    port: 6379
+                name: ray-head
+                ports:
+                - containerPort: 6379
+                  name: gcs-server
+                  protocol: TCP
+                - containerPort: 8265
+                  name: dashboard
+                  protocol: TCP
+                - containerPort: 10001
+                  name: client
+                  protocol: TCP
+                - containerPort: 8000
+                  name: serve
+                  protocol: TCP
+                readinessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  tcpSocket:
+                    port: 6379
+                resources:
+                  limits:
+                    cpu: "1"
+                    memory: 2Gi
+                  requests:
+                    cpu: 250m
+                    memory: 1Gi
+                volumeMounts:
+                - mountPath: /home/ray/e2e
+                  name: serve-app
+                  readOnly: true
+              volumes:
+              - configMap:
+                  name: karta-e2e-serve-app
+                name: serve-app
+        rayVersion: 2.40.0
+      serveConfigV2: |
+        proxy_location: HeadOnly
+        http_options:
+          host: 0.0.0.0
+          port: 8000
+        applications:
+          - name: e2e
+            route_prefix: /
+            import_path: serve_app.app
+            runtime_env:
+              env_vars:
+                PYTHONPATH: /home/ray/e2e
+            deployments:
+              - name: Ready
+                num_replicas: 1
+                ray_actor_options:
+                  num_cpus: 0.1
+    status:
+      activeServiceStatus:
+        rayClusterStatus:
+          desiredCPU: "0"
+          desiredGPU: "0"
+          desiredMemory: "0"
+          desiredTPU: "0"
+          head: {}
+      conditions:
+      - lastTransitionTime: "2026-10-19T07:15:48Z"
+        message: RayService is initializing
+        observedGeneration: 2
+        reason: Initializing
+        status: "False"
+        type: Ready
+      - lastTransitionTime: "2026-10-19T07:15:48Z"
+        message: RayService is initializing
+        observedGeneration: 2
+        reason: Initializing
+        status: "False"
+        type: UpgradeInProgress
+      lastUpdateTime: "2026-10-19T07:15:48Z"
+      observedGeneration: 2
+      pendingServiceStatus:
+        rayClusterName: karta-e2e-rayservice-cjqbf-t9m6b
+        rayClusterStatus:
+          desiredCPU: "0"
+          desiredGPU: "0"
+          desiredMemory: "0"
+          desiredTPU: "0"
+          head: {}
+  phases:
+  - Progressing
+  - Pending
+  resourceVersion: "888"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      creationTimestamp: "2026-10-19T07:15:47Z"
+      finalizers:
+      - ray.io/rayservice-finalizer
+      generateName: karta-e2e-rayservice-
+      generation: 2
+      name: karta-e2e-rayservice-cjqbf
+      namespace: test-qpn52
+      uid: 87aa4323-3c58-4c67-aecf-81fb1e061400
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams:
+            dashboard-host: 0.0.0.0
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - env:
+                - name: PYTHONPATH
+                  value: /home/ray/e2e
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  tcpSocket:
+                    port: 6379
+                name: ray-head
+                ports:
+                - containerPort: 6379
+                  name: gcs-server
+                  protocol: TCP
+                - containerPort: 8265
+                  name: dashboard
+                  protocol: TCP
+                - containerPort: 10001
+                  name: client
+                  protocol: TCP
+                - containerPort: 8000
+                  name: serve
+                  protocol: TCP
+                readinessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  tcpSocket:
+                    port: 6379
+                resources:
+                  limits:
+                    cpu: "1"
+                    memory: 2Gi
+                  requests:
+                    cpu: 250m
+                    memory: 1Gi
+                volumeMounts:
+                - mountPath: /home/ray/e2e
+                  name: serve-app
+                  readOnly: true
+              volumes:
+              - configMap:
+                  name: karta-e2e-serve-app
+                name: serve-app
+        rayVersion: 2.40.0
+      serveConfigV2: |
+        proxy_location: HeadOnly
+        http_options:
+          host: 0.0.0.0
+          port: 8000
+        applications:
+          - name: e2e
+            route_prefix: /
+            import_path: serve_app.app
+            runtime_env:
+              env_vars:
+                PYTHONPATH: /home/ray/e2e
+            deployments:
+              - name: Ready
+                num_replicas: 1
+                ray_actor_options:
+                  num_cpus: 0.1
+    status:
+      activeServiceStatus:
+        rayClusterStatus:
+          desiredCPU: "0"
+          desiredGPU: "0"
+          desiredMemory: "0"
+          desiredTPU: "0"
+          head: {}
+      conditions:
+      - lastTransitionTime: "2026-10-19T07:15:48Z"
+        message: RayService is initializing
+        observedGeneration: 2
+        reason: Initializing
+        status: "False"
+        type: Ready
+      - lastTransitionTime: "2026-10-19T07:15:48Z"
+        message: RayService is initializing
+        observedGeneration: 2
+        reason: Initializing
+        status: "False"
+        type: UpgradeInProgress
+      lastUpdateTime: "2026-10-19T07:16:05Z"
+      observedGeneration: 2
+      pendingServiceStatus:
+        applicationStatuses:
+          e2e:
+            status: DEPLOYING
+        rayClusterName: karta-e2e-rayservice-cjqbf-t9m6b
+        rayClusterStatus:
+          conditions:
+          - lastTransitionTime: "2026-10-19T07:16:01Z"
+            message: ""
+            reason: HeadPodRunningAndReady
+            status: "True"
+            type: HeadPodReady
+          - lastTransitionTime: "2026-10-19T07:16:01Z"
+            message: All Ray Pods are ready for the first time
+            reason: AllPodRunningAndReadyFirstTime
+            status: "True"
+            type: RayClusterProvisioned
+          - lastTransitionTime: "2026-10-19T07:15:50Z"
+            message: ""
+            reason: RayClusterSuspended
+            status: "False"
+            type: RayClusterSuspended
+          - lastTransitionTime: "2026-10-19T07:15:50Z"
+            message: ""
+            reason: RayClusterSuspending
+            status: "False"
+            type: RayClusterSuspending
+          desiredCPU: 250m
+          desiredGPU: "0"
+          desiredMemory: 1Gi
+          desiredTPU: "0"
+          endpoints:
+            client: "10001"
+            dashboard: "8265"
+            gcs-server: "6379"
+            metrics: "8080"
+            serve: "8000"
+          head:
+            podIP: 10.244.1.5
+            podName: karta-e2e-rayservice-cjqbf-t9m6b-head-4lwzz
+            serviceIP: 10.244.1.5
+            serviceName: karta-e2e-rayservice-cjqbf-t9m6b-head-svc
+          lastUpdateTime: "2026-10-19T07:16:01Z"
+          observedGeneration: 1
+          state: ready
+          stateTransitionTimes:
+            ready: "2026-10-19T07:16:01Z"
+  phases:
+  - Progressing
+  - Pending
+  resourceVersion: "949"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      creationTimestamp: "2026-10-19T07:15:47Z"
+      finalizers:
+      - ray.io/rayservice-finalizer
+      generateName: karta-e2e-rayservice-
+      generation: 2
+      name: karta-e2e-rayservice-cjqbf
+      namespace: test-qpn52
+      uid: 87aa4323-3c58-4c67-aecf-81fb1e061400
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams:
+            dashboard-host: 0.0.0.0
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - env:
+                - name: PYTHONPATH
+                  value: /home/ray/e2e
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  tcpSocket:
+                    port: 6379
+                name: ray-head
+                ports:
+                - containerPort: 6379
+                  name: gcs-server
+                  protocol: TCP
+                - containerPort: 8265
+                  name: dashboard
+                  protocol: TCP
+                - containerPort: 10001
+                  name: client
+                  protocol: TCP
+                - containerPort: 8000
+                  name: serve
+                  protocol: TCP
+                readinessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  tcpSocket:
+                    port: 6379
+                resources:
+                  limits:
+                    cpu: "1"
+                    memory: 2Gi
+                  requests:
+                    cpu: 250m
+                    memory: 1Gi
+                volumeMounts:
+                - mountPath: /home/ray/e2e
+                  name: serve-app
+                  readOnly: true
+              volumes:
+              - configMap:
+                  name: karta-e2e-serve-app
+                name: serve-app
+        rayVersion: 2.40.0
+      serveConfigV2: |
+        proxy_location: HeadOnly
+        http_options:
+          host: 0.0.0.0
+          port: 8000
+        applications:
+          - name: e2e
+            route_prefix: /
+            import_path: serve_app.app
+            runtime_env:
+              env_vars:
+                PYTHONPATH: /home/ray/e2e
+            deployments:
+              - name: Ready
+                num_replicas: 1
+                ray_actor_options:
+                  num_cpus: 0.1
+    status:
+      activeServiceStatus:
+        rayClusterStatus:
+          desiredCPU: "0"
+          desiredGPU: "0"
+          desiredMemory: "0"
+          desiredTPU: "0"
+          head: {}
+      conditions:
+      - lastTransitionTime: "2026-10-19T07:15:48Z"
+        message: RayService is initializing
+        observedGeneration: 2
+        reason: Initializing
+        status: "False"
+        type: Ready
+      - lastTransitionTime: "2026-10-19T07:15:48Z"
+        message: RayService is initializing
+        observedGeneration: 2
+        reason: Initializing
+        status: "False"
+        type: UpgradeInProgress
+      lastUpdateTime: "2026-10-19T07:16:07Z"
+      observedGeneration: 2
+      pendingServiceStatus:
+        applicationStatuses:
+          e2e:
+            serveDeploymentStatuses:
+              Ready:
+                status: UPDATING
+            status: DEPLOYING
+        rayClusterName: karta-e2e-rayservice-cjqbf-t9m6b
+        rayClusterStatus:
+          conditions:
+          - lastTransitionTime: "2026-10-19T07:16:01Z"
+            message: ""
+            reason: HeadPodRunningAndReady
+            status: "True"
+            type: HeadPodReady
+          - lastTransitionTime: "2026-10-19T07:16:01Z"
+            message: All Ray Pods are ready for the first time
+            reason: AllPodRunningAndReadyFirstTime
+            status: "True"
+            type: RayClusterProvisioned
+          - lastTransitionTime: "2026-10-19T07:15:50Z"
+            message: ""
+            reason: RayClusterSuspended
+            status: "False"
+            type: RayClusterSuspended
+          - lastTransitionTime: "2026-10-19T07:15:50Z"
+            message: ""
+            reason: RayClusterSuspending
+            status: "False"
+            type: RayClusterSuspending
+          desiredCPU: 250m
+          desiredGPU: "0"
+          desiredMemory: 1Gi
+          desiredTPU: "0"
+          endpoints:
+            client: "10001"
+            dashboard: "8265"
+            gcs-server: "6379"
+            metrics: "8080"
+            serve: "8000"
+          head:
+            podIP: 10.244.1.5
+            podName: karta-e2e-rayservice-cjqbf-t9m6b-head-4lwzz
+            serviceIP: 10.244.1.5
+            serviceName: karta-e2e-rayservice-cjqbf-t9m6b-head-svc
+          lastUpdateTime: "2026-10-19T07:16:01Z"
+          observedGeneration: 1
+          state: ready
+          stateTransitionTimes:
+            ready: "2026-10-19T07:16:01Z"
+  phases:
+  - Progressing
+  - Pending
+  resourceVersion: "957"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      creationTimestamp: "2026-10-19T07:15:47Z"
+      finalizers:
+      - ray.io/rayservice-finalizer
+      generateName: karta-e2e-rayservice-
+      generation: 2
+      name: karta-e2e-rayservice-cjqbf
+      namespace: test-qpn52
+      uid: 87aa4323-3c58-4c67-aecf-81fb1e061400
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams:
+            dashboard-host: 0.0.0.0
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - env:
+                - name: PYTHONPATH
+                  value: /home/ray/e2e
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  tcpSocket:
+                    port: 6379
+                name: ray-head
+                ports:
+                - containerPort: 6379
+                  name: gcs-server
+                  protocol: TCP
+                - containerPort: 8265
+                  name: dashboard
+                  protocol: TCP
+                - containerPort: 10001
+                  name: client
+                  protocol: TCP
+                - containerPort: 8000
+                  name: serve
+                  protocol: TCP
+                readinessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  tcpSocket:
+                    port: 6379
+                resources:
+                  limits:
+                    cpu: "1"
+                    memory: 2Gi
+                  requests:
+                    cpu: 250m
+                    memory: 1Gi
+                volumeMounts:
+                - mountPath: /home/ray/e2e
+                  name: serve-app
+                  readOnly: true
+              volumes:
+              - configMap:
+                  name: karta-e2e-serve-app
+                name: serve-app
+        rayVersion: 2.40.0
+      serveConfigV2: |
+        proxy_location: HeadOnly
+        http_options:
+          host: 0.0.0.0
+          port: 8000
+        applications:
+          - name: e2e
+            route_prefix: /
+            import_path: serve_app.app
+            runtime_env:
+              env_vars:
+                PYTHONPATH: /home/ray/e2e
+            deployments:
+              - name: Ready
+                num_replicas: 1
+                ray_actor_options:
+                  num_cpus: 0.1
+    status:
+      activeServiceStatus:
+        applicationStatuses:
+          e2e:
+            serveDeploymentStatuses:
+              Ready:
+                status: HEALTHY
+            status: RUNNING
+        rayClusterName: karta-e2e-rayservice-cjqbf-t9m6b
+        rayClusterStatus:
+          conditions:
+          - lastTransitionTime: "2026-10-19T07:16:01Z"
+            message: ""
+            reason: HeadPodRunningAndReady
+            status: "True"
+            type: HeadPodReady
+          - lastTransitionTime: "2026-10-19T07:16:01Z"
+            message: All Ray Pods are ready for the first time
+            reason: AllPodRunningAndReadyFirstTime
+            status: "True"
+            type: RayClusterProvisioned
+          - lastTransitionTime: "2026-10-19T07:15:50Z"
+            message: ""
+            reason: RayClusterSuspended
+            status: "False"
+            type: RayClusterSuspended
+          - lastTransitionTime: "2026-10-19T07:15:50Z"
+            message: ""
+            reason: RayClusterSuspending
+            status: "False"
+            type: RayClusterSuspending
+          desiredCPU: 250m
+          desiredGPU: "0"
+          desiredMemory: 1Gi
+          desiredTPU: "0"
+          endpoints:
+            client: "10001"
+            dashboard: "8265"
+            gcs-server: "6379"
+            metrics: "8080"
+            serve: "8000"
+          head:
+            podIP: 10.244.1.5
+            podName: karta-e2e-rayservice-cjqbf-t9m6b-head-4lwzz
+            serviceIP: 10.244.1.5
+            serviceName: karta-e2e-rayservice-cjqbf-t9m6b-head-svc
+          lastUpdateTime: "2026-10-19T07:16:01Z"
+          observedGeneration: 1
+          state: ready
+          stateTransitionTimes:
+            ready: "2026-10-19T07:16:01Z"
+      conditions:
+      - lastTransitionTime: "2026-10-19T07:15:48Z"
+        message: RayService is initializing
+        observedGeneration: 2
+        reason: Initializing
+        status: "False"
+        type: Ready
+      - lastTransitionTime: "2026-10-19T07:15:48Z"
+        message: Active Ray cluster exists and no pending Ray cluster
+        observedGeneration: 2
+        reason: NoPendingCluster
+        status: "False"
+        type: UpgradeInProgress
+      lastUpdateTime: "2026-10-19T07:16:09Z"
+      observedGeneration: 2
+      pendingServiceStatus:
+        rayClusterStatus:
+          desiredCPU: "0"
+          desiredGPU: "0"
+          desiredMemory: "0"
+          desiredTPU: "0"
+          head: {}
+  phases:
+  - Progressing
+  - Pending
+  resourceVersion: "971"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      creationTimestamp: "2026-10-19T07:15:47Z"
+      finalizers:
+      - ray.io/rayservice-finalizer
+      generateName: karta-e2e-rayservice-
+      generation: 2
+      name: karta-e2e-rayservice-cjqbf
+      namespace: test-qpn52
+      uid: 87aa4323-3c58-4c67-aecf-81fb1e061400
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams:
+            dashboard-host: 0.0.0.0
+            num-cpus: "1"
+          template:
+            metadata: {}
+            spec:
+              containers:
+              - env:
+                - name: PYTHONPATH
+                  value: /home/ray/e2e
+                image: ray-e2e:local
+                imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  tcpSocket:
+                    port: 6379
+                name: ray-head
+                ports:
+                - containerPort: 6379
+                  name: gcs-server
+                  protocol: TCP
+                - containerPort: 8265
+                  name: dashboard
+                  protocol: TCP
+                - containerPort: 10001
+                  name: client
+                  protocol: TCP
+                - containerPort: 8000
+                  name: serve
+                  protocol: TCP
+                readinessProbe:
+                  failureThreshold: 30
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  tcpSocket:
+                    port: 6379
+                resources:
+                  limits:
+                    cpu: "1"
+                    memory: 2Gi
+                  requests:
+                    cpu: 250m
+                    memory: 1Gi
+                volumeMounts:
+                - mountPath: /home/ray/e2e
+                  name: serve-app
+                  readOnly: true
+              volumes:
+              - configMap:
+                  name: karta-e2e-serve-app
+                name: serve-app
+        rayVersion: 2.40.0
+      serveConfigV2: |
+        proxy_location: HeadOnly
+        http_options:
+          host: 0.0.0.0
+          port: 8000
+        applications:
+          - name: e2e
+            route_prefix: /
+            import_path: serve_app.app
+            runtime_env:
+              env_vars:
+                PYTHONPATH: /home/ray/e2e
+            deployments:
+              - name: Ready
+                num_replicas: 1
+                ray_actor_options:
+                  num_cpus: 0.1
+    status:
+      activeServiceStatus:
+        applicationStatuses:
+          e2e:
+            serveDeploymentStatuses:
+              Ready:
+                status: HEALTHY
+            status: RUNNING
+        rayClusterName: karta-e2e-rayservice-cjqbf-t9m6b
+        rayClusterStatus:
+          conditions:
+          - lastTransitionTime: "2026-10-19T07:16:01Z"
+            message: ""
+            reason: HeadPodRunningAndReady
+            status: "True"
+            type: HeadPodReady
+          - lastTransitionTime: "2026-10-19T07:16:01Z"
+            message: All Ray Pods are ready for the first time
+            reason: AllPodRunningAndReadyFirstTime
+            status: "True"
+            type: RayClusterProvisioned
+          - lastTransitionTime: "2026-10-19T07:15:50Z"
+            message: ""
+            reason: RayClusterSuspended
+            status: "False"
+            type: RayClusterSuspended
+          - lastTransitionTime: "2026-10-19T07:15:50Z"
+            message: ""
+            reason: RayClusterSuspending
+            status: "False"
+            type: RayClusterSuspending
+          desiredCPU: 250m
+          desiredGPU: "0"
+          desiredMemory: 1Gi
+          desiredTPU: "0"
+          endpoints:
+            client: "10001"
+            dashboard: "8265"
+            gcs-server: "6379"
+            metrics: "8080"
+            serve: "8000"
+          head:
+            podIP: 10.244.1.5
+            podName: karta-e2e-rayservice-cjqbf-t9m6b-head-4lwzz
+            serviceIP: 10.244.1.5
+            serviceName: karta-e2e-rayservice-cjqbf-t9m6b-head-svc
+          lastUpdateTime: "2026-10-19T07:16:01Z"
+          observedGeneration: 1
+          state: ready
+          stateTransitionTimes:
+            ready: "2026-10-19T07:16:01Z"
+      conditions:
+      - lastTransitionTime: "2026-10-19T07:16:09Z"
+        message: Number of serve endpoints is greater than 0
+        observedGeneration: 2
+        reason: NonZeroServeEndpoints
+        status: "True"
+        type: Ready
+      - lastTransitionTime: "2026-10-19T07:15:48Z"
+        message: Active Ray cluster exists and no pending Ray cluster
+        observedGeneration: 2
+        reason: NoPendingCluster
+        status: "False"
+        type: UpgradeInProgress
+      lastUpdateTime: "2026-10-19T07:16:09Z"
+      numServeEndpoints: 1
+      observedGeneration: 2
+      pendingServiceStatus:
+        rayClusterStatus:
+          desiredCPU: "0"
+          desiredGPU: "0"
+          desiredMemory: "0"
+          desiredTPU: "0"
+          head: {}
+      serviceStatus: Running
+  phases:
+  - Running
+  resourceVersion: "972"
+  state: Running
+flow: running
+kartaFile: docs/catalog/ray-io-rayservice-v1.yaml
+kartaName: ray-io-rayservice-v1
+operator: kuberay
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 1
+  phases:
+  - Pending
+- amount: 4
+  phases:
+  - Progressing
+  - Pending
+- amount: 1
+  phases:
+  - Running
+version: 1.6.2
+want: Running

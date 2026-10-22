@@ -14,13 +14,13 @@ import (
 )
 
 // llmStartupReasons are the Ready=False reasons the controller reports while
-// it converges, none of which is a failure: the Deployment progressing or not
+// readiness is unresolved: the Deployment progressing or not
 // yet available, the router waiting on the Gateway API objects, the autoscaler
 // objects appearing, and a LeaderWorkerSet rolling (it flips Available to
 // False while keeping AllGroupsReady). MinimumReplicasUnavailable is also what
 // a Deployment that never becomes available keeps reporting, because the
 // controller forwards the Available reason over ProgressDeadlineExceeded, so
-// pod-level failures read as Initializing until KServe exposes them.
+// pod-level failures remain Pending until KServe exposes them.
 var llmStartupReasons = []string{
 	"Progressing",
 	"MinimumReplicasUnavailable",
@@ -105,18 +105,28 @@ func llmInferenceService(version string) *v1alpha1.Karta {
 							ReasonFieldName:  ptr.To("reason"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{
+							Pending: []v1alpha1.StatusMatcher{
+								{ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     inferenceEmptyStatusExpression + ` and (.spec.replicas // 1) > 0 and ((.metadata.annotations["serving.kserve.io/stop"] // "") | ascii_downcase) != "true"`,
+									ExpectedResult: "true",
+								}},
+
 								// A fresh object whose preset merge failed keeps
 								// Ready at Unknown forever; that one is Failed below.
 								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     ready("Unknown") + `) and (` + condition("PresetsCombined", "False") + `) | not)`,
+									Expression:     `(.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and ` + ready("Unknown") + `) and (` + condition("PresetsCombined", "False") + `) | not)`,
 									ExpectedResult: "true",
 								}},
 								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     ready("False") + ` and (.reason | IN(` + startup + `)))`,
+									Expression:     `(.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and ` + ready("False") + ` and (.reason | IN(` + startup + `))) and (` + condition("PresetsCombined", "False") + `) | not)`,
 									ExpectedResult: "true",
 								}},
 							},
+							// Gateway and autoscaler readiness reasons do not establish a workload rollout.
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression:     `(.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and any(.status.conditions[]?; .type == "Ready" and .status == "False" and .reason == "Progressing") and (any(.status.conditions[]?; .type == "PresetsCombined" and .status == "False") | not)`,
+								ExpectedResult: "true",
+							}}},
 							Running: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
 								{Type: "Ready", Status: ptr.To("True")},
 							}}},

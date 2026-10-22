@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# The ConfigMap is created by the flow. Serve runs real CPU replicas on the head,
+# with no external application download and no worker pods.
+apiVersion: ray.io/v1
+kind: RayService
+metadata:
+  generateName: karta-e2e-rayservice-
+spec:
+  serveConfigV2: |
+    proxy_location: HeadOnly
+    http_options:
+      host: 0.0.0.0
+      port: 8000
+    applications:
+      - name: e2e
+        route_prefix: /
+        import_path: serve_app.app
+        runtime_env:
+          env_vars:
+            PYTHONPATH: /home/ray/e2e
+        deployments:
+          - name: Ready
+            num_replicas: 1
+            ray_actor_options:
+              num_cpus: 0.1
+  rayClusterConfig:
+    rayVersion: "2.40.0"
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+        num-cpus: "1"
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: ray-e2e:local
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests: {cpu: 250m, memory: 1Gi}
+                limits: {cpu: "1", memory: 2Gi}
+              env:
+                - name: PYTHONPATH
+                  value: /home/ray/e2e
+              ports:
+                - {name: gcs-server, containerPort: 6379}
+                - {name: dashboard, containerPort: 8265}
+                - {name: client, containerPort: 10001}
+                - {name: serve, containerPort: 8000}
+              volumeMounts:
+                - name: serve-app
+                  mountPath: /home/ray/e2e
+                  readOnly: true
+              readinessProbe:
+                tcpSocket: {port: 6379}
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                failureThreshold: 30
+              livenessProbe:
+                tcpSocket: {port: 6379}
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                failureThreshold: 30
+          volumes:
+            - name: serve-app
+              configMap:
+                name: karta-e2e-serve-app
+    workerGroupSpecs: []

@@ -131,6 +131,31 @@ var _ = Describe("KartaValidator", func() {
 		Expect(err).To(HaveOccurred())
 	})
 
+	DescribeTable("warns without rejecting deprecated mappings",
+		func(update bool) {
+			karta := validKarta()
+			legacy := &kartav1alpha1.StatusDefinition{StatusMappings: kartav1alpha1.StatusMappings{
+				Initializing: []kartav1alpha1.StatusMatcher{{ByPhase: "Pending"}},
+			}}
+			karta.Spec.StructureDefinition.RootComponent.StatusDefinition = legacy
+			owner := "root"
+			karta.Spec.StructureDefinition.ChildComponents = []kartav1alpha1.ComponentDefinition{
+				{Name: "worker", OwnerRef: &owner, StatusDefinition: legacy},
+			}
+			validator := newValidator()
+			warnings, err := validator.ValidateCreate(ctx, karta)
+			if update {
+				warnings, err = validator.ValidateUpdate(ctx, validKarta(), karta)
+			}
+			Expect(err).NotTo(HaveOccurred())
+			Expect(warnings).To(HaveLen(2))
+			Expect(warnings[0]).To(ContainSubstring("rootComponent.statusDefinition.statusMappings.initializing is deprecated"))
+			Expect(warnings[1]).To(ContainSubstring("childComponents[0].statusDefinition.statusMappings.initializing is deprecated"))
+		},
+		Entry("on create", false),
+		Entry("on update", true),
+	)
+
 	It("rejects a second Karta for the same root GVK", func() {
 		v := newValidator(namedKarta("first", rayGVK))
 		_, err := v.ValidateCreate(ctx, namedKarta("second", rayGVK))

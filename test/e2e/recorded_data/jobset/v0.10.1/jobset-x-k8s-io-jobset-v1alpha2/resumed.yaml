@@ -1,0 +1,540 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: jobset.x-k8s.io/v1alpha2
+    kind: JobSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:31:44Z"
+      generation: 1
+      name: karta-e2e-jobset-resumed
+      namespace: test-pb5h5
+      uid: 3723a389-194f-4bbd-ba05-192a26a4a5e0
+    spec:
+      network:
+        enableDNSHostnames: true
+        publishNotReadyAddresses: true
+      replicatedJobs:
+      - groupName: default
+        name: workers
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            backoffLimit: 0
+            completionMode: Indexed
+            completions: 1
+            parallelism: 1
+            template:
+              metadata: {}
+              spec:
+                containers:
+                - command:
+                  - sh
+                  - -c
+                  - sleep infinity
+                  image: busybox:1.36
+                  name: worker
+                  readinessProbe:
+                    exec:
+                      command:
+                      - "true"
+                    initialDelaySeconds: 6
+                    periodSeconds: 2
+                  resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
+                    requests:
+                      cpu: 50m
+                      memory: 32Mi
+                restartPolicy: Never
+      startupPolicy:
+        startupPolicyOrder: AnyOrder
+      successPolicy:
+        operator: All
+      suspend: true
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:31:44Z"
+        message: jobset is suspended
+        reason: SuspendedJobs
+        status: "True"
+        type: Suspended
+      replicatedJobsStatus:
+      - active: 0
+        failed: 0
+        name: workers
+        ready: 0
+        succeeded: 0
+        suspended: 0
+      restarts: 0
+  phases:
+  - Suspended
+  resourceVersion: "2867"
+  state: Suspended
+- action:
+    name: Resume
+    operation:
+      patchType: application/merge-patch+json
+      payload:
+        spec:
+          suspend: false
+      verb: PATCH
+  kind: ACTION
+- kind: STATE
+  object:
+    apiVersion: jobset.x-k8s.io/v1alpha2
+    kind: JobSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:31:44Z"
+      generation: 1
+      name: karta-e2e-jobset-resumed
+      namespace: test-pb5h5
+      uid: 3723a389-194f-4bbd-ba05-192a26a4a5e0
+    spec:
+      network:
+        enableDNSHostnames: true
+        publishNotReadyAddresses: true
+      replicatedJobs:
+      - groupName: default
+        name: workers
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            backoffLimit: 0
+            completionMode: Indexed
+            completions: 1
+            parallelism: 1
+            template:
+              metadata: {}
+              spec:
+                containers:
+                - command:
+                  - sh
+                  - -c
+                  - sleep infinity
+                  image: busybox:1.36
+                  name: worker
+                  readinessProbe:
+                    exec:
+                      command:
+                      - "true"
+                    initialDelaySeconds: 6
+                    periodSeconds: 2
+                  resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
+                    requests:
+                      cpu: 50m
+                      memory: 32Mi
+                restartPolicy: Never
+      startupPolicy:
+        startupPolicyOrder: AnyOrder
+      successPolicy:
+        operator: All
+      suspend: true
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:31:44Z"
+        message: jobset is suspended
+        reason: SuspendedJobs
+        status: "True"
+        type: Suspended
+      replicatedJobsStatus:
+      - active: 0
+        failed: 0
+        name: workers
+        ready: 0
+        succeeded: 0
+        suspended: 1
+      restarts: 0
+  phases:
+  - Suspended
+  resourceVersion: "2869"
+  state: Suspended
+- kind: STATE
+  object:
+    apiVersion: jobset.x-k8s.io/v1alpha2
+    kind: JobSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:31:44Z"
+      generation: 2
+      name: karta-e2e-jobset-resumed
+      namespace: test-pb5h5
+      uid: 3723a389-194f-4bbd-ba05-192a26a4a5e0
+    spec:
+      network:
+        enableDNSHostnames: true
+        publishNotReadyAddresses: true
+      replicatedJobs:
+      - groupName: default
+        name: workers
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            backoffLimit: 0
+            completionMode: Indexed
+            completions: 1
+            parallelism: 1
+            template:
+              metadata: {}
+              spec:
+                containers:
+                - command:
+                  - sh
+                  - -c
+                  - sleep infinity
+                  image: busybox:1.36
+                  name: worker
+                  readinessProbe:
+                    exec:
+                      command:
+                      - "true"
+                    initialDelaySeconds: 6
+                    periodSeconds: 2
+                  resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
+                    requests:
+                      cpu: 50m
+                      memory: 32Mi
+                restartPolicy: Never
+      startupPolicy:
+        startupPolicyOrder: AnyOrder
+      successPolicy:
+        operator: All
+      suspend: false
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:31:44Z"
+        message: jobset is suspended
+        reason: SuspendedJobs
+        status: "True"
+        type: Suspended
+      replicatedJobsStatus:
+      - active: 0
+        failed: 0
+        name: workers
+        ready: 0
+        succeeded: 0
+        suspended: 1
+      restarts: 0
+  phases:
+  - Pending
+  resourceVersion: "2870"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: jobset.x-k8s.io/v1alpha2
+    kind: JobSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:31:44Z"
+      generation: 2
+      name: karta-e2e-jobset-resumed
+      namespace: test-pb5h5
+      uid: 3723a389-194f-4bbd-ba05-192a26a4a5e0
+    spec:
+      network:
+        enableDNSHostnames: true
+        publishNotReadyAddresses: true
+      replicatedJobs:
+      - groupName: default
+        name: workers
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            backoffLimit: 0
+            completionMode: Indexed
+            completions: 1
+            parallelism: 1
+            template:
+              metadata: {}
+              spec:
+                containers:
+                - command:
+                  - sh
+                  - -c
+                  - sleep infinity
+                  image: busybox:1.36
+                  name: worker
+                  readinessProbe:
+                    exec:
+                      command:
+                      - "true"
+                    initialDelaySeconds: 6
+                    periodSeconds: 2
+                  resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
+                    requests:
+                      cpu: 50m
+                      memory: 32Mi
+                restartPolicy: Never
+      startupPolicy:
+        startupPolicyOrder: AnyOrder
+      successPolicy:
+        operator: All
+      suspend: false
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:31:44Z"
+        message: jobset is resumed
+        reason: ResumeJobs
+        status: "False"
+        type: Suspended
+      replicatedJobsStatus:
+      - active: 0
+        failed: 0
+        name: workers
+        ready: 0
+        succeeded: 0
+        suspended: 1
+      restarts: 0
+  phases:
+  - Pending
+  resourceVersion: "2872"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: jobset.x-k8s.io/v1alpha2
+    kind: JobSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:31:44Z"
+      generation: 2
+      name: karta-e2e-jobset-resumed
+      namespace: test-pb5h5
+      uid: 3723a389-194f-4bbd-ba05-192a26a4a5e0
+    spec:
+      network:
+        enableDNSHostnames: true
+        publishNotReadyAddresses: true
+      replicatedJobs:
+      - groupName: default
+        name: workers
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            backoffLimit: 0
+            completionMode: Indexed
+            completions: 1
+            parallelism: 1
+            template:
+              metadata: {}
+              spec:
+                containers:
+                - command:
+                  - sh
+                  - -c
+                  - sleep infinity
+                  image: busybox:1.36
+                  name: worker
+                  readinessProbe:
+                    exec:
+                      command:
+                      - "true"
+                    initialDelaySeconds: 6
+                    periodSeconds: 2
+                  resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
+                    requests:
+                      cpu: 50m
+                      memory: 32Mi
+                restartPolicy: Never
+      startupPolicy:
+        startupPolicyOrder: AnyOrder
+      successPolicy:
+        operator: All
+      suspend: false
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:31:44Z"
+        message: jobset is resumed
+        reason: ResumeJobs
+        status: "False"
+        type: Suspended
+      replicatedJobsStatus:
+      - active: 0
+        failed: 0
+        name: workers
+        ready: 0
+        succeeded: 0
+        suspended: 0
+      restarts: 0
+  phases:
+  - Pending
+  resourceVersion: "2874"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: jobset.x-k8s.io/v1alpha2
+    kind: JobSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:31:44Z"
+      generation: 2
+      name: karta-e2e-jobset-resumed
+      namespace: test-pb5h5
+      uid: 3723a389-194f-4bbd-ba05-192a26a4a5e0
+    spec:
+      network:
+        enableDNSHostnames: true
+        publishNotReadyAddresses: true
+      replicatedJobs:
+      - groupName: default
+        name: workers
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            backoffLimit: 0
+            completionMode: Indexed
+            completions: 1
+            parallelism: 1
+            template:
+              metadata: {}
+              spec:
+                containers:
+                - command:
+                  - sh
+                  - -c
+                  - sleep infinity
+                  image: busybox:1.36
+                  name: worker
+                  readinessProbe:
+                    exec:
+                      command:
+                      - "true"
+                    initialDelaySeconds: 6
+                    periodSeconds: 2
+                  resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
+                    requests:
+                      cpu: 50m
+                      memory: 32Mi
+                restartPolicy: Never
+      startupPolicy:
+        startupPolicyOrder: AnyOrder
+      successPolicy:
+        operator: All
+      suspend: false
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:31:44Z"
+        message: jobset is resumed
+        reason: ResumeJobs
+        status: "False"
+        type: Suspended
+      replicatedJobsStatus:
+      - active: 1
+        failed: 0
+        name: workers
+        ready: 0
+        succeeded: 0
+        suspended: 0
+      restarts: 0
+  phases:
+  - Pending
+  resourceVersion: "2881"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: jobset.x-k8s.io/v1alpha2
+    kind: JobSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:31:44Z"
+      generation: 2
+      name: karta-e2e-jobset-resumed
+      namespace: test-pb5h5
+      uid: 3723a389-194f-4bbd-ba05-192a26a4a5e0
+    spec:
+      network:
+        enableDNSHostnames: true
+        publishNotReadyAddresses: true
+      replicatedJobs:
+      - groupName: default
+        name: workers
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            backoffLimit: 0
+            completionMode: Indexed
+            completions: 1
+            parallelism: 1
+            template:
+              metadata: {}
+              spec:
+                containers:
+                - command:
+                  - sh
+                  - -c
+                  - sleep infinity
+                  image: busybox:1.36
+                  name: worker
+                  readinessProbe:
+                    exec:
+                      command:
+                      - "true"
+                    initialDelaySeconds: 6
+                    periodSeconds: 2
+                  resources:
+                    limits:
+                      cpu: 50m
+                      memory: 32Mi
+                    requests:
+                      cpu: 50m
+                      memory: 32Mi
+                restartPolicy: Never
+      startupPolicy:
+        startupPolicyOrder: AnyOrder
+      successPolicy:
+        operator: All
+      suspend: false
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:31:44Z"
+        message: jobset is resumed
+        reason: ResumeJobs
+        status: "False"
+        type: Suspended
+      replicatedJobsStatus:
+      - active: 1
+        failed: 0
+        name: workers
+        ready: 1
+        succeeded: 0
+        suspended: 0
+      restarts: 0
+  phases:
+  - Running
+  resourceVersion: "2918"
+  state: Running
+flow: resumed
+kartaFile: docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml
+kartaName: jobset-x-k8s-io-jobset-v1alpha2
+operator: jobset
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Suspended
+- amount: 4
+  phases:
+  - Pending
+- amount: 1
+  phases:
+  - Running
+version: v0.10.1
+want: Running

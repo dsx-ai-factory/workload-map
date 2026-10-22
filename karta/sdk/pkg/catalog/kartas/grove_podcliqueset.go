@@ -22,7 +22,7 @@ func GrovePodCliqueSet() *v1alpha1.Karta {
 					Name: "podcliqueset",
 					Kind: &v1alpha1.GroupVersionKind{Group: "grove.io", Version: "v1alpha1", Kind: "PodCliqueSet"},
 					// Grove PCS has no aggregate phase field. The reliable signal for
-					// running/initializing is replica counts (availableReplicas vs
+					// running/pending is replica counts (availableReplicas vs
 					// spec.replicas). TopologyLevelsUnavailable is the only PCS-level
 					// failure condition (TAS-specific); broader failures surface on
 					// child PodClique/Pod resources.
@@ -39,11 +39,30 @@ func GrovePodCliqueSet() *v1alpha1.Karta {
 							Running: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
 								// Matches when all desired replicas are available (including the
 								// vacuous replicas=0 case, same as k8s Deployment Available=True).
-								Expression:     "(.status.availableReplicas // 0) >= (.spec.replicas // 0)",
+								Expression:     `(.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and .status != null and (.status.availableReplicas // 0) >= (.spec.replicas // 0)`,
 								ExpectedResult: "true",
 							}}},
-							Initializing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								Expression:     "(.spec.replicas // 0) > 0 and (.status.availableReplicas // 0) < (.spec.replicas // 0)",
+							Pending: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: `.metadata.deletionTimestamp == null and (.spec.replicas // 0) > 0
+    and (any(.status.conditions[]?; .type == "TopologyLevelsUnavailable" and .status == "True") | not)
+    and (((.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation)
+        and (.status.availableReplicas != null or .status.observedGeneration != null)
+        and (.status.availableReplicas // 0) < .spec.replicas)
+        or ((.metadata.generation // 0) > 0 and ((.status.lastErrors // []) | length == 0)
+            and ((.status == null or .status == {}) or
+                (.status.observedGeneration != null and .status.observedGeneration < .metadata.generation))))`,
+								ExpectedResult: "true",
+							}}},
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								// Grove advances observedGeneration after an update converges. Its
+								// condition and root update timestamps report unfinished work without identifying the latest
+								// desired generation; a superseded update can still be reported.
+								Expression: `.metadata.deletionTimestamp == null and (.spec.updateStrategy.type // "RollingRecreate") != "OnDelete"
+    and .status.updateProgress.updateEndedAt == null
+    and (any(.status.conditions[]?; .type == "TopologyLevelsUnavailable" and .status == "True") | not)
+    and ((.status.updateProgress.updateStartedAt != null and .status.updateProgress.updateStartedAt != ""
+        and .status.updateProgress.updateStartedAt != "0001-01-01T00:00:00Z")
+        or any(.status.conditions[]?; .type == "UpdateInProgress" and (.status == "True" or (.status == "Unknown" and .reason == "ProgressDeadlineExceeded"))))`,
 								ExpectedResult: "true",
 							}}},
 						},

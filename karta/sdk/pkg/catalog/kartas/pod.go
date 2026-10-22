@@ -38,10 +38,18 @@ func Pod() *v1alpha1.Karta {
 							ReasonFieldName:  ptr.To("reason"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{{ByPhase: "Pending"}},
-							Running:      []v1alpha1.StatusMatcher{{ByPhase: "Running"}},
-							Completed:    []v1alpha1.StatusMatcher{{ByPhase: "Succeeded"}},
-							Failed:       []v1alpha1.StatusMatcher{{ByPhase: "Failed"}},
+							Pending: []v1alpha1.StatusMatcher{{ByPhase: "Pending"}},
+							Progressing: []v1alpha1.StatusMatcher{{
+								ByPhase:      "Pending",
+								ByConditions: []v1alpha1.ExpectedCondition{{Type: "PodScheduled", Status: ptr.To("True")}},
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     ".metadata.deletionTimestamp == null",
+									ExpectedResult: "true",
+								},
+							}},
+							Running:   []v1alpha1.StatusMatcher{{ByPhase: "Running"}},
+							Completed: []v1alpha1.StatusMatcher{{ByPhase: "Succeeded"}},
+							Failed:    []v1alpha1.StatusMatcher{{ByPhase: "Failed"}},
 						},
 					},
 				},

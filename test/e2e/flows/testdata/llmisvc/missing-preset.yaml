@@ -4,7 +4,7 @@
 # A service whose baseRefs names an LLMInferenceServiceConfig that does not
 # exist. The preset merge fails with ConfigNotFound, PresetsCombined goes False,
 # and the controller stops reconciling, so Ready stays Unknown. Without reading
-# PresetsCombined this would sit at Initializing forever.
+# PresetsCombined this would sit at Pending forever.
 apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:

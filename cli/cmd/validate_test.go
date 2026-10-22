@@ -49,6 +49,31 @@ spec:
           replicasPath: '.spec.x['
 `
 
+const legacyDefinition = `apiVersion: run.ai/v1alpha1
+kind: Karta
+metadata:
+  name: legacy
+spec:
+  structureDefinition:
+    rootComponent:
+      name: root
+      kind:
+        group: apps
+        version: v1
+        kind: Deployment
+      statusDefinition:
+        statusMappings:
+          initializing:
+            - byPhase: Created
+    childComponents:
+      - name: worker
+        ownerRef: root
+        statusDefinition:
+          statusMappings:
+            initializing:
+              - byPhase: Pending
+`
+
 var _ = Describe("kli validate", func() {
 	Describe("a valid definition", func() {
 		It("reports the workload type it maps and succeeds", func() {
@@ -78,6 +103,30 @@ var _ = Describe("kli validate", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(HavePrefix("OK: stdin is a valid Karta definition"))
+		})
+	})
+
+	Describe("deprecated status mappings", func() {
+		It("warns for root and child mappings on stderr while preserving successful validation", func() {
+			stdout, stderr, err := runValidate(legacyDefinition, "-")
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stdout).To(HavePrefix("OK: stdin is a valid Karta definition"))
+			Expect(stdout).NotTo(ContainSubstring("WARNING"))
+			Expect(strings.Count(stderr, "WARNING: ")).To(Equal(2))
+			Expect(stderr).To(ContainSubstring("rootComponent.statusDefinition.statusMappings.initializing is deprecated"))
+			Expect(stderr).To(ContainSubstring("childComponents[0].statusDefinition.statusMappings.initializing is deprecated"))
+		})
+
+		It("accepts Pending and Progressing mappings without deprecation warnings", func() {
+			definition := strings.Replace(legacyDefinition, "initializing:", "pending:", 1)
+			definition = strings.Replace(definition, "initializing:", "progressing:", 1)
+
+			stdout, stderr, err := runValidate(definition, "-")
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stdout).To(HavePrefix("OK: "))
+			Expect(stderr).To(BeEmpty())
 		})
 	})
 

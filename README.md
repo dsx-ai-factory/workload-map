@@ -244,6 +244,100 @@ err := component.UpdateFragmentedPodSpec(ctx, updates)
 updatedObject, _ := factory.GetObject()
 ```
 
+## Why Pending and Progressing
+
+`Initializing` grouped two different observations: a prerequisite is not ready,
+and an operator is changing the workload. Keeping those observations separate
+makes startup, scaling, and rolling updates easier to understand.
+
+- `Pending`: waiting for required readiness or another prerequisite. Some child
+  Pods may already be running.
+- `Progressing`: there is evidence of an unfinished provisioning, scaling, or
+  rollout operation. That operation may be blocked; this is not a promise of
+  recent movement or eventual success.
+- Both can match together. A serving workload can also be `Running` and
+  `Progressing` while it rolls out an update. Consumers must read the whole
+  `matchedStatuses` array, not only its first element.
+
+For example:
+
+| Observation | Before | After |
+| --- | --- | --- |
+| Pod is Pending with `PodScheduled=False` | `Initializing` | `Pending` |
+| Pod is Pending with `PodScheduled=True` | `Initializing` | `Pending + Progressing` |
+| LWS is progressing and has no ready groups | `Initializing` | `Pending + Progressing` |
+| Deployment remains available during an unfinished rollout | Often `Initializing`, or a historical `Running` match | `Running + Progressing`, also `Pending` if required availability is missing |
+| Training job succeeds but retains `Created=True` | `Completed + Initializing` | `Completed` |
+
+A Pod or Sandbox can follow `Pending -> Pending + Progressing -> Running` when
+those observations are captured. LWS root status commonly starts at
+`Pending + Progressing`; it does not expose the scheduling of every worker.
+Some kinds lack a reliable progress signal, so a `Pending -> Running` flow is
+valid. Known waits for a controller observation can be `Pending`; unknown
+states and unclassifiable errors remain `Undefined`.
+
+This vocabulary follows Kubernetes' distinction between waiting and controller
+conditions, while retaining their limits. A Pending Pod can already be assigned
+to a node, and a Deployment's native `Progressing=True` can survive a completed
+rollout. The mappings therefore use native reasons, counts, generation checks,
+and per-kind terminal guards rather than renaming every condition.
+
+Pausing a Deployment pauses template rollouts, but it can still scale. A paused
+Deployment keeps `Pending` when required availability is missing and
+`Progressing` while its observed replica count differs from the desired count,
+even if scaling is blocked. A settled paused Deployment does not claim an
+active template rollout.
+
+Grove's unfinished root update timestamps and native update condition establish
+Progressing. Its generation watermark advances after convergence, so those
+signals do not establish progress for the latest desired generation.
+
+### Can this tell whether a workload is scheduled?
+
+For individual Pods, inspect `PodScheduled`: True confirms assignment, False
+means not scheduled, and Unknown or a missing condition is inconclusive. The
+Sandbox operator mirrors that condition on its root CR. Inspect the reason for
+`Unschedulable` and the message for the cause. The new high-level labels alone
+are not a scheduling yes/no API.
+
+For Deployment, StatefulSet, Job, CronJob, LWS, JobSet, Grove, KubeRay,
+Kubeflow, KServe, Knative, Milvus, NIM, and the Dynamo catalog definitions,
+inspect the relevant child Pods to establish scheduling. A parent readiness
+count or active Job count cannot answer whether every requested Pod has a node.
+
+### Migration
+
+Upgrade the SDK, CRD, CLI, operator, and UI before installing definitions that
+use `pending:` or `progressing:`. Built-in definitions now emit the new statuses.
+Review consumers with exhaustive status switches, filters, alert rules, and
+saved dashboards.
+
+Existing custom `initializing:` definitions still parse and still emit
+`Initializing` during the deprecation window. CLI validation and admission
+validation warn about that key. It is deliberately not aliased to `Progressing`:
+a legacy predicate might describe an unscheduled Pod and contain no progress
+evidence. Migrate each predicate according to the observations it actually reads.
+No removal version is set in this change.
+
+The 2026-10-19 whole-catalog audit examines every recording, including traces
+without Undefined phases. Twenty of 23 definitions improve. On the same 455
+native observations, 95 frames across 50 recordings change, and Undefined falls
+from 76 frames to one explicit NIMCache reconcile error. Fixes cover known
+observation waits, stale availability, healthy partial completion, missing
+workers, and lost update evidence. Pod, CronJob, and Sandbox retain their
+mappings because their recorded transitions already match native status.
+
+Job, JobSet, and NIMCache can still return to waiting when parent status loses
+decisive execution evidence. JobSet aggregate counts cannot establish which
+active Pods are ready. Those gaps require child status; a root definition cannot
+honestly remove them. The follow-up re-recorded all 83 flows on real kind
+clusters: 457 native STATE frames, all passing exact-set SDK replay. One explicit
+NIMCache reconcile error remains Undefined. The guide lists the coverage and
+remaining limits.
+
+See [the per-kind mapping, live coverage, and remaining limits](docs/Status%20Mapping%20Migration.md)
+for tested operator versions, behavior changes, and verification limits.
+
 ## Pre-built Karta Definitions
 
 Karta supports any workload type. The following are pre-built and tested Karta definitions that ship with the project:

@@ -34,18 +34,25 @@ workload Karta can describe:
    Karta objects and selects the one whose root component matches the watched
    workload's GVK. It never hard-codes a Karta name, so it resolves a definition
    the same way a real consumer does for an arbitrary workload type.
-2. Read a unified status (`Initializing`, `Running`, `Failed`, and so on) without
-   parsing CRD-specific conditions.
+2. Read every matched status (`Pending`, `Progressing`, `Running`, `Failed`, and
+   so on) without parsing CRD-specific conditions. Independent matches such as
+   `Pending, Progressing` and `Progressing, Running` remain visible together.
 3. Aggregate replica counts and container resource requests across every
    component (root and children), so the totals are right even though the leader
    and worker pods live in separate child components.
-4. Write the results back as `karta/*` annotations, and emit a `StatusChanged`
-   Kubernetes Event on each real status transition (a single canonical phase, so
-   no churn through transient or simultaneous states).
+4. Write the results back as `karta/*` annotations. The `karta/status` value lists
+   all known matches in alphabetical order. Emit a `StatusChanged` Kubernetes
+   Event when that set changes. Ordering alone does not create an event.
 5. Inject a pod-template label into every pod-bearing component (leader and
    worker) through Karta `UpdatePodTemplateSpec`.
 
 There is no `switch` on workload kind anywhere in the reconciler.
+
+If Karta returns only `Undefined` or no matches, the controller retains the last
+known status annotation and emits no status event. That annotation is historical
+during an evidence gap; it does not assert the workload is still in that state.
+A later known set replaces it. Legacy `Initializing` matches are retained as
+`Initializing`; the example does not reinterpret them.
 
 ### About the pod-template mutation
 
@@ -119,7 +126,8 @@ Apply the LeaderWorkerSet and inspect what the controller wrote:
 kubectl apply -f docs/examples/controller-runtime/samples/leaderworkerset.yaml
 
 # Karta-derived annotations on the LeaderWorkerSet metadata
-kubectl get leaderworkerset karta-demo-lws -o jsonpath='{.metadata.annotations}' | tr ',' '\n'
+kubectl get leaderworkerset karta-demo-lws \
+  -o go-template='{{range $key, $value := .metadata.annotations}}{{printf "%s: %s\n" $key $value}}{{end}}'
 
 # The label is injected into both the leader and worker templates
 kubectl get leaderworkerset karta-demo-lws \
@@ -149,10 +157,14 @@ The label injection is recorded as a single event:
 Normal  PodTemplateLabeled  Injected pod-template label app.kubernetes.io/managed-by=karta via Karta
 ```
 
-The first observed status is recorded silently, so a brand-new workload does not
-emit a `StatusChanged` event. To see one, drive a transition, for example a
-rolling update that the controller observes going back through `Initializing` and
-into `Running`:
+The first known set produces a `StatusRecorded` event. For example, a startup
+snapshot with no ready groups can produce:
+
+```text
+Normal  StatusRecorded  Recorded initial workload statuses: Pending, Progressing (replicas=4 cpu=200m memory=128Mi gpu=0)
+```
+
+To observe later set changes, trigger a rolling update:
 
 ```bash
 kubectl patch leaderworkerset karta-demo-lws --type=json \
@@ -160,9 +172,17 @@ kubectl patch leaderworkerset karta-demo-lws --type=json \
 kubectl describe leaderworkerset karta-demo-lws | sed -n '/Events:/,$p'
 ```
 
+An update can remain `Running` while it also matches `Progressing`. If those
+snapshots are observed, the events include:
+
 ```text
-Normal  StatusChanged  Workload status changed: Running -> Initializing (replicas=4 cpu=200m memory=128Mi gpu=0)
+Normal  StatusChanged  Workload statuses changed: Running -> Progressing, Running (replicas=4 cpu=200m memory=128Mi gpu=0)
+Normal  StatusChanged  Workload statuses changed: Progressing, Running -> Running (replicas=4 cpu=200m memory=128Mi gpu=0)
 ```
+
+These are illustrative observations. Readiness may drop during the update, and
+short-lived sets may be skipped. `Progressing` means an observed transition is
+unfinished, including when blocked; it does not prove recent forward movement.
 
 ## Change the definition live
 
@@ -226,6 +246,7 @@ Karta absorbs the new workload's structure.
 |------|---------|
 | `main.go` | Manager setup: scheme, one reconciler per watched GVK, start |
 | `controller.go` | `WorkloadReconciler` inspect + mutate loop (no per-CRD branching) |
+| `controller_test.go` | Status-set reporting and evidence-gap tests |
 | `Dockerfile` | Builds the controller image from the repository root |
 | `manifests/00-rbac.yaml` | Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding (applied first) |
 | `manifests/01-deployment.yaml` | Controller Deployment in the `karta-system` namespace |

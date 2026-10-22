@@ -19,6 +19,19 @@ spec:
           statusFieldName: status
           messageFieldName: message
         statusMappings:
+          pending:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and
+                      (.metadata.generation // 0) > 0 and (.status == null or .status == {}) and ((.metadata.annotations["serving.kserve.io/stop"] // "") | ascii_downcase) != "true"
+                expectedResult: "true"
+            - byExpression:
+                expression: (.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and ((any(.status.conditions[]?; .type == "PredictorReady" and .status == "False") and any(.status.conditions[]?; .type == "PredictorConfigurationReady" and .status == "False") and any(.status.conditions[]?; .type == "RoutesReady" and .status == "False")) | not) and (any(.status.conditions[]?; .type == "Ready" and .status == "True") | not) and (any(.status.conditions[]?; (.type | IN("Ready", "PredictorReady", "RoutesReady", "LatestDeploymentReady")) and .status == "Unknown") or (.status.modelStatus.states.targetModelState == "Loading" and any(.status.conditions[]?; .type == "PredictorReady" and .status == "False" and .reason == "MinimumReplicasUnavailable")))
+                expectedResult: "true"
+          progressing:
+            - byExpression:
+                expression: (.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and ((any(.status.conditions[]?; .type == "PredictorReady" and .status == "False") and any(.status.conditions[]?; .type == "PredictorConfigurationReady" and .status == "False") and any(.status.conditions[]?; .type == "RoutesReady" and .status == "False")) | not) and .status.modelStatus.states.targetModelState == "Loading"
+                expectedResult: "true"
           running:
             - byConditions:
                 - type: PredictorReady

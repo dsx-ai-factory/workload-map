@@ -21,10 +21,37 @@ spec:
           statusFieldName: status
           messageFieldName: message
         statusMappings:
-          initializing:
-            - byPhase: PENDING
+          pending:
             - byExpression:
-                expression: .status.jobDeploymentStatus == "Initializing"
+                expression: |-
+                  (.metadata.deletionTimestamp == null and .spec.suspend != true and
+                      .status.jobStatus != "RUNNING" and .status.jobStatus != "SUCCEEDED" and
+                      .status.jobStatus != "FAILED" and .status.jobStatus != "STOPPED" and
+                      (.status.jobDeploymentStatus == null or .status.jobDeploymentStatus == "" or
+                       .status.jobDeploymentStatus == "Initializing" or .status.jobDeploymentStatus == "Running" or
+                       .status.jobDeploymentStatus == "Waiting") and
+                                                      (.status.jobStatus == "PENDING" or .status.jobDeploymentStatus == "Initializing" or
+                                                       .status.jobDeploymentStatus == "Waiting" or
+                                                       (.status.jobDeploymentStatus == "Running" and
+                                                        (.status.jobStatus == null or .status.jobStatus == "")))) or (.metadata.deletionTimestamp == null and (.metadata.generation // 0) > 0 and
+                      (.status.jobDeploymentStatus == null or .status.jobDeploymentStatus == "") and
+                      (.status.jobStatus == null or .status.jobStatus == "") and
+                      (.status.reason == null or .status.reason == "") and
+                      (.status.message == null or .status.message == "")) or (.metadata.deletionTimestamp == null and (.metadata.generation // 0) > 0 and
+                      .spec.suspend == true and .status.jobDeploymentStatus == "Initializing" and
+                      (.status.jobStatus == null or .status.jobStatus == "" or .status.jobStatus == "PENDING") and
+                      (.status.reason == null or .status.reason == "") and
+                      (.status.message == null or .status.message == ""))
+                expectedResult: "true"
+          progressing:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and .spec.suspend != true and
+                      .status.jobStatus != "RUNNING" and .status.jobStatus != "SUCCEEDED" and
+                      .status.jobStatus != "FAILED" and .status.jobStatus != "STOPPED" and
+                      (.status.jobDeploymentStatus == null or .status.jobDeploymentStatus == "" or
+                       .status.jobDeploymentStatus == "Initializing" or .status.jobDeploymentStatus == "Running" or
+                       .status.jobDeploymentStatus == "Waiting") and .status.jobDeploymentStatus == "Initializing"
                 expectedResult: "true"
           running:
             - byPhase: RUNNING
@@ -35,6 +62,12 @@ spec:
           suspended:
             - byExpression:
                 expression: .status.jobDeploymentStatus == "Suspended"
+                expectedResult: "true"
+          suspending:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and .status.jobDeploymentStatus == "Suspending" and
+                                                      (.status.jobStatus | IN("SUCCEEDED", "FAILED", "STOPPED") | not)
                 expectedResult: "true"
       suspendDefinition:
         suspendActions:

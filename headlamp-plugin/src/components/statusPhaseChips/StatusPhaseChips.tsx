@@ -5,17 +5,19 @@ import { Icon } from '@iconify/react';
 import { StatusLabel } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import Stack from '@mui/material/Stack';
 
-// The 9 normalized Karta phases, worst first.
+// Normalized Karta statuses, worst first.
 const PHASE_SEVERITY: Record<string, number> = {
   Failed: 1,
   Degraded: 2,
   Suspending: 3,
   Resuming: 4,
   Suspended: 5,
-  Initializing: 6,
-  Running: 7,
-  Completed: 8,
-  Undefined: 9,
+  Pending: 6,
+  Progressing: 7,
+  Initializing: 8,
+  Running: 9,
+  Completed: 10,
+  Undefined: 11,
 };
 
 // Worst first, so a filter offers them in the order the chips use.
@@ -31,13 +33,15 @@ export function worstPhaseSeverity(phases: string[]): number {
 }
 
 // StatusLabel understands only four buckets, the same ones Headlamp's own
-// workload views use, so the 9 phases map onto them by severity.
+// workload views use, so the statuses map onto them by severity.
 const PHASE_STATUS: Record<string, 'success' | 'warning' | 'error' | ''> = {
   Failed: 'error',
   Degraded: 'warning',
   Suspending: 'warning',
   Resuming: '',
   Suspended: '',
+  Pending: '',
+  Progressing: '',
   Initializing: '',
   Running: 'success',
   Completed: '',

@@ -24,26 +24,56 @@ spec:
           messageFieldName: message
           reasonFieldName: reason
         statusMappings:
-          initializing:
-            - byConditions:
-                - type: Progressing
-                  status: "True"
-                  reason: NewReplicaSetCreated
-            - byConditions:
-                - type: Progressing
-                  status: "True"
-                - type: Available
-                  status: "False"
+          pending:
+            - byExpression:
+                expression: |-
+                  (.metadata.deletionTimestamp == null
+                      and .status.observedGeneration != null
+                      and .status.observedGeneration == .metadata.generation and (.spec.replicas // 1) > 0
+                      and (.status.availableReplicas // 0) < (.spec.replicas // 1)) or (
+                      .metadata.deletionTimestamp == null and (.spec.replicas // 1) > 0
+                      and (.metadata.generation // 0) > 0
+                      and (.status.observedGeneration == null or .status.observedGeneration < .metadata.generation)
+                      and (any(.status.conditions[]?;
+                          (.type == "ReplicaFailure" and .status == "True") or
+                          (.type == "Progressing" and .status == "False" and .reason == "ProgressDeadlineExceeded")) | not))
+                expectedResult: "true"
+          progressing:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null
+                      and .status.observedGeneration != null
+                      and .status.observedGeneration == .metadata.generation and (
+                      (.status.replicas // 0) != (.spec.replicas // 1)
+                      or (.spec.paused != true and (
+                          (.status.updatedReplicas // 0) < (.spec.replicas // 1)
+                          or ((.status.availableReplicas // 0) < (.spec.replicas // 1)
+                              and any(.status.conditions[]?; .type == "Progressing"
+                                  and ((.status == "True" and .reason != "NewReplicaSetAvailable")
+                                      or (.status == "False" and .reason == "ProgressDeadlineExceeded")))))))
+                expectedResult: "true"
           running:
             - byConditions:
-                - type: Progressing
+                - type: Available
                   status: "True"
-                  reason: NewReplicaSetAvailable
+              byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null
+                      and .status.observedGeneration != null
+                      and .status.observedGeneration == .metadata.generation and (.spec.replicas // 1) > 0
+                      and (.status.availableReplicas // 0) > 0
+                expectedResult: "true"
           failed:
             - byConditions:
                 - type: Progressing
                   status: "False"
                   reason: ProgressDeadlineExceeded
+              byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null
+                      and .status.observedGeneration != null
+                      and .status.observedGeneration == .metadata.generation and .spec.paused != true
+                expectedResult: "true"
     childComponents:
       - name: replicaset
         kind:

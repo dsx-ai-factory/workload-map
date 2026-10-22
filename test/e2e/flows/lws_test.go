@@ -19,13 +19,16 @@ var _ = Describe("LeaderWorkerSet", Ordered, Label("lws"), func() {
 		installKarta(ctx, "../../docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml", "leaderworkerset-x-k8s-io-leaderworkerset-v1")
 		fx = recorder.Fixture{Operator: "lws", Version: operatorVersion("lws"), KartaName: "leaderworkerset-x-k8s-io-leaderworkerset-v1", KartaFile: "docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml"}
 		rec = recorder.New(cfg).
-			AddState(kartav1alpha1.InitializingStatus, AllOf(CondTrue("Progressing"), CondNotTrue("Available"))).
-			AddState(kartav1alpha1.RunningStatus, CondTrue("Available"))
+			AddState(kartav1alpha1.ProgressingStatus, LWSProgressing()).
+			AddState(kartav1alpha1.PendingStatus, LWSPending()).
+			AddState(kartav1alpha1.RunningStatus, LWSRunning()).
+			AddState(kartav1alpha1.FailedStatus, LWSFailed())
 	})
 
 	It("running", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "running", "testdata/lws/running.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.ProgressingStatus).Optional(),
 			recorder.Reaches(kartav1alpha1.RunningStatus),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
@@ -34,11 +37,14 @@ var _ = Describe("LeaderWorkerSet", Ordered, Label("lws"), func() {
 
 	It("scaled", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "scaled", "testdata/lws/scaled.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.ProgressingStatus).Optional(),
 			recorder.Reaches(kartav1alpha1.RunningStatus).With(ReplicasReady(1)).Do(ScaleReplicas(2)),
-			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.ProgressingStatus).Optional(),
 			recorder.Reaches(kartav1alpha1.RunningStatus).With(ReplicasReady(2)).Do(ScaleReplicas(1)),
-			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.ProgressingStatus).Optional(),
 			recorder.Reaches(kartav1alpha1.RunningStatus).With(ReplicasReady(1)),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())

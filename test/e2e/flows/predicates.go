@@ -11,8 +11,7 @@ import (
 
 // State predicates: each reads a workload's own fields to recognise one state, never Karta.
 
-// AllOf matches when every check matches, for a state read from more than one condition (a Deployment
-// is initializing while Progressing is True and Available is False).
+// AllOf matches when every native-object check matches.
 func AllOf(checks ...recorder.StateCheck) recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {
 		for _, c := range checks {
@@ -71,8 +70,7 @@ func CondStatus(condType, status string) recorder.StateCheck {
 	}
 }
 
-// CondNotTrue matches when no condition of condType is present with status True (absent or non-True). A
-// just-created Deployment is Progressing with no Available condition yet, still initializing.
+// CondNotTrue matches when no condition of condType is present with status True.
 func CondNotTrue(condType string) recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {
 		conds, _, _ := unstructured.NestedSlice(u.Object, "status", "conditions")
@@ -85,8 +83,7 @@ func CondNotTrue(condType string) recorder.StateCheck {
 	}
 }
 
-// CondReason matches when the condition of the given type is True with the given reason. A Deployment is
-// Running only when Progressing is True with reason NewReplicaSetAvailable, so status alone is not enough.
+// CondReason matches when a condition is True with the given reason.
 func CondReason(condType, reason string) recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {
 		conds, _, _ := unstructured.NestedSlice(u.Object, "status", "conditions")
@@ -184,164 +181,351 @@ func ReplicasReady(n int64) recorder.StateCheck {
 	}
 }
 
-// FullyAvailable matches when every desired replica is created, ready, and settled (status.replicas ==
-// readyReplicas == updatedReplicas == spec.replicas), Karta's Running for a StatefulSet. Requiring the
-// actual replica count too keeps a scale-down out of Running while an extra pod is still draining.
-func FullyAvailable() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
-		if !ok {
-			desired = 1 // Karta defaults `.spec.replicas // 1`
-		}
-		replicas, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
-		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
-		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
-		return desired > 0 && replicas == desired && ready == desired && updated == desired
-	}
+// PodProgressing matches a scheduled Pod whose startup has not completed.
+func PodProgressing() recorder.StateCheck {
+	return AllOf(PhaseEq("Pending", "status", "phase"), CondTrue("PodScheduled"), notDeleting)
 }
 
-// ReplicasDegraded matches a settled-degraded workload: every desired replica created (updatedReplicas ==
-// spec.replicas) but some not ready (0 < readyReplicas < spec.replicas).
-func ReplicasDegraded() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
-		if !ok {
-			desired = 1
-		}
-		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
-		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
-		return desired > 0 && updated == desired && ready > 0 && ready < desired
-	}
+func notDeleting(u *unstructured.Unstructured) bool {
+	return u.GetDeletionTimestamp() == nil
 }
 
-// ReplicasInitializing matches a StatefulSet still converging: spec.replicas > 0 and either nothing ready
-// (readyReplicas == 0), not all created (updatedReplicas != spec.replicas), or more pods than desired
-// (status.replicas > spec.replicas, a scale-down still shedding pods, ready or not).
-func ReplicasInitializing() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
-		if !ok {
-			desired = 1
-		}
-		replicas, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
-		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
-		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
-		return desired > 0 && (ready == 0 || replicas > desired || updated != desired)
-	}
+func currentGeneration(u *unstructured.Unstructured) bool {
+	observed, found, err := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
+	return notDeleting(u) && err == nil && found && observed == u.GetGeneration()
 }
 
-// AllReplicasAvailable matches when every desired replica is available (status.availableReplicas >=
-// spec.replicas), Karta's Running for a Grove PodCliqueSet. Includes the vacuous spec.replicas == 0 case.
-func AllReplicasAvailable() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		desired, _, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
-		avail, _, _ := unstructured.NestedInt64(u.Object, "status", "availableReplicas")
-		return avail >= desired
-	}
+func waitingForObservation(u *unstructured.Unstructured) bool {
+	observed, found, err := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
+	return notDeleting(u) && u.GetGeneration() > 0 && err == nil && (!found || observed < u.GetGeneration())
 }
 
-// ReplicasComingUp is the initializing counterpart of AllReplicasAvailable: spec.replicas > 0 and not every
-// desired replica is available yet (status.availableReplicas < spec.replicas).
-func ReplicasComingUp() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		desired, _, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
-		avail, _, _ := unstructured.NestedInt64(u.Object, "status", "availableReplicas")
-		return desired > 0 && avail < desired
+func desiredReplicas(u *unstructured.Unstructured) int64 {
+	replicas, found, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
+	if !found {
+		return 1
 	}
+	return replicas
 }
 
-// CronjobFired matches a CronJob that has scheduled at least once (status.lastScheduleTime set). Karta reads
-// a fired, enabled CronJob as Running (suspended wins via the registry order).
-func CronjobFired() recorder.StateCheck {
+func DeploymentPending() recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {
-		_, scheduled, _ := unstructured.NestedFieldNoCopy(u.Object, "status", "lastScheduleTime")
-		return scheduled
-	}
-}
-
-// JobDegraded matches a parallel Job settled degraded: parallelism > 1, some but not all pods ready, and
-// at least one pod already succeeded or failed - the Job analog of ReplicasDegraded.
-func JobDegraded() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		par, ok, _ := unstructured.NestedInt64(u.Object, "spec", "parallelism")
-		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "ready")
-		succeeded, _, _ := unstructured.NestedInt64(u.Object, "status", "succeeded")
-		failedN, _, _ := unstructured.NestedInt64(u.Object, "status", "failed")
-		return ok && par > 1 && ready > 0 && ready < par && (succeeded > 0 || failedN > 0)
-	}
-}
-
-// JobsetRunning matches a JobSet with working pods: at least one replicatedJob has active or ready pods and
-// none have failed. Reading either count (not both) keeps the state stable while the controller briefly
-// flaps ready to 0 mid-run.
-func JobsetRunning() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		rjs, _, _ := unstructured.NestedSlice(u.Object, "status", "replicatedJobsStatus")
-		anyWorking := false
-		for _, r := range rjs {
-			m, ok := r.(map[string]any)
-			if !ok {
-				continue
-			}
-			if failed, _, _ := unstructured.NestedInt64(m, "failed"); failed > 0 {
-				return false
-			}
-			ready, _, _ := unstructured.NestedInt64(m, "ready")
-			active, _, _ := unstructured.NestedInt64(m, "active")
-			if ready > 0 || active > 0 {
-				anyWorking = true
-			}
-		}
-		return anyWorking
-	}
-}
-
-// JobsetInitializing matches a JobSet bringing pods up, on the operator's own counters: some
-// replicatedJob has active pods none of which are ready yet, and none have failed.
-func JobsetInitializing() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		rjs, _, _ := unstructured.NestedSlice(u.Object, "status", "replicatedJobsStatus")
-		anyStarting := false
-		for _, r := range rjs {
-			m, ok := r.(map[string]any)
-			if !ok {
-				continue
-			}
-			if failed, _, _ := unstructured.NestedInt64(m, "failed"); failed > 0 {
-				return false
-			}
-			active, _, _ := unstructured.NestedInt64(m, "active")
-			ready, _, _ := unstructured.NestedInt64(m, "ready")
-			if active > 0 && ready == 0 {
-				anyStarting = true
-			}
-		}
-		return anyStarting
-	}
-}
-
-// RaySuspended matches a RayCluster suspended at creation: spec.suspend is true and status.state is either
-// "suspended" or not yet set (the operator may not have written a state yet).
-func RaySuspended() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		if suspend, _, _ := unstructured.NestedBool(u.Object, "spec", "suspend"); !suspend {
+		if !notDeleting(u) || desiredReplicas(u) <= 0 {
 			return false
 		}
-		state, found, _ := unstructured.NestedString(u.Object, "status", "state")
-		return !found || state == "" || state == "suspended"
+		available, _, _ := unstructured.NestedInt64(u.Object, "status", "availableReplicas")
+		return currentGeneration(u) && available < desiredReplicas(u) ||
+			waitingForObservation(u) && !CondTrue("ReplicaFailure")(u) &&
+				!operatorConditionReason("Progressing", "False", "ProgressDeadlineExceeded")(u)
 	}
 }
 
-// RayJobInitializing matches a RayJob before its job runs, on the operator's own named signals: the
-// submitted job is PENDING, or the operator reports jobDeploymentStatus Initializing while it brings the
-// Ray cluster up.
-func RayJobInitializing() recorder.StateCheck {
+// DeploymentProgressing distinguishes an unfinished rollout from sticky success.
+func DeploymentProgressing() recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {
-		if js, _, _ := unstructured.NestedString(u.Object, "status", "jobStatus"); js == "PENDING" {
+		if !currentGeneration(u) {
+			return false
+		}
+		desired := desiredReplicas(u)
+		actual, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
+		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
+		available, _, _ := unstructured.NestedInt64(u.Object, "status", "availableReplicas")
+		if actual != desired {
 			return true
 		}
-		ds, _, _ := unstructured.NestedString(u.Object, "status", "jobDeploymentStatus")
-		return ds == "Initializing"
+		// Pausing holds template updates, not replica-count reconciliation.
+		if BoolTrue("spec", "paused")(u) {
+			return false
+		}
+		if updated < desired {
+			return true
+		}
+		if available >= desired {
+			return false
+		}
+		conditions, _, _ := unstructured.NestedSlice(u.Object, "status", "conditions")
+		for _, condition := range conditions {
+			c, ok := condition.(map[string]any)
+			if ok && c["type"] == "Progressing" && ((c["status"] == "True" && c["reason"] != "NewReplicaSetAvailable") || (c["status"] == "False" && c["reason"] == "ProgressDeadlineExceeded")) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func DeploymentRunning() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		return currentGeneration(u) && desiredReplicas(u) > 0 && IntAtLeast(1, "status", "availableReplicas")(u) && CondTrue("Available")(u)
+	}
+}
+
+func DeploymentFailed() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		if !currentGeneration(u) || BoolTrue("spec", "paused")(u) {
+			return false
+		}
+		conditions, _, _ := unstructured.NestedSlice(u.Object, "status", "conditions")
+		for _, condition := range conditions {
+			c, ok := condition.(map[string]any)
+			if ok && c["type"] == "Progressing" && c["status"] == "False" && c["reason"] == "ProgressDeadlineExceeded" {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func ReplicasPending() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		if !notDeleting(u) || desiredReplicas(u) <= 0 {
+			return false
+		}
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		conditions, _, _ := unstructured.NestedSlice(u.Object, "status", "conditions")
+		return currentGeneration(u) && ready < desiredReplicas(u) || waitingForObservation(u) && len(conditions) == 0
+	}
+}
+
+// ReplicasProgressing respects intentional OnDelete and partitioned revision gaps.
+func ReplicasProgressing() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		if !currentGeneration(u) {
+			return false
+		}
+		desired := desiredReplicas(u)
+		actual, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
+		if actual != desired {
+			return true
+		}
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
+		strategy, _, _ := unstructured.NestedString(u.Object, "spec", "updateStrategy", "type")
+		switch strategy {
+		case "", "RollingUpdate":
+			current, hasCurrent, _ := unstructured.NestedString(u.Object, "status", "currentRevision")
+			update, hasUpdate, _ := unstructured.NestedString(u.Object, "status", "updateRevision")
+			partition, _, _ := unstructured.NestedInt64(u.Object, "spec", "updateStrategy", "rollingUpdate", "partition")
+			return hasCurrent && hasUpdate && current != update && desired > partition && (updated < desired-partition || ready < desired)
+		case "Recreate":
+			return CondTrue("Progressing")(u) && (updated < desired || ready < desired)
+		default:
+			return false
+		}
+	}
+}
+
+func ReplicasRunning() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		actual, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		return currentGeneration(u) && desiredReplicas(u) > 0 && actual >= desiredReplicas(u) && ready >= desiredReplicas(u)
+	}
+}
+
+func ReplicasDegraded() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		desired := desiredReplicas(u)
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
+		current, _, _ := unstructured.NestedString(u.Object, "status", "currentRevision")
+		update, _, _ := unstructured.NestedString(u.Object, "status", "updateRevision")
+		return currentGeneration(u) && updated == desired && ready > 0 && ready < desired && current == update
+	}
+}
+
+func CronjobPending() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		_, hasStatus, _ := unstructured.NestedMap(u.Object, "status")
+		scheduled, _, _ := unstructured.NestedFieldNoCopy(u.Object, "status", "lastScheduleTime")
+		return notDeleting(u) && !BoolTrue("spec", "suspend")(u) && hasStatus && scheduled == nil
+	}
+}
+
+// CronjobFired describes an enabled established schedule, including idle intervals.
+func CronjobFired() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		scheduled, _, _ := unstructured.NestedFieldNoCopy(u.Object, "status", "lastScheduleTime")
+		return notDeleting(u) && !BoolTrue("spec", "suspend")(u) && scheduled != nil
+	}
+}
+
+func jobActive(u *unstructured.Unstructured) bool {
+	parallelism, found, _ := unstructured.NestedInt64(u.Object, "spec", "parallelism")
+	return notDeleting(u) && !BoolTrue("spec", "suspend")(u) && (!found || parallelism > 0) && !CondTrue("Complete", "SuccessCriteriaMet", "Failed", "FailureTarget", "Suspended")(u)
+}
+
+func jobWantedActive(u *unstructured.Unstructured) int64 {
+	parallelism, found, _ := unstructured.NestedInt64(u.Object, "spec", "parallelism")
+	if !found {
+		parallelism = 1
+	}
+	succeeded, _, _ := unstructured.NestedInt64(u.Object, "status", "succeeded")
+	if completions, found, _ := unstructured.NestedInt64(u.Object, "spec", "completions"); found {
+		return min(parallelism, max(int64(0), completions-succeeded))
+	}
+	if succeeded > 0 {
+		active, _, _ := unstructured.NestedInt64(u.Object, "status", "active")
+		return active
+	}
+	return parallelism
+}
+
+func JobPending() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		ready, found, _ := unstructured.NestedInt64(u.Object, "status", "ready")
+		status, _, _ := unstructured.NestedMap(u.Object, "status")
+		return jobActive(u) && (found && ready < jobWantedActive(u) ||
+			u.GetGeneration() > 0 && len(status) == 0 && jobWantedActive(u) > 0)
+	}
+}
+
+func JobRunning() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		return jobActive(u) && IntAtLeast(1, "status", "active")(u) && IntAtLeast(1, "status", "ready")(u)
+	}
+}
+
+func JobDegraded() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		active, _, _ := unstructured.NestedInt64(u.Object, "status", "active")
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "ready")
+		failed, _, _ := unstructured.NestedInt64(u.Object, "status", "failed")
+		uncountedFailed, _, _ := unstructured.NestedSlice(u.Object, "status", "uncountedTerminatedPods", "failed")
+		return jobActive(u) && active > 0 && ready > 0 && (failed > 0 || len(uncountedFailed) > 0) && ready < jobWantedActive(u)
+	}
+}
+
+func jobsetActive(u *unstructured.Unstructured) bool {
+	return notDeleting(u) && !BoolTrue("spec", "suspend")(u) && !CondTrue("Completed", "Failed")(u)
+}
+
+// JobsetRunning requires the operator's ready-Job threshold, not merely active Jobs.
+func JobsetRunning() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		if !jobsetActive(u) {
+			return false
+		}
+		groups, _, _ := unstructured.NestedSlice(u.Object, "status", "replicatedJobsStatus")
+		anyReady := false
+		for _, group := range groups {
+			observed, ok := group.(map[string]any)
+			if !ok {
+				continue
+			}
+			failed, _, _ := unstructured.NestedInt64(observed, "failed")
+			if failed != 0 {
+				return false
+			}
+			ready, _, _ := unstructured.NestedInt64(observed, "ready")
+			active, _, _ := unstructured.NestedInt64(observed, "active")
+			anyReady = anyReady || ready > 0 && active > 0
+		}
+		return anyReady
+	}
+}
+
+func JobsetPending() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		if !jobsetActive(u) {
+			return false
+		}
+		desired, _, _ := unstructured.NestedSlice(u.Object, "spec", "replicatedJobs")
+		groups, _, _ := unstructured.NestedSlice(u.Object, "status", "replicatedJobsStatus")
+		for _, entry := range desired {
+			spec, ok := entry.(map[string]any)
+			if !ok {
+				continue
+			}
+			replicas, found, _ := unstructured.NestedInt64(spec, "replicas")
+			if !found {
+				replicas = 1
+			}
+			if replicas <= 0 {
+				continue
+			}
+			observedGroup := false
+			for _, group := range groups {
+				observed, ok := group.(map[string]any)
+				if !ok || spec["name"] != observed["name"] {
+					continue
+				}
+				observedGroup = true
+				ready, _, _ := unstructured.NestedInt64(observed, "ready")
+				active, _, _ := unstructured.NestedInt64(observed, "active")
+				succeeded, _, _ := unstructured.NestedInt64(observed, "succeeded")
+				if replicas > min(ready, active)+succeeded {
+					return true
+				}
+				break
+			}
+			if !observedGroup && u.GetGeneration() > 0 {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func JobsetProgressing() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		ordered := PhaseEq("InOrder", "spec", "startupPolicy", "startupPolicyOrder")(u)
+		return jobsetActive(u) && (CondTrue("RestartingJobSet")(u) || ordered && CondTrue("StartupPolicyInProgress")(u))
+	}
+}
+
+func JobsetSuspended() recorder.StateCheck {
+	return AllOf(BoolTrue("spec", "suspend"), CondTrue("Suspended"))
+}
+
+func lwsCurrent(u *unstructured.Unstructured) bool {
+	observed, found, _ := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
+	_, hasGeneration, _ := unstructured.NestedInt64(u.Object, "metadata", "generation")
+	return notDeleting(u) && (!found || !hasGeneration || observed == u.GetGeneration())
+}
+
+func LWSPending() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		if !notDeleting(u) || desiredReplicas(u) <= 0 || CondsFalse("Available", "Progressing", "UpdateInProgress")(u) {
+			return false
+		}
+		ready, hasReady, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		if lwsCurrent(u) && ready < desiredReplicas(u) && (hasReady || CondTrue("Progressing", "UpdateInProgress")(u)) {
+			return true
+		}
+		status, _, _ := unstructured.NestedMap(u.Object, "status")
+		observed, hasObserved, _ := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
+		return u.GetGeneration() > 0 && (len(status) == 0 || hasObserved && observed < u.GetGeneration())
+	}
+}
+
+func LWSProgressing() recorder.StateCheck {
+	return AllOf(lwsCurrent, CondTrue("Progressing", "UpdateInProgress"))
+}
+
+func LWSRunning() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		if !lwsCurrent(u) || desiredReplicas(u) <= 0 {
+			return false
+		}
+		actual, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		return actual >= desiredReplicas(u) && ready >= desiredReplicas(u)
+	}
+}
+
+func LWSFailed() recorder.StateCheck {
+	return AllOf(lwsCurrent, CondsFalse("Available", "Progressing", "UpdateInProgress"))
+}
+
+// RaySuspended requires the controller to acknowledge suspension for the current generation.
+func RaySuspended() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		generation, hasGeneration, _ := unstructured.NestedInt64(u.Object, "metadata", "generation")
+		observed, hasObserved, _ := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
+		return notDeleting(u) && BoolTrue("spec", "suspend")(u) &&
+			PhaseEq("suspended", "status", "state")(u) &&
+			hasGeneration && hasObserved && generation == observed
 	}
 }
 

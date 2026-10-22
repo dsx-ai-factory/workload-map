@@ -20,12 +20,21 @@ spec:
           messageFieldName: message
           reasonFieldName: reason
         statusMappings:
-          initializing:
+          pending:
             - byExpression:
-                expression: any(.status.conditions[]?; .type == "Ready" and .status == "Unknown") and (any(.status.conditions[]?; .type == "PresetsCombined" and .status == "False") | not)
+                expression: |-
+                  .metadata.deletionTimestamp == null and
+                      (.metadata.generation // 0) > 0 and (.status == null or .status == {}) and (.spec.replicas // 1) > 0 and ((.metadata.annotations["serving.kserve.io/stop"] // "") | ascii_downcase) != "true"
                 expectedResult: "true"
             - byExpression:
-                expression: any(.status.conditions[]?; .type == "Ready" and .status == "False" and (.reason | IN("Progressing", "MinimumReplicasUnavailable", "WaitingForGateway", "GatewaysNotReady", "HTTPRoutesNotReady", "InferencePoolNotReady", "HPAProgressing", "ScaledObjectProgressing", "AllGroupsReady")))
+                expression: (.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and any(.status.conditions[]?; .type == "Ready" and .status == "Unknown") and (any(.status.conditions[]?; .type == "PresetsCombined" and .status == "False") | not)
+                expectedResult: "true"
+            - byExpression:
+                expression: (.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and any(.status.conditions[]?; .type == "Ready" and .status == "False" and (.reason | IN("Progressing", "MinimumReplicasUnavailable", "WaitingForGateway", "GatewaysNotReady", "HTTPRoutesNotReady", "InferencePoolNotReady", "HPAProgressing", "ScaledObjectProgressing", "AllGroupsReady"))) and (any(.status.conditions[]?; .type == "PresetsCombined" and .status == "False") | not)
+                expectedResult: "true"
+          progressing:
+            - byExpression:
+                expression: (.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and any(.status.conditions[]?; .type == "Ready" and .status == "False" and .reason == "Progressing") and (any(.status.conditions[]?; .type == "PresetsCombined" and .status == "False") | not)
                 expectedResult: "true"
           running:
             - byConditions:

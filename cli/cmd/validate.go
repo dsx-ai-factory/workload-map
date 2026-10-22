@@ -28,7 +28,8 @@ from stdin.
 Validation is static and fully local, so the command needs no cluster and no kubeconfig.
 It reports whether the definition is well formed, not whether it maps a workload
 correctly. The exit code is the machine interface: 0 when the definition is valid, 1 when
-it is not, and 2 when the file cannot be read as YAML.`
+it is not, and 2 when the file cannot be read as YAML. Deprecated mappings produce
+warnings on stderr and remain valid.`
 
 	validateExample = `  # Validate before applying
   kli validate ./my-karta.yaml
@@ -63,12 +64,19 @@ func newValidateCommand() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
-			if verr := v1alpha1.NewKartaValidator(&karta).Validate(); verr != nil {
+			validator := v1alpha1.NewKartaValidator(&karta)
+			if verr := validator.Validate(); verr != nil {
 				report := verr.Error()
 				fmt.Fprintf(out, "INVALID: %s\n  %s\n", name,
 					strings.ReplaceAll(report, "\n", "\n  "))
 				return fmt.Errorf("%d finding(s) in %s",
 					strings.Count(report, "\n")+1, name)
+			}
+
+			for _, warning := range validator.DeprecationWarnings() {
+				if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "WARNING: %s\n", warning); err != nil {
+					return err
+				}
 			}
 
 			_, err = fmt.Fprintf(out, "OK: %s is a valid Karta definition (GVK: %s)\n",

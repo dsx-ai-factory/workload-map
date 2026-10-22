@@ -26,19 +26,15 @@ var (
 	deploymentGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
 )
 
-func mustNew(cfg Config) Interface {
-	GinkgoHelper()
-	extractor, err := New(cfg)
-	Expect(err).NotTo(HaveOccurred())
-	return extractor
-}
-
 var _ = Describe("CEL submitter extractor", func() {
 	DescribeTable("Evaluate",
 		func(expression string, labels, annotations map[string]string, gvk schema.GroupVersionKind, want string) {
 			obj := &metav1.ObjectMeta{Namespace: "team-a", Name: "train", Labels: labels, Annotations: annotations}
 
-			got, err := mustNew(Config{Expression: expression}).Evaluate(context.Background(), obj, gvk)
+			extractor, err := New(Config{Expression: expression})
+			Expect(err).NotTo(HaveOccurred())
+
+			got, err := extractor.Evaluate(context.Background(), obj, gvk)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(got.Identity).To(Equal(want))
 		},
@@ -65,8 +61,10 @@ var _ = Describe("CEL submitter extractor", func() {
 			Annotations: map[string]string{"a": "b"},
 		}
 		before := obj.DeepCopy()
+		extractor, err := New(Config{Expression: dualSourceExpression})
+		Expect(err).NotTo(HaveOccurred())
 
-		_, err := mustNew(Config{Expression: dualSourceExpression}).Evaluate(context.Background(), obj, jobGVK)
+		_, err = extractor.Evaluate(context.Background(), obj, jobGVK)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(obj).To(Equal(before))
 	})
@@ -87,22 +85,31 @@ var _ = Describe("CEL submitter extractor", func() {
 	)
 
 	It("returns an error for a missing key", func() {
-		_, err := mustNew(Config{Expression: `labels["absent"]`}).Evaluate(context.Background(), &metav1.ObjectMeta{}, jobGVK)
+		extractor, err := New(Config{Expression: `labels["absent"]`})
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = extractor.Evaluate(context.Background(), &metav1.ObjectMeta{}, jobGVK)
 		Expect(err).To(HaveOccurred())
 	})
 
 	Context("cancellation", func() {
 		It("returns context.Canceled for a cancelled context", func() {
+			extractor, err := New(Config{Expression: dualSourceExpression})
+			Expect(err).NotTo(HaveOccurred())
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			_, err := mustNew(Config{Expression: dualSourceExpression}).Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
+
+			_, err = extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
 			Expect(err).To(MatchError(context.Canceled))
 		})
 
 		It("returns context.DeadlineExceeded for an expired context", func() {
+			extractor, err := New(Config{Expression: dualSourceExpression})
+			Expect(err).NotTo(HaveOccurred())
 			ctx, cancel := context.WithTimeout(context.Background(), 0)
 			DeferCleanup(cancel)
-			_, err := mustNew(Config{Expression: dualSourceExpression}).Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
+
+			_, err = extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
 			Expect(err).To(MatchError(context.DeadlineExceeded))
 		})
 
@@ -114,18 +121,19 @@ var _ = Describe("CEL submitter extractor", func() {
 
 		DescribeTable("interrupts a long evaluation",
 			func(frequency uint) {
-				extractor := mustNew(Config{
+				extractor, err := New(Config{
 					Expression:              longExpression,
 					CostLimit:               math.MaxUint64,
 					InterruptCheckFrequency: frequency,
 				})
+				Expect(err).NotTo(HaveOccurred())
 				// Cancel after Evaluate has started, so only a mid-evaluation check can stop it.
 				ctx, cancel := context.WithCancel(context.Background())
 				DeferCleanup(cancel)
 				time.AfterFunc(5*time.Millisecond, cancel)
 
 				start := time.Now()
-				_, err := extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
+				_, err = extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
 				Expect(err).To(MatchError(context.Canceled))
 				Expect(time.Since(start)).To(BeNumerically("<", time.Second))
 			},
@@ -143,23 +151,35 @@ var _ = Describe("CEL submitter extractor", func() {
 			const list = "[1,2,3,4,5,6,7,8,9,10]"
 			expression := fmt.Sprintf(
 				"string(size(%[1]s.map(a, %[1]s.map(b, %[1]s.map(c, %[1]s.map(d, %[1]s.map(e, a+b+c+d+e)))))))", list)
-			_, err := mustNew(Config{Expression: expression}).Evaluate(context.Background(), &metav1.ObjectMeta{}, jobGVK)
+			extractor, err := New(Config{Expression: expression})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = extractor.Evaluate(context.Background(), &metav1.ObjectMeta{}, jobGVK)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("enforces the default identity limit", func() {
 			big := &metav1.ObjectMeta{Labels: map[string]string{"big": strings.Repeat("a", DefaultMaxIdentityBytes+1)}}
-			_, err := mustNew(Config{Expression: `labels["big"]`}).Evaluate(context.Background(), big, jobGVK)
+			extractor, err := New(Config{Expression: `labels["big"]`})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = extractor.Evaluate(context.Background(), big, jobGVK)
 			Expect(err).To(MatchError(ErrIdentityTooLong))
 		})
 
 		It("applies a configured cost limit", func() {
-			_, err := mustNew(Config{Expression: dualSourceExpression, CostLimit: 1}).Evaluate(context.Background(), obj, jobGVK)
+			extractor, err := New(Config{Expression: dualSourceExpression, CostLimit: 1})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = extractor.Evaluate(context.Background(), obj, jobGVK)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("applies a configured identity limit", func() {
-			_, err := mustNew(Config{Expression: dualSourceExpression, MaxIdentityBytes: 4}).Evaluate(context.Background(), obj, jobGVK)
+			extractor, err := New(Config{Expression: dualSourceExpression, MaxIdentityBytes: 4})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = extractor.Evaluate(context.Background(), obj, jobGVK)
 			Expect(err).To(MatchError(ErrIdentityTooLong))
 		})
 
@@ -170,7 +190,8 @@ var _ = Describe("CEL submitter extractor", func() {
 
 		It("allows a longer identity when the limit is raised", func() {
 			long := strings.Repeat("a", DefaultMaxIdentityBytes+1)
-			extractor := mustNew(Config{Expression: `labels["big"]`, MaxIdentityBytes: 2 * DefaultMaxIdentityBytes})
+			extractor, err := New(Config{Expression: `labels["big"]`, MaxIdentityBytes: 2 * DefaultMaxIdentityBytes})
+			Expect(err).NotTo(HaveOccurred())
 
 			got, err := extractor.Evaluate(context.Background(), &metav1.ObjectMeta{Labels: map[string]string{"big": long}}, jobGVK)
 			Expect(err).NotTo(HaveOccurred())

@@ -118,9 +118,16 @@ func loadConfig(cmd *cli.Command) (Config, error) {
 		case err != nil:
 			return Config{}, fmt.Errorf("config file %s: %w", path, err)
 		default:
-			var extra any
-			if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
-				return Config{}, fmt.Errorf("config file %s: %w", path, errMultipleDocuments)
+			// A trailing "---" yields an empty document, which is not a second config.
+			for {
+				var extra any
+				err := dec.Decode(&extra)
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				if err != nil || extra != nil {
+					return Config{}, fmt.Errorf("config file %s: %w", path, errMultipleDocuments)
+				}
 			}
 		}
 	}

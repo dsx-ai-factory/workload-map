@@ -70,6 +70,12 @@ var _ = Describe("config loading", func() {
 		Expect(cfg.Attribution).To(Equal(AttributionConfig{Limits: defaultLimits}))
 	})
 
+	It("accepts a trailing document separator", func() {
+		cfg, err := loadWithArgs("--config", writeConfig("attribution:\n  submittedByExpression: '\"x\"'\n---\n"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Attribution.SubmittedByExpression).To(Equal(`"x"`))
+	})
+
 	It("reads a multi-line expression and limits from the file", func() {
 		path := writeConfig(`attribution:
   submittedByExpression: |
@@ -193,6 +199,9 @@ var _ = Describe("config loading", func() {
 		Entry("malformed yaml", func() []string { return []string{"--config", writeConfig("attribution: [\n")} }),
 		Entry("multiple documents", func() []string {
 			return []string{"--config", writeConfig("attribution: {}\n---\nattribution:\n  submittedByExpression: '\"x\"'\n")}
+		}),
+		Entry("second document after an empty one", func() []string {
+			return []string{"--config", writeConfig("attribution: {}\n---\n---\nattribution: {}\n")}
 		}),
 		Entry("malformed second document", func() []string {
 			return []string{"--config", writeConfig("attribution: {}\n---\nattribution: [\n")}

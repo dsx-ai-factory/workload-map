@@ -60,11 +60,15 @@ func main() {
 		},
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	err := cmd.Run(ctx, os.Args)
-	stop()
-	if err != nil {
+	if err := run(cmd); err != nil {
 		slog.Error("Karta metrics exporter failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+// run keeps the signal handler's deferred cleanup out of main, since os.Exit skips defers.
+func run(cmd *cli.Command) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return cmd.Run(ctx, os.Args)
 }

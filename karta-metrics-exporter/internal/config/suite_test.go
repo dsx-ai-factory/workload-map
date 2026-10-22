@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-package main
+package config
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestCmd(t *testing.T) {
+func TestConfig(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Exporter Cmd Suite")
+	RunSpecs(t, "Exporter Config Suite")
 }

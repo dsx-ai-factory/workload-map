@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-package main
+// Package config loads the exporter configuration from a YAML file, flags and
+// environment variables.
+package config
 
 import (
 	"bytes"
@@ -59,9 +61,9 @@ var defaultAttributionLimits = AttributionLimits{
 	InterruptCheckFrequency: submitterextractor.DefaultInterruptCheckFrequency,
 }
 
-// configFlags returns the configuration flags. Each one can also be set from
+// Flags returns the configuration flags. Each one can also be set from
 // its KARTA_EXPORTER_* environment variable; the command line wins.
-func configFlags() []cli.Flag {
+func Flags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
 			Name:    flagConfig,
@@ -100,9 +102,9 @@ func configFlags() []cli.Flag {
 	}
 }
 
-// loadConfig reads the config file, when set, and applies the flags and
+// Load reads the config file, when set, and applies the flags and
 // environment variables set on cmd. Unknown keys in the file are an error.
-func loadConfig(cmd *cli.Command) (Config, error) {
+func Load(cmd *cli.Command) (Config, error) {
 	cfg := Config{Attribution: AttributionConfig{Limits: defaultAttributionLimits}}
 
 	if path := cmd.String(flagConfig); path != "" {
@@ -132,8 +134,10 @@ func loadConfig(cmd *cli.Command) (Config, error) {
 		}
 	}
 
-	if cmd.IsSet(flagSubmittedByExpression) {
-		cfg.Attribution.SubmittedByExpression = cmd.String(flagSubmittedByExpression)
+	// An empty value counts as unset, so an empty environment variable does not
+	// clear the expression from the file.
+	if expression := cmd.String(flagSubmittedByExpression); expression != "" {
+		cfg.Attribution.SubmittedByExpression = expression
 	}
 	if cmd.IsSet(flagCostLimit) {
 		cfg.Attribution.Limits.CostLimit = cmd.Uint64(flagCostLimit)

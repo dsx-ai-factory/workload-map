@@ -117,8 +117,14 @@ func New(cfg Config) (Interface, error) {
 	return &celExtractor{program: program, maxIdentityBytes: cfg.MaxIdentityBytes}, nil
 }
 
-func (disabledExtractor) Evaluate(context.Context, metav1.Object, schema.GroupVersionKind) (Submitter, error) {
-	return Submitter{}, nil
+// IsEnabled reports whether e extracts identities, that is, whether New was given a non-empty expression.
+func IsEnabled(e Interface) bool {
+	_, disabled := e.(disabledExtractor)
+	return !disabled
+}
+
+func (disabledExtractor) Evaluate(ctx context.Context, _ metav1.Object, _ schema.GroupVersionKind) (Submitter, error) {
+	return Submitter{}, ctx.Err()
 }
 
 func (e *celExtractor) Evaluate(ctx context.Context, obj metav1.Object, gvk schema.GroupVersionKind) (Submitter, error) {

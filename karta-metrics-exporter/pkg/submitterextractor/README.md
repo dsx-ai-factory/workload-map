@@ -32,6 +32,7 @@ In the exporter configuration, `interruptCheckFrequency` must be greater than 0,
 
 The exporter reads these settings from the `attribution` section of its YAML config file (`--config` or `KARTA_EXPORTER_CONFIG`).
 A setting's environment variable overrides the file, and its flag overrides both.
+An empty flag or environment variable is ignored.
 Flags or environment variables alone are enough to run the exporter locally.
 Unknown keys in the file fail startup.
 Helm renders `exporter.attribution` unchanged into a ConfigMap and mounts it as the config file.

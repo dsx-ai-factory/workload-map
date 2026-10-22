@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-package main
+package config
 
 import (
 	"context"
@@ -38,12 +38,12 @@ func loadWithArgs(args ...string) (Config, error) {
 	var cfg Config
 	cmd := &cli.Command{
 		Name:      "test",
-		Flags:     configFlags(),
+		Flags:     Flags(),
 		Writer:    io.Discard,
 		ErrWriter: io.Discard,
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			var err error
-			cfg, err = loadConfig(cmd)
+			cfg, err = Load(cmd)
 			return err
 		},
 	}
@@ -163,6 +163,23 @@ var _ = Describe("config loading", func() {
 			Expect(cfg.Attribution.Limits.CostLimit).To(BeEquivalentTo(9))
 		})
 	})
+
+	DescribeTable("treats an empty value as unset",
+		func(args func() []string) {
+			path := writeConfig("attribution:\n  submittedByExpression: '\"from-file\"'\n  limits:\n    costLimit: 5\n")
+
+			cfg, err := loadWithArgs(append([]string{"--config", path}, args()...)...)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.Attribution.SubmittedByExpression).To(Equal(`"from-file"`))
+			Expect(cfg.Attribution.Limits.CostLimit).To(BeEquivalentTo(5))
+		},
+		Entry("empty environment variables", func() []string {
+			setEnv("KARTA_EXPORTER_SUBMITTED_BY_EXPRESSION", "")
+			setEnv("KARTA_EXPORTER_SUBMITTER_COST_LIMIT", "")
+			return nil
+		}),
+		Entry("empty expression flag", func() []string { return []string{"--" + flagSubmittedByExpression + "="} }),
+	)
 
 	DescribeTable("rejects a zero interrupt check frequency",
 		func(args func() []string) {

@@ -55,6 +55,17 @@ var _ = Describe("CEL submitter extractor", func() {
 			nil, nil, jobGVK, "team-a/train/batch/v1"),
 	)
 
+	DescribeTable("IsEnabled",
+		func(expression string, want bool) {
+			extractor, err := New(Config{Expression: expression})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(IsEnabled(extractor)).To(Equal(want))
+		},
+		Entry("expression", dualSourceExpression, true),
+		Entry("empty", "", false),
+		Entry("whitespace", "  \n", false),
+	)
+
 	It("does not mutate the object", func() {
 		obj := &metav1.ObjectMeta{
 			Labels:      map[string]string{"example.com/submitted-by": "bob"},
@@ -95,6 +106,16 @@ var _ = Describe("CEL submitter extractor", func() {
 	Context("cancellation", func() {
 		It("returns context.Canceled for a cancelled context", func() {
 			extractor, err := New(Config{Expression: dualSourceExpression})
+			Expect(err).NotTo(HaveOccurred())
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+
+			_, err = extractor.Evaluate(ctx, &metav1.ObjectMeta{}, jobGVK)
+			Expect(err).To(MatchError(context.Canceled))
+		})
+
+		It("returns context.Canceled from a disabled extractor", func() {
+			extractor, err := New(Config{})
 			Expect(err).NotTo(HaveOccurred())
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()

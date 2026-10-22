@@ -225,7 +225,8 @@ Each setting also has a command-line flag and an environment variable:
 | `attribution.limits.interruptCheckFrequency` | `--submitter-interrupt-check-frequency` | `KARTA_EXPORTER_SUBMITTER_INTERRUPT_CHECK_FREQUENCY` |
 
 A flag wins over its environment variable, which wins over the config file,
-which wins over the default. A flag or variable applies only when set. Flags or
+which wins over the default. A flag or variable applies only when set to a
+non-empty value, so an empty variable does not clear the file's setting. Flags or
 environment variables alone are enough to run the exporter outside the cluster:
 
 ```sh

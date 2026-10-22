@@ -64,7 +64,7 @@ type disabledExtractor struct{}
 // An empty expression disables extraction: every evaluation yields an unknown
 // identity. An invalid expression, one whose result is not a string, or a
 // negative limit is an error.
-func New(cfg Config) (Interface, error) {
+func New(cfg Config) (Evaluator, error) {
 	if cfg.MaxExpressionBytes < 0 || cfg.MaxIdentityBytes < 0 {
 		return nil, ErrNegativeLimit
 	}
@@ -118,7 +118,7 @@ func New(cfg Config) (Interface, error) {
 }
 
 // IsEnabled reports whether e extracts identities, that is, whether New was given a non-empty expression.
-func IsEnabled(e Interface) bool {
+func IsEnabled(e Evaluator) bool {
 	_, disabled := e.(disabledExtractor)
 	return !disabled
 }

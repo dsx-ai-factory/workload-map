@@ -56,4 +56,4 @@ updates, open a new issue if the original is closed.
 
 ## Index
 
-No KEPs have been added yet.
+- [KEP-0001: Karta metrics exporter](0001-metrics-exporter/README.md)

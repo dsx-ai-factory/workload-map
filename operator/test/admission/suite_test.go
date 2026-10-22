@@ -22,7 +22,6 @@ import (
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,19 +45,21 @@ var (
 	// userClients maps a username to a client authenticated as that user.
 	userClients = map[string]client.Client{}
 
-	// policyObjects are every object the submitter templates can render, so an
-	// install can delete the ones a new render drops, as helm upgrade does.
-	policyObjects = []struct {
-		kind, name string
-	}{
-		{"MutatingAdmissionPolicy", "karta-operator-submitter-capture"},
-		{"MutatingAdmissionPolicyBinding", "karta-operator-submitter-capture"},
-		{"ValidatingAdmissionPolicy", "karta-operator-submitter-create"},
-		{"ValidatingAdmissionPolicyBinding", "karta-operator-submitter-create"},
-		{"ValidatingAdmissionPolicy", "karta-operator-submitter-immutable"},
-		{"ValidatingAdmissionPolicyBinding", "karta-operator-submitter-immutable"},
-	}
+	// policyObjects are every object the submitter templates can render, taken
+	// from a render with every policy on, so an install can delete the ones a
+	// new render drops, as helm upgrade does.
+	policyObjects []*unstructured.Unstructured
 )
+
+// allPoliciesValues turns on every submitter policy.
+const allPoliciesValues = `
+admissionPolicies:
+  submitter:
+    enabled: true
+    immutable: true
+    apiVersion: v1
+    resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]
+`
 
 func TestAdmission(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -71,6 +72,10 @@ var _ = BeforeSuite(func() {
 	testEnv = &envtest.Environment{}
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
+
+	policyObjects, err = renderPolicies(allPoliciesValues)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(policyObjects).To(HaveLen(6))
 
 	adminClient, err = client.New(cfg, client.Options{Scheme: clientgoscheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
@@ -124,17 +129,30 @@ func render(values string, args ...string) ([]*unstructured.Unstructured, error)
 	}
 }
 
+// renderPolicies renders values and keeps only the admission policies and
+// their bindings.
+func renderPolicies(values string, args ...string) ([]*unstructured.Unstructured, error) {
+	objs, err := render(values, args...)
+	if err != nil {
+		return nil, err
+	}
+	var policies []*unstructured.Unstructured
+	for _, obj := range objs {
+		if strings.HasSuffix(obj.GetKind(), "AdmissionPolicy") || strings.HasSuffix(obj.GetKind(), "AdmissionPolicyBinding") {
+			policies = append(policies, obj)
+		}
+	}
+	return policies, nil
+}
+
 // install applies the admission policies rendered from values and deletes the
 // ones the render no longer produces, mirroring helm install and upgrade.
 func install(values string) {
-	objs, err := render(values)
+	objs, err := renderPolicies(values)
 	Expect(err).NotTo(HaveOccurred())
 
 	rendered := map[string]bool{}
 	for _, obj := range objs {
-		if !strings.HasSuffix(obj.GetKind(), "AdmissionPolicy") && !strings.HasSuffix(obj.GetKind(), "AdmissionPolicyBinding") {
-			continue
-		}
 		rendered[obj.GetKind()+"/"+obj.GetName()] = true
 		existing := &unstructured.Unstructured{}
 		existing.SetGroupVersionKind(obj.GroupVersionKind())
@@ -151,12 +169,12 @@ func install(values string) {
 	}
 
 	for _, p := range policyObjects {
-		if rendered[p.kind+"/"+p.name] {
+		if rendered[p.GetKind()+"/"+p.GetName()] {
 			continue
 		}
 		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "admissionregistration.k8s.io", Version: "v1", Kind: p.kind})
-		obj.SetName(p.name)
+		obj.SetGroupVersionKind(p.GroupVersionKind())
+		obj.SetName(p.GetName())
 		Expect(client.IgnoreNotFound(adminClient.Delete(testCtx, obj))).To(Succeed())
 	}
 }

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 {{- $s := .Values.admissionPolicies.submitter }}
+{{- /* The capture template, rendered under the same condition, checks the APIs. */}}
 {{- if $s.enabled }}
-{{- include "karta.submitter.requireVAP" . }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:

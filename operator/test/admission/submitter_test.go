@@ -5,6 +5,7 @@ package admission
 
 import (
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -249,6 +250,9 @@ admissionPolicies: {submitter: {enabled: true, resources: [{apiGroups: [batch], 
 	Entry("unknown apiVersion", `
 admissionPolicies: {submitter: {enabled: true, apiVersion: v2, resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]}}`,
 		"must be v1 or v1beta1"),
+	Entry("unknown apiVersion with only immutability", `
+admissionPolicies: {submitter: {immutable: true, apiVersion: v2, resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]}}`,
+		"must be v1 or v1beta1"),
 	Entry("no resources", `
 admissionPolicies: {submitter: {immutable: true, apiVersion: v1}}`,
 		"admissionPolicies.submitter.resources must list at least one resource"),
@@ -265,6 +269,24 @@ admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{apiG
 admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs/status]}]}}`,
 		`subresource "jobs/status" is not supported`),
 )
+
+var _ = It("keeps policy names distinct with a long fullnameOverride", func() {
+	objs, err := renderPolicies(allPoliciesValues + "fullnameOverride: " + strings.Repeat("a", 63) + "\n")
+	Expect(err).NotTo(HaveOccurred())
+	names := map[string]bool{}
+	for _, obj := range objs {
+		names[obj.GetKind()+"/"+obj.GetName()] = true
+	}
+	Expect(names).To(HaveLen(6))
+})
+
+var _ = It("renders immutability alone without the MutatingAdmissionPolicy API", func() {
+	objs, err := renderPolicies(`
+admissionPolicies: {submitter: {immutable: true, resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]}}`,
+		"--api-versions", "admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy")
+	Expect(err).NotTo(HaveOccurred())
+	Expect(objs).To(HaveLen(2))
+})
 
 var _ = DescribeTable("Rendering detects the MutatingAdmissionPolicy version",
 	func(served, want string) {

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 NVIDIA Corporation
 {{- $s := .Values.admissionPolicies.submitter }}
 {{- if $s.enabled }}
-{{- $apiVersion := include "karta.submitter.mapAPIVersion" . }}
+{{- $apiVersion := include "karta.submitter.apiVersion" (dict "ctx" . "mutating" true) }}
 apiVersion: {{ $apiVersion }}
 kind: MutatingAdmissionPolicy
 metadata:

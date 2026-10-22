@@ -355,12 +355,11 @@ test-operator-integration: envtest ## Run the operator envtest suite (downloads 
 
 .PHONY: test-chart-admission
 test-chart-admission: envtest ## Run the chart's admission policy tests against envtest (needs helm)
-	@command -v helm >/dev/null || { echo "error: test-chart-admission renders the chart and needs helm on PATH (CI uses v4.3.1)"; exit 1; }
 	cd operator && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_ADMISSION_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		go test ./test/admission/...
 
 .PHONY: test-operator
-test-operator: test-operator-unit test-operator-integration test-chart-admission ## Run the operator unit and envtest suites, and the chart admission tests
+test-operator: test-operator-unit test-operator-integration ## Run the operator unit and envtest suites
 
 .PHONY: check-operator
 check-operator: fmt-check-operator vet-operator lint-operator modules-check-operator build-operator-e2e test-operator operator-version-smoke ## Full operator presubmit

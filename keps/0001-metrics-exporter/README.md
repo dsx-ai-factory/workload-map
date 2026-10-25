@@ -150,8 +150,15 @@ admissionPolicies:
 
 When `kubectl apply` creates a workload within capture scope, MAP records the
 authenticated caller in `karta.run.ai/submitted-by`, unless the request already
-sets it. Capture is best effort and never rejects a request. The caller can be a
-service account.
+sets it. The caller can be a service account. `annotation` changes the key.
+Objects with a controller `ownerReference` are skipped, since their creator is a
+controller, not the submitter.
+
+Capture is best effort and never rejects a request. A supplied value is kept, so
+the annotation is a hint, not proof of identity. When a platform creates the
+workload, the caller is the platform's service account; prefer the platform's
+own user annotation in `submittedByExpression`. See the
+[implementation design](../../docs/design/metrics-exporter/submitter-capture.md).
 
 MAP feature versions:
 
@@ -183,3 +190,4 @@ empty; disabling attribution omits the label. CEL does not authenticate identity
 ## History
 
 - 2026-10-12 to 2026-10-19: Defined workload metrics, selection and submitter attribution; separated configuration and query examples into linked guides.
+- 2026-10-25: Made submitter capture a best-effort MAP with a configurable annotation; dropped the VAP and UPDATE protection.

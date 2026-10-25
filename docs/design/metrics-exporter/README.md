@@ -3,6 +3,8 @@
 
 # Metrics exporter implementation design
 
-TBD.
-
 See [KEP-0001](../../../keps/0001-metrics-exporter/README.md) for the metric contract.
+
+## Components
+
+- [Submitter capture](submitter-capture.md): the admission policy that records who created a workload.

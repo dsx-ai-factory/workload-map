@@ -13,7 +13,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/onsi/ginkgo/v2
 - Name: github.com/onsi/ginkgo/v2
-- Version: v2.33.0
+- Version: v2.33.1
 - License: MIT
 
 ### github.com/onsi/gomega
@@ -48,7 +48,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### k8s.io/utils
 - Name: k8s.io/utils
-- Version: v0.0.0-20260626114624-be93311217bd
+- Version: v0.0.0-20261023123148-ca04ba58ecab
 - License: Apache-2.0
 
 ### sigs.k8s.io/yaml

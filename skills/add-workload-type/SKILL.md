@@ -82,7 +82,8 @@ What replaces each repository command:
 
   ```bash
   go run github.com/dsx-ai-factory/workload-map/karta/sdk/hack/karta-verify@vX.Y.Z \
-    --karta <definition.yaml> --workload <real-cr.yaml>
+    --karta <definition.yaml> --workload <real-cr.yaml> \
+    --predict <predictions.yaml> --strict
   ```
 
   Steps 6 and 7 name this form for every karta-verify run; for the binary,
@@ -101,11 +102,12 @@ What replaces each repository command:
 
   Go on only when `kubectl` exits 0; on any error, stop and do not apply.
   The Karta webhook allows one Karta per group, version, and kind, so a new
-  object under another name is rejected while one exists. Applying under the
-  name jq prints replaces it: stop and ask its owner (often the platform that
-  installed it) instead. With none, name the
-  object as the catalog does (`<group with dots as dashes>-<kind>-<version>`,
-  lowercase, the core group as `core`) and `kubectl apply` it; `kli definitions` then lists it with
+  object under another name is rejected while one exists. If jq prints a
+  name, a Karta already covers the kind, and applying yours under that name
+  replaces it: stop and ask its owner (often the platform that installed it).
+  If jq prints nothing, name the object as the catalog does
+  (`<group with dots as dashes>-<kind>-<version>`, lowercase, the core group
+  as `core`) and `kubectl apply` it; `kli definitions` then lists it with
   origin `cluster`, which overrides a catalog definition of the same kind. On
   a live workload, `kli get <kind>` shows the status the definition reads,
   and `kli describe <kind>/<name>` shows each pod under the component its

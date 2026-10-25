@@ -143,7 +143,7 @@
       "id": 5,
       "purpose": "Repository independence. The user has no checkout of this repository and no kli installed, so every repository command in steps 2, 6, 7 and 8 must be replaced by its kli or public-module form. Not yet run: expectations carry no measured counts.",
       "prompt": "I don't have the Karta repo cloned, just a cluster with Karta installed. Write a Karta definition for our in-house CRD training.example.com/v1 TrainJob (CRD and a running CR attached) and get it working on the cluster.",
-      "expected_output": "A Karta definition for training.example.com/v1 TrainJob, built from a catalog sample read with kli definitions, validated with kli validate, run against the CR with karta-verify from the public module pinned to a library tag, applied with kubectl after a cluster check finds no existing Karta for the kind, and checked live with kli get and kli describe.",
+      "expected_output": "A Karta definition for training.example.com/v1 TrainJob, built from a catalog sample read with kli definitions, validated with kli validate, run against the CR with karta-verify from the public module pinned to a library tag, with --predict and --strict, applied with kubectl after a cluster check finds no existing Karta for the kind, and checked live with kli get and kli describe.",
       "expectations": [
         {
           "text": "kli is installed with the Homebrew tap added by URL and the cask installed by its full name dsx-ai-factory/kli/kli, or from a release archive checked against checksums.txt; go install is never suggested for kli",

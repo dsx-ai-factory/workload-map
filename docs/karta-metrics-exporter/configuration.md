@@ -243,11 +243,10 @@ flag with its default and environment variable.
 `admissionPolicies.submitter` captures direct Kubernetes callers. Exporter CEL extraction
 is configured separately, as described in [Submitter attribution](#submitter-attribution).
 
-Capture uses `MutatingAdmissionPolicy` and `ValidatingAdmissionPolicy` with their
-bindings. Both run in the API server without a Karta operator. MAP is
+Capture uses a `MutatingAdmissionPolicy` and its binding. It runs in the API
+server without a Karta operator. MAP is
 [stable in Kubernetes 1.36+](https://kubernetes.io/docs/reference/access-authn-authz/mutating-admission-policy/);
 [1.34-1.35 requires beta feature/API enablement](https://v1-35.docs.kubernetes.io/docs/reference/access-authn-authz/mutating-admission-policy/).
-VAP is [stable since 1.30](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/).
 
 This example captures Deployments and Jobs in opted-in namespaces:
 
@@ -255,7 +254,6 @@ This example captures Deployments and Jobs in opted-in namespaces:
 admissionPolicies:
   submitter:
     enabled: true # Capture on CREATE; default false.
-    immutable: false # Reject UPDATEs that change the annotation; default false.
     apiVersion: "" # MAP version, v1 or v1beta1; empty detects it from the cluster.
     resources: # Group, version and plural resource; the chart sets operations and scope.
       - apiGroups: ["apps"]
@@ -288,25 +286,15 @@ settings do not filter exporter watches.
 
 Mutation fills a missing `karta.run.ai/submitted-by` annotation with the caller's
 username. A service account appears as `system:serviceaccount:<namespace>:<name>`.
-Within capture scope, CREATE validation rejects a supplied value that differs from
-the caller.
+A supplied value is kept, so the annotation is a hint, not proof of identity.
 
-`immutable: true` adds a validation policy for UPDATE on the listed resources and
-all their subresources. Some subresources, such as `jobs/status`, accept metadata
-changes. It rejects adding the annotation on UPDATE, and changing or removing an
-existing one, so a value can only come from CREATE. Updates where neither version
-has the annotation are skipped. It ignores the selectors, exclusions and conditions, and stays
-installed when `enabled` is false. Narrowing capture never unlocks a captured value.
-Removing a resource type from `resources` does lift its protection. It is off by
-default because it evaluates every update to the listed resources, including
-status updates.
-
-Policies use `failurePolicy: Fail`; validation bindings use `validationActions: [Deny]`.
-A CEL expression that fails to evaluate rejects the request. Administrators control
+Capture is best effort and never rejects a request. The policy uses
+`failurePolicy: Ignore`: if it is unavailable, or a CEL expression fails to
+evaluate, the request is admitted without the annotation. Administrators control
 namespace labels and policy settings.
 
-With `apiVersion` empty, the chart detects the APIs and fails if the cluster does
-not serve them. `helm template` and GitOps renderers see no cluster APIs, so set
+With `apiVersion` empty, the chart detects the API and fails if the cluster does
+not serve it. `helm template` and GitOps renderers see no cluster APIs, so set
 `apiVersion` when using them.
 
 ## Metric delivery

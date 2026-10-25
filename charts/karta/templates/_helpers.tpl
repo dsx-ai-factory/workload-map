@@ -102,58 +102,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{/*
-Submitter admission policy and binding name for a suffix. The policies are
-cluster-scoped, so like the webhook configurations they follow karta.fullname.
-Not truncated: policy names allow 253 characters, and cutting at 63 could make
-two suffixes collide. Takes a list: the root context and the suffix.
-*/}}
-{{- define "karta.submitter.name" -}}
-{{- printf "%s-submitter-%s" (include "karta.fullname" (index . 0)) (index . 1) -}}
-{{- end -}}
-
-{{/*
-Checks the policy APIs once per policy path and returns the
-MutatingAdmissionPolicy apiVersion when mutating is true. An explicit
-admissionPolicies.submitter.apiVersion must be v1 or v1beta1 and skips
-detection, since helm template and GitOps renderers see no cluster APIs.
-Otherwise the cluster must serve ValidatingAdmissionPolicy v1, and, when
-mutating, MutatingAdmissionPolicy v1 or v1beta1.
-Takes a dict: ctx (root context), mutating (bool).
-*/}}
-{{- define "karta.submitter.apiVersion" -}}
-{{- $v := .ctx.Values.admissionPolicies.submitter.apiVersion -}}
-{{- $caps := .ctx.Capabilities.APIVersions -}}
-{{- if $v -}}
-  {{- if not (has $v (list "v1" "v1beta1")) -}}
-    {{- fail (printf "admissionPolicies.submitter.apiVersion must be v1 or v1beta1 (got %v)" $v) -}}
-  {{- end -}}
-{{- else -}}
-  {{- if not ($caps.Has "admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy") -}}
-    {{- fail "admissionPolicies.submitter requires ValidatingAdmissionPolicy v1 (Kubernetes 1.30+); set admissionPolicies.submitter.apiVersion when rendering without a cluster" -}}
-  {{- end -}}
-  {{- if .mutating -}}
-    {{- if $caps.Has "admissionregistration.k8s.io/v1/MutatingAdmissionPolicy" -}}
-      {{- $v = "v1" -}}
-    {{- else if $caps.Has "admissionregistration.k8s.io/v1beta1/MutatingAdmissionPolicy" -}}
-      {{- $v = "v1beta1" -}}
-    {{- else -}}
-      {{- fail "admissionPolicies.submitter.enabled requires MutatingAdmissionPolicy: v1 on Kubernetes 1.36+, or v1beta1 enabled on 1.34-1.35; set admissionPolicies.submitter.apiVersion when rendering without a cluster" -}}
-    {{- end -}}
-  {{- end -}}
-{{- end -}}
-{{- if .mutating -}}
-  {{- printf "admissionregistration.k8s.io/%s" $v -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Renders admission resourceRules from group/version/resource entries, adding the
-operation and Namespaced scope. Users never set operations or scope: capture is
-CREATE only and immutability is UPDATE only. Users list main resources only;
-with subresources set, every subresource is matched as well, since some (such
-as jobs/status) accept metadata changes.
-Takes a dict: rules (nonempty list), operation (string), subresources (bool),
-field (value path for errors).
+Renders submitter capture resourceRules from group/version/resource entries,
+adding the CREATE operation and Namespaced scope, which users never set.
+Takes a dict: rules (nonempty list), field (value path for errors).
 */}}
 {{- define "karta.submitter.resourceRules" -}}
 {{- if not .rules }}
@@ -175,54 +126,10 @@ field (value path for errors).
 {{- fail (printf "%s[%d]: subresource %q is not supported; list the main resource" $.field $i .) }}
 {{- end }}
 {{- end }}
-{{- $resources := $rule.resources }}
-{{- if $.subresources }}
-{{- range $rule.resources }}
-{{- $resources = append $resources (printf "%s/*" .) }}
-{{- end }}
-{{- end }}
 - apiGroups: {{ toJson $rule.apiGroups }}
   apiVersions: {{ toJson $rule.apiVersions }}
-  resources: {{ toJson $resources }}
-  operations: [{{ $.operation | quote }}]
+  resources: {{ toJson $rule.resources }}
+  operations: ["CREATE"]
   scope: Namespaced
-{{- end }}
-{{- end -}}
-
-{{/*
-matchConstraints shared by the capture MAP and the CREATE VAP, so both always
-select the same requests.
-*/}}
-{{- define "karta.submitter.captureMatchConstraints" -}}
-{{- $s := .Values.admissionPolicies.submitter -}}
-namespaceSelector:
-  {{- toYaml ($s.namespaceSelector | default dict) | nindent 2 }}
-objectSelector:
-  {{- toYaml ($s.objectSelector | default dict) | nindent 2 }}
-resourceRules:
-  {{- include "karta.submitter.resourceRules" (dict "rules" $s.resources "operation" "CREATE" "field" "admissionPolicies.submitter.resources") | trim | nindent 2 }}
-{{- with $s.excludeResources }}
-excludeResourceRules:
-  {{- include "karta.submitter.resourceRules" (dict "rules" . "operation" "CREATE" "field" "admissionPolicies.submitter.excludeResources") | trim | nindent 2 }}
-{{- end }}
-{{- end -}}
-
-
-{{/*
-matchConditions shared by the capture MAP and the CREATE VAP. Capture applies to
-workload roots only: a controller copying a parent's annotations onto a child
-it creates is not the submitter and must not be rejected. User conditions follow;
-the karta- name prefix is reserved for the chart's own conditions.
-*/}}
-{{- define "karta.submitter.captureMatchConditions" -}}
-- name: karta-submitter-root
-  expression: '!has(object.metadata.ownerReferences) || !object.metadata.ownerReferences.exists(r, has(r.controller) && r.controller)'
-{{- range $i, $c := .Values.admissionPolicies.submitter.matchConditions }}
-{{- if hasPrefix "karta-" (toString $c.name) }}
-{{- fail (printf "admissionPolicies.submitter.matchConditions[%d]: name %q uses the reserved karta- prefix" $i $c.name) }}
-{{- end }}
-{{- end }}
-{{- with .Values.admissionPolicies.submitter.matchConditions }}
-{{ toYaml . }}
 {{- end }}
 {{- end -}}

@@ -135,14 +135,13 @@ Examples of component attribution:
 ### Directly apply to Kubernetes
 
 Submitter capture is separate from the exporter and Karta operator. Helm installs
-`MutatingAdmissionPolicy` (MAP) and `ValidatingAdmissionPolicy` (VAP), with their
-bindings. Both policies run inside the Kubernetes API server.
+a `MutatingAdmissionPolicy` (MAP) and its binding, which run inside the
+Kubernetes API server.
 
 ```yaml
 admissionPolicies:
   submitter:
     enabled: true
-    immutable: true # Optional; off by default.
     resources:
       - apiGroups: ["batch"]
         apiVersions: ["v1"]
@@ -150,17 +149,15 @@ admissionPolicies:
 ```
 
 When `kubectl apply` creates a workload within capture scope, MAP records the
-authenticated caller in `karta.run.ai/submitted-by`. VAP rejects a different
-identity supplied on CREATE. With `immutable: true`, captured identity stays
-protected on UPDATE, even after capture scope narrows. The caller can be a
+authenticated caller in `karta.run.ai/submitted-by`, unless the request already
+sets it. Capture is best effort and never rejects a request. The caller can be a
 service account.
 
-Kubernetes feature versions:
+MAP feature versions:
 
 | Policy | Alpha from | Beta from | Stable from |
 | --- | --- | --- | --- |
 | [MAP](https://github.com/kubernetes/enhancements/issues/3962) | 1.32 | 1.34 | 1.36 |
-| [VAP](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates-removed/) | 1.26 | 1.28 | 1.30 |
 
 ### Extract with your own logic
 

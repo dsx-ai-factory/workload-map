@@ -2,34 +2,70 @@
 # Copyright (c) 2026 NVIDIA Corporation
 {{- $s := .Values.admissionPolicies.submitter }}
 {{- if $s.enabled }}
-{{- $apiVersion := include "karta.submitter.apiVersion" (dict "ctx" . "mutating" true) }}
-apiVersion: {{ $apiVersion }}
+{{- /*
+An explicit apiVersion skips detection, since helm template and GitOps
+renderers see no cluster APIs.
+*/}}
+{{- $v := $s.apiVersion }}
+{{- if $v }}
+  {{- if not (has $v (list "v1" "v1beta1")) }}
+    {{- fail (printf "admissionPolicies.submitter.apiVersion must be v1 or v1beta1 (got %v)" $v) }}
+  {{- end }}
+{{- else if .Capabilities.APIVersions.Has "admissionregistration.k8s.io/v1/MutatingAdmissionPolicy" }}
+  {{- $v = "v1" }}
+{{- else if .Capabilities.APIVersions.Has "admissionregistration.k8s.io/v1beta1/MutatingAdmissionPolicy" }}
+  {{- $v = "v1beta1" }}
+{{- else }}
+  {{- fail "admissionPolicies.submitter.enabled requires MutatingAdmissionPolicy: v1 on Kubernetes 1.36+, or v1beta1 enabled on 1.34-1.35; set admissionPolicies.submitter.apiVersion when rendering without a cluster" }}
+{{- end }}
+{{- $name := printf "%s-submitter-capture" (include "karta.fullname" .) }}
+apiVersion: admissionregistration.k8s.io/{{ $v }}
 kind: MutatingAdmissionPolicy
 metadata:
-  name: {{ include "karta.submitter.name" (list . "capture") }}
+  name: {{ $name }}
   labels:
     {{- include "karta.labels" . | nindent 4 }}
 spec:
-  failurePolicy: Fail
+  # Capture is best effort: a policy or CEL error admits the request unchanged.
+  failurePolicy: Ignore
   reinvocationPolicy: Never
   matchConstraints:
-    {{- include "karta.submitter.captureMatchConstraints" . | nindent 4 }}
+    namespaceSelector:
+      {{- toYaml ($s.namespaceSelector | default dict) | nindent 6 }}
+    objectSelector:
+      {{- toYaml ($s.objectSelector | default dict) | nindent 6 }}
+    resourceRules:
+      {{- include "karta.submitter.resourceRules" (dict "rules" $s.resources "field" "admissionPolicies.submitter.resources") | trim | nindent 6 }}
+    {{- with $s.excludeResources }}
+    excludeResourceRules:
+      {{- include "karta.submitter.resourceRules" (dict "rules" . "field" "admissionPolicies.submitter.excludeResources") | trim | nindent 6 }}
+    {{- end }}
   matchConditions:
-    # A supplied value is left for the CREATE validation to accept or reject.
+    # A supplied value is kept.
     - name: karta-submitter-unset
       expression: '!has(object.metadata.annotations) || !("karta.run.ai/submitted-by" in object.metadata.annotations)'
-    {{- include "karta.submitter.captureMatchConditions" . | nindent 4 }}
+    # Workload roots only: a controller creating a child is not the submitter.
+    - name: karta-submitter-root
+      expression: '!has(object.metadata.ownerReferences) || !object.metadata.ownerReferences.exists(r, has(r.controller) && r.controller)'
+    {{- range $i, $c := $s.matchConditions }}
+    {{- if hasPrefix "karta-" (toString $c.name) }}
+    {{- fail (printf "admissionPolicies.submitter.matchConditions[%d]: name %q uses the reserved karta- prefix" $i $c.name) }}
+    {{- end }}
+    {{- end }}
+    {{- with $s.matchConditions }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   mutations:
     - patchType: ApplyConfiguration
       applyConfiguration:
         expression: 'Object{metadata: Object.metadata{annotations: {"karta.run.ai/submitted-by": request.userInfo.username}}}'
 ---
-apiVersion: {{ $apiVersion }}
+apiVersion: admissionregistration.k8s.io/{{ $v }}
 kind: MutatingAdmissionPolicyBinding
 metadata:
-  name: {{ include "karta.submitter.name" (list . "capture") }}
+  name: {{ $name }}
   labels:
     {{- include "karta.labels" . | nindent 4 }}
 spec:
-  policyName: {{ include "karta.submitter.name" (list . "capture") }}
+  policyName: {{ $name }}
 {{- end }}

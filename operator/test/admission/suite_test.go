@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-// Package admission tests the chart's submitter admission policies against a
+// Package admission tests the chart's submitter admission policy against a
 // real apiserver (envtest). The chart is rendered with the helm binary, and the
 // apiserver must serve MutatingAdmissionPolicy v1 (Kubernetes 1.36+).
 package admission
@@ -44,22 +44,7 @@ var (
 	adminClient client.Client
 	// userClients maps a username to a client authenticated as that user.
 	userClients = map[string]client.Client{}
-
-	// policyObjects are every object the submitter templates can render, taken
-	// from a render with every policy on, so an install can delete the ones a
-	// new render drops, as helm upgrade does.
-	policyObjects []*unstructured.Unstructured
 )
-
-// allPoliciesValues turns on every submitter policy.
-const allPoliciesValues = `
-admissionPolicies:
-  submitter:
-    enabled: true
-    immutable: true
-    apiVersion: v1
-    resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]
-`
 
 func TestAdmission(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -72,10 +57,6 @@ var _ = BeforeSuite(func() {
 	testEnv = &envtest.Environment{}
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
-
-	policyObjects, err = renderPolicies(allPoliciesValues)
-	Expect(err).NotTo(HaveOccurred())
-	Expect(policyObjects).To(HaveLen(6))
 
 	adminClient, err = client.New(cfg, client.Options{Scheme: clientgoscheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
@@ -145,15 +126,13 @@ func renderPolicies(values string, args ...string) ([]*unstructured.Unstructured
 	return policies, nil
 }
 
-// install applies the admission policies rendered from values and deletes the
-// ones the render no longer produces, mirroring helm install and upgrade.
+// install creates or updates the admission policies rendered from values, as
+// helm install and upgrade do.
 func install(values string) {
 	objs, err := renderPolicies(values)
 	Expect(err).NotTo(HaveOccurred())
 
-	rendered := map[string]bool{}
 	for _, obj := range objs {
-		rendered[obj.GetKind()+"/"+obj.GetName()] = true
 		existing := &unstructured.Unstructured{}
 		existing.SetGroupVersionKind(obj.GroupVersionKind())
 		err := adminClient.Get(testCtx, client.ObjectKeyFromObject(obj), existing)
@@ -166,15 +145,5 @@ func install(values string) {
 		default:
 			Expect(err).NotTo(HaveOccurred())
 		}
-	}
-
-	for _, p := range policyObjects {
-		if rendered[p.GetKind()+"/"+p.GetName()] {
-			continue
-		}
-		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(p.GroupVersionKind())
-		obj.SetName(p.GetName())
-		Expect(client.IgnoreNotFound(adminClient.Delete(testCtx, obj))).To(Succeed())
 	}
 }

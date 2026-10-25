@@ -44,21 +44,61 @@ file arguments resolve: a definition under the repository's `docs/catalog/` is
 `karta/sdk/` or an absolute path.
 
 Anywhere else, steps 1 to 7 apply and step 8 is replaced by applying the Karta
-to the cluster that runs Karta. Nothing needs a checkout:
+to the cluster that runs Karta. Nothing needs a checkout.
 
-- Run karta-verify from the public module instead of `./hack/karta-verify`:
+Probe first: `kli --version` and `go version`. Install a missing `kli` with
+Homebrew, on macOS or Linux; the repository is its own tap, so the URL and the
+full name are both required:
+
+```bash
+brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
+brew install dsx-ai-factory/kli/kli
+```
+
+Without Homebrew, download the release archive and check it against
+`checksums.txt` (CLI Guide in `docs/`). Never suggest `go install` for `kli`:
+the CLI module builds through a `replace` directive, which `go install`
+refuses.
+
+What replaces each repository command:
+
+- Step 2: `kli definitions --kubeconfig /dev/null` lists the catalog alone;
+  its names are the `docs/catalog/` file names. Without that flag `kli` reads
+  the current kubeconfig context and merges in the cluster's definitions
+  (origin `cluster`). `--group <g> --kind <k>` shows whether the kind is
+  already covered, and `kli definitions <name> -o yaml > <scratch>/sample.yaml`
+  writes the skeleton. The catalog is the one in the installed release; a
+  sample newer than it is fetched from
+  `https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/docs/catalog/<name>.yaml`.
+- Step 6: `kli validate <definition.yaml>`, exit 0 valid, 1 invalid, 2 not
+  YAML. It checks the same schema and jq rules as karta-verify without a
+  workload.
+- Step 7 still needs karta-verify, which `kli` does not ship yet. Run it from
+  the public module at a library tag, `karta/sdk/vX.Y.Z`, written `@vX.Y.Z`.
+  A released `kli` prints its version as `X.Y.Z`: use that. A build that
+  prints anything else (`v0.2.0-134-g<sha>`) is not a release: use the newest
+  tag,
+  `git ls-remote --tags --refs https://github.com/dsx-ai-factory/workload-map 'karta/sdk/v*' | sort -V -k2 | tail -1`.
 
   ```bash
-  go run github.com/dsx-ai-factory/workload-map/karta/sdk/hack/karta-verify@main \
+  go run github.com/dsx-ai-factory/workload-map/karta/sdk/hack/karta-verify@vX.Y.Z \
     --karta <definition.yaml> --workload <real-cr.yaml>
   ```
 
-  Pin `@main` to a commit or to a library release, written `@vX.Y.Z` for the
-  `karta/sdk/vX.Y.Z` tag, that ships karta-verify. Every
-  `go run` below works in this form; for the binary,
-  `GOBIN=<scratch> go install` the same argument.
-- Fetch a sample from the catalog by URL instead of `docs/catalog/`:
-  `https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/docs/catalog/<name>.yaml`.
+  Steps 6 and 7 name this form for every karta-verify run; for the binary,
+  `GOBIN=<scratch> go install` the same argument. With no Go toolchain, stop
+  at `kli validate` and say in the summary that no path was run against a CR.
+- Step 8: first check the cluster, `kli definitions --group <g> --kind <k>`.
+  The Karta webhook allows one Karta per group, version, and kind, so a new
+  object under another name is rejected while one with origin `cluster`
+  exists. Applying under that object's name replaces it: stop and ask its
+  owner (often the platform that installed it) instead. With none, name the
+  object as the catalog does (`<group with dots as dashes>-<kind>-<version>`,
+  lowercase, the core group as `core`) and `kubectl apply` it; `kli definitions` then lists it with
+  origin `cluster`, which overrides a catalog definition of the same kind. On
+  a live workload, `kli get <kind>` shows the status the definition reads,
+  and `kli describe <kind>/<name>` shows each pod under the component its
+  selectors give it: the pod check of step 7 on the real cluster.
 - The operator source and controller code read in step 1 come from the
   operator's own repository either way.
 
@@ -323,6 +363,9 @@ Always run the validator. Do not hand back a definition that has not passed.
 go run ./hack/karta-verify --karta <definition.yaml>
 ```
 
+With no checkout, run `kli validate <definition.yaml>` instead; it runs the
+same validator.
+
 On a non-zero exit, look the message up in `reference/troubleshooting.md`, fix,
 and rerun. Confirm by hand what it cannot check:
 
@@ -362,12 +405,16 @@ pod label code are stand-ins; every run on them counts as unverified.
   the root; a root-only definition predicts `status:` alone, and root read
   paths are checked with jq. Predict the one status the frame should read; an
   extra status is an overlap to fix in step 5, never a prediction to widen.
-- Run from the repository root with absolute paths:
+- Run from `karta/sdk/` with absolute paths:
 
   ```bash
   go run ./hack/karta-verify --karta <definition.yaml> \
     --workload <real-cr.yaml> --predict <predictions.yaml> --strict
   ```
+
+  With no checkout, run from any directory with the public module form (Two
+  ways to use this skill) in place of `./hack/karta-verify`, with the same
+  flags.
 
 - Reconcile every mismatch and warning. Decide whether the path or the
   understanding of the CRD is wrong first. Never edit the prediction just to

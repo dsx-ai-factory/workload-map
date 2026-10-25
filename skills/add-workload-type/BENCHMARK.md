@@ -66,6 +66,10 @@ Eval 4 was added to `evals.json` for Volcano Job, which is absent from
 `docs/catalog/`, to replace the content-discrimination role eval 2 can no longer
 serve. It has not been run, and its expectations carry no measured counts.
 
+Eval 5 covers a user with a cluster but no checkout, the case the skill
+handles through `kli`, installed with Homebrew, and the public karta-verify
+module. It has not been run either.
+
 ## Per-eval breakdown
 
 | Eval | Config | Pass rate | Tokens | Time |
@@ -146,8 +150,8 @@ figures above for both configurations.
 ## Reproducing
 
 1. Run the eval 1, 2 and 3 prompts from `evals/evals.json` with and without the
-   skill available, 3 runs each. Eval 4 is documented but was not run and is not
-   part of these figures.
+   skill available, 3 runs each. Evals 4 and 5 are documented but were not run
+   and are not part of these figures.
 2. Grade each run against its `expectations` list.
 3. Validate every produced definition, and exercise it against a real CR with
    predictions written before the run:

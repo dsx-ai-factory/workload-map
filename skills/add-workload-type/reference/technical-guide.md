@@ -901,8 +901,8 @@ Where it belongs. In the CLI, as flags of `kli validate`:
 `kli validate <definition> --workload <cr> --write --strict`, next to a
 `--predict` flag for the read-side prediction, with the same exit codes as
 karta-verify (0 success, 2 mismatch, 3 warnings). `kli` is the released binary,
-so a definition author outside this repository gets the check without a
-checkout, and the skill then names one command for steps 6 and 7. The
+installed with Homebrew, so a definition author outside this repository gets
+the check without a checkout or a Go toolchain, and the skill then names one command for steps 6 and 7. The
 `karta/sdk/hack/karta-verify` harness becomes a thin wrapper or goes away.
 
 Order of work. The engine fix lands first; until then the identity write

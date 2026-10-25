@@ -254,6 +254,7 @@ This example captures Deployments and Jobs in opted-in namespaces:
 admissionPolicies:
   submitter:
     enabled: true # Capture on CREATE; default false.
+    annotation: karta.run.ai/submitted-by # Annotation key that receives the caller.
     apiVersion: "" # MAP version, v1 or v1beta1; empty detects it from the cluster.
     resources: # Group, version and plural resource; the chart sets operations and scope.
       - apiGroups: ["apps"]
@@ -284,8 +285,9 @@ with `karta-` are reserved. Direct Pod capture uses
 group `""`, version `v1`, resource `pods`. Subresources cannot be listed. These
 settings do not filter exporter watches.
 
-Mutation fills a missing `karta.run.ai/submitted-by` annotation with the caller's
-username. A service account appears as `system:serviceaccount:<namespace>:<name>`.
+Mutation fills a missing `annotation` key, `karta.run.ai/submitted-by` by
+default, with the caller's username. The key must be a valid annotation key.
+When it changes, point the exporter's `submittedByExpression` at the new key. A service account appears as `system:serviceaccount:<namespace>:<name>`.
 A supplied value is kept, so the annotation is a hint, not proof of identity.
 
 Capture is best effort and never rejects a request. The policy uses

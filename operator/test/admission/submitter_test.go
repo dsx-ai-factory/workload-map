@@ -129,6 +129,18 @@ var _ = Describe("Submitter admission policy", Ordered, func() {
 		})
 	})
 
+	It("records the caller in a custom annotation", func() {
+		install(baseValues + "    annotation: example.com/owner\n")
+		Eventually(func(g Gomega) {
+			g.Expect(createJob("alice", capturedNS, nil).Annotations).To(HaveKeyWithValue("example.com/owner", "alice"))
+		}, eventuallyTimeout, eventuallyInterval).Should(Succeed())
+
+		job := createJob("alice", capturedNS, nil)
+		Expect(job.Annotations).NotTo(HaveKey(submittedBy))
+		supplied := createJob("alice", capturedNS, map[string]string{"example.com/owner": "bob"})
+		Expect(supplied.Annotations).To(HaveKeyWithValue("example.com/owner", "bob"))
+	})
+
 	It("admits requests unchanged when a policy expression fails", func() {
 		// The condition errors on Jobs without the probe label.
 		install(`
@@ -144,10 +156,10 @@ admissionPolicies:
       - name: probe-label
         expression: 'object.metadata.labels["probe"] == "on"'
 `)
-		// The previous policy captured every Job, so an admitted, unannotated Job
-		// shows the new policy is loaded.
+		// The previous policy annotated every Job, so an admitted Job with no
+		// annotations shows the new policy is loaded.
 		Eventually(func(g Gomega) {
-			g.Expect(createJob("alice", capturedNS, nil).Annotations).NotTo(HaveKey(submittedBy))
+			g.Expect(createJob("alice", capturedNS, nil).Annotations).To(BeEmpty())
 		}, eventuallyTimeout, eventuallyInterval).Should(Succeed())
 
 		labeled := newJob(capturedNS, nil)
@@ -183,6 +195,15 @@ admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{apiG
 	Entry("reserved matchConditions name", `
 admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}], matchConditions: [{name: karta-x, expression: "true"}]}}`,
 		`name "karta-x" uses the reserved karta- prefix`),
+	Entry("empty annotation", `
+admissionPolicies: {submitter: {enabled: true, apiVersion: v1, annotation: "", resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]}}`,
+		"admissionPolicies.submitter.annotation must be set"),
+	Entry("invalid annotation key", `
+admissionPolicies: {submitter: {enabled: true, apiVersion: v1, annotation: "Example.com/owner", resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]}}`,
+		`"Example.com/owner" is not a valid annotation key`),
+	Entry("annotation key with a quote", `
+admissionPolicies: {submitter: {enabled: true, apiVersion: v1, annotation: "owner\"", resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]}}`,
+		"is not a valid annotation key"),
 	Entry("subresource", `
 admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs/status]}]}}`,
 		`subresource "jobs/status" is not supported`),

@@ -18,6 +18,12 @@ renderers see no cluster APIs.
 {{- else }}
   {{- fail "admissionPolicies.submitter.enabled requires MutatingAdmissionPolicy: v1 on Kubernetes 1.36+, or v1beta1 enabled on 1.34-1.35; set admissionPolicies.submitter.apiVersion when rendering without a cluster" }}
 {{- end }}
+{{- $key := required "admissionPolicies.submitter.annotation must be set" $s.annotation }}
+{{- $parts := splitList "/" $key }}
+{{- $keyName := last $parts }}
+{{- if or (gt (len $parts) 2) (gt (len $keyName) 63) (not (regexMatch "^[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$" $keyName)) (and (eq (len $parts) 2) (or (gt (len (first $parts)) 253) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$" (first $parts))))) }}
+  {{- fail (printf "admissionPolicies.submitter.annotation %q is not a valid annotation key" $key) }}
+{{- end }}
 {{- $name := printf "%s-submitter-capture" (include "karta.fullname" .) }}
 apiVersion: admissionregistration.k8s.io/{{ $v }}
 kind: MutatingAdmissionPolicy
@@ -43,7 +49,7 @@ spec:
   matchConditions:
     # A supplied value is kept.
     - name: karta-submitter-unset
-      expression: '!has(object.metadata.annotations) || !("karta.run.ai/submitted-by" in object.metadata.annotations)'
+      expression: '!has(object.metadata.annotations) || !({{ $key | quote }} in object.metadata.annotations)'
     # Workload roots only: a controller creating a child is not the submitter.
     - name: karta-submitter-root
       expression: '!has(object.metadata.ownerReferences) || !object.metadata.ownerReferences.exists(r, has(r.controller) && r.controller)'
@@ -58,7 +64,7 @@ spec:
   mutations:
     - patchType: ApplyConfiguration
       applyConfiguration:
-        expression: 'Object{metadata: Object.metadata{annotations: {"karta.run.ai/submitted-by": request.userInfo.username}}}'
+        expression: 'Object{metadata: Object.metadata{annotations: { {{- $key | quote }}: request.userInfo.username}}}'
 ---
 apiVersion: admissionregistration.k8s.io/{{ $v }}
 kind: MutatingAdmissionPolicyBinding

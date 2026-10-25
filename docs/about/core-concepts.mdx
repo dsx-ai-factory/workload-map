@@ -1,0 +1,66 @@
+---
+title: Core Concepts of Workload Map
+sidebar-title: Core Concepts
+description: Learn the core concepts of NVIDIA Workload Map, including workload definitions, components, instances and replicas, status, the workload tree, and optimization instructions.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+This page explains the concepts that you need to understand before you use Workload Map. For the full definition syntax, refer to the [Technical Guide](../reference/workload-definition-spec.mdx).
+
+## Workload Definition and Components
+
+A workload definition describes the structure of one workload type. It is stored as a `Karta` resource in a cluster or as a built-in catalog entry. A definition describes a workload as a hierarchy of components.
+
+| Concept | Description |
+| --- | --- |
+| Root component | The workload object itself, such as a PyTorchJob or a JobSet. Every definition has one root component. It is identified by its full group, version, and kind, and it must define how to read the status of the workload. |
+| Child component | A resource that the root component owns, such as a Job or a StatefulSet. A child component names its parent with `ownerRef`. |
+| Spec definition | The location of the pod specification inside a component. A definition can point to a full pod template, to a pod spec and its metadata, or to pod fields that are scattered across the object. |
+| Path | A jq expression that locates a value, such as a pod template or a replica count. Workload Map uses jq for all paths. |
+
+A definition can also list the kinds of other objects that the workload creates but that are not components. This list is used for permission management.
+
+## Instances and Replicas
+
+A component can contain more than one entry, such as the roles of a distributed workload. Workload Map uses two concepts to tell them apart.
+
+| Concept | Description | Example |
+| --- | --- | --- |
+| Instance | One role within a component. Instances can have different specs. An `instanceIdPath` extracts the name of each instance from the workload object. | The leader and worker entries of a JobSet, or the Frontend and PrefillWorker services of an NVIDIA Dynamo graph. |
+| Replica | One copy of an identical sub-structure. A replica selector extracts the replica index from a pod. Descendant components inherit the replica from their parent. | Group 0 and group 1 of a LeaderWorkerSet, where each group has the same leader and worker pods. |
+
+Pod attribution ties a live pod to the component, instance, and replica that it belongs to. A definition can declare pod selectors for this purpose. A component type selector matches a label or annotation key on the pod. An instance selector reads the instance identifier from the pod. Paths in pod selectors refer to the manifest of the pod, not to the workload object.
+
+## Status
+
+Each workload type reports its status in its own way. A definition maps those native conditions or phases to a common set of statuses.
+
+| Status | Meaning |
+| --- | --- |
+| Initializing | The workload is created, starting, or preparing to run. |
+| Running | The workload is running. |
+| Completed | The workload finished successfully. |
+| Failed | The workload failed. |
+| Degraded | The workload is running in a degraded state. |
+| Undefined | The status is not defined or cannot be determined. |
+| Suspended | The workload is fully suspended. |
+| Suspending | The workload is being suspended, and its pods are draining. |
+| Resuming | The workload is being resumed. |
+
+A definition can match a status by conditions, by phase, or by a jq expression. If a mapping provides both a phase and conditions, both must match. Status mappings are not mutually exclusive, so a workload can match more than one status at the same time, such as Running and Degraded. If nothing matches, the status is Undefined.
+
+## Workload Tree
+
+The workload tree is the hierarchy of a workload as Workload Map reads it. It holds the components, their instances, and the normalized status. The library builds the tree from a definition and a workload object. The CLI and the Headlamp plugin render the same tree.
+
+You can also build a tree from a manifest that you have not yet submitted. In that case the structure and the desired scale are present, but the live status and pods are not.
+
+## Optimization Instructions
+
+Optimization instructions tell a consumer, such as a scheduler, how to treat the pods of a workload. The supported instruction is gang scheduling, which describes how to group the pods of a distributed workload so that they are placed together.
+
+The `gangScheduling.podGroup` field defines a pod group with subgroups for components. The earlier `gangScheduling.podGroups` field is deprecated and is replaced by `podGroup`. The two formats are not equivalent, so refer to the [Release Notes](/release-notes) before you migrate.
+
+Paths in optimization instructions refer to the manifest of the pod, not to the workload object.

@@ -16,6 +16,10 @@ global-theme: nvidia
 logo:
   right-text: Workload Map
 
+check:
+  rules:
+    broken-links: error
+
 navbar-links:
   - type: github
     value: https://github.com/dsx-ai-factory/workload-map
@@ -24,6 +28,41 @@ navigation:
   - page: Home
     path: ../docs/index.mdx
     slug: /
+  - changelog: ./changelog
+    title: Release Notes
+    slug: release-notes
+  - section: Overview
+    slug: overview
+    contents:
+      - page: What is Workload Map?
+        path: ../docs/about/what-is-workload-map.mdx
+        slug: what-is-workload-map
+      - page: Core Concepts
+        path: ../docs/about/core-concepts.mdx
+        slug: core-concepts
+      - page: Key Features
+        path: ../docs/about/key-features.mdx
+        slug: key-features
+      - page: Architecture Overview
+        path: ../docs/about/architecture-overview.mdx
+        slug: architecture-overview
+  - section: Get Started
+    contents:
+      - page: Prerequisites
+        path: ../docs/get-started/prerequisites.mdx
+        slug: prerequisites
+      - page: Installation
+        path: ../docs/get-started/installation.mdx
+        slug: installation
+      - page: Quickstart - CLI
+        path: ../docs/get-started/quickstart-cli.mdx
+        slug: quickstart-cli
+      - page: Quickstart - Go Library
+        path: ../docs/get-started/quickstart-go-library.mdx
+        slug: quickstart-go-library
+      - page: Tutorial - Author Your First Karta
+        path: ../docs/get-started/tutorial-author-your-first-karta.mdx
+        slug: tutorial-author-your-first-karta
   - section: Guides
     contents:
       - page: Define a Workload Type

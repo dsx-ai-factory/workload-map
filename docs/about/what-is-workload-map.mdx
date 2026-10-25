@@ -1,0 +1,58 @@
+---
+title: What is Workload Map?
+sidebar-title: What is Workload Map?
+description: Learn what NVIDIA Workload Map is, the problem it solves, and how one definition of a workload's structure lets controllers, schedulers, and platforms work with any Kubernetes workload type.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+NVIDIA Workload Map is an open source project that describes the structure of a Kubernetes workload once, in a portable, declarative definition. Controllers, schedulers, and platforms use that definition to inspect, modify, and manage workloads of any type. You do not need to hard-code knowledge of each type, from a simple Deployment to a distributed PyTorchJob or a custom resource.
+
+<Note title="Project name and status">
+
+Workload Map was formerly named Karta. The custom resource kind is still `Karta`, so that name appears in definitions, in the code, and in the repository. Workload Map is released under the Apache 2.0 license and is in active development (pre-1.0), so the API can change between minor versions.
+
+</Note>
+
+## Why Workload Map Exists
+
+In Kubernetes, and especially in AI systems, a workload is not a standalone execution unit such as a single pod. A workload is composed of multiple components organized in a hierarchy of resources. These resources are often exposed through custom resource definitions (CRDs) such as PyTorchJob, RayCluster, and MPIJob. Each CRD structures the workload configuration differently, but all of them share the same building blocks: pod specifications, scaling parameters, and status definitions.
+
+If you build a controller, scheduler, or platform that works with more than one workload type, you write custom logic for each type to answer the same questions:
+
+- Where is the pod template?
+- How do I find the replica count?
+- Which status conditions mean running and which mean failed?
+- How do I modify the pod spec without breaking the workload?
+
+This approach does not scale. Every new workload type needs new integration code. Each scheduler, controller, and platform maintains its own adapters that implement the same patterns.
+
+## What Workload Map Does
+
+Workload Map maps the structure of any workload type into a standard schema. A definition uses JQ-based path expressions to declare where to find the pod specifications, scaling parameters, and status fields in a workload hierarchy. After you define a workload type once, any controller can use the definition to:
+
+- Extract pod templates, replica counts, status, and metadata.
+- Update pod specs, labels, and annotations across all instances.
+- Understand the workload hierarchy, such as a JobSet with leader and worker groups.
+
+Workload Map provides the following:
+
+- The `Karta` CRD, which defines the structure of a workload type.
+- A Go library that evaluates the path expressions to interpret custom resource schemas. The library traverses the workload hierarchy to identify and group pods. It also applies optimization instructions such as gang scheduling, which places the pods of a distributed workload together.
+- A [catalog of pre-built and tested definitions](../reference/catalog-of-definitions.mdx) for common workload types, including JobSet, PyTorchJob, RayCluster, MPIJob, LeaderWorkerSet, KServe InferenceService, NVIDIA NIM, NVIDIA Dynamo, and Grove PodCliqueSet.
+- The `kli` command-line tool, which inspects workloads through their definitions.
+
+## Where Workload Map Fits
+
+Workload Map sits between the workload types that you run and the tools that act on them. A scheduler, controller, dashboard, or CLI reads a workload through the same component API. A definition for each workload type supplies the structure.
+
+The following diagram shows the layers:
+
+![Three layers: your platform, such as a scheduler, controller, dashboard, or CLI, reads workloads through the Workload Map component API, and one definition for each workload type, such as JobSet, RayCluster, PyTorchJob, or your own CRD, supplies the structure.](../assets/workload-map-layers.svg)
+
+Workload Map was created at Run:ai (NVIDIA) to power workload management across diverse Kubernetes workload types.
+
+[KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler), an open source Kubernetes scheduler for AI and GPU workloads, uses Workload Map as the generic fallback plugin in its pod grouper. A definition gives any CRD correct pod grouping and gang scheduling in KAI Scheduler, with no scheduler plugin to write. Native plugins that ship with KAI Scheduler keep precedence, and Workload Map handles the remaining workload types.
+
+For the full list of adopters, refer to [ADOPTERS.md](https://github.com/dsx-ai-factory/workload-map/blob/main/ADOPTERS.md).

@@ -88,11 +88,22 @@ What replaces each repository command:
   Steps 6 and 7 name this form for every karta-verify run; for the binary,
   `GOBIN=<scratch> go install` the same argument. With no Go toolchain, stop
   at `kli validate` and say in the summary that no path was run against a CR.
-- Step 8: first check the cluster, `kli definitions --group <g> --kind <k>`.
+- Step 8: first check the cluster with kubectl, not `kli`, which falls back
+  to the catalog when the read fails:
+
+  ```bash
+  kubectl get kartas.run.ai -o json > <scratch>/kartas.json
+  jq -r --arg g <group> --arg v <version> --arg k <kind> '.items[]
+    | select(.spec.structureDefinition.rootComponent.kind
+      | .group == $g and .version == $v and .kind == $k)
+    | .metadata.name' <scratch>/kartas.json
+  ```
+
+  Go on only when `kubectl` exits 0; on any error, stop and do not apply.
   The Karta webhook allows one Karta per group, version, and kind, so a new
-  object under another name is rejected while one with origin `cluster`
-  exists. Applying under that object's name replaces it: stop and ask its
-  owner (often the platform that installed it) instead. With none, name the
+  object under another name is rejected while one exists. Applying under the
+  name jq prints replaces it: stop and ask its owner (often the platform that
+  installed it) instead. With none, name the
   object as the catalog does (`<group with dots as dashes>-<kind>-<version>`,
   lowercase, the core group as `core`) and `kubectl apply` it; `kli definitions` then lists it with
   origin `cluster`, which overrides a catalog definition of the same kind. On

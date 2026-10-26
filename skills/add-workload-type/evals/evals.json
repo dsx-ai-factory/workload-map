@@ -148,7 +148,7 @@
       "id": 5,
       "purpose": "Repository independence. The user has no checkout of this repository and no kli installed, so every repository command in steps 2, 6, 7 and 8 must be replaced by its kli or public-module form. Measured on 2026-10-26 as new skill vs previous skill vs no skill, 3 runs each (BENCHMARK.md, eval 5 section).",
       "prompt": "I don't have the Karta repo cloned, just a cluster with Karta installed. Write a Karta definition for our in-house CRD training.example.com/v1 TrainJob (CRD and a running CR attached) and get it working on the cluster.",
-      "expected_output": "A Karta definition for training.example.com/v1 TrainJob, built from a catalog sample read with kli definitions, validated with kli validate, run against the CR with karta-verify from the public module pinned to a library tag, with --predict and --strict, applied with kubectl after a cluster check finds no existing Karta for the kind, and checked live with kli get and kli describe.",
+      "expected_output": "A Karta definition for training.example.com/v1 TrainJob, built from a catalog sample read with kli definitions, validated with kli validate, run against the CR with karta-verify from the public module pinned to a library tag, with --predict and --strict, created with kubectl create after a cluster check finds no existing Karta for the kind, and checked live with kli get and kli describe.",
       "expectations": [
         {
           "text": "kli is installed with the Homebrew tap added by URL and the cask installed by its full name dsx-ai-factory/kli/kli, or from a release archive checked against checksums.txt; go install is never suggested for kli",
@@ -176,7 +176,7 @@
           "kind": "floor"
         },
         {
-          "text": "No catalog builder, hack/e2e operator install, or recorded flow is produced. Before applying, kubectl get kartas.run.ai exits 0 and shows whether a Karta already covers training.example.com/v1 TrainJob. With none, the definition is applied with kubectl and checked with kli get and kli describe on a live TrainJob; with one, or on a read error, the run stops without applying and says why",
+          "text": "No catalog builder, hack/e2e operator install, or recorded flow is produced. Before applying, kubectl get kartas.run.ai exits 0 and shows whether a Karta already covers training.example.com/v1 TrainJob. With none, the definition is created with kubectl create, not kubectl apply, after a server-side dry run, and checked with kli get and kli describe on a live TrainJob; with one, or on a read error, the run stops without applying and says why",
           "measured": null,
           "kind": "discriminating"
         }

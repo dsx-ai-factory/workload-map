@@ -117,11 +117,14 @@ What replaces each repository command:
   replaces it: stop and ask its owner (often the platform that installed it).
   If jq prints nothing, name the object as the catalog does
   (`<group with dots as dashes>-<kind>-<version>`, lowercase, the core group
-  as `core`). Run `kubectl apply --dry-run=server -f <definition.yaml>`
+  as `core`). Run `kubectl create --dry-run=server -f <definition.yaml>`
   first: the webhook and the CRD schema of the installed Karta, which can be
-  older than `kli`, judge it there. Then `kubectl apply` it; `kli definitions`
-  then lists it with
-  origin `cluster`, which overrides a catalog definition of the same kind. On
+  older than `kli`, judge it there. Then `kubectl create -f <definition.yaml>`.
+  Use `create`, not `apply`: if a Karta appeared under that name since the
+  check, `create` stops with `AlreadyExists` where `apply` would replace it.
+  Later edits to your own Karta use `kubectl apply`. `kli definitions` then
+  lists it with origin `cluster`, which overrides a catalog definition of the
+  same kind. On
   a live workload, `kli get <kind>` shows the status the definition reads,
   and `kli describe <kind>/<name>` shows each pod under the component its
   selectors give it: the pod check of step 7 on the real cluster.

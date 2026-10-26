@@ -70,6 +70,12 @@ Eval 5 covers a user with a cluster but no checkout, the case the skill
 handles through `kli`, installed with Homebrew, and the public karta-verify
 module. It has not been run either.
 
+The skill later made step 8 ship every definition in this repository as a
+catalog entry with a recorded flow. Evals 1 and 4 now expect that entry, the
+reverse of the "definition only" expectation graded above, and evals 1, 2 and
+4 run karta-verify from `karta/sdk/`. Every reworded expectation has a null
+measured count; the tables in this file grade the earlier wording.
+
 ## Per-eval breakdown
 
 | Eval | Config | Pass rate | Tokens | Time |
@@ -154,7 +160,7 @@ figures above for both configurations.
    and are not part of these figures.
 2. Grade each run against its `expectations` list.
 3. Validate every produced definition, and exercise it against a real CR with
-   predictions written before the run:
+   predictions written before the run, from `karta/sdk/`:
 
    ```sh
    go run ./hack/karta-verify --karta <definition> \

@@ -4,9 +4,9 @@
   "evals": [
     {
       "id": 1,
-      "purpose": "Primary discriminator. Argo Workflow is absent from docs/catalog/, so the definition must be authored from scratch.",
+      "purpose": "Primary discriminator. Argo Workflow is absent from docs/catalog/, so the definition must be authored from scratch and, in this repository, shipped as a catalog entry with a recorded flow (step 8). Expectations reworded after the 2026-08-18 benchmark carry no measured counts.",
       "prompt": "We run Argo Workflows on our cluster and want Karta to understand them. Add support for the Argo Workflow type.",
-      "expected_output": "A single Karta definition for argoproj.io/v1alpha1 Workflow, validated with the repository harness and exercised against a CR with predictions written first, with a phase-based status mapping that does not misreport a suspended workflow as Running.",
+      "expected_output": "A Karta definition for argoproj.io/v1alpha1 Workflow, validated with the repository harness from karta/sdk/ and exercised against a CR with predictions written first, with a phase-based status mapping that does not misreport a suspended workflow as Running, shipped as a catalog builder with an operator install and a recorded e2e flow.",
       "expectations": [
         {
           "text": "The add-workload-type skill is selected without the user naming it",
@@ -14,8 +14,8 @@
           "kind": "triggering"
         },
         {
-          "text": "The deliverable is a Karta YAML definition only. No Go source file under karta/sdk/pkg/catalog/kartas/, no catalog registration, and no hack/e2e module are produced",
-          "measured": "3/3 vs 0/3",
+          "text": "The definition ships as a catalog entry, as step 8 requires in this repository: a Go builder under karta/sdk/pkg/catalog/kartas/ registered in karta/sdk/pkg/catalog/catalog.go, docs/catalog/ regenerated with make generate-samples and not hand-edited, an operator install under hack/e2e/operators/<name>/, and a recorded flow under test/e2e/flows/ whose fixtures end with succeeded: true. When no kind cluster can be created, the run says the flow is unrecorded rather than claiming it",
+          "measured": null,
           "kind": "discriminating"
         },
         {
@@ -24,13 +24,13 @@
           "kind": "discriminating"
         },
         {
-          "text": "The definition is validated with the repository harness, go run ./hack/karta-verify --karta <file>, rather than a purpose-built Go program that calls the library directly",
-          "measured": "3/3 vs 1/3",
+          "text": "The definition is validated with the repository harness, go run ./hack/karta-verify --karta <file> run from karta/sdk/, rather than a purpose-built Go program that calls the library directly",
+          "measured": null,
           "kind": "discriminating"
         },
         {
-          "text": "A suspended Workflow resolves to Suspended and not Running. Argo leaves .status.phase at Running while .spec.suspend is true, so the running rule must be guarded against .spec.suspend rather than matching byPhase Running alone",
-          "measured": "2/3 vs 0/3",
+          "text": "A suspended Workflow resolves to Suspended and not Running. Argo leaves .status.phase at Running while .spec.suspend is true, so the running rule must be guarded against .spec.suspend rather than matching byPhase Running alone, and the recorded flow includes a suspend step that reaches Suspended",
+          "measured": null,
           "kind": "discriminating"
         },
         {
@@ -47,13 +47,13 @@
     },
     {
       "id": 2,
-      "purpose": "Process regression only. docs/catalog/batch-cronjob-v1.yaml already ships in this repository, so both configurations can find the answer and no content expectation here can discriminate. Retained for the verification-discipline expectations, which do separate.",
+      "purpose": "Process regression only. docs/catalog/batch-cronjob-v1.yaml already ships in this repository, so both configurations can find the answer and no content expectation here can discriminate. Retained for the verification-discipline expectations, which do separate, and to check that an existing catalog entry is not duplicated.",
       "prompt": "Write a Karta definition for a batch/v1 CronJob. It should report status and expose the pod template.",
-      "expected_output": "A valid Karta definition for batch/v1 CronJob, verified with the repository harness against sample CRs with predictions written first.",
+      "expected_output": "A valid Karta definition for batch/v1 CronJob, verified with the repository harness from karta/sdk/ against sample CRs with predictions written first, with the existing catalog entry named and not duplicated.",
       "expectations": [
         {
-          "text": "The definition is validated with go run ./hack/karta-verify --karta <file> and exercised against sample CronJobs with --strict, with predictions written before the run",
-          "measured": "3/3 vs 0/3",
+          "text": "The definition is validated with go run ./hack/karta-verify --karta <file>, run from karta/sdk/, and exercised against sample CronJobs with --strict, with predictions written before the run",
+          "measured": null,
           "kind": "discriminating"
         },
         {
@@ -73,6 +73,11 @@
         },
         {
           "text": "Status is mapped with byExpression over real fields such as .spec.suspend and .status.active, and status expressions are null-safe, spec and scale paths are plain, and every path is evaluated against the workload object",
+          "measured": null,
+          "kind": "floor"
+        },
+        {
+          "text": "The run names the shipped docs/catalog/batch-cronjob-v1.yaml and its builder, and adds no second builder, catalog registration, operator install, or recorded flow for batch/v1 CronJob",
           "measured": null,
           "kind": "floor"
         }
@@ -103,17 +108,17 @@
     },
     {
       "id": 4,
-      "purpose": "Uncontaminated content discriminator, added to replace the role eval 2 can no longer serve. Volcano Job is absent from docs/catalog/ and has multiple task roles plus gang scheduling, which exercises multi-instance components. Not yet run: expectations are derived from eval 1's measured discriminators and carry no measured counts.",
+      "purpose": "Uncontaminated content discriminator, added to replace the role eval 2 can no longer serve. Volcano Job is absent from docs/catalog/ and has multiple task roles plus gang scheduling, which exercises multi-instance components. In this repository it ships as a catalog entry with a recorded flow (step 8). Not yet run: expectations carry no measured counts.",
       "prompt": "We schedule Volcano jobs on this cluster. Add support for batch.volcano.sh/v1alpha1 Job to Karta.",
-      "expected_output": "A Karta definition for batch.volcano.sh/v1alpha1 Job with one component instance per entry in .spec.tasks[], replicas read per task, and a status mapping built from the real .status.state.phase values.",
+      "expected_output": "A Karta definition for batch.volcano.sh/v1alpha1 Job with one component instance per entry in .spec.tasks[], replicas read per task, and a status mapping built from the real .status.state.phase values, shipped as a catalog builder with an operator install and a recorded e2e flow.",
       "expectations": [
         {
-          "text": "The deliverable is a Karta YAML definition only, with no Go source and no catalog registration",
+          "text": "The definition ships as a catalog entry, as step 8 requires in this repository: a Go builder under karta/sdk/pkg/catalog/kartas/ registered in karta/sdk/pkg/catalog/catalog.go, docs/catalog/ regenerated with make generate-samples and not hand-edited, an operator install under hack/e2e/operators/<name>/, and a recorded flow under test/e2e/flows/ whose fixtures end with succeeded: true. When no kind cluster can be created, the run says the flow is unrecorded rather than claiming it",
           "measured": null,
           "kind": "discriminating"
         },
         {
-          "text": "Expected values are written to a predictions file before the run, and the definition is exercised with go run ./hack/karta-verify --karta <file> --workload <cr> --predict <file> --strict",
+          "text": "Expected values are written to a predictions file before the run, and the definition is exercised with go run ./hack/karta-verify --karta <file> --workload <cr> --predict <file> --strict, run from karta/sdk/",
           "measured": null,
           "kind": "discriminating"
         },
@@ -123,7 +128,7 @@
           "kind": "discriminating"
         },
         {
-          "text": "Gang scheduling is either modelled from .spec.minAvailable or explicitly declined with a stated reason, rather than silently omitted",
+          "text": "Gang scheduling is either modelled with podGroup.subGroups from .spec.minAvailable or explicitly declined in the builder comment with a stated reason, rather than silently omitted",
           "measured": null,
           "kind": "discriminating"
         },

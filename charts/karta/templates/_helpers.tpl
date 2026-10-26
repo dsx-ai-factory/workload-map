@@ -100,3 +100,36 @@ install) and crd-upgrader-job.yaml reads fipsMode independently of that flag.
 app.kubernetes.io/name: {{ printf "%s-metrics-exporter" .Chart.Name | trunc 63 | trimSuffix "-" }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
+
+{{/*
+Renders submitter capture resourceRules from group/version/resource entries,
+adding the CREATE operation and Namespaced scope, which users never set.
+Takes a dict: rules (nonempty list), field (value path for errors).
+*/}}
+{{- define "karta.submitter.resourceRules" -}}
+{{- if not .rules }}
+{{- fail (printf "%s must list at least one resource" .field) }}
+{{- end }}
+{{- range $i, $rule := .rules }}
+{{- range $key, $_ := $rule }}
+{{- if not (has $key (list "apiGroups" "apiVersions" "resources")) }}
+{{- fail (printf "%s[%d]: unsupported key %q; set only apiGroups, apiVersions and resources (the chart sets operations and scope)" $.field $i $key) }}
+{{- end }}
+{{- end }}
+{{- range $key := list "apiGroups" "apiVersions" "resources" }}
+{{- if not (index $rule $key) }}
+{{- fail (printf "%s[%d].%s must be a nonempty list" $.field $i $key) }}
+{{- end }}
+{{- end }}
+{{- range $rule.resources }}
+{{- if contains "/" . }}
+{{- fail (printf "%s[%d]: subresource %q is not supported; list the main resource" $.field $i .) }}
+{{- end }}
+{{- end }}
+- apiGroups: {{ toJson $rule.apiGroups }}
+  apiVersions: {{ toJson $rule.apiVersions }}
+  resources: {{ toJson $rule.resources }}
+  operations: ["CREATE"]
+  scope: Namespaced
+{{- end }}
+{{- end -}}

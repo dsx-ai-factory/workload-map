@@ -255,56 +255,70 @@ flag with its default and environment variable.
 
 ## Submitter admission
 
-`submitterAdmission` captures direct Kubernetes callers. Exporter CEL extraction
+`admissionPolicies.submitter` captures direct Kubernetes callers. Exporter CEL extraction
 is configured separately, as described in [Submitter attribution](#submitter-attribution).
 
-Capture uses `MutatingAdmissionPolicy` and `ValidatingAdmissionPolicy` with their
-bindings. Both run in the API server without a Karta operator. MAP is
+Capture uses a `MutatingAdmissionPolicy` and its binding. It runs in the API
+server without a Karta operator. MAP is
 [stable in Kubernetes 1.36+](https://kubernetes.io/docs/reference/access-authn-authz/mutating-admission-policy/);
 [1.34-1.35 requires beta feature/API enablement](https://v1-35.docs.kubernetes.io/docs/reference/access-authn-authz/mutating-admission-policy/).
-VAP is [stable since 1.30](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/).
-The chart rejects capture if required APIs are unavailable.
 
 This example captures Deployments and Jobs in opted-in namespaces:
 
 ```yaml
-submitterAdmission:
-  enabled: true
-  matchConstraints:
-    namespaceSelector:
+admissionPolicies:
+  submitter:
+    enabled: true # Capture on CREATE; default false.
+    annotation: karta.run.ai/submitted-by # Annotation key that receives the caller.
+    apiVersion: "" # MAP version, v1 or v1beta1; empty detects it from the cluster.
+    resources: # Group, version and plural resource; the chart sets operations and scope.
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        resources: ["deployments"]
+      - apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        resources: ["jobs"]
+    excludeResources: [] # Same form; exclusions win.
+    namespaceSelector: # Default: the opt-in label below. Set matchLabels: null to drop it.
       matchLabels:
         karta.run.ai/capture-submitter: "true"
       matchExpressions:
         - key: kubernetes.io/metadata.name
           operator: NotIn
           values: [kube-system, karta-system]
-    resourceRules:
-      - operations: ["CREATE"]
-        apiGroups: ["apps"]
-        apiVersions: ["v1"]
-        resources: ["deployments"]
-        scope: Namespaced
-      - operations: ["CREATE"]
-        apiGroups: ["batch"]
-        apiVersions: ["v1"]
-        resources: ["jobs"]
-        scope: Namespaced
-    excludeResourceRules: []
-  matchConditions: [] # Optional CEL conditions on the admission request.
+    objectSelector: {} # Workload labels; {} matches all.
+    matchConditions: [] # Optional CEL conditions on the CREATE request.
 ```
 
 Capture follows [native Kubernetes matching](https://github.com/kubernetes/kubernetes/blob/v1.36.0/staging/src/k8s.io/api/admissionregistration/v1/types.go#L554-L642).
-Rules select namespaced CREATE requests. Exclusions win and all conditions must
-pass. An empty namespace selector matches all namespaces. Direct Pod capture uses
-group `""`, version `v1`, resource `pods`. These settings do not filter exporter watches.
+It selects namespaced CREATE requests. Exclusions win and all conditions must
+pass. Objects with a controller `ownerReference` are skipped: a controller that
+copies a parent's annotations onto a child is not the submitter. Objects the
+annotation would push over the 256 KiB annotation size limit are skipped. An empty
+namespace selector matches all namespaces. Helm merges maps with the defaults, so
+match all namespaces with `matchLabels: null`, not `{}`. Condition names starting
+with `karta-` are reserved. Direct Pod capture uses
+group `""`, version `v1`, resource `pods`. Subresources cannot be listed. These
+settings do not filter exporter watches.
 
-Mutation fills a missing `karta.run.ai/submitted-by` annotation. Within capture
-scope, CREATE validation rejects a supplied value that differs from the caller.
-Captured identity must stay protected from UPDATE overrides or removal, including
-after capture scope narrows. The exact UPDATE matching rules are TBD in the
-[implementation design](../design/metrics-exporter/README.md).
-Administrators control namespace labels and policy settings. Policies use
-`failurePolicy: Fail`; validation bindings use `validationActions: [Deny]`.
+Mutation fills a missing `annotation` key, `karta.run.ai/submitted-by` by
+default, with the caller's username. The key must be a valid annotation key.
+When it changes, point the exporter's `submittedByExpression` at the new key. A service account appears as `system:serviceaccount:<namespace>:<name>`.
+A supplied value is kept, so the annotation is a hint, not proof of identity.
+
+Capture is best effort and never rejects a request. The policy uses
+`failurePolicy: Ignore`: if it is unavailable, or a CEL expression fails to
+evaluate, the request is admitted without the annotation. Administrators control
+namespace labels and policy settings.
+
+With `apiVersion` empty, the chart detects the API and fails if the cluster does
+not serve it. `helm template` and GitOps renderers see no cluster APIs, so set
+`apiVersion` when using them.
+
+To enable capture on an existing release, upgrade with
+`--reset-then-reuse-values` (Helm 3.14+), not `--reuse-values`. `--reuse-values`
+skips new chart defaults, so a missing `namespaceSelector` would capture in every
+namespace.
 
 ## Metric labels
 

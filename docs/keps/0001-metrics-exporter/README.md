@@ -138,7 +138,44 @@ the Pod. Rules select metrics, source order and evaluation events without changi
 Kubernetes objects. See [metric label configuration](../../karta-metrics-exporter/configuration.md#metric-labels)
 for the input object, evaluation modes and cache lifetime.
 
+## Who submitted the workload
+
+### Directly apply to Kubernetes
+
+Submitter capture is separate from the exporter and Karta operator. Helm installs
+a `MutatingAdmissionPolicy` (MAP) and its binding, which run inside the
+Kubernetes API server.
+
+```yaml
+admissionPolicies:
+  submitter:
+    enabled: true
+    resources:
+      - apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        resources: ["jobs"]
+```
+
+When `kubectl apply` creates a workload within capture scope, MAP records the
+authenticated caller in `karta.run.ai/submitted-by`, unless the request already
+sets it. The caller can be a service account. `annotation` changes the key.
+Objects with a controller `ownerReference` are skipped, since their creator is a
+controller, not the submitter.
+
+Capture is best effort and never rejects a request. A supplied value is kept, so
+the annotation is a hint, not proof of identity. When a platform creates the
+workload, the caller is the platform's service account; prefer the platform's
+own user annotation in `submittedByExpression`. See the
+[implementation design](../../design/metrics-exporter/submitter-capture.md).
+
+MAP feature versions:
+
+| Policy | Alpha from | Beta from | Stable from |
+| --- | --- | --- | --- |
+| [MAP](https://github.com/kubernetes/enhancements/issues/3962) | 1.32 | 1.34 | 1.36 |
+
 ## History
 
 - 2026-10-12 to 2026-10-19: Defined workload metrics and selection; separated configuration and query examples into linked guides.
 - 2026-10-25: Added generic metric labels and defined watches for Pods, selected workload kinds and discovered roots. Intermediate owners use metadata reads and periodic revalidation.
+- 2026-10-25: Made submitter capture a best-effort MAP with a configurable annotation; dropped the VAP and UPDATE protection.

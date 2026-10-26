@@ -93,6 +93,9 @@ Runtime starts the inventory, watches and workers. Collector registers its OTel
 callback. Shutdown cancels their shared context, stops workers, unregisters the
 callback and closes the OTel provider.
 
+[Submitter capture](submitter-capture.md) runs separately in the Kubernetes API
+server. Its admission policy records who created a workload.
+
 ## Watch Pods and workload roots
 
 Runtime always watches Pod metadata in selected namespaces. It also starts full

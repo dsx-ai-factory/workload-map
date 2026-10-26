@@ -88,6 +88,45 @@ webhook:
     # here, e.g. cert-manager.io/inject-ca-from: <namespace>/<certificate-name>
     annotations: {}
 
+# Native admission policies, run by the API server. They need neither the
+# operator nor the exporter, so operator.enabled does not affect them.
+admissionPolicies:
+  # Records the authenticated caller that creates a workload in an annotation,
+  # best effort.
+  submitter:
+    # A MutatingAdmissionPolicy fills a missing annotation on CREATE and keeps a
+    # supplied one. Objects with a controller ownerReference are skipped, since
+    # their creator is a controller, not the submitter. It never rejects a
+    # request: on a policy or CEL error the request is admitted unchanged.
+    # Requires MutatingAdmissionPolicy: v1 on Kubernetes 1.36+, or the v1beta1
+    # API enabled on 1.34-1.35.
+    enabled: false
+    # Annotation key that receives the caller's username.
+    annotation: karta.run.ai/submitted-by
+    # MutatingAdmissionPolicy API version: v1 or v1beta1. Empty detects it from
+    # the cluster. Set it for helm template and GitOps tools, which cannot detect it.
+    apiVersion: ""
+    # Workload types, by API group, version and plural resource name. The chart
+    # sets operations and scope. Required when enabled is true.
+    # Example:
+    # - apiGroups: ["batch"]
+    #   apiVersions: ["v1"]
+    #   resources: ["jobs"]
+    resources: []
+    # Types to skip during capture, in the same form. Exclusions win.
+    excludeResources: []
+    # Capture in namespaces matching these labels. Helm merges maps with these
+    # defaults, so to match all namespaces set matchLabels: null rather than {}.
+    namespaceSelector:
+      matchLabels:
+        karta.run.ai/capture-submitter: "true"
+    # Capture objects matching these labels. {} matches all objects.
+    objectSelector: {}
+    # Extra CEL conditions on the CREATE request; all must pass for capture.
+    # An expression that fails to evaluate skips capture. Names starting with
+    # karta- are reserved.
+    matchConditions: []
+
 logLevel: info
 
 # Extra flags appended after the chart's default args. Use this to add flags

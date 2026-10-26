@@ -65,9 +65,12 @@ What replaces each repository command:
 - Step 2: `kli definitions --kubeconfig /dev/null` lists the catalog alone;
   its names are the `docs/catalog/` file names. Without that flag `kli` reads
   the current kubeconfig context and merges in the cluster's definitions
-  (origin `cluster`). `--group <g> --kind <k>` shows whether the kind is
-  already covered, and `kli definitions <name> -o yaml > <scratch>/sample.yaml`
-  writes the skeleton. The catalog is the one in the installed release; a
+  (origin `cluster`); inside a pod, an empty kubeconfig falls back to the
+  pod's service account, so the list can still include them; there, run
+  `env -u KUBERNETES_SERVICE_HOST kli definitions --kubeconfig /dev/null`.
+  `--group <g> --kind <k>` shows whether the kind is already covered, and
+  `kli definitions <name> -o yaml > <scratch>/sample.yaml` writes the
+  skeleton. The catalog is the one in the installed release; a
   sample newer than it is fetched from
   `https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/docs/catalog/<name>.yaml`.
 - Step 6: `kli validate <definition.yaml>`, exit 0 valid, 1 invalid, 2 not
@@ -75,10 +78,13 @@ What replaces each repository command:
   workload.
 - Step 7 still needs karta-verify, which `kli` does not ship yet. Run it from
   the public module at a library tag, `karta/sdk/vX.Y.Z`, written `@vX.Y.Z`.
-  A released `kli` prints its version as `X.Y.Z`: use that. A build that
-  prints anything else (`v0.2.0-134-g<sha>`) is not a release: use the newest
-  tag,
-  `git ls-remote --tags --refs https://github.com/dsx-ai-factory/workload-map 'karta/sdk/v*' | sort -V -k2 | tail -1`.
+  A released `kli` prints its version as `X.Y.Z`: use that when the tag
+  `karta/sdk/vX.Y.Z` exists, which
+  `git ls-remote --tags --refs https://github.com/dsx-ai-factory/workload-map 'karta/sdk/vX.Y.Z'`
+  shows by printing one line. Otherwise (an older release, or a build that
+  prints `v0.2.0-134-g<sha>`), use the newest release tag, pre-releases
+  excluded; this prints it as `vX.Y.Z`:
+  `git ls-remote --tags --refs https://github.com/dsx-ai-factory/workload-map 'karta/sdk/v*' | grep -v -e '-' | sort -V -k2 | tail -1 | sed 's#.*karta/sdk/##'`.
 
   ```bash
   go run github.com/dsx-ai-factory/workload-map/karta/sdk/hack/karta-verify@vX.Y.Z \
@@ -86,19 +92,23 @@ What replaces each repository command:
     --predict <predictions.yaml> --strict
   ```
 
-  Steps 6 and 7 name this form for every karta-verify run; for the binary,
+  Step 7 names this form for every karta-verify run; for the binary,
   `GOBIN=<scratch> go install` the same argument. With no Go toolchain, stop
   at `kli validate` and say in the summary that no path was run against a CR.
 - Step 8: first check the cluster with kubectl, not `kli`, which falls back
   to the catalog when the read fails:
 
   ```bash
-  kubectl get kartas.run.ai -o json > <scratch>/kartas.json
-  jq -r --arg g <group> --arg v <version> --arg k <kind> '.items[]
-    | select(.spec.structureDefinition.rootComponent.kind
-      | .group == $g and .version == $v and .kind == $k)
-    | .metadata.name' <scratch>/kartas.json
+  kubectl get kartas.run.ai -o json > <scratch>/kartas.json &&
+    jq -r --arg g <group> --arg v <version> --arg k <kind> '.items[]
+      | select(.spec.structureDefinition.rootComponent.kind
+        | .group == $g and .version == $v and .kind == $k)
+      | .metadata.name' <scratch>/kartas.json
   ```
+
+  The `&&` keeps jq from reading an empty file after a failed read, which
+  would print nothing and exit 0. For a core kind, pass `--arg g ""`: Kartas
+  store the core group as an empty string.
 
   Go on only when `kubectl` exits 0; on any error, stop and do not apply.
   The Karta webhook allows one Karta per group, version, and kind, so a new
@@ -107,7 +117,10 @@ What replaces each repository command:
   replaces it: stop and ask its owner (often the platform that installed it).
   If jq prints nothing, name the object as the catalog does
   (`<group with dots as dashes>-<kind>-<version>`, lowercase, the core group
-  as `core`) and `kubectl apply` it; `kli definitions` then lists it with
+  as `core`). Run `kubectl apply --dry-run=server -f <definition.yaml>`
+  first: the webhook and the CRD schema of the installed Karta, which can be
+  older than `kli`, judge it there. Then `kubectl apply` it; `kli definitions`
+  then lists it with
   origin `cluster`, which overrides a catalog definition of the same kind. On
   a live workload, `kli get <kind>` shows the status the definition reads,
   and `kli describe <kind>/<name>` shows each pod under the component its

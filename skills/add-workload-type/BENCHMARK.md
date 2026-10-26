@@ -74,7 +74,8 @@ The skill later made step 8 ship every definition in this repository as a
 catalog entry with a recorded flow. Evals 1 and 4 now expect that entry, the
 reverse of the "definition only" expectation graded above, and evals 1, 2 and
 4 run karta-verify from `karta/sdk/`. Every reworded expectation has a null
-measured count; the tables in this file grade the earlier wording.
+measured count; the tables above the eval 5 section grade the earlier
+wording.
 
 ## Eval 5, no checkout
 
@@ -96,9 +97,10 @@ exit code. Grading used those logs and the cluster state after the run.
 |-------------|-----|----------|------|
 | kli from a release archive checked against `checksums.txt`, or Homebrew | 3/3 | 2/3 | 3/3 |
 | Sample from `kli definitions` or a raw URL, not a checkout | 3/3 | 3/3 | 3/3 |
+| Catalog read with `kli definitions --kubeconfig /dev/null` (added later) | 3/3 | 0/3 | 0/3 |
 | `kli validate` before apply, exit code reported | 3/3 | 2/3 | 3/3 |
 | karta-verify from the public module at a tag, `--workload` and `--predict` | 3/3 | 3/3 | 3/3 |
-| Applied, then checked with `kli get` and `kli describe` | 3/3 | 2/3 | 3/3 |
+| Applied, then checked with `kli get` and `kli describe` (pre-check not graded) | 3/3 | 2/3 | 3/3 |
 
 | Configuration | Tokens (mean) | Time (mean) |
 |---------------|---------------|-------------|
@@ -114,10 +116,11 @@ whether the frames between a suspend and the next reconcile read Suspending.
 What separates the configurations:
 
 - All three new runs read the catalog with `kli definitions --kubeconfig
-  /dev/null`. No previous run used `kli definitions`, and one run without the
-  skill did.
-- The one run that missed three expectations (previous) never installed
-  `kli`. It validated with karta-verify alone and checked the cluster only
+  /dev/null`. No other run did: every one fetched its sample by raw URL, and
+  the one that ran `kli definitions` did so only after applying, to list its
+  own Karta.
+- One previous run never installed `kli` and so also missed the install,
+  validate, and live check rows. It validated with karta-verify alone and checked the cluster only
   through the Karta's own conditions.
 - Runs without the skill took twice as long: they first read the repository
   README, the CLI Guide, and the skill files on GitHub.
@@ -130,11 +133,12 @@ Limits of this run:
 - The test rules forbade reading Karta objects a run did not create, which
   conflicts with the step 8 check over all Kartas. Runs used a name lookup and
   a server-side dry run instead, which the one-Karta-per-kind webhook rejects
-  when another Karta covers the kind. The expectation was graded on apply and
-  the live `kli` checks.
-- Eval 5 discriminates weakly as written: a capable model finds `kli` from the
-  README. The `kli definitions` catalog read is the only consistent
-  difference, and no expectation names it.
+  when another Karta covers the kind. That expectation therefore has no
+  measured count.
+- Eval 5 discriminates weakly: a capable model finds `kli` from the README.
+  The catalog read with `kli definitions` is the only consistent difference;
+  it was added as an expectation after this run and graded from the same
+  logs.
 
 ## Per-eval breakdown
 
@@ -216,11 +220,13 @@ figures above for both configurations.
 ## Reproducing
 
 1. Run the eval 1, 2 and 3 prompts from `evals/evals.json` with and without the
-   skill available, 3 runs each. Evals 4 and 5 are documented but were not run
-   and are not part of these figures.
+   skill available, 3 runs each. Eval 4 is documented but was not run. Eval 5
+   ran separately, with three configurations; its setup is in the eval 5
+   section.
 2. Grade each run against its `expectations` list.
 3. Validate every produced definition, and exercise it against a real CR with
-   predictions written before the run, from `karta/sdk/`:
+   predictions written before the run, from `karta/sdk/` (for eval 5, with
+   the public-module form in `SKILL.md` in place of `./hack/karta-verify`):
 
    ```sh
    go run ./hack/karta-verify --karta <definition> \

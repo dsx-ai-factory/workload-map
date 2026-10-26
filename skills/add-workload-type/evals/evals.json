@@ -153,26 +153,31 @@
         {
           "text": "kli is installed with the Homebrew tap added by URL and the cask installed by its full name dsx-ai-factory/kli/kli, or from a release archive checked against checksums.txt; go install is never suggested for kli",
           "measured": "3/3 vs 2/3 vs 3/3",
-          "kind": "discriminating"
+          "kind": "floor"
         },
         {
           "text": "The starting sample is read with kli definitions (or fetched by raw URL), not from a docs/catalog/ path in a local checkout",
           "measured": "3/3 vs 3/3 vs 3/3",
+          "kind": "floor"
+        },
+        {
+          "text": "The catalog is read with kli definitions --kubeconfig /dev/null, so the listing is the catalog alone, and the starting sample comes from kli definitions <name> -o yaml",
+          "measured": "3/3 vs 0/3 vs 0/3",
           "kind": "discriminating"
         },
         {
           "text": "The definition is validated with kli validate before it is applied, and the run reports its exit code",
           "measured": "3/3 vs 2/3 vs 3/3",
-          "kind": "discriminating"
+          "kind": "floor"
         },
         {
-          "text": "karta-verify is run as go run github.com/dsx-ai-factory/workload-map/karta/sdk/hack/karta-verify@<tag or commit> with --workload and --predict, never as go run ./hack/karta-verify; with no Go toolchain the summary says no path was run against a CR",
+          "text": "karta-verify is run as go run github.com/dsx-ai-factory/workload-map/karta/sdk/hack/karta-verify@vX.Y.Z, pinned to a karta/sdk/vX.Y.Z library tag, with --workload and --predict, never as go run ./hack/karta-verify; with no Go toolchain the summary says no path was run against a CR",
           "measured": "3/3 vs 3/3 vs 3/3",
-          "kind": "discriminating"
+          "kind": "floor"
         },
         {
           "text": "No catalog builder, hack/e2e operator install, or recorded flow is produced. Before applying, kubectl get kartas.run.ai exits 0 and shows whether a Karta already covers training.example.com/v1 TrainJob. With none, the definition is applied with kubectl and checked with kli get and kli describe on a live TrainJob; with one, or on a read error, the run stops without applying and says why",
-          "measured": "3/3 vs 2/3 vs 3/3",
+          "measured": null,
           "kind": "discriminating"
         }
       ]

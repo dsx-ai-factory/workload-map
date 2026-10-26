@@ -902,8 +902,9 @@ Where it belongs. In the CLI, as flags of `kli validate`:
 `--predict` flag for the read-side prediction, with the same exit codes as
 karta-verify (0 success, 2 mismatch, 3 warnings). `kli` is the released binary,
 installed with Homebrew, so a definition author outside this repository gets
-the check without a checkout or a Go toolchain, and the skill then names one command for steps 6 and 7. The
-`karta/sdk/hack/karta-verify` harness becomes a thin wrapper or goes away.
+the check without a checkout or a Go toolchain, and the skill then names one
+command for steps 6 and 7. The `karta/sdk/hack/karta-verify` harness becomes a
+thin wrapper or goes away.
 
 Order of work. The engine fix lands first; until then the identity write
 reports the engine's own defects on every definition that carries a pod

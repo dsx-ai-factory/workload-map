@@ -146,33 +146,33 @@
     },
     {
       "id": 5,
-      "purpose": "Repository independence. The user has no checkout of this repository and no kli installed, so every repository command in steps 2, 6, 7 and 8 must be replaced by its kli or public-module form. Not yet run: expectations carry no measured counts.",
+      "purpose": "Repository independence. The user has no checkout of this repository and no kli installed, so every repository command in steps 2, 6, 7 and 8 must be replaced by its kli or public-module form. Measured on 2026-10-26 as new skill vs previous skill vs no skill, 3 runs each (BENCHMARK.md, eval 5 section).",
       "prompt": "I don't have the Karta repo cloned, just a cluster with Karta installed. Write a Karta definition for our in-house CRD training.example.com/v1 TrainJob (CRD and a running CR attached) and get it working on the cluster.",
       "expected_output": "A Karta definition for training.example.com/v1 TrainJob, built from a catalog sample read with kli definitions, validated with kli validate, run against the CR with karta-verify from the public module pinned to a library tag, with --predict and --strict, applied with kubectl after a cluster check finds no existing Karta for the kind, and checked live with kli get and kli describe.",
       "expectations": [
         {
           "text": "kli is installed with the Homebrew tap added by URL and the cask installed by its full name dsx-ai-factory/kli/kli, or from a release archive checked against checksums.txt; go install is never suggested for kli",
-          "measured": null,
+          "measured": "3/3 vs 2/3 vs 3/3",
           "kind": "discriminating"
         },
         {
           "text": "The starting sample is read with kli definitions (or fetched by raw URL), not from a docs/catalog/ path in a local checkout",
-          "measured": null,
+          "measured": "3/3 vs 3/3 vs 3/3",
           "kind": "discriminating"
         },
         {
           "text": "The definition is validated with kli validate before it is applied, and the run reports its exit code",
-          "measured": null,
+          "measured": "3/3 vs 2/3 vs 3/3",
           "kind": "discriminating"
         },
         {
           "text": "karta-verify is run as go run github.com/dsx-ai-factory/workload-map/karta/sdk/hack/karta-verify@<tag or commit> with --workload and --predict, never as go run ./hack/karta-verify; with no Go toolchain the summary says no path was run against a CR",
-          "measured": null,
+          "measured": "3/3 vs 3/3 vs 3/3",
           "kind": "discriminating"
         },
         {
           "text": "No catalog builder, hack/e2e operator install, or recorded flow is produced. Before applying, kubectl get kartas.run.ai exits 0 and shows whether a Karta already covers training.example.com/v1 TrainJob. With none, the definition is applied with kubectl and checked with kli get and kli describe on a live TrainJob; with one, or on a read error, the run stops without applying and says why",
-          "measured": null,
+          "measured": "3/3 vs 2/3 vs 3/3",
           "kind": "discriminating"
         }
       ]

@@ -68,13 +68,73 @@ serve. It has not been run, and its expectations carry no measured counts.
 
 Eval 5 covers a user with a cluster but no checkout, the case the skill
 handles through `kli`, installed with Homebrew, and the public karta-verify
-module. It has not been run either.
+module. Its results are in the eval 5 section below.
 
 The skill later made step 8 ship every definition in this repository as a
 catalog entry with a recorded flow. Evals 1 and 4 now expect that entry, the
 reverse of the "definition only" expectation graded above, and evals 1, 2 and
 4 run karta-verify from `karta/sdk/`. Every reworded expectation has a null
 measured count; the tables in this file grade the earlier wording.
+
+## Eval 5, no checkout
+
+Model: claude-opus-5-5
+Date: 2026-10-26
+Runs: 3 per configuration, 9 in total
+
+Configurations: the skill with the no-checkout section (new), the skill
+before it (previous), and no skill, given only the project URL (none).
+
+Setup. Each run had its own TrainJob CRD in its own API group, a running CR
+with status, and three pods owned by it, on a local kind cluster with Karta
+installed and no other Karta objects. No controller ran, so only the Running
+state was live; other states were tested on edited copies of the CR. Each run
+installed tools only inside its workspace and logged every command with its
+exit code. Grading used those logs and the cluster state after the run.
+
+| Expectation | New | Previous | None |
+|-------------|-----|----------|------|
+| kli from a release archive checked against `checksums.txt`, or Homebrew | 3/3 | 2/3 | 3/3 |
+| Sample from `kli definitions` or a raw URL, not a checkout | 3/3 | 3/3 | 3/3 |
+| `kli validate` before apply, exit code reported | 3/3 | 2/3 | 3/3 |
+| karta-verify from the public module at a tag, `--workload` and `--predict` | 3/3 | 3/3 | 3/3 |
+| Applied, then checked with `kli get` and `kli describe` | 3/3 | 2/3 | 3/3 |
+
+| Configuration | Tokens (mean) | Time (mean) |
+|---------------|---------------|-------------|
+| New | 122,511 | 289s |
+| Previous | 124,858 | 350s |
+| None | 129,783 | 651s |
+
+Every run produced a definition that the operator marked Ready and that `kli`
+read as Running, with each pod under its role. The definitions agree on the
+tree, the selectors, the scale path, and the suspend action; they differ in
+whether the frames between a suspend and the next reconcile read Suspending.
+
+What separates the configurations:
+
+- All three new runs read the catalog with `kli definitions --kubeconfig
+  /dev/null`. No previous run used `kli definitions`, and one run without the
+  skill did.
+- The one run that missed three expectations (previous) never installed
+  `kli`. It validated with karta-verify alone and checked the cluster only
+  through the Karta's own conditions.
+- Runs without the skill took twice as long: they first read the repository
+  README, the CLI Guide, and the skill files on GitHub.
+
+Limits of this run:
+
+- Two of the three runs without the skill found `skills/add-workload-type`
+  on GitHub and followed it. That copy is the previous skill, so those runs
+  measure the previous skill fetched by URL, not a run with no guidance.
+- The test rules forbade reading Karta objects a run did not create, which
+  conflicts with the step 8 check over all Kartas. Runs used a name lookup and
+  a server-side dry run instead, which the one-Karta-per-kind webhook rejects
+  when another Karta covers the kind. The expectation was graded on apply and
+  the live `kli` checks.
+- Eval 5 discriminates weakly as written: a capable model finds `kli` from the
+  README. The `kli definitions` catalog read is the only consistent
+  difference, and no expectation names it.
 
 ## Per-eval breakdown
 

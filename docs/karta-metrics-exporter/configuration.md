@@ -278,7 +278,8 @@ admissionPolicies:
 Capture follows [native Kubernetes matching](https://github.com/kubernetes/kubernetes/blob/v1.36.0/staging/src/k8s.io/api/admissionregistration/v1/types.go#L554-L642).
 It selects namespaced CREATE requests. Exclusions win and all conditions must
 pass. Objects with a controller `ownerReference` are skipped: a controller that
-copies a parent's annotations onto a child is not the submitter. An empty
+copies a parent's annotations onto a child is not the submitter. Objects the
+annotation would push over the 256 KiB annotation size limit are skipped. An empty
 namespace selector matches all namespaces. Helm merges maps with the defaults, so
 match all namespaces with `matchLabels: null`, not `{}`. Condition names starting
 with `karta-` are reserved. Direct Pod capture uses
@@ -298,6 +299,11 @@ namespace labels and policy settings.
 With `apiVersion` empty, the chart detects the API and fails if the cluster does
 not serve it. `helm template` and GitOps renderers see no cluster APIs, so set
 `apiVersion` when using them.
+
+To enable capture on an existing release, upgrade with
+`--reset-then-reuse-values` (Helm 3.14+), not `--reuse-values`. `--reuse-values`
+skips new chart defaults, so a missing `namespaceSelector` would capture in every
+namespace.
 
 ## Metric delivery
 

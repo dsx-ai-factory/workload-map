@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
-{{- $s := .Values.admissionPolicies.submitter }}
+{{- /* Defaulted: helm upgrade --reuse-values keeps values from releases without these maps. */}}
+{{- $policies := .Values.admissionPolicies | default dict }}
+{{- $s := $policies.submitter | default dict }}
 {{- if $s.enabled }}
 {{- /*
 An explicit apiVersion skips detection, since helm template and GitOps
@@ -53,6 +55,10 @@ spec:
     # Workload roots only: a controller creating a child is not the submitter.
     - name: karta-submitter-root
       expression: '!has(object.metadata.ownerReferences) || !object.metadata.ownerReferences.exists(r, has(r.controller) && r.controller)'
+    # Skips objects the annotation would push over the 256 KiB limit on all
+    # annotation keys and values, which would otherwise reject the request.
+    - name: karta-submitter-fits
+      expression: '(has(object.metadata.annotations) ? object.metadata.annotations.map(k, size(bytes(k)) + size(bytes(object.metadata.annotations[k]))).sum() : 0) + size(bytes({{ $key | quote }})) + size(bytes(request.userInfo.username)) <= 262144'
     {{- range $i, $c := $s.matchConditions }}
     {{- if hasPrefix "karta-" (toString $c.name) }}
     {{- fail (printf "admissionPolicies.submitter.matchConditions[%d]: name %q uses the reserved karta- prefix" $i $c.name) }}

@@ -29,6 +29,8 @@ spec:
       expression: '!has(object.metadata.annotations) || !("<key>" in object.metadata.annotations)'
     - name: karta-submitter-root
       expression: '!has(object.metadata.ownerReferences) || !object.metadata.ownerReferences.exists(r, has(r.controller) && r.controller)'
+    - name: karta-submitter-fits
+      expression: '(has(object.metadata.annotations) ? object.metadata.annotations.map(k, size(bytes(k)) + size(bytes(object.metadata.annotations[k]))).sum() : 0) + size(bytes("<key>")) + size(bytes(request.userInfo.username)) <= 262144'
     # User matchConditions follow.
   mutations:
     - patchType: ApplyConfiguration
@@ -46,8 +48,18 @@ by default.
 - Workload roots only. The `karta-submitter-root` condition skips objects with a
   controller `ownerReference`. A Pod created by a Job controller is not stamped
   with the controller's identity.
+- Within the annotation size limit. Kubernetes caps all annotation keys and
+  values at 262144 bytes, and checks it after mutation. The
+  `karta-submitter-fits` condition skips objects the new annotation would push
+  over the limit. It counts bytes, not characters, so multibyte values are
+  measured correctly.
 - Best effort. `failurePolicy: Ignore` admits the request unchanged when the
-  policy is unavailable or a CEL expression fails to evaluate.
+  policy is unavailable or a CEL expression fails to evaluate. It does not cover
+  an object that fails validation after mutation, which is why the size check
+  is a condition.
+- Upgrade safe. The template defaults `admissionPolicies` and its `submitter`
+  map, so `helm upgrade --reuse-values` from a chart without them renders
+  nothing instead of failing.
 - One evaluation per request. `reinvocationPolicy: Never`, since no other
   mutation removes the annotation.
 - Server-side apply keeps the value. The mutation is not owned by the applying
@@ -125,5 +137,6 @@ attribution:
 the policy into an envtest API server at Kubernetes 1.36.2. It covers users and
 service accounts, supplied values, selectors, exclusions, CEL conditions and
 errors, controller-owned objects, server-side apply, a custom annotation key,
-render errors and API version detection. CI runs it with
-`make test-chart-admission`.
+the annotation size limit, render errors, API version detection and rendering
+without submitter values. `make check` runs it through `test-operator`, so it
+needs `helm` on the PATH.

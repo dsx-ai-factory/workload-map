@@ -5,6 +5,7 @@ package admission
 
 import (
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,6 +23,9 @@ const (
 	uncapturedNS = "uncaptured"
 
 	// Captures Jobs, excludes CronJobs and skips Jobs named test-*.
+	// Kubernetes limit on the total bytes of all annotation keys and values.
+	annotationsMaxBytes = 256 * 1024
+
 	baseValues = `
 admissionPolicies:
   submitter:
@@ -127,6 +131,21 @@ var _ = Describe("Submitter admission policy", Ordered, func() {
 			Expect(current.Labels).To(HaveKeyWithValue("rev", "2"))
 			Expect(current.Annotations).To(HaveKeyWithValue(submittedBy, "alice"))
 		})
+
+		// The limit counts bytes across all annotation keys and values.
+		It("captures when the annotation exactly fits the size limit", func() {
+			filler := strings.Repeat("x", annotationsMaxBytes-len("big")-len(submittedBy)-len("alice"))
+			job := createJob("alice", capturedNS, map[string]string{"big": filler})
+			Expect(job.Annotations).To(HaveKeyWithValue(submittedBy, "alice"))
+		})
+
+		// Two-byte characters: the length in characters fits, the length in bytes
+		// does not, so the size must be counted in bytes.
+		It("skips capture when the annotation would exceed the size limit", func() {
+			filler := strings.Repeat("\u00e9", (annotationsMaxBytes+1-len("big")-len(submittedBy)-len("alice"))/2)
+			job := createJob("alice", capturedNS, map[string]string{"big": filler})
+			Expect(job.Annotations).NotTo(HaveKey(submittedBy))
+		})
 	})
 
 	It("records the caller in a custom annotation", func() {
@@ -207,6 +226,18 @@ admissionPolicies: {submitter: {enabled: true, apiVersion: v1, annotation: "owne
 	Entry("subresource", `
 admissionPolicies: {submitter: {enabled: true, apiVersion: v1, resources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs/status]}]}}`,
 		`subresource "jobs/status" is not supported`),
+)
+
+// helm upgrade --reuse-values keeps the values of a release whose chart had no
+// admissionPolicies, so the new defaults are missing.
+var _ = DescribeTable("Rendering without submitter values",
+	func(values string) {
+		objs, err := renderPolicies(values)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(objs).To(BeEmpty())
+	},
+	Entry("no admissionPolicies", "admissionPolicies: null\n"),
+	Entry("no submitter", "admissionPolicies: {submitter: null}\n"),
 )
 
 var _ = DescribeTable("Rendering detects the MutatingAdmissionPolicy version",

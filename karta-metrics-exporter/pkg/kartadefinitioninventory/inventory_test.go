@@ -176,7 +176,7 @@ var _ = Describe("Inventory", func() {
 	It("rejects a missing client when the cluster source is enabled", func() {
 		_, err := New(nil, clusterOnly)
 
-		Expect(err).To(MatchError(ContainSubstring("requires a client")))
+		Expect(err).To(MatchError(ErrNoClient))
 	})
 
 	It("rejects invalid options", func() {

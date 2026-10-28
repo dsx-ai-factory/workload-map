@@ -74,6 +74,7 @@ type SourceConfig struct {
 
 var (
 	ErrInvalidConfig     = errors.New("invalid definition source config")
+	ErrNoClient          = errors.New("the cluster definition source requires a client")
 	ErrNotReady          = errors.New("definition sources not ready")
 	ErrUnavailable       = errors.New("definition source unavailable")
 	ErrPermissionDenied  = errors.New("definition source permission denied")
@@ -83,7 +84,9 @@ var (
 // Inventory serves definitions from the catalog and the cluster. Reads never
 // call the API server.
 type Inventory struct {
-	client        dynamic.Interface
+	client dynamic.Interface
+	// catalog holds the catalog winners, filtered once in New. Only cluster
+	// Kartas keep arriving, so only their filter is kept.
 	catalog       map[schema.GroupKind]definitionEntry
 	clusterFilter sourceFilter
 	log           *slog.Logger
@@ -143,7 +146,7 @@ func New(client dynamic.Interface, config Config) (*Inventory, error) {
 		return nil, err
 	}
 	if clusterFilter.enabled && client == nil {
-		return nil, errors.New("the cluster definition source requires a client")
+		return nil, ErrNoClient
 	}
 	i := &Inventory{
 		client:        client,

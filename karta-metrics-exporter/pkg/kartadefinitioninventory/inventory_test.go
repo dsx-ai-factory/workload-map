@@ -1011,10 +1011,16 @@ var _ = Describe("Inventory watch recovery", func() {
 
 	DescribeTable("stays healthy and lets the watch resume when it ends without an Error event", func(truncated bool) {
 		client := newFakeClient()
-		var server watch.Interface = watch.NewRaceFreeFake()
+		// A bookmark first, so the close is not a very short watch.
+		fake := watch.NewRaceFreeFake()
+		bookmark := &unstructured.Unstructured{}
+		bookmark.SetGroupVersionKind(v1alpha1.GroupVersion.WithKind("Karta"))
+		bookmark.SetResourceVersion("2")
+		fake.Action(watch.Bookmark, bookmark)
+		var server watch.Interface = fake
 		end := server.Stop
 		if truncated {
-			decoder := &truncatedDecoder{broken: make(chan struct{})}
+			decoder := &truncatedDecoder{bookmark: true, broken: make(chan struct{})}
 			server = watch.NewStreamWatcher(decoder, streamErrorReporter{})
 			end = decoder.Close
 		}
@@ -1031,6 +1037,7 @@ var _ = Describe("Inventory watch recovery", func() {
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(w.Stop)
 
+		Eventually(w.ResultChan(), eventuallyTimeout).Should(Receive())
 		end()
 
 		Eventually(w.ResultChan(), eventuallyTimeout).Should(BeClosed())
@@ -1043,6 +1050,47 @@ var _ = Describe("Inventory watch recovery", func() {
 		Entry("unexpected EOF during decoding", true),
 		Entry("clean closure of an idle watch", false),
 	)
+
+	It("is unavailable after a very short watch until the relist applies", func() {
+		client := newFakeClient()
+		var lists atomic.Int32
+		relisting, release := make(chan struct{}), make(chan struct{})
+		unblock := sync.OnceFunc(func() { close(release) })
+		DeferCleanup(unblock)
+		client.PrependReactor("list", "kartas", func(ktesting.Action) (bool, runtime.Object, error) {
+			list := &unstructured.UnstructuredList{}
+			list.SetResourceVersion("1")
+			if lists.Add(1) == 2 {
+				close(relisting)
+				<-release
+				list.Items = []unstructured.Unstructured{*unstructuredKarta(newKarta("cluster-job", jobGVK))}
+			}
+			return true, list, nil
+		})
+		var watches atomic.Int32
+		client.PrependWatchReactor("kartas", func(ktesting.Action) (bool, watch.Interface, error) {
+			w := watch.NewRaceFreeFake()
+			if watches.Add(1) == 1 {
+				// Closed at once with no events, which client-go relists as a very short watch.
+				w.Stop()
+			}
+			return true, w, nil
+		})
+		inventory, err := New(client, withCatalog)
+		Expect(err).NotTo(HaveOccurred())
+		start(inventory)
+
+		Eventually(relisting, eventuallyTimeout).Should(BeClosed())
+		_, err = inventory.Lookup(jobGVK)
+		Expect(err).To(MatchError(ErrUnavailable), "neither the catalog Job nor a stale cluster one")
+
+		unblock()
+		Eventually(func(g Gomega) {
+			sel, err := inventory.Lookup(jobGVK)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(sel.Origin.Name).To(Equal("cluster-job"))
+		}, eventuallyTimeout, eventuallyInterval).Should(Succeed())
+	})
 
 	It("resumes a truncated stream from its last resource version without a relist", func() {
 		client := newFakeClient()

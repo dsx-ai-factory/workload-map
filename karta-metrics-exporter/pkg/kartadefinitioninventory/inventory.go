@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -127,6 +128,8 @@ type reflectorStore struct {
 var (
 	errStopped = errors.New("inventory stopped")
 	errRelist  = errors.New("watch not resumed after a failure; relisting to confirm fresh data")
+	// client-go relists after a watch that ends within a second without events.
+	errShortWatch = errors.New("watch closed within a second without events; relisting")
 
 	_ Reader               = (*Inventory)(nil)
 	_ cache.ReflectorStore = reflectorStore{}
@@ -251,6 +254,7 @@ func (i *Inventory) listWatch(resource dynamic.ResourceInterface) *cache.ListWat
 			return list, err
 		},
 		WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			started := time.Now()
 			streaming := options.SendInitialEvents != nil && *options.SendInitialEvents
 			i.mu.Lock()
 			failed := i.failure != nil
@@ -278,20 +282,20 @@ func (i *Inventory) listWatch(resource dynamic.ResourceInterface) *cache.ListWat
 			go func() {
 				defer close(events)
 				defer w.Stop()
+				received := false
 				for {
 					select {
 					case event, ok := <-w.ResultChan():
 						if !ok {
+							if !received && time.Since(started) < time.Second {
+								i.failWatch(ctx, proxy, errShortWatch)
+							}
 							return
 						}
+						received = true
 						// Recorded before the reflector sees it. A stopped watch is abandoned.
 						if event.Type == watch.Error {
-							err := apierrors.FromObject(event.Object)
-							i.mu.Lock()
-							if !proxy.Stopping() && ctx.Err() == nil {
-								i.fail(err)
-							}
-							i.mu.Unlock()
+							i.failWatch(ctx, proxy, apierrors.FromObject(event.Object))
 						}
 						select {
 						case events <- event:
@@ -309,6 +313,15 @@ func (i *Inventory) listWatch(resource dynamic.ResourceInterface) *cache.ListWat
 			}()
 			return proxy, nil
 		},
+	}
+}
+
+// failWatch records err unless the watch was stopped on purpose.
+func (i *Inventory) failWatch(ctx context.Context, proxy *watch.ProxyWatcher, err error) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if !proxy.Stopping() && ctx.Err() == nil {
+		i.fail(err)
 	}
 }
 

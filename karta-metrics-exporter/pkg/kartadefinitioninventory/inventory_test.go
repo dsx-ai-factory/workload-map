@@ -173,6 +173,26 @@ func lookupOrigin(inventory *Inventory, gvk schema.GroupVersionKind) Origin {
 }
 
 var _ = Describe("Inventory", func() {
+	It("confirms absence for every kind when both sources are disabled, without a client or Run", func() {
+		var logs bytes.Buffer
+		previous := slog.Default()
+		slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+		DeferCleanup(func() { slog.SetDefault(previous) })
+
+		inventory, err := New(nil, Config{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(logs.String()).To(ContainSubstring("both Karta definition sources are disabled"))
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		Expect(inventory.WaitLoaded(ctx)).To(Succeed())
+		for _, gvk := range []schema.GroupVersionKind{jobGVK, deploymentGVK, podGVK, dynamoBetaGVK} {
+			sel, err := inventory.Lookup(gvk)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(sel).To(Equal(Selection{}), "%v", gvk)
+		}
+	})
+
 	It("rejects a missing client when the cluster source is enabled", func() {
 		_, err := New(nil, clusterOnly)
 

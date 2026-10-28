@@ -234,68 +234,80 @@ func (i *Inventory) WaitLoaded(ctx context.Context) error {
 func (i *Inventory) listWatch(resource dynamic.ResourceInterface) *cache.ListWatch {
 	return &cache.ListWatch{
 		ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-			// Later pages continue the same list.
-			if options.Continue == "" {
-				i.beginList()
-			}
-			list, err := resource.List(ctx, options)
-			if err != nil {
-				i.recordFailure(err)
-			}
-			return list, err
+			return i.list(ctx, resource, options)
 		},
 		WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
-			started := time.Now()
-			streaming := options.SendInitialEvents != nil && *options.SendInitialEvents
-			// A resumed watch never marks the end of its replay; only a new list is fresh.
-			if failed := i.beginWatch(streaming); failed && !streaming {
-				return nil, errRelist
-			}
-			w, err := resource.Watch(ctx, options)
-			switch {
-			// A server without streaming lists answers invalid; LIST follows.
-			case err != nil && streaming && apierrors.IsInvalid(err):
-				return nil, err
-			case err != nil:
-				i.recordFailure(err)
-				return nil, err
-			}
-			events := make(chan watch.Event)
-			proxy := watch.NewProxyWatcher(events)
-			go func() {
-				defer close(events)
-				defer w.Stop()
-				received := false
-				for {
-					select {
-					case event, ok := <-w.ResultChan():
-						if !ok {
-							if !received && time.Since(started) < time.Second {
-								i.failWatch(ctx, proxy, errShortWatch)
-							}
-							return
-						}
-						received = true
-						// Recorded before the reflector sees it. A stopped watch is abandoned.
-						if event.Type == watch.Error {
-							i.failWatch(ctx, proxy, apierrors.FromObject(event.Object))
-						}
-						select {
-						case events <- event:
-						case <-proxy.StopChan():
-							return
-						case <-ctx.Done():
-							return
-						}
-					case <-proxy.StopChan():
-						return
-					case <-ctx.Done():
-						return
-					}
-				}
-			}()
-			return proxy, nil
+			return i.startWatch(ctx, resource, options)
 		},
+	}
+}
+
+func (i *Inventory) list(ctx context.Context, resource dynamic.ResourceInterface, options metav1.ListOptions) (runtime.Object, error) {
+	// Later pages continue the same list.
+	if options.Continue == "" {
+		i.beginList()
+	}
+	list, err := resource.List(ctx, options)
+	if err != nil {
+		i.recordFailure(err)
+	}
+	return list, err
+}
+
+// startWatch resumes a healthy watch or starts a streaming list; forward relays its events.
+func (i *Inventory) startWatch(ctx context.Context, resource dynamic.ResourceInterface, options metav1.ListOptions) (watch.Interface, error) {
+	started := time.Now()
+	streaming := options.SendInitialEvents != nil && *options.SendInitialEvents
+	// A resumed watch never marks the end of its replay; only a new list is fresh.
+	if failed := i.beginWatch(streaming); failed && !streaming {
+		return nil, errRelist
+	}
+	w, err := resource.Watch(ctx, options)
+	switch {
+	// A server without streaming lists answers invalid; LIST follows.
+	case err != nil && streaming && apierrors.IsInvalid(err):
+		return nil, err
+	case err != nil:
+		i.recordFailure(err)
+		return nil, err
+	}
+	events := make(chan watch.Event)
+	proxy := watch.NewProxyWatcher(events)
+	go i.forward(ctx, w, proxy, events, started)
+	return proxy, nil
+}
+
+// forward passes events to the reflector and records failures before it sees them.
+func (i *Inventory) forward(ctx context.Context, w watch.Interface, proxy *watch.ProxyWatcher, events chan<- watch.Event, started time.Time) {
+	defer close(events)
+	defer w.Stop()
+	received := false
+	for {
+		select {
+		case event, ok := <-w.ResultChan():
+			if !ok {
+				if !received && time.Since(started) < time.Second {
+					i.failWatch(ctx, proxy, errShortWatch)
+				}
+				return
+			}
+			received = true
+			// A stopped watch is abandoned.
+			if event.Type == watch.Error {
+				i.failWatch(ctx, proxy, apierrors.FromObject(event.Object))
+			}
+			select {
+			case events <- event:
+			case <-proxy.StopChan():
+				return
+			case <-ctx.Done():
+				return
+			}
+		case <-proxy.StopChan():
+			return
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 

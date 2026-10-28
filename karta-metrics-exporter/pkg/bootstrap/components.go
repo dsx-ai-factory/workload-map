@@ -36,8 +36,8 @@ var (
 )
 
 // New is the temporary composition root. Replace the factories here as components land.
-func New(labelConfig labelresolver.Config) app.Components {
-	definitions := newInventory(inventory.Config{})
+// The caller runs the definition inventory, which needs a Kubernetes client.
+func New(labelConfig labelresolver.Config, definitions inventory.Reader) app.Components {
 	reader := newObjectReader()
 	ownership := newDiscovery(discovery.Dependencies{Reader: reader, Inventory: definitions})
 	labels := newLabelResolver(labelConfig, labelresolver.Dependencies{Compiler: newCompiler()})
@@ -49,12 +49,6 @@ func New(labelConfig labelresolver.Config) app.Components {
 		Publications: publications,
 	})
 	return app.Components{Runtime: runtime, Store: publications, Collector: newCollector()}
-}
-
-func newInventory(_ inventory.Config) inventory.Reader {
-	m := &inventory.MockInventory{}
-	m.EXPECT().Lookup(mock.Anything).Return(inventory.Selection{}, ErrNotImplemented)
-	return m
 }
 
 func newObjectReader() discovery.ObjectReader {

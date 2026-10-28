@@ -25,6 +25,23 @@ exporter:
     costLimit: 10000
     maxExpressionBytes: 4096
     maxResultBytes: 1024
+  # Rendered verbatim into the exporter's config file (ConfigMap). Selects a
+  # definition when its name is in include. Empty selects all; exclude wins.
+  kartaDefinitionSource:
+    # Definitions built into the exporter, named as in docs/catalog, for
+    # example batch-job-v1. Unknown names fail startup.
+    catalog:
+      enabled: false
+      include: []
+      exclude: []
+    # Karta objects in the cluster, named by metadata.name. A cluster one
+    # replaces the built-in catalog definition for the same group and kind;
+    # an excluded one does not, so exclude a kind in both sources to drop it.
+    # Grants read access to Kartas.
+    cluster:
+      enabled: true
+      include: []
+      exclude: []
 
 # Overrides for resource names. Rarely needed.
 fullnameOverride: ""

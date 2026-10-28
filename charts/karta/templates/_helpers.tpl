@@ -101,6 +101,18 @@ app.kubernetes.io/name: {{ printf "%s-metrics-exporter" .Chart.Name | trunc 63 |
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
+{{/* Cluster-scoped objects carry the namespace, so exporter releases in different namespaces do not collide. */}}
+{{- define "karta.exporter.clusterScopedName" -}}
+{{ printf "%s-%s" (include "karta.exporter.fullname" .) .Release.Namespace }}
+{{- end -}}
+
+{{- define "karta.exporter.labels" -}}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{ include "karta.exporter.selectorLabels" . }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
 {{/*
 Renders submitter capture resourceRules from group/version/resource entries,
 adding the CREATE operation and Namespaced scope, which users never set.

@@ -789,6 +789,23 @@ var _ = Describe("Inventory store updates", func() {
 		Expect(lookupOrigin(inventory, deploymentGVK).Name).To(Equal("moving"))
 	})
 
+	It("neither decodes nor stores an excluded cluster Karta", func() {
+		config := withCatalog
+		config.Cluster.Exclude = []string{"broken"}
+		inventory, err := New(newFakeClient(), config)
+		Expect(err).NotTo(HaveOccurred())
+		store := reflectorStore{inventory: inventory}
+		broken := unstructuredKarta(newKarta("broken", jobGVK))
+		broken.Object["spec"] = "not-an-object"
+		Expect(store.Replace([]any{broken}, "1")).To(Succeed())
+		Expect(store.Add(unstructuredKarta(newKarta("cluster-job", jobGVK)))).To(Succeed())
+
+		Expect(inventoryHealth(inventory)()).To(Succeed())
+		Expect(lookupOrigin(inventory, jobGVK).Name).To(Equal("cluster-job"))
+		Expect(store.Update(broken)).To(Succeed())
+		Expect(inventoryHealth(inventory)()).To(Succeed())
+	})
+
 	It("recovers from a decode error when the same definition is repaired", func() {
 		inventory, err := New(newFakeClient(), withCatalog)
 		Expect(err).NotTo(HaveOccurred())

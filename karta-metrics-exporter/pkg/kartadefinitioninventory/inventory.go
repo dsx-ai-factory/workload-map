@@ -154,7 +154,7 @@ func New(client dynamic.Interface, config Config) (*Inventory, error) {
 		cluster:       make(map[string]definitionEntry),
 	}
 	for _, k := range catalogDefinitions {
-		if !catalogFilter.matches(k) {
+		if !catalogFilter.matches(k.Name) {
 			continue
 		}
 		key := catalog.RootKey(k)
@@ -325,15 +325,20 @@ func (i *Inventory) fail(err error) {
 	i.failures++
 }
 
+// Add skips a Karta the name filter rejects, so it is never decoded or validated.
 func (s reflectorStore) Add(obj any) error {
-	name, entry, err := decodeKarta(obj)
-	if err != nil {
-		return err
+	u, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return fmt.Errorf("unexpected Karta object %T", obj)
 	}
 	i := s.inventory
+	if !i.clusterFilter.matches(u.GetName()) {
+		return nil
+	}
+	entry := decodeKarta(u)
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	i.cluster[name] = entry
+	i.cluster[u.GetName()] = entry
 	i.report()
 	return nil
 }
@@ -354,15 +359,17 @@ func (s reflectorStore) Delete(obj any) error {
 }
 
 func (s reflectorStore) Replace(list []any, _ string) error {
+	i := s.inventory
 	cluster := make(map[string]definitionEntry, len(list))
 	for _, obj := range list {
-		name, entry, err := decodeKarta(obj)
-		if err != nil {
-			return err
+		u, ok := obj.(*unstructured.Unstructured)
+		if !ok {
+			return fmt.Errorf("unexpected Karta object %T", obj)
 		}
-		cluster[name] = entry
+		if i.clusterFilter.matches(u.GetName()) {
+			cluster[u.GetName()] = decodeKarta(u)
+		}
 	}
-	i := s.inventory
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	i.cluster = cluster
@@ -381,23 +388,19 @@ func (s reflectorStore) Replace(list []any, _ string) error {
 
 func (s reflectorStore) Resync() error { return nil }
 
-func decodeKarta(obj any) (string, definitionEntry, error) {
-	u, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		return "", definitionEntry{}, fmt.Errorf("unexpected Karta object %T", obj)
-	}
+func decodeKarta(u *unstructured.Unstructured) definitionEntry {
 	var k v1alpha1.Karta
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.DeepCopy().Object, &k); err != nil {
-		return u.GetName(), definitionEntry{err: fmt.Errorf("%w: decode Karta %q: %w", ErrUnavailable, u.GetName(), err)}, nil
+		return definitionEntry{err: fmt.Errorf("%w: decode Karta %q: %w", ErrUnavailable, u.GetName(), err)}
 	}
-	return u.GetName(), validatedEntry(&k), nil
+	return validatedEntry(&k)
 }
 
 // report logs diagnostics only when they change; callers hold i.mu.
 func (i *Inventory) report() {
 	var unkeyable, unmatched []string
 	for name, entry := range i.cluster {
-		if k := entry.definition; k != nil && i.clusterFilter.matches(k) {
+		if k := entry.definition; k != nil {
 			gvk := catalog.RootKey(k)
 			if gvk.Version == "" || gvk.Kind == "" {
 				unkeyable = append(unkeyable, name)
@@ -405,7 +408,7 @@ func (i *Inventory) report() {
 		}
 	}
 	for name := range i.clusterFilter.include {
-		if _, ok := i.cluster[name]; !ok {
+		if _, ok := i.cluster[name]; !ok && !i.clusterFilter.exclude.Has(name) {
 			unmatched = append(unmatched, name)
 		}
 	}
@@ -460,7 +463,7 @@ func (i *Inventory) Lookup(gvk schema.GroupVersionKind) (Selection, error) {
 	for _, entry := range i.cluster {
 		k := entry.definition
 		key := catalog.RootKey(k)
-		if key.GroupKind() != gvk.GroupKind() || key.Version == "" || key.Kind == "" || !i.clusterFilter.matches(k) {
+		if key.GroupKind() != gvk.GroupKind() || key.Version == "" || key.Kind == "" {
 			continue
 		}
 		if winner.definition == nil || cmp.Or(
@@ -501,8 +504,8 @@ func validatedEntry(k *v1alpha1.Karta) definitionEntry {
 	return definitionEntry{definition: k, err: err}
 }
 
-func (f sourceFilter) matches(k *v1alpha1.Karta) bool {
-	return f.enabled && (f.include.Len() == 0 || f.include.Has(k.Name)) && !f.exclude.Has(k.Name)
+func (f sourceFilter) matches(name string) bool {
+	return f.enabled && (f.include.Len() == 0 || f.include.Has(name)) && !f.exclude.Has(name)
 }
 
 // compileSource skips the name check when known is nil.

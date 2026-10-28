@@ -1009,7 +1009,7 @@ var _ = Describe("Inventory watch recovery", func() {
 		Expect(err).To(MatchError(ContainSubstring("permission revoked")))
 	})
 
-	DescribeTable("fails closed when a watch ends without an Error event", func(truncated bool) {
+	DescribeTable("stays healthy and lets the watch resume when it ends without an Error event", func(truncated bool) {
 		client := newFakeClient()
 		var server watch.Interface = watch.NewRaceFreeFake()
 		end := server.Stop
@@ -1034,40 +1034,40 @@ var _ = Describe("Inventory watch recovery", func() {
 		end()
 
 		Eventually(w.ResultChan(), eventuallyTimeout).Should(BeClosed())
-		Expect(inventoryHealth(inventory)()).To(MatchError(ErrUnavailable))
-		_, err = inventory.Lookup(jobGVK)
-		Expect(err).To(MatchError(ErrUnavailable))
+		Expect(inventoryHealth(inventory)()).To(Succeed())
+		Expect(lookupOrigin(inventory, jobGVK)).To(Equal(catalogJobOrigin))
+		resumed, err := inventory.listWatch(client.Resource(kartasGVR)).WatchFuncWithContext(context.Background(), metav1.ListOptions{ResourceVersion: "1"})
+		Expect(err).NotTo(HaveOccurred())
+		resumed.Stop()
 	},
 		Entry("unexpected EOF during decoding", true),
 		Entry("clean closure of an idle watch", false),
 	)
 
-	It("requires a full relist after a truncated stream before serving catalog absence again", func() {
+	It("resumes a truncated stream from its last resource version without a relist", func() {
 		client := newFakeClient()
 		decoder := &truncatedDecoder{bookmark: true, broken: make(chan struct{})}
 		var lists atomic.Int32
-		arrived := unstructuredKarta(newKarta("arrived-while-disconnected", jobGVK))
-		relisting, release := make(chan struct{}), make(chan struct{})
-		unblock := sync.OnceFunc(func() { close(release) })
 		client.PrependReactor("list", "kartas", func(ktesting.Action) (bool, runtime.Object, error) {
-			if lists.Add(1) == 1 {
-				return true, &unstructured.UnstructuredList{}, nil
-			}
-			close(relisting)
-			<-release
-			return true, &unstructured.UnstructuredList{Items: []unstructured.Unstructured{*arrived}}, nil
+			lists.Add(1)
+			list := &unstructured.UnstructuredList{}
+			list.SetResourceVersion("1")
+			return true, list, nil
 		})
 		var watches atomic.Int32
-		client.PrependWatchReactor("kartas", func(ktesting.Action) (bool, watch.Interface, error) {
+		var resumedFrom atomic.Pointer[string]
+		resumed := watch.NewRaceFreeFake()
+		client.PrependWatchReactor("kartas", func(action ktesting.Action) (bool, watch.Interface, error) {
 			if watches.Add(1) == 1 {
 				return true, watch.NewStreamWatcher(decoder, streamErrorReporter{}), nil
 			}
-			return true, watch.NewRaceFreeFake(), nil
+			rv := action.(ktesting.WatchAction).GetWatchRestrictions().ResourceVersion
+			resumedFrom.Store(&rv)
+			return true, resumed, nil
 		})
 		inventory, err := New(client, withCatalog)
 		Expect(err).NotTo(HaveOccurred())
 		start(inventory)
-		DeferCleanup(unblock)
 		DeferCleanup(decoder.Close)
 		Eventually(inventoryHealth(inventory), eventuallyTimeout, eventuallyInterval).Should(Succeed())
 		Eventually(watches.Load, eventuallyTimeout).Should(Equal(int32(1)))
@@ -1075,12 +1075,13 @@ var _ = Describe("Inventory watch recovery", func() {
 
 		decoder.Close()
 
-		Eventually(relisting, eventuallyTimeout).Should(BeClosed())
-		Expect(inventoryHealth(inventory)()).To(MatchError(ErrUnavailable))
-		_, err = inventory.Lookup(jobGVK)
-		Expect(err).To(MatchError(ErrUnavailable))
-		Expect(watches.Load()).To(Equal(int32(1)), "a resumed watch cannot prove the current absence of cluster definitions")
-		unblock()
+		Eventually(watches.Load, eventuallyTimeout).Should(Equal(int32(2)))
+		Expect(*resumedFrom.Load()).To(Equal("2"), "resumes after the bookmark, the last applied resource version")
+		Expect(lists.Load()).To(Equal(int32(1)), "no relist")
+		Expect(inventoryHealth(inventory)()).To(Succeed())
+
+		// A real API server replays what changed after that resource version.
+		resumed.Add(unstructuredKarta(newKarta("arrived-while-disconnected", jobGVK)))
 		Eventually(func(g Gomega) {
 			sel, err := inventory.Lookup(jobGVK)
 			g.Expect(err).NotTo(HaveOccurred())

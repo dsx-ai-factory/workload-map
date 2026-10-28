@@ -42,8 +42,9 @@ can wait. Waiter cancellation or stopping before the first load returns an error
 A disabled cluster source is already loaded. `Run` may be started only once.
 
 Initial loading and current health are separate. Lookup returns `ErrNotReady`
-before loading. A list failure, watch error or unexpected stream closure makes
-lookups unavailable, including catalog lookups. Permission errors remain distinct.
+before loading. A list failure or watch error makes lookups unavailable,
+including catalog lookups. A watch that closes without an error resumes from
+the last applied resource version and stays healthy. Permission errors remain distinct.
 Only a fresh complete list can restore health; a failure after that list began
 cannot be cleared by it. Servers without streaming-list support use ordinary LIST.
 Events from a stopped watch cannot change health. Decode errors remain until the

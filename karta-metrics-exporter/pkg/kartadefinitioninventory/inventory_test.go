@@ -209,13 +209,24 @@ var _ = Describe("Inventory", func() {
 		Expect(err).To(MatchError(ErrNotReady))
 	})
 
-	It("refuses a second Run", func() {
+	It("runs once when many callers start it together, refusing the rest at once", func() {
 		inventory, err := New(newFakeClient(), withCatalog)
 		Expect(err).NotTo(HaveOccurred())
-		start(inventory)
-		Eventually(inventoryHealth(inventory), eventuallyTimeout, eventuallyInterval).Should(Succeed())
+		ctx, cancel := context.WithCancel(context.Background())
+		DeferCleanup(cancel)
+		const callers = 16
+		results := make(chan error, callers)
+		for range callers {
+			go func() { results <- inventory.Run(ctx) }()
+		}
 
-		Expect(inventory.Run(context.Background())).To(MatchError(ContainSubstring("already started")))
+		for range callers - 1 {
+			Eventually(results, eventuallyTimeout).Should(Receive(MatchError(ContainSubstring("already started"))))
+		}
+		Consistently(results, "100ms").ShouldNot(Receive())
+		Eventually(inventoryHealth(inventory), eventuallyTimeout, eventuallyInterval).Should(Succeed())
+		cancel()
+		Eventually(results, eventuallyTimeout).Should(Receive(BeNil()))
 	})
 
 	Context("with a cluster", func() {

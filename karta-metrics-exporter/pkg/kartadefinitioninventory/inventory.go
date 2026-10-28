@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -88,10 +89,10 @@ type Inventory struct {
 	log           *slog.Logger
 	loaded        chan struct{}
 	done          chan struct{}
+	started       atomic.Bool
 
 	mu       sync.RWMutex
 	cluster  map[string]definitionEntry
-	started  bool
 	synced   bool
 	stopped  bool
 	failure  error
@@ -181,13 +182,9 @@ func New(client dynamic.Interface, config Config) (*Inventory, error) {
 // Run blocks until ctx ends. Afterwards cluster lookups fail; a catalog-only
 // inventory keeps serving. Run may be called only once.
 func (i *Inventory) Run(ctx context.Context) error {
-	i.mu.Lock()
-	if i.started {
-		i.mu.Unlock()
+	if !i.started.CompareAndSwap(false, true) {
 		return errors.New("definition inventory already started")
 	}
-	i.started = true
-	i.mu.Unlock()
 	defer func() {
 		i.mu.Lock()
 		defer i.mu.Unlock()
@@ -218,12 +215,13 @@ func (i *Inventory) WaitLoaded(ctx context.Context) error {
 	case <-i.loaded:
 		return nil
 	case <-i.done:
-		i.mu.RLock()
-		defer i.mu.RUnlock()
-		if i.synced {
+		// Both channels may be closed by now.
+		select {
+		case <-i.loaded:
 			return nil
+		default:
+			return fmt.Errorf("%w: %w", ErrUnavailable, errStopped)
 		}
-		return fmt.Errorf("%w: %w", ErrUnavailable, errStopped)
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -235,29 +233,19 @@ func (i *Inventory) listWatch(resource dynamic.ResourceInterface) *cache.ListWat
 		ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 			// Later pages continue the same list.
 			if options.Continue == "" {
-				i.mu.Lock()
-				i.listedFrom = i.failures
-				i.mu.Unlock()
+				i.beginList()
 			}
 			list, err := resource.List(ctx, options)
 			if err != nil {
-				i.mu.Lock()
-				i.fail(err)
-				i.mu.Unlock()
+				i.recordFailure(err)
 			}
 			return list, err
 		},
 		WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 			started := time.Now()
 			streaming := options.SendInitialEvents != nil && *options.SendInitialEvents
-			i.mu.Lock()
-			failed := i.failure != nil
-			if streaming {
-				i.listedFrom = i.failures
-			}
-			i.mu.Unlock()
 			// A resumed watch never marks the end of its replay; only a new list is fresh.
-			if failed && !streaming {
+			if failed := i.beginWatch(streaming); failed && !streaming {
 				return nil, errRelist
 			}
 			w, err := resource.Watch(ctx, options)
@@ -266,9 +254,7 @@ func (i *Inventory) listWatch(resource dynamic.ResourceInterface) *cache.ListWat
 			case err != nil && streaming && apierrors.IsInvalid(err):
 				return nil, err
 			case err != nil:
-				i.mu.Lock()
-				i.fail(err)
-				i.mu.Unlock()
+				i.recordFailure(err)
 				return nil, err
 			}
 			events := make(chan watch.Event)
@@ -308,6 +294,29 @@ func (i *Inventory) listWatch(resource dynamic.ResourceInterface) *cache.ListWat
 			return proxy, nil
 		},
 	}
+}
+
+// beginList marks the failure count a fresh list starts from.
+func (i *Inventory) beginList() {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.listedFrom = i.failures
+}
+
+// beginWatch reports whether a failure is pending; a streaming list is also a fresh list.
+func (i *Inventory) beginWatch(streaming bool) (failed bool) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if streaming {
+		i.listedFrom = i.failures
+	}
+	return i.failure != nil
+}
+
+func (i *Inventory) recordFailure(err error) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.fail(err)
 }
 
 // failWatch records err unless the watch was stopped on purpose.
@@ -454,10 +463,31 @@ func (i *Inventory) ready() error {
 // Lookup ignores the requested version and never falls back while a source fails.
 // A nil Definition with no error means neither source has a matching definition.
 func (i *Inventory) Lookup(gvk schema.GroupVersionKind) (Selection, error) {
-	i.mu.RLock()
-	if err := i.ready(); err != nil {
-		i.mu.RUnlock()
+	winner, source, err := i.elect(gvk)
+	if err != nil {
 		return Selection{}, err
+	}
+	if winner.err != nil {
+		return Selection{}, winner.err
+	}
+	k := winner.definition
+	if k == nil {
+		return Selection{}, nil
+	}
+	origin := Origin{Source: source, Name: k.Name}
+	if source == SourceCluster {
+		origin.UID, origin.ResourceVersion = k.UID, k.ResourceVersion
+	}
+	return Selection{Definition: k.DeepCopy(), GVK: catalog.RootKey(k), Origin: origin}, nil
+}
+
+// elect picks the winner under the read lock. Entries are replaced whole, so
+// Lookup copies the winner after the lock is released.
+func (i *Inventory) elect(gvk schema.GroupVersionKind) (definitionEntry, Source, error) {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	if err := i.ready(); err != nil {
+		return definitionEntry{}, "", err
 	}
 	var winner definitionEntry
 	for _, entry := range i.cluster {
@@ -472,23 +502,10 @@ func (i *Inventory) Lookup(gvk schema.GroupVersionKind) (Selection, error) {
 			winner = entry
 		}
 	}
-	source := SourceCluster
 	if winner.definition == nil {
-		winner, source = i.catalog[gvk.GroupKind()], SourceCatalog
+		return i.catalog[gvk.GroupKind()], SourceCatalog, nil
 	}
-	i.mu.RUnlock()
-	if winner.err != nil {
-		return Selection{}, winner.err
-	}
-	k := winner.definition
-	if k == nil {
-		return Selection{}, nil
-	}
-	origin := Origin{Source: source, Name: k.Name}
-	if source == SourceCluster {
-		origin.UID, origin.ResourceVersion = k.UID, k.ResourceVersion
-	}
-	return Selection{Definition: k.DeepCopy(), GVK: catalog.RootKey(k), Origin: origin}, nil
+	return winner, SourceCluster, nil
 }
 
 func validatedEntry(k *v1alpha1.Karta) definitionEntry {

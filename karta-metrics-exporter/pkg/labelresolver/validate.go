@@ -43,8 +43,8 @@ func ValidateConfig(cfg Config) error {
 		}
 		for _, metric := range rule.Metrics {
 			switch metric {
-			case "karta_pod_workload_info":
-			case "karta_workload_status":
+			case MetricPodWorkloadInfo:
+			case MetricWorkloadStatus:
 				if sources[SourcePod] {
 					return fmt.Errorf("labelRules[%d]: workload status cannot use a Pod source", i)
 				}

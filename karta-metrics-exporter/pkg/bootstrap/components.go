@@ -6,6 +6,7 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/stretchr/testify/mock"
 	"go.opentelemetry.io/otel/metric"
@@ -36,11 +37,15 @@ var (
 )
 
 // New is the temporary composition root. Replace the factories here as components land.
-func New(labelConfig labelresolver.Config) app.Components {
+// It returns an error when a label rule is invalid or fails to compile.
+func New(labelConfig labelresolver.Config) (app.Components, error) {
 	definitions := newInventory(inventory.Config{})
 	reader := newObjectReader()
 	ownership := newDiscovery(discovery.Dependencies{Reader: reader, Inventory: definitions})
-	labels := newLabelResolver(labelConfig, labelresolver.Dependencies{Compiler: newCompiler()})
+	labels, err := labelresolver.New(labelConfig, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
+	if err != nil {
+		return app.Components{}, fmt.Errorf("label resolver: %w", err)
+	}
 	publications := newStore(store.Options{})
 	runtime := newRuntime(controller.Dependencies{
 		Discovery:    ownership,
@@ -48,7 +53,7 @@ func New(labelConfig labelresolver.Config) app.Components {
 		Labels:       labels,
 		Publications: publications,
 	})
-	return app.Components{Runtime: runtime, Store: publications, Collector: newCollector()}
+	return app.Components{Runtime: runtime, Store: publications, Collector: newCollector()}, nil
 }
 
 func newInventory(_ inventory.Config) inventory.Reader {
@@ -67,20 +72,6 @@ func newObjectReader() discovery.ObjectReader {
 func newDiscovery(_ discovery.Dependencies) discovery.Discoverer {
 	m := &discovery.MockDiscovery{}
 	m.EXPECT().Get(mock.Anything, mock.Anything).Return(discovery.Result{}, ErrNotImplemented)
-	return m
-}
-
-func newCompiler() labelevaluator.Compiler {
-	compiler := &labelevaluator.MockLabelCompiler{}
-	m := &labelevaluator.MockLabelEvaluator{}
-	m.EXPECT().Evaluate(mock.Anything, mock.Anything).Return("", ErrNotImplemented)
-	compiler.EXPECT().Compile(mock.Anything).Return(m, nil)
-	return compiler
-}
-
-func newLabelResolver(_ labelresolver.Config, _ labelresolver.Dependencies) labelresolver.Resolver {
-	m := &labelresolver.MockLabelResolver{}
-	m.EXPECT().Resolve(mock.Anything, mock.Anything).Return(nil, ErrNotImplemented)
 	return m
 }
 

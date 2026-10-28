@@ -20,7 +20,8 @@ var _ = Describe("bootstrap stops on cancellation", func() {
 	It("stops on cancellation without publishing data", func(specCtx SpecContext) {
 		ctx, cancel := context.WithCancel(specCtx)
 		defer cancel()
-		components := bootstrap.New(labelresolver.Config{})
+		components, err := bootstrap.New(labelresolver.Config{})
+		Expect(err).To(Succeed())
 		done := make(chan error, 1)
 		go func() { done <- app.Run(ctx, components, noop.NewMeterProvider().Meter("test")) }()
 		cancel()
@@ -31,5 +32,15 @@ var _ = Describe("bootstrap stops on cancellation", func() {
 			Fail("mock runtime did not stop")
 		}
 		Expect(components.Store.Capture().Records).To(BeEmpty())
+	})
+})
+
+var _ = Describe("bootstrap compiles label rules", func() {
+	It("rejects an invalid expression", func() {
+		_, err := bootstrap.New(labelresolver.Config{Rules: []labelresolver.LabelRule{{
+			Name: "team", Metrics: []string{labelresolver.MetricWorkloadStatus},
+			Sources: []labelresolver.Source{labelresolver.SourceWorkload}, Expression: "object[",
+		}}})
+		Expect(err).To(MatchError(ContainSubstring("compiling label expression")))
 	})
 })

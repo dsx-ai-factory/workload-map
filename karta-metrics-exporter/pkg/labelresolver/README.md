@@ -3,28 +3,30 @@
 
 # Label resolver
 
-`Config.Rules` is the `labelRules` list. Each rule names a label, its metrics,
-ordered sources and expression. `Dependencies.Compiler` supplies the compiler.
-`Config.Limits` supplies its evaluation bounds. The resolver will compile rules
-at construction.
+The resolver turns the `labelRules` configuration into extra label values for
+`karta_pod_workload_info` and `karta_workload_status`. `New` rejects invalid
+rules and expressions.
 
-`Resolve` receives metric names, an unstructured workload and an optional
-`*corev1.Pod`. Workloads can have any kind; Pods use the known Kubernetes type.
-It returns one `ResolvedMetricLabels` per metric, with values and per-label errors.
-Empty or failed values try the next source. Errors remain visible even when a
-fallback succeeds. A top-level error reports cancellation or invalid input.
-The resolver neither fetches objects nor owns a Kubernetes cache.
+`Resolve` receives the requested metrics, the root workload and, for the Pod
+metric, its Pod. It returns the labels for each requested metric, with errors
+reported per label.
 
-For a Pod metric, sources may be `workload`, `pod`, or both in that order.
-A workload-only metric must reject a rule containing `pod`: there is no single
-Pod to choose for the workload. Empty and failed values must not reuse old labels.
+```go
+results, err := resolver.Resolve(ctx, labelresolver.Input{
+    Metrics:  []string{labelresolver.MetricWorkloadStatus, labelresolver.MetricPodWorkloadInfo},
+    Workload: root, // Labeled example.com/team=research.
+    Pod:      pod,
+})
+// [
+//   {Metric: "karta_workload_status", Labels: {"team": "research"}},
+//   {Metric: "karta_pod_workload_info", Labels: {"team": "research"}},
+// ]
+```
 
-Runtime calls the resolver for relevant changes and saves the results in Store.
-Collector reads those saved labels. Evaluation modes are not part of this
-configuration.
+A rule reads its sources in the configured order and uses the first nonempty
+value. A label with no value is absent. Source errors are reported even when a
+later source supplies the value. Workload status rules cannot read the Pod.
+The returned error reports invalid input or cancellation.
 
-`ValidateConfig` checks the rules at startup. Helm and the command accept the
-configuration. Source selection, fallback and caching are not implemented yet.
-The resolver implementation will convert the typed Pod to an unstructured object
-for the evaluator. The evaluator will continue to expose the selected source as
-`object` in CEL expressions.
+The resolver reads only the objects it receives. Runtime decides when to call it
+and saves the results; that integration is not implemented yet.

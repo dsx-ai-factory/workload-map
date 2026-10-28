@@ -19,7 +19,6 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/app"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/bootstrap"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/config"
-	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/version"
 )
 
@@ -53,17 +52,13 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
-	compiler := labelevaluator.NewCompiler()
-	for _, rule := range cfg.Rules {
-		if _, err := compiler.Compile(labelevaluator.Config{Expression: rule.Expression, Limits: cfg.Limits}); err != nil {
-			return fmt.Errorf("invalid label %q: %w", rule.Name, err)
-		}
+	components, err := bootstrap.New(cfg.Config)
+	if err != nil {
+		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	resolverCfg := cfg.Config
-	components := bootstrap.New(resolverCfg)
 	slog.Info("Karta metrics exporter started; metrics collection is not implemented",
 		"version", version.String(), "labelRules", len(cfg.Rules))
 	if err := app.Run(ctx, components, noop.NewMeterProvider().Meter("karta-metrics-exporter")); err != nil {

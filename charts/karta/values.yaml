@@ -17,26 +17,14 @@ exporter:
     # When empty, falls back to .Chart.AppVersion.
     tag: ""
     pullPolicy: IfNotPresent
-  # Rendered verbatim into the exporter's config file (ConfigMap). The CEL
-  # variables, limits, and matching flags and environment variables are
-  # documented in karta-metrics-exporter/pkg/submitterextractor/README.md.
-  attribution:
-    # CEL expression returning the submitter identity as a string. It sees
-    # labels, annotations and resource (namespace, name, group, version,
-    # kind). Empty disables extraction; an invalid expression fails startup.
-    submittedByExpression: ""
-    # Bounds on submitter extraction. 0 selects the built-in default, except
-    # interruptCheckFrequency, where 0 fails startup.
-    limits:
-      # CEL cost units one evaluation may spend.
-      costLimit: 10000
-      # Maximum length of submittedByExpression, in bytes.
-      maxExpressionBytes: 4096
-      # Maximum length of an extracted identity, in bytes.
-      maxIdentityBytes: 1024
-      # Comprehension iterations between cancellation checks during one
-      # evaluation. Must be greater than 0.
-      interruptCheckFrequency: 100
+  # Extra labels for Pod info and workload status. Expressions read object.
+  # See karta-metrics-exporter/pkg/labelevaluator/README.md.
+  labelRules: []
+  # Shared generic label evaluation limits. Zero selects the default.
+  genericLabelEvaluationLimits:
+    costLimit: 10000
+    maxExpressionBytes: 4096
+    maxResultBytes: 1024
 
 # Overrides for resource names. Rarely needed.
 fullnameOverride: ""

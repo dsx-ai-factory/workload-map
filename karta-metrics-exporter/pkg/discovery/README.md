@@ -3,14 +3,20 @@
 
 # Discovery
 
-Discovery will resolve a Pod or object to its workload root and keep the shared
-ownership index. A generic workload will be available without a Karta definition.
-The inventory can then supply a definition for Karta to interpret status and Pod
-grouping.
+`Get(ctx, ref)` resolves one object to its workload root. For a Pod owned by a Job
+owned by a JobSet, it returns the JobSet reference and the path from Pod to root.
+A missing Karta does not make the Job the root. Only an explicitly ignored owner
+allows traversal to stop early.
 
-Ownership follows the controller-owner chain to its actual root. A missing Karta
-on that root does not make an intermediate owner the root. Only an explicitly
-configured ignored owner can stop traversal early.
+`Dependencies` supplies the object reader and definition inventory. The reader
+checks Runtime's informer cache and performs metadata GETs. Discovery does not
+start watches. `MissingCoverage` requests a root watch only; intermediate owners
+are not included. Runtime handles the request and retries after synchronization.
 
-This package will use cached inputs. The controller will own watches and retries.
-Implementation follows in a separate change.
+Callers inspect errors with `errors.Is`. Missing coverage can accompany a Karta
+selection error once the root is known. An unresolved chain cannot request a
+root watch.
+
+The interfaces and result types are included here. Ownership indexing, input
+verification, Karta evaluation handles and their batches remain implementation
+work. `GenericWorkload` currently carries identity, path and resolution only.

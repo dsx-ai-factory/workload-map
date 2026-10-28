@@ -3,35 +3,69 @@
 
 # Karta metrics exporter
 
-This module is the starting point for the metrics exporter. The command logs its
-version and waits for SIGINT or SIGTERM. It does not watch Kubernetes or expose
-metrics yet.
+Karta metrics exporter is a standalone component for connecting Kubernetes
+workloads to resource-usage metrics. Its [metric contract](../docs/keps/0001-metrics-exporter/README.md#metrics)
+describes workload status and the workload, component and group that each Pod
+belongs to. Prometheus can join this identity with CPU and memory measurements
+from cAdvisor and GPU measurements from DCGM.
 
-| Package | Responsibility | Included here |
-| --- | --- | --- |
-| [submitterextractor](pkg/submitterextractor/) | Extract the submitter from object metadata. | `Evaluator` interface and CEL implementation |
-| [kartadefinitioninventory](pkg/kartadefinitioninventory/) | Select a Karta definition and retain its source. | Interface |
-| [discovery](pkg/discovery/) | Resolve ownership and interpret workloads with Karta. | README |
-| [controller](pkg/controller/) | Connect watches, work queues and calculations. | README |
-| [adapters/otel](pkg/adapters/otel/) | Export calculated observations through OpenTelemetry. | README |
+For example, a Pod in JobSet `train` can belong to component `replicatedjob`,
+instance `worker` and group `0`. The [query guide](../docs/karta-metrics-exporter/README.md)
+shows how to group measurements by that identity.
 
-Build and run from the repository root:
+The command validates label configuration. Kubernetes watches and metric
+delivery are not implemented yet.
+
+## Run
+
+Run these commands from the repository root:
 
 ```sh
 make build-exporter
 ./bin/karta-metrics-exporter --version
+./bin/karta-metrics-exporter --help
 ./bin/karta-metrics-exporter
 ```
 
-Build the image with `make exporter-image IMAGE_TAG=dev`. The chart keeps the
-exporter disabled by default. To render it with an image built from this branch:
+The process waits until Ctrl-C (`SIGINT`) or `SIGTERM` stops it.
+
+To configure labels, create a YAML file using the
+[label configuration example](pkg/labelevaluator/README.md#configuration).
+Omit the `exporter:` wrapper when running outside Helm, then pass the file:
 
 ```sh
-helm template karta ./charts/karta \
-  --set exporter.enabled=true \
-  --set exporter.image.repository=example.com/karta-metrics-exporter \
-  --set exporter.image.tag=dev
+./bin/karta-metrics-exporter --config exporter.yaml
 ```
 
-Push or load that image into the target cluster before installing it. This
-scaffold does not add a release publishing workflow.
+The label evaluator uses Common Expression Language (CEL) and is implemented.
+The command validates `labelRules` and `genericLabelEvaluationLimits` and compiles
+expressions at startup. Invalid rules or expressions stop startup with an error.
+The label configuration reference lists the supported flags, environment
+variables, defaults and precedence.
+
+Build a container image with `make exporter-image IMAGE_TAG=dev`. The Helm chart
+keeps the exporter disabled by default. The
+[configuration reference](../docs/karta-metrics-exporter/configuration.md)
+describes the proposed deployment, selection and metric delivery settings.
+
+## Development
+
+Component contracts live under `pkg/`. Each package documents its inputs,
+outputs and implementation status.
+
+| Package | Input and result |
+| --- | --- |
+| [kartadefinitioninventory](pkg/kartadefinitioninventory/) | Root GVK -> selected Karta and its source |
+| [discovery](pkg/discovery/) | Object reference -> workload root and missing root coverage |
+| [labelevaluator](pkg/labelevaluator/) | One object -> one configured label value |
+| [labelresolver](pkg/labelresolver/) | Root, optional Pod and metric names -> labels for each metric |
+| [controller](pkg/controller/) | Watches and queued work -> publications |
+| [store](pkg/store/) | Publications -> consistent captured view |
+| [adapters/otel](pkg/adapters/otel/) | Captured view -> OpenTelemetry observations |
+
+Generated Mockery mocks live beside the interfaces they implement.
+
+```sh
+make exporter-generate-mocks
+make check-exporter
+```

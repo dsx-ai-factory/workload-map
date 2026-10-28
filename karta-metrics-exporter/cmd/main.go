@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-// Command karta-metrics-exporter starts the exporter scaffold.
+// Command karta-metrics-exporter starts the exporter.
 package main
 
 import (
@@ -14,8 +14,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/internal/config"
-	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/submitterextractor"
+	"go.opentelemetry.io/otel/metric/noop"
+
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/app"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/bootstrap"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/config"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/version"
 )
 
@@ -30,7 +34,7 @@ func main() {
 func run() error {
 	fs := flag.NewFlagSet("karta-metrics-exporter", flag.ContinueOnError)
 	showVersion := fs.Bool("version", false, "Print the exporter version and exit.")
-	loader := config.NewLoader(fs, os.Getenv)
+	loader := config.NewLoader(fs, os.LookupEnv)
 	switch err := fs.Parse(os.Args[1:]); {
 	case errors.Is(err, flag.ErrHelp):
 		return nil
@@ -49,23 +53,23 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
-	attribution := cfg.Attribution
-	extractor, err := submitterextractor.New(submitterextractor.Config{
-		Expression:              attribution.SubmittedByExpression,
-		CostLimit:               attribution.Limits.CostLimit,
-		MaxExpressionBytes:      attribution.Limits.MaxExpressionBytes,
-		MaxIdentityBytes:        attribution.Limits.MaxIdentityBytes,
-		InterruptCheckFrequency: attribution.Limits.InterruptCheckFrequency,
-	})
-	if err != nil {
-		return fmt.Errorf("invalid submitter configuration: %w", err)
+	compiler := labelevaluator.NewCompiler()
+	for _, rule := range cfg.Rules {
+		if _, err := compiler.Compile(labelevaluator.Config{Expression: rule.Expression, Limits: cfg.Limits}); err != nil {
+			return fmt.Errorf("invalid label %q: %w", rule.Name, err)
+		}
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	slog.Info("Karta metrics exporter scaffold started; metrics collection is not implemented",
-		"version", version.String(), "submitterExtraction", submitterextractor.IsEnabled(extractor))
-	<-ctx.Done()
+	resolverCfg := cfg.Config
+	components := bootstrap.New(resolverCfg)
+	slog.Info("Karta metrics exporter started; metrics collection is not implemented",
+		"version", version.String(), "labelRules", len(cfg.Rules))
+	if err := app.Run(ctx, components, noop.NewMeterProvider().Meter("karta-metrics-exporter")); err != nil {
+		return err
+	}
+
 	slog.Info("Karta metrics exporter stopped")
 	return nil
 }

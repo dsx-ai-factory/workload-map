@@ -130,13 +130,31 @@ Examples of component attribution:
 | LWS, worker in group 0            | `worker`        | empty                  | `0`                |
 | LWS, worker in group 1            | `worker`        | empty                  | `1`                |
 
-## Configured metric labels
+## Configured labels
 
-`exporter.metricLabels` adds labels using CEL expressions over a resolved workload
-root or Pod. For example, a `team` label can read the root first and fall back to
-the Pod. Rules select metrics, source order and evaluation events without changing
-Kubernetes objects. See [metric label configuration](../../karta-metrics-exporter/configuration.md#metric-labels)
-for the input object, evaluation modes and cache lifetime.
+Use `exporter.labelRules` to add labels to Pod info or workload status. A rule
+names its target metrics, ordered sources and CEL expression. The evaluator
+receives the root workload or the specific Pod as `object`.
+
+```yaml
+exporter:
+  labelRules:
+    - name: team
+      metrics: [karta_pod_workload_info, karta_workload_status]
+      sources: [workload]
+      expression: |
+        has(object.metadata.labels) && "example.com/team" in object.metadata.labels
+          ? object.metadata.labels["example.com/team"] : ""
+```
+
+Pod info may read the workload, its Pod, or both in order. Workload status cannot
+use a Pod source because there is no single Pod to choose. The first nonempty
+value wins. Empty results remove the configured label. Evaluation errors remain
+visible without dropping the base metric. Built-in labels cannot be overwritten.
+
+Runtime saves evaluated labels in Store. Collector reads those saved values.
+The exporter does not capture caller identity or mutate Kubernetes objects.
+See [label configuration](../../karta-metrics-exporter/configuration.md#configured-labels).
 
 ## Who submitted the workload
 
@@ -165,7 +183,8 @@ controller, not the submitter.
 Capture is best effort and never rejects a request. A supplied value is kept, so
 the annotation is a hint, not proof of identity. When a platform creates the
 workload, the caller is the platform's service account; prefer the platform's
-own user annotation in `submittedByExpression`. See the
+own user annotation in a label rule's expression. Read it through
+`object.metadata.annotations`, as described in [Configured labels](#configured-labels). See the
 [implementation design](../../design/metrics-exporter/submitter-capture.md).
 
 MAP feature versions:

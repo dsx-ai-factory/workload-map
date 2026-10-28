@@ -441,6 +441,10 @@ vet-exporter: ## go vet the exporter module
 lint-exporter: golangci-lint ## Lint the exporter module
 	cd karta-metrics-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
+.PHONY: exporter-generate-mocks
+exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mockery
+	cd karta-metrics-exporter && go run github.com/vektra/mockery/v3@v3.8.1 --config .mockery.yaml
+
 .PHONY: test-exporter
 test-exporter: ## Run the exporter module tests
 	cd karta-metrics-exporter && go test ./...
@@ -572,7 +576,7 @@ tidy: ## Run go mod tidy in every module (rewrites go.mod and go.sum)
 # status is captured into a variable rather than tested inline, so that a git
 # that cannot run is a hard error. Inline, a failing git yields empty output and
 # the emptiness check passes, reporting success having verified nothing.
-validate: tidy lib-generate lib-manifests lib-generate-mocks generate-licenses generate-samples ## Fail if any generated or module manifest is stale or untracked
+validate: tidy lib-generate lib-manifests lib-generate-mocks exporter-generate-mocks generate-licenses generate-samples ## Fail if any generated or module manifest is stale or untracked
 	@set -e; \
 	status="$$(git status --porcelain)"; \
 	test -z "$$status" || { echo "$$status"; \

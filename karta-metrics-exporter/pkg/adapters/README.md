@@ -4,7 +4,7 @@
 # Output adapters
 
 Adapters will translate published workload observations into an output format.
-They will not discover workloads, evaluate Karta definitions or run submitter CEL.
+They will not discover workloads, evaluate Karta definitions or run label expressions.
 
 The first adapter will use [OpenTelemetry](otel/). Implementation follows in a
 separate change.

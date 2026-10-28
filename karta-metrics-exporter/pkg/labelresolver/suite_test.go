@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-package submitterextractor
+package labelresolver
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestSubmitterExtractor(t *testing.T) {
+func TestLabelResolver(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Submitter Extractor Suite")
+	RunSpecs(t, "Exporter LabelResolver Suite")
 }

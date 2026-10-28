@@ -5,7 +5,8 @@
 
 [KEP-0001](../../keps/0001-metrics-exporter/README.md) defines the metrics.
 This design shows how the exporter builds them for namespaced workloads.
-The Go examples define the proposed component contracts.
+The Go examples define the proposed component contracts. For the current
+interfaces and implemented behavior, see the [exporter packages](../../../karta-metrics-exporter/README.md).
 
 ## From one Pod to workload metrics
 
@@ -405,8 +406,8 @@ changes. This includes a value obtained from the Pod fallback.
 
 The cache key includes the metric, subject UID and label name. Deletion, scope
 exit, changed workload association or changed configuration clears it. Restart
-rebuilds it. The [configuration example](../../karta-metrics-exporter/configuration.md#metric-labels)
-shows source restrictions, defaults and reserved names.
+rebuilds it. The [configuration example](../../karta-metrics-exporter/configuration.md#configured-labels)
+shows the current rule format, source restrictions and evaluation limits.
 
 ## Reconcile and publish
 

@@ -14,5 +14,5 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 data:
   config.yaml: |
-    {{- dict "attribution" .Values.exporter.attribution | toYaml | nindent 4 }}
+    {{- dict "labelRules" .Values.exporter.labelRules "genericLabelEvaluationLimits" .Values.exporter.genericLabelEvaluationLimits | toYaml | nindent 4 }}
 {{- end }}

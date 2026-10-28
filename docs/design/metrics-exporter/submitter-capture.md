@@ -4,10 +4,10 @@
 # Submitter capture
 
 The chart can record who created a workload. See
-[KEP-0001](../../../keps/0001-metrics-exporter/README.md#who-submitted-the-workload)
+[KEP-0001](../../keps/0001-metrics-exporter/README.md#who-submitted-the-workload)
 for the attribution contract. A `MutatingAdmissionPolicy` (MAP)
-writes the authenticated caller into an annotation on CREATE. The exporter reads
-it later through `submittedByExpression`. Capture runs in the API server, so it
+writes the authenticated caller into an annotation on CREATE. An exporter label
+rule can read it through `object.metadata.annotations`. Capture runs in the API server, so it
 needs neither the operator nor the exporter.
 
 ## Policy
@@ -100,19 +100,28 @@ the workload through its own service account, the annotation holds that service
 account, for example `system:serviceaccount:<namespace>:<name>`. Objects the
 platform's controllers create below the root are skipped.
 
-Platforms usually record the human user on the root object themselves. The
-exporter's `submittedByExpression` can prefer that annotation and fall back to
-the captured one:
+Platforms usually record the human user on the root object themselves. This
+label rule reads that workload root and prefers the platform annotation. It
+falls back to the captured annotation when the platform key is absent:
 
 ```yaml
-attribution:
-  submittedByExpression: |
-    ("example.com/workload-owner" in annotations)
-      ? annotations["example.com/workload-owner"]
-      : ("karta.run.ai/submitted-by" in annotations
-          ? annotations["karta.run.ai/submitted-by"]
-          : "")
+exporter:
+  labelRules:
+    - name: submitted_by
+      metrics: [karta_pod_workload_info, karta_workload_status]
+      sources: [workload]
+      expression: |
+        !has(object.metadata.annotations) ? "" :
+          ("example.com/workload-owner" in object.metadata.annotations)
+            ? object.metadata.annotations["example.com/workload-owner"]
+            : ("karta.run.ai/submitted-by" in object.metadata.annotations
+                ? object.metadata.annotations["karta.run.ai/submitted-by"]
+                : "")
 ```
+
+For a root with `example.com/workload-owner: alice`, the evaluator returns
+`alice`. The intended metric label is `submitted_by="alice"`. The evaluator is
+implemented; resolving and exporting the label are still scaffold work.
 
 ## Alternatives not taken
 

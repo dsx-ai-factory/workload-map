@@ -25,6 +25,8 @@ type Resolver interface {
 type resolver struct {
 	rules         []compiledRule
 	rulesByMetric map[string][]int
+	// podMetrics holds the metrics with at least one rule that reads the Pod.
+	podMetrics map[string]bool
 }
 
 type compiledRule struct {
@@ -79,6 +81,13 @@ const (
 	MetricWorkloadStatus = "karta_workload_status"
 )
 
+// supportedMetrics maps each metric that accepts label rules to whether its
+// rules may read the Pod. A workload metric has no single Pod to choose.
+var supportedMetrics = map[string]bool{
+	MetricPodWorkloadInfo: true,
+	MetricWorkloadStatus:  false,
+}
+
 var (
 	ErrMissingCompiler   = errors.New("label resolver requires a compiler")
 	ErrDuplicateMetric   = errors.New("duplicate metric")
@@ -101,7 +110,11 @@ func New(cfg Config, deps Dependencies) (Resolver, error) {
 	}
 	r := &resolver{
 		rules:         make([]compiledRule, 0, len(cfg.Rules)),
-		rulesByMetric: map[string][]int{MetricPodWorkloadInfo: nil, MetricWorkloadStatus: nil},
+		rulesByMetric: make(map[string][]int, len(supportedMetrics)),
+		podMetrics:    make(map[string]bool),
+	}
+	for metric := range supportedMetrics {
+		r.rulesByMetric[metric] = nil
 	}
 	for i, rule := range cfg.Rules {
 		evaluator, err := deps.Compiler.Compile(labelevaluator.Config{Expression: rule.Expression, Limits: cfg.Limits})
@@ -109,8 +122,12 @@ func New(cfg Config, deps Dependencies) (Resolver, error) {
 			return nil, fmt.Errorf("labelRules[%d] %q: %w", i, rule.Name, err)
 		}
 		r.rules = append(r.rules, compiledRule{name: rule.Name, sources: slices.Clone(rule.Sources), evaluator: evaluator})
+		readsPod := slices.Contains(rule.Sources, SourcePod)
 		for _, metric := range rule.Metrics {
 			r.rulesByMetric[metric] = append(r.rulesByMetric[metric], i)
+			if readsPod {
+				r.podMetrics[metric] = true
+			}
 		}
 	}
 	return r, nil
@@ -142,7 +159,8 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 	}
 
 	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload}
-	if in.Pod != nil {
+	// Converting a full Pod is costly; skip it unless a requested metric reads the Pod.
+	if in.Pod != nil && slices.ContainsFunc(in.Metrics, func(metric string) bool { return r.podMetrics[metric] }) {
 		content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(in.Pod)
 		if err != nil {
 			return nil, fmt.Errorf("converting Pod %s/%s: %w", in.Pod.Namespace, in.Pod.Name, err)

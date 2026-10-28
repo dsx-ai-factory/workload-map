@@ -6,6 +6,7 @@ package labelresolver
 import (
 	"context"
 	"errors"
+	"sync"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -181,6 +182,31 @@ var _ = Describe("Resolve", func() {
 		Expect(err).To(Succeed())
 		Expect(root).To(Equal(rootBefore))
 		Expect(p).To(Equal(podBefore))
+	})
+
+	It("is safe for concurrent use", func(ctx SpecContext) {
+		rule := teamRule(MetricPodWorkloadInfo)
+		rule.Sources = []Source{SourceWorkload, SourcePod}
+		r := newResolver(rule, schedulerRule(), teamRule(MetricWorkloadStatus))
+		root := workload(nil)
+		p := pod("example-scheduler", map[string]string{"example.com/team": "from-pod"})
+		want := []ResolvedMetricLabels{
+			{Metric: MetricPodWorkloadInfo, Labels: map[string]string{"team": "from-pod", "scheduler_name": "example-scheduler"}, Errors: map[string]error{}},
+			{Metric: MetricWorkloadStatus, Labels: map[string]string{}, Errors: map[string]error{}},
+		}
+		var wg sync.WaitGroup
+		results := make([][]ResolvedMetricLabels, 16)
+		errs := make([]error, len(results))
+		for i := range results {
+			wg.Go(func() {
+				results[i], errs[i] = r.Resolve(ctx, Input{Metrics: []string{MetricPodWorkloadInfo, MetricWorkloadStatus}, Workload: root, Pod: p})
+			})
+		}
+		wg.Wait()
+		for i := range results {
+			Expect(errs[i]).To(Succeed())
+			Expect(results[i]).To(Equal(want))
+		}
 	})
 
 	for _, tc := range []struct {

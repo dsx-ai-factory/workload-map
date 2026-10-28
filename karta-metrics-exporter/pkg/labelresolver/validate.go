@@ -42,14 +42,12 @@ func ValidateConfig(cfg Config) error {
 			sources[source] = true
 		}
 		for _, metric := range rule.Metrics {
-			switch metric {
-			case MetricPodWorkloadInfo:
-			case MetricWorkloadStatus:
-				if sources[SourcePod] {
-					return fmt.Errorf("labelRules[%d]: workload status cannot use a Pod source", i)
-				}
-			default:
+			allowsPod, ok := supportedMetrics[metric]
+			if !ok {
 				return fmt.Errorf("labelRules[%d]: unsupported metric %q", i, metric)
+			}
+			if sources[SourcePod] && !allowsPod {
+				return fmt.Errorf("labelRules[%d]: %s cannot use a Pod source", i, metric)
 			}
 			key := metricLabel{metric: metric, label: rule.Name}
 			if seen[key] {

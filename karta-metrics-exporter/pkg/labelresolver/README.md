@@ -7,8 +7,8 @@ The resolver turns the `labelRules` configuration into extra label values for
 `karta_pod_workload_info` and `karta_workload_status`. `New` rejects invalid
 rules and expressions.
 
-`Resolve` receives the requested metrics, the root workload and, for the Pod
-metric, its Pod. It returns the labels for each requested metric, with errors
+`Resolve` receives the requested metrics, the root workload and, when a rule
+for a requested metric reads the Pod, that Pod. It returns the labels for each requested metric, with errors
 reported per label.
 
 ```go

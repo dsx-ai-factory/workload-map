@@ -92,6 +92,29 @@ var _ = Describe("Resolve", func() {
 		Expect(results).To(Equal([]ResolvedMetricLabels{{Metric: MetricWorkloadStatus, Labels: map[string]string{}, Errors: map[string]error{}}}))
 	})
 
+	It("does not need a Pod when no rule for the requested metrics reads it", func(ctx SpecContext) {
+		r := newResolver(teamRule(MetricWorkloadStatus, MetricPodWorkloadInfo))
+		results, err := r.Resolve(ctx, Input{
+			Metrics:  []string{MetricPodWorkloadInfo},
+			Workload: workload(map[string]any{"example.com/team": "research"}),
+		})
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "research"}))
+	})
+
+	It("exposes the Pod apiVersion and kind when the typed Pod has no TypeMeta", func(ctx SpecContext) {
+		rule := LabelRule{
+			Name: "kind", Metrics: []string{MetricPodWorkloadInfo}, Sources: []Source{SourcePod},
+			Expression: `object.apiVersion + "/" + object.kind`,
+		}
+		p := pod("", nil)
+		Expect(p.TypeMeta).To(BeZero())
+		results, err := newResolver(rule).Resolve(ctx, Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil), Pod: p})
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"kind": "v1/Pod"}))
+		Expect(results[0].Errors).To(BeEmpty())
+	})
+
 	It("falls back to the Pod after an empty root value", func(ctx SpecContext) {
 		rule := teamRule(MetricPodWorkloadInfo)
 		rule.Sources = []Source{SourceWorkload, SourcePod}
@@ -215,12 +238,12 @@ var _ = Describe("Resolve", func() {
 		want error
 	}{
 		{"missing workload", Input{Metrics: []string{MetricWorkloadStatus}}, ErrMissingWorkload},
-		{"missing Pod", Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil)}, ErrMissingPod},
+		{"missing Pod for a Pod rule", Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil)}, ErrMissingPod},
 		{"duplicate metric", Input{Metrics: []string{MetricWorkloadStatus, MetricWorkloadStatus}, Workload: workload(nil)}, ErrDuplicateMetric},
 		{"unsupported metric", Input{Metrics: []string{"other"}, Workload: workload(nil)}, ErrUnsupportedMetric},
 	} {
 		It("rejects "+tc.name, func(ctx SpecContext) {
-			results, err := newResolver(teamRule(MetricWorkloadStatus)).Resolve(ctx, tc.in)
+			results, err := newResolver(teamRule(MetricWorkloadStatus), schedulerRule()).Resolve(ctx, tc.in)
 			Expect(err).To(MatchError(tc.want))
 			Expect(results).To(BeNil())
 		})

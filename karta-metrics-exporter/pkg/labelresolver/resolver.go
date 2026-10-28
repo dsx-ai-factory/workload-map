@@ -41,7 +41,8 @@ type ruleResult struct {
 	err   error
 }
 
-// Input supplies the root workload and, for Pod metrics, the individual Pod.
+// Input supplies the root workload and, when a rule for a requested metric
+// reads the Pod, the individual Pod.
 type Input struct {
 	Metrics  []string
 	Workload *unstructured.Unstructured
@@ -113,9 +114,6 @@ func New(cfg Config, deps Dependencies) (Resolver, error) {
 		rulesByMetric: make(map[string][]int, len(supportedMetrics)),
 		podMetrics:    make(map[string]bool),
 	}
-	for metric := range supportedMetrics {
-		r.rulesByMetric[metric] = nil
-	}
 	for i, rule := range cfg.Rules {
 		evaluator, err := deps.Compiler.Compile(labelevaluator.Config{Expression: rule.Expression, Limits: cfg.Limits})
 		if err != nil {
@@ -145,27 +143,33 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 		return nil, ErrMissingWorkload
 	}
 	requested := make(map[string]bool, len(in.Metrics))
+	readsPod := false
 	for _, metric := range in.Metrics {
-		if _, ok := r.rulesByMetric[metric]; !ok {
+		if _, ok := supportedMetrics[metric]; !ok {
 			return nil, fmt.Errorf("%w %q", ErrUnsupportedMetric, metric)
 		}
 		if requested[metric] {
 			return nil, fmt.Errorf("%w %q", ErrDuplicateMetric, metric)
 		}
 		requested[metric] = true
-	}
-	if requested[MetricPodWorkloadInfo] && in.Pod == nil {
-		return nil, ErrMissingPod
+		readsPod = readsPod || r.podMetrics[metric]
 	}
 
 	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload}
 	// Converting a full Pod is costly; skip it unless a requested metric reads the Pod.
-	if in.Pod != nil && slices.ContainsFunc(in.Metrics, func(metric string) bool { return r.podMetrics[metric] }) {
+	if readsPod {
+		if in.Pod == nil {
+			return nil, ErrMissingPod
+		}
 		content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(in.Pod)
 		if err != nil {
 			return nil, fmt.Errorf("converting Pod %s/%s: %w", in.Pod.Namespace, in.Pod.Name, err)
 		}
-		objects[SourcePod] = &unstructured.Unstructured{Object: content}
+		pod := &unstructured.Unstructured{Object: content}
+		// Typed objects from informer caches have no TypeMeta; expose the same
+		// apiVersion and kind that the workload source always carries.
+		pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
+		objects[SourcePod] = pod
 	}
 
 	evaluated := make(map[int]ruleResult)

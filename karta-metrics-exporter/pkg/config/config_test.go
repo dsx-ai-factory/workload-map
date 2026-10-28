@@ -215,7 +215,7 @@ var _ = Describe("Karta definition sources", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(cfg.KartaDefinitionSource.InventoryConfig()).To(Equal(kartadefinitioninventory.Config{
-			Cluster: kartadefinitioninventory.ClusterConfig{Enabled: true},
+			Cluster: kartadefinitioninventory.SourceConfig{Enabled: true},
 		}))
 	})
 
@@ -243,8 +243,8 @@ var _ = Describe("Karta definition sources", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(cfg.KartaDefinitionSource.InventoryConfig()).To(Equal(kartadefinitioninventory.Config{
-			Catalog: kartadefinitioninventory.CatalogConfig{Enabled: true, Include: []string{}, Exclude: []string{"core-pod-v1"}},
-			Cluster: kartadefinitioninventory.ClusterConfig{Enabled: true, Include: []string{"platform-job"}, Exclude: []string{}},
+			Catalog: kartadefinitioninventory.SourceConfig{Enabled: true, Include: []string{}, Exclude: []string{"core-pod-v1"}},
+			Cluster: kartadefinitioninventory.SourceConfig{Enabled: true, Include: []string{"platform-job"}, Exclude: []string{}},
 		}))
 	})
 

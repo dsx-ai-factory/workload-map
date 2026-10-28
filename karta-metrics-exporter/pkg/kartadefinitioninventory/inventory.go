@@ -57,21 +57,15 @@ const (
 	SourceCluster Source = "cluster"
 )
 
-// Config selects definitions before they enter the lookup caches. A source
-// selects a definition when its name is in Include; an empty list allows all,
-// and Exclude wins.
+// Config selects definitions before they enter the lookup caches.
 type Config struct {
-	Catalog CatalogConfig
-	Cluster ClusterConfig
+	Catalog SourceConfig
+	Cluster SourceConfig
 }
 
-type CatalogConfig struct {
-	Enabled bool
-	Include []string
-	Exclude []string
-}
-
-type ClusterConfig struct {
+// SourceConfig selects a definition when its name is in Include; an empty
+// list allows all, and Exclude wins.
+type SourceConfig struct {
 	Enabled bool
 	Include []string
 	Exclude []string
@@ -142,8 +136,8 @@ func New(client dynamic.Interface, config Config) (*Inventory, error) {
 	for _, k := range catalogDefinitions {
 		known.Insert(k.Name)
 	}
-	catalogFilter, catalogErrs := compileSource(SourceCatalog, config.Catalog.Enabled, config.Catalog.Include, config.Catalog.Exclude, known)
-	clusterFilter, clusterErrs := compileSource(SourceCluster, config.Cluster.Enabled, config.Cluster.Include, config.Cluster.Exclude, nil)
+	catalogFilter, catalogErrs := compileSource(SourceCatalog, config.Catalog, known)
+	clusterFilter, clusterErrs := compileSource(SourceCluster, config.Cluster, nil)
 	if err := errors.Join(append(catalogErrs, clusterErrs...)...); err != nil {
 		return nil, err
 	}
@@ -512,7 +506,7 @@ func (f sourceFilter) matches(k *v1alpha1.Karta) bool {
 }
 
 // compileSource skips the name check when known is nil.
-func compileSource(source Source, enabled bool, include, exclude []string, known sets.Set[string]) (sourceFilter, []error) {
+func compileSource(source Source, config SourceConfig, known sets.Set[string]) (sourceFilter, []error) {
 	var errs []error
 	compileNames := func(field string, names []string) sets.Set[string] {
 		set := sets.New[string]()
@@ -534,6 +528,6 @@ func compileSource(source Source, enabled bool, include, exclude []string, known
 		return set
 	}
 
-	f := sourceFilter{enabled: enabled, include: compileNames("include", include), exclude: compileNames("exclude", exclude)}
+	f := sourceFilter{enabled: config.Enabled, include: compileNames("include", config.Include), exclude: compileNames("exclude", config.Exclude)}
 	return f, errs
 }

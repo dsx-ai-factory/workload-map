@@ -185,8 +185,8 @@ func (l *Loader) value(s setting) (string, bool) {
 
 // InventoryConfig converts the file settings; the inventory validates them.
 func (c KartaDefinitionSourceConfig) InventoryConfig() kartadefinitioninventory.Config {
-	return kartadefinitioninventory.Config{
-		Catalog: kartadefinitioninventory.CatalogConfig{Enabled: c.Catalog.Enabled, Include: c.Catalog.Include, Exclude: c.Catalog.Exclude},
-		Cluster: kartadefinitioninventory.ClusterConfig{Enabled: c.Cluster.Enabled, Include: c.Cluster.Include, Exclude: c.Cluster.Exclude},
+	convert := func(s DefinitionSourceConfig) kartadefinitioninventory.SourceConfig {
+		return kartadefinitioninventory.SourceConfig{Enabled: s.Enabled, Include: s.Include, Exclude: s.Exclude}
 	}
+	return kartadefinitioninventory.Config{Catalog: convert(c.Catalog), Cluster: convert(c.Cluster)}
 }

@@ -99,8 +99,8 @@ const (
 var (
 	kartasGVR        = v1alpha1.GroupVersion.WithResource("kartas")
 	kartasGR         = kartasGVR.GroupResource()
-	withCatalog      = Config{Catalog: CatalogConfig{Enabled: true, Exclude: []string{"core-pod-v1"}}, Cluster: ClusterConfig{Enabled: true}}
-	clusterOnly      = Config{Cluster: ClusterConfig{Enabled: true}}
+	withCatalog      = Config{Catalog: SourceConfig{Enabled: true, Exclude: []string{"core-pod-v1"}}, Cluster: SourceConfig{Enabled: true}}
+	clusterOnly      = Config{Cluster: SourceConfig{Enabled: true}}
 	catalogJobOrigin = Origin{Source: SourceCatalog, Name: "batch-job-v1"}
 )
 
@@ -180,13 +180,13 @@ var _ = Describe("Inventory", func() {
 	})
 
 	It("rejects invalid options", func() {
-		_, err := New(newFakeClient(), Config{Catalog: CatalogConfig{Include: []string{"nope"}}})
+		_, err := New(newFakeClient(), Config{Catalog: SourceConfig{Include: []string{"nope"}}})
 
 		Expect(err).To(MatchError(ErrInvalidConfig))
 	})
 
 	It("serves a catalog-only configuration before Run and after it returns", func() {
-		inventory, err := New(nil, Config{Catalog: CatalogConfig{Enabled: true}})
+		inventory, err := New(nil, Config{Catalog: SourceConfig{Enabled: true}})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(inventoryHealth(inventory)()).To(Succeed())
 		Expect(lookupOrigin(inventory, jobGVK)).To(Equal(catalogJobOrigin))
@@ -705,7 +705,7 @@ var _ = Describe("Inventory", func() {
 			var logs bytes.Buffer
 			inventory.log = slog.New(slog.NewTextHandler(&logs, nil))
 			var err error
-			inventory, err = New(newFakeClient(), Config{Cluster: ClusterConfig{Enabled: true, Include: []string{"rootless", "missing"}}})
+			inventory, err = New(newFakeClient(), Config{Cluster: SourceConfig{Enabled: true, Include: []string{"rootless", "missing"}}})
 			store = reflectorStore{inventory: inventory}
 			inventory.log = slog.New(slog.NewTextHandler(&logs, nil))
 			Expect(err).NotTo(HaveOccurred())
@@ -870,7 +870,7 @@ var _ = Describe("WaitLoaded", func() {
 	})
 
 	It("returns immediately for catalog-only inventories before Run", func() {
-		inventory, err := New(nil, Config{Catalog: CatalogConfig{Enabled: true}})
+		inventory, err := New(nil, Config{Catalog: SourceConfig{Enabled: true}})
 		Expect(err).NotTo(HaveOccurred())
 		ctx, cancel := context.WithTimeout(context.Background(), eventuallyTimeout)
 		defer cancel()
@@ -1149,27 +1149,27 @@ var _ = Describe("Config", func() {
 			}
 		},
 		Entry("an unknown catalog include name",
-			Config{Catalog: CatalogConfig{Enabled: true, Include: []string{"batch-job-v2"}}},
+			Config{Catalog: SourceConfig{Enabled: true, Include: []string{"batch-job-v2"}}},
 			`catalog.include: unknown definition "batch-job-v2"`),
 		Entry("an unknown catalog exclude name, even with the catalog disabled",
-			Config{Catalog: CatalogConfig{Exclude: []string{"core-pod"}}},
+			Config{Catalog: SourceConfig{Exclude: []string{"core-pod"}}},
 			`catalog.exclude: unknown definition "core-pod"`),
 		Entry("an empty name",
-			Config{Cluster: ClusterConfig{Enabled: true, Include: []string{""}}},
+			Config{Cluster: SourceConfig{Enabled: true, Include: []string{""}}},
 			"cluster.include: empty definition name"),
 		Entry("a duplicate name",
-			Config{Cluster: ClusterConfig{Enabled: true, Exclude: []string{"a", "a"}}},
+			Config{Cluster: SourceConfig{Enabled: true, Exclude: []string{"a", "a"}}},
 			`cluster.exclude: duplicate definition name "a"`),
 		Entry("every problem at once",
 			Config{
-				Catalog: CatalogConfig{Include: []string{"nope"}},
-				Cluster: ClusterConfig{Enabled: true, Exclude: []string{""}},
+				Catalog: SourceConfig{Include: []string{"nope"}},
+				Cluster: SourceConfig{Enabled: true, Exclude: []string{""}},
 			},
 			`catalog.include: unknown definition "nope"`, "cluster.exclude: empty definition name"),
 	)
 
 	It("lists the known catalog names when a name is unknown", func() {
-		_, err := New(newFakeClient(), Config{Catalog: CatalogConfig{Include: []string{"nope"}}})
+		_, err := New(newFakeClient(), Config{Catalog: SourceConfig{Include: []string{"nope"}}})
 
 		Expect(err).To(MatchError(ContainSubstring("known: ")))
 		Expect(err.Error()).To(ContainSubstring("batch-job-v1"))
@@ -1184,9 +1184,9 @@ var _ = Describe("Config", func() {
 		Entry("the cluster alone", clusterOnly),
 		Entry("both sources disabled", Config{}),
 		Entry("a cluster include name no definition has yet",
-			Config{Cluster: ClusterConfig{Enabled: true, Include: []string{"not-created-yet"}}}),
+			Config{Cluster: SourceConfig{Enabled: true, Include: []string{"not-created-yet"}}}),
 		Entry("the same name in include and exclude, where exclude wins",
-			Config{Cluster: ClusterConfig{Enabled: true, Include: []string{"a"}, Exclude: []string{"a"}}}),
+			Config{Cluster: SourceConfig{Enabled: true, Include: []string{"a"}, Exclude: []string{"a"}}}),
 	)
 })
 
@@ -1216,7 +1216,7 @@ func loadedInventory(config Config, definitions ...*v1alpha1.Karta) *Inventory {
 
 var _ = Describe("Inventory selection", func() {
 	DescribeTable("applies the cluster include and exclude names",
-		func(source ClusterConfig, want []string) {
+		func(source SourceConfig, want []string) {
 			definitions := []*v1alpha1.Karta{
 				newKarta("a", deploymentGVK),
 				newKarta("b", jobGVK),
@@ -1233,11 +1233,11 @@ var _ = Describe("Inventory selection", func() {
 				}
 			}
 		},
-		Entry("all names", ClusterConfig{Enabled: true}, []string{"a", "b", "c"}),
-		Entry("include", ClusterConfig{Enabled: true, Include: []string{"a"}}, []string{"a"}),
-		Entry("exclude wins over include", ClusterConfig{Enabled: true, Include: []string{"a", "b"}, Exclude: []string{"b"}}, []string{"a"}),
-		Entry("exclude alone", ClusterConfig{Enabled: true, Exclude: []string{"b"}}, []string{"a", "c"}),
-		Entry("disabled", ClusterConfig{Include: []string{"a"}}, []string{}),
+		Entry("all names", SourceConfig{Enabled: true}, []string{"a", "b", "c"}),
+		Entry("include", SourceConfig{Enabled: true, Include: []string{"a"}}, []string{"a"}),
+		Entry("exclude wins over include", SourceConfig{Enabled: true, Include: []string{"a", "b"}, Exclude: []string{"b"}}, []string{"a"}),
+		Entry("exclude alone", SourceConfig{Enabled: true, Exclude: []string{"b"}}, []string{"a", "c"}),
+		Entry("disabled", SourceConfig{Include: []string{"a"}}, []string{}),
 	)
 
 	DescribeTable("elects the same cluster winner for every arrival order",
@@ -1255,7 +1255,7 @@ var _ = Describe("Inventory selection", func() {
 	)
 
 	It("selects the catalog's highest version priority independent of requested version", func() {
-		inventory := loadedInventory(Config{Catalog: CatalogConfig{Enabled: true}})
+		inventory := loadedInventory(Config{Catalog: SourceConfig{Enabled: true}})
 		for _, version := range []string{"v1alpha1", "v1beta1", "v9"} {
 			sel, err := inventory.Lookup(dynamoAlphaGVK.GroupKind().WithVersion(version))
 			Expect(err).NotTo(HaveOccurred())
@@ -1265,7 +1265,7 @@ var _ = Describe("Inventory selection", func() {
 	})
 
 	It("filters the catalog and lets an excluded cluster definition reveal it", func() {
-		inventory := loadedInventory(Config{Catalog: CatalogConfig{Enabled: true, Exclude: []string{"core-pod-v1"}}, Cluster: ClusterConfig{Enabled: true, Exclude: []string{"cluster-job"}}}, newKarta("cluster-job", jobGVK))
+		inventory := loadedInventory(Config{Catalog: SourceConfig{Enabled: true, Exclude: []string{"core-pod-v1"}}, Cluster: SourceConfig{Enabled: true, Exclude: []string{"cluster-job"}}}, newKarta("cluster-job", jobGVK))
 		Expect(lookupOrigin(inventory, jobGVK)).To(Equal(catalogJobOrigin))
 		sel, err := inventory.Lookup(podGVK)
 		Expect(err).NotTo(HaveOccurred())

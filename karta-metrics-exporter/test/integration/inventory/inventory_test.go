@@ -33,8 +33,8 @@ var (
 	crdsGVR     = apiextensionsv1.SchemeGroupVersion.WithResource("customresourcedefinitions")
 	jobGVK      = schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"}
 	withCatalog = inventory.Config{
-		Catalog: inventory.CatalogConfig{Enabled: true, Exclude: []string{"core-pod-v1"}},
-		Cluster: inventory.ClusterConfig{Enabled: true},
+		Catalog: inventory.SourceConfig{Enabled: true, Exclude: []string{"core-pod-v1"}},
+		Cluster: inventory.SourceConfig{Enabled: true},
 	}
 	errRefused = fmt.Errorf("dial tcp: %w", syscall.ECONNREFUSED)
 )

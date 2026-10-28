@@ -25,8 +25,15 @@ exporter:
     costLimit: 10000
     maxExpressionBytes: 4096
     maxResultBytes: 1024
-  # Rendered verbatim into the exporter's config file (ConfigMap). Selects a
-  # definition when its name is in include. Empty selects all; exclude wins.
+  # Copied as is into the exporter's config file (ConfigMap). Each source
+  # picks definitions by name: include lists the names to use (empty means
+  # all) and exclude removes names; exclude wins. For each workload kind, a
+  # selected cluster Karta replaces the catalog definition. A kind with no
+  # selected cluster Karta (none exists, or it is excluded or not included)
+  # uses the selected catalog definition, if any. Example, with the catalog
+  # enabled: excluding the cluster Karta team-job (batch/Job) makes Jobs use
+  # the catalog's batch-job-v1; also excluding batch-job-v1 leaves Jobs with
+  # no definition. With the catalog off (the default), Jobs get no definition.
   kartaDefinitionSource:
     # Definitions built into the exporter, named as in docs/catalog, for
     # example batch-job-v1. Unknown names fail startup.
@@ -34,10 +41,8 @@ exporter:
       enabled: false
       include: []
       exclude: []
-    # Karta objects in the cluster, named by metadata.name. A cluster one
-    # replaces the built-in catalog definition for the same group and kind;
-    # an excluded one does not, so exclude a kind in both sources to drop it.
-    # Grants read access to Kartas.
+    # Karta objects in the cluster, named by metadata.name. Grants read
+    # access to Kartas.
     cluster:
       enabled: true
       include: []

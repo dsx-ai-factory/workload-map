@@ -2,6 +2,10 @@
 # Copyright (c) 2026 NVIDIA Corporation
 
 {{- if .Values.exporter.enabled }}
+{{- /* A null would drop the Karta RBAC while the exporter defaults the cluster source on. */}}
+{{- if not (kindIs "bool" .Values.exporter.kartaDefinitionSource.cluster.enabled) }}
+{{- fail "exporter.kartaDefinitionSource.cluster.enabled must be true or false" }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

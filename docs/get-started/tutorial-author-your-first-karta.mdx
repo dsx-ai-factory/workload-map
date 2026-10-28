@@ -1,0 +1,221 @@
+---
+title: Tutorial - Author Your First Karta
+sidebar-title: Tutorial - Author Your First Karta
+description: Learn how to write a Workload Map definition from scratch for a Kubernetes Job, and see the cluster use it.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+In this tutorial, you write a `Karta` definition from scratch for a Kubernetes `batch/v1` Job. By the end, you have a complete, valid definition, and you understand the building blocks well enough to describe any other workload type.
+
+A Job is the simplest useful example. It has one component, one pod template, and a status that it reports through conditions. The [catalog](../reference/catalog-of-definitions.mdx) has definitions for more complex workloads, such as JobSet, PyTorchJob, RayCluster, and KServe. When you write your own definition, start from the catalog definition that is closest to your workload.
+
+## Prerequisites
+
+- `kli` installed. For more information, refer to [Installation](installation.mdx#install-the-kli-cli).
+- A Kubernetes cluster with the operator installed, to see the definition work in Step 4. For more information, refer to [Installation](installation.mdx#install-the-operator). Steps 1 to 3 and the validation in Step 4 need no cluster.
+
+## Related Concepts
+
+Before you start, make sure that you are familiar with the following:
+
+- Kubernetes custom resources and YAML.
+- [jq](https://jqlang.org/) path syntax. Every path in a definition is a jq expression.
+- The workload that you describe. You need to know its group, version, and kind, the conditions or phases that it reports in `.status`, and where it stores its pod template.
+- The components of a definition. For more information, refer to [Core Concepts](../about/core-concepts.mdx).
+
+A definition describes a workload as a tree of components:
+
+- The root component is the top-level resource itself. Every definition has exactly one. It must declare a full group, version, and kind, and a `statusDefinition`.
+- Child components are resources that the root component owns. Each child must declare an `ownerRef` that points to its parent. A Job has no children, so this tutorial uses only the root component.
+
+Every path that you write is a jq expression that is evaluated against a resource. Paths in `specDefinition`, `scaleDefinition`, and `statusDefinition` are evaluated against the workload object. Paths in `podSelector` and in `optimizationInstructions` are evaluated against pod manifests. Mixing these up is the most common authoring mistake.
+
+## Tutorial Steps
+
+### Step 1: Start From the Boilerplate
+
+Create a file named `job.yaml`. Every definition starts with the same header and a `structureDefinition` that holds a `rootComponent`.
+
+```yaml
+apiVersion: run.ai/v1alpha1
+kind: Karta
+metadata:
+  name: batch-v1-job
+spec:
+  structureDefinition:
+    rootComponent:
+      name: job
+      kind:
+        group: batch
+        version: v1
+        kind: Job
+```
+
+The `name` field is a free-form identifier for the component. It must be unique within the definition. The `kind` field is the full group, version, and kind of the workload. Always provide all three. The only exception is the core `Pod` kind, which has an empty group.
+
+### Step 2: Map the Status
+
+The `statusDefinition` field translates the conditions or phases of the workload into the common statuses of Workload Map, such as `running`, `completed`, and `failed`. It is required on the root component.
+
+- A `byConditions` rule lists one or more conditions that must all hold. This is AND logic.
+- A `byExpression` rule evaluates a jq expression and compares the result to an expected result. This is useful when a workload reports state through status fields instead of conditions.
+
+A Job uses both. Rules under the same status are ORed, so the status matches when any one of its rules matches. A workload can match several statuses at once, and each match is returned in `MatchedStatuses`. When no rule matches, the status resolves to `Undefined`.
+
+Add the following under the `rootComponent`, at the same level as `kind`:
+
+```yaml
+      statusDefinition:
+        conditionsDefinition:
+          path: .status.conditions
+          typeFieldName: type
+          statusFieldName: status
+          reasonFieldName: reason
+          messageFieldName: message
+        statusMappings:
+          initializing:
+            - byExpression:
+                expression: (.status.active // 0) > 0 and (.status.ready // 0) == 0
+                expectedResult: "true"
+          running:
+            - byExpression:
+                expression: (.status.active // 0) > 0 and (.status.ready // 0) > 0
+                expectedResult: "true"
+          completed:
+            - byConditions:
+                - type: Complete
+                  status: "True"
+          failed:
+            - byConditions:
+                - type: Failed
+                  status: "True"
+```
+
+Note the `// 0` defaults. A path that may be absent must supply a default, so that the expression stays null-safe. The field `.status.active` does not exist before the Job starts, so `(.status.active // 0)` reads as `0` instead of returning an error.
+
+Map only the statuses that the workload reports, and base each rule on the real condition types and fields in the API of that workload. If you invent condition types that the controller never sets, the definition validates but never reports the right status.
+
+### Step 3: Point to the Pods and Declare the Scale
+
+The `specDefinition` field tells Workload Map where the workload stores its pod template. There are three patterns, and they are mutually exclusive. Pick exactly one for each component:
+
+- `podTemplateSpecPath` when the resource embeds a full pod template.
+- `podSpecPath`, with an optional `metadataPath`, when the resource embeds a bare pod spec.
+- `fragmentedPodSpecDefinition` when the pod fields are scattered across the spec.
+
+A Job embeds a full pod template at `.spec.template`, so use the first pattern. The `scaleDefinition` field tells Workload Map how to read the replica count. The parallelism of a Job is its replica count.
+
+Add the following under the `rootComponent`, below `statusDefinition`:
+
+```yaml
+      specDefinition:
+        podTemplateSpecPath: .spec.template
+      scaleDefinition:
+        replicasPath: .spec.parallelism // 1
+```
+
+The `// 1` default keeps the path null-safe. The `parallelism` field is optional and defaults to 1 when it is not set.
+
+### Step 4: Validate the Definition and See It Work
+
+1. Validate the file:
+
+   ```bash
+   kli validate job.yaml
+   ```
+
+   The command needs no cluster. It checks the shape of the definition, the required fields, and the jq expressions. It does not check that the definition maps the workload correctly. A valid definition prints the following:
+
+   ```text
+   OK: job.yaml is a valid Karta definition (GVK: batch/v1/Job)
+   ```
+
+   If a check fails, the error message names the component and the problem. For each message and its fix, refer to the [Troubleshooting](../troubleshooting/troubleshoot-definitions.mdx) page. Before you use a definition, confirm the following:
+
+   - All kinds use a full group, version, and kind.
+   - The root component has a `statusDefinition`.
+   - All jq paths are absolute and null-safe, and reference the correct resource, either the workload object or the pod.
+   - There are no duplicated child kinds.
+   - Pod selectors are mutually exclusive.
+   - Status conditions match the real API of the workload.
+   - Every child component has an `ownerRef` to an existing component, with no ownership cycles.
+
+2. In a cluster with the operator installed, run a Job:
+
+   ```bash
+   kubectl create job pi --image=busybox:1.36 -- sh -c "sleep 300"
+   ```
+
+3. Describe the Job with the definition that is built into `kli`:
+
+   ```bash
+   kli describe job/pi
+   ```
+
+   The first line of the output shows the definition that `kli` used. It is the catalog definition, `batch-job-v1`:
+
+   ```text
+   Job/pi   namespace: default   definition: batch-job-v1 (catalog)   age: 15s
+   ```
+
+4. Apply your definition to the cluster:
+
+   ```bash
+   kubectl apply -f job.yaml
+   ```
+
+5. Check that the operator accepted the definition:
+
+   ```bash
+   kubectl get karta batch-v1-job -o jsonpath='{range .status.conditions[*]}{.type}={.status} {end}'
+   ```
+
+   The output is `Validated=True CRDExists=True Ready=True`.
+
+6. Describe the Job again:
+
+   ```bash
+   kli describe job/pi
+   ```
+
+   The first line now shows your definition. A definition in the cluster overrides the catalog definition for the same workload type:
+
+   ```text
+   Job/pi   namespace: default   definition: batch-v1-job (cluster)   age: 23s
+   ```
+
+### Optional Step: Add Scheduling Instructions
+
+<Warning title="Experimental">
+This part of the API is experimental and may change.
+</Warning>
+
+The `optimizationInstructions` field is optional, and schedulers use it. For gang scheduling, you declare a pod group and map the components of the workload onto it. The current format is `podGroup`. The group gets a name, each listed component becomes a subgroup, and you can set topology constraints per subgroup or for the whole group.
+
+Add the following under `spec`, at the same level as `structureDefinition`:
+
+```yaml
+  optimizationInstructions:
+    gangScheduling:
+      podGroup:
+        name: job
+        subGroups:
+          - componentName: job
+```
+
+Every `componentName` must match a component that you defined. The older `podGroups` list format still appears in some samples. It is deprecated in favor of `podGroup`.
+
+## What You Learned
+
+- A definition describes a workload as a tree of components, and every path in it is a jq expression.
+- How to map the status, point to the pods, and declare the scale for a workload.
+- How to validate a definition with `kli validate`, and how to see the cluster use it with `kli describe`.
+
+## Next Steps
+
+- Add child components for workloads that own other resources. Each child needs an `ownerRef`. For examples, refer to the [KServe InferenceService](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml) and [PyTorchJob](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kubeflow-org-pytorchjob-v1.yaml) definitions.
+- Handle workloads with repeated roles or instances, such as the replicated jobs of a JobSet, with `instanceIdPath` and a matching component instance selector. For an example, refer to the [JobSet](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml) definition.
+- Read a definition from a controller with the Go component API. Follow the [Go Library quickstart](quickstart-go-library.mdx) or the [controller-runtime example](../guides/controller/tutorial-build-a-controller-on-kind.mdx).
+- Read the full field reference in the [Technical Guide](../reference/workload-definition-spec.mdx).

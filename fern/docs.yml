@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# yaml-language-server: $schema=https://schema.buildwithfern.dev/docs-yml.json
+
+# TODO: the instance URL and custom domain are placeholders. Replace them with
+# the values registered for this site before publishing.
+instances:
+  - url: nvidia-workload-map.docs.buildwithfern.com/workload-map
+    custom-domain: docs.nvidia.com/workload-map
+
+title: NVIDIA Workload Map Documentation
+
+global-theme: nvidia
+
+logo:
+  right-text: Workload Map
+
+check:
+  rules:
+    broken-links: error
+
+navbar-links:
+  - type: github
+    value: https://github.com/dsx-ai-factory/workload-map
+
+navigation:
+  - page: Home
+    path: ../docs/index.mdx
+    slug: /
+  - changelog: ./changelog
+    title: Release Notes
+    slug: release-notes
+  - section: Overview
+    slug: overview
+    contents:
+      - page: What is Workload Map?
+        path: ../docs/about/what-is-workload-map.mdx
+        slug: what-is-workload-map
+      - page: Core Concepts
+        path: ../docs/about/core-concepts.mdx
+        slug: core-concepts
+      - page: Key Features
+        path: ../docs/about/key-features.mdx
+        slug: key-features
+      - page: Architecture Overview
+        path: ../docs/about/architecture-overview.mdx
+        slug: architecture-overview
+  - section: Get Started
+    contents:
+      - page: Prerequisites
+        path: ../docs/get-started/prerequisites.mdx
+        slug: prerequisites
+      - page: Installation
+        path: ../docs/get-started/installation.mdx
+        slug: installation
+      - page: Quickstart - CLI
+        path: ../docs/get-started/quickstart-cli.mdx
+        slug: quickstart-cli
+      - page: Quickstart - Go Library
+        path: ../docs/get-started/quickstart-go-library.mdx
+        slug: quickstart-go-library
+      - page: Tutorial - Author Your First Karta
+        path: ../docs/get-started/tutorial-author-your-first-karta.mdx
+        slug: tutorial-author-your-first-karta
+  - section: Guides
+    contents:
+      - page: Define a Workload Type
+        path: ../docs/guides/define-a-workload-type.mdx
+        slug: define-a-workload-type
+      - page: Use the CLI
+        path: ../docs/guides/use-the-cli.mdx
+        slug: use-the-cli
+      - section: Manage Workloads from a Controller
+        slug: manage-workloads-from-a-controller
+        contents:
+          - page: About Building a Controller
+            path: ../docs/guides/controller/about-building-a-controller.mdx
+            slug: about-building-a-controller
+          - page: Use the Go Library
+            path: ../docs/guides/controller/use-the-go-library.mdx
+            slug: use-the-go-library
+          - page: Tutorial - Build a Controller on Kind
+            path: ../docs/guides/controller/tutorial-build-a-controller-on-kind.mdx
+            slug: tutorial-build-a-controller-on-kind
+          - page: Add Another Workload Type
+            path: ../docs/guides/controller/add-another-workload-type.mdx
+            slug: add-another-workload-type
+      - section: Schedule Workloads
+        slug: schedule-workloads
+        contents:
+          - page: Gang Scheduling with KAI Scheduler
+            path: ../docs/guides/schedule/gang-scheduling-with-kai-scheduler.mdx
+            slug: gang-scheduling-with-kai-scheduler
+      - section: Visualize Workloads
+        slug: visualize-workloads
+        contents:
+          - page: Headlamp Plugin
+            path: ../docs/guides/visualize/headlamp-plugin.mdx
+            slug: headlamp-plugin
+      - section: Run the Operator
+        slug: run-the-operator
+        contents:
+          - page: Configure Webhook Certificates
+            path: ../docs/guides/operator/configure-webhook-certificates.mdx
+            slug: configure-webhook-certificates
+          - page: Run in FIPS Mode
+            path: ../docs/guides/operator/run-in-fips-mode.mdx
+            slug: run-in-fips-mode
+          - page: Upgrade the Operator
+            path: ../docs/guides/operator/upgrade-the-operator.mdx
+            slug: upgrade-the-operator
+          - page: Monitor the Operator
+            path: ../docs/guides/operator/monitor-the-operator.mdx
+            slug: monitor-the-operator
+  - section: Reference
+    contents:
+      - page: Reference Overview
+        path: ../docs/reference/reference-overview.mdx
+        slug: reference-overview
+      - page: Workload Definition Spec
+        path: ../docs/reference/workload-definition-spec.mdx
+        slug: workload-definition-spec
+      - page: Catalog of Definitions
+        path: ../docs/reference/catalog-of-definitions.mdx
+        slug: catalog-of-definitions
+      - page: CLI Command Reference
+        path: ../docs/reference/cli-command-reference.mdx
+        slug: cli-command-reference
+      - page: Helm Chart Values
+        path: ../docs/reference/helm-chart-values.mdx
+        slug: helm-chart-values
+      - page: Operator Flags and Environment Variables
+        path: ../docs/reference/operator-flags-and-environment-variables.mdx
+        slug: operator-flags-and-environment-variables
+      - page: Support Matrix
+        path: ../docs/reference/support-matrix.mdx
+        slug: support-matrix
+      - link: Go Library API
+        href: https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk
+  - section: Troubleshooting
+    contents:
+      - page: Troubleshoot Definitions
+        path: ../docs/troubleshooting/troubleshoot-definitions.mdx
+        slug: troubleshoot-definitions
+      - page: Troubleshoot the Operator
+        path: ../docs/troubleshooting/troubleshoot-the-operator.mdx
+        slug: troubleshoot-the-operator
+      - page: Troubleshoot kli
+        path: ../docs/troubleshooting/troubleshoot-kli.mdx
+        slug: troubleshoot-kli

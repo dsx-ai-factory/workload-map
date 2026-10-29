@@ -16,6 +16,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/kartadefinitioninventory"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelresolver"
 )
@@ -30,7 +31,21 @@ type Loader struct {
 // Config is the exporter configuration. It is read from the YAML file named by
 // --config. A flag, or its environment variable, overrides the file when set.
 type Config struct {
-	labelresolver.Config `yaml:",inline"`
+	labelresolver.Config  `yaml:",inline"`
+	KartaDefinitionSource KartaDefinitionSourceConfig `yaml:"kartaDefinitionSource" json:"kartaDefinitionSource"`
+}
+
+// KartaDefinitionSourceConfig is read from the file only: its lists do not
+// fit a flag or an environment variable.
+type KartaDefinitionSourceConfig struct {
+	Catalog DefinitionSourceConfig `yaml:"catalog" json:"catalog"`
+	Cluster DefinitionSourceConfig `yaml:"cluster" json:"cluster"`
+}
+
+type DefinitionSourceConfig struct {
+	Enabled bool     `yaml:"enabled" json:"enabled"`
+	Include []string `yaml:"include,omitempty" json:"include,omitempty"`
+	Exclude []string `yaml:"exclude,omitempty" json:"exclude,omitempty"`
 }
 
 // setting is one configuration value with its flag and environment variable.
@@ -104,7 +119,11 @@ func NewLoader(fs *flag.FlagSet, lookupEnv func(string) (string, bool)) *Loader 
 // and then the flags, so a flag wins. Explicit flags win even when empty. Unknown keys
 // in the file are an error. Call it after fs is parsed.
 func (l *Loader) Load() (Config, error) {
-	cfg := Config{Config: labelresolver.Config{Limits: defaultLabelEvaluationLimits}}
+	cfg := Config{
+		Config: labelresolver.Config{Limits: defaultLabelEvaluationLimits},
+		// Cluster Karta definitions are read by default; the catalog is opt-in.
+		KartaDefinitionSource: KartaDefinitionSourceConfig{Cluster: DefinitionSourceConfig{Enabled: true}},
+	}
 
 	if path, _ := l.value(configSetting); path != "" {
 		data, err := os.ReadFile(path)
@@ -162,4 +181,12 @@ func (l *Loader) value(s setting) (string, bool) {
 		return *l.flags[s.flag], true
 	}
 	return l.lookupEnv(s.env)
+}
+
+// InventoryConfig converts the file settings; the inventory validates them.
+func (c KartaDefinitionSourceConfig) InventoryConfig() kartadefinitioninventory.Config {
+	convert := func(s DefinitionSourceConfig) kartadefinitioninventory.SourceConfig {
+		return kartadefinitioninventory.SourceConfig{Enabled: s.Enabled, Include: s.Include, Exclude: s.Exclude}
+	}
+	return kartadefinitioninventory.Config{Catalog: convert(c.Catalog), Cluster: convert(c.Cluster)}
 }

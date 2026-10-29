@@ -13,6 +13,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
+
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/kartadefinitioninventory"
 )
 
 var _ = Describe("config defaults and rules", func() {
@@ -30,7 +32,8 @@ var _ = Describe("config defaults and rules", func() {
 			Expect(err).To(Succeed())
 			var keys map[string]any
 			Expect(format.decode(data, &keys)).To(Succeed())
-			Expect(keys).To(HaveLen(2))
+			Expect(keys).To(HaveLen(3))
+			Expect(keys).To(HaveKey("kartaDefinitionSource"))
 			Expect(keys).To(HaveKey("labelRules"))
 			Expect(keys).To(HaveKey("genericLabelEvaluationLimits"))
 			Expect(keys["genericLabelEvaluationLimits"]).To(HaveLen(3))
@@ -204,6 +207,55 @@ var _ = Describe("config rejects invalid input", func() {
 		Expect(err).To(Succeed())
 		Expect(cfg.Limits).To(Equal(defaultLabelEvaluationLimits))
 	})
+})
+
+var _ = Describe("Karta definition sources", func() {
+	It("reads the cluster and leaves the catalog off by default", func() {
+		cfg, err := loadConfig("", nil)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(cfg.KartaDefinitionSource.InventoryConfig()).To(Equal(kartadefinitioninventory.Config{
+			Cluster: kartadefinitioninventory.SourceConfig{Enabled: true},
+		}))
+	})
+
+	It("selects every catalog definition when the file only enables the catalog", func() {
+		cfg, err := loadConfig("kartaDefinitionSource:\n  catalog:\n    enabled: true\n", nil)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(cfg.KartaDefinitionSource.Catalog).To(Equal(DefinitionSourceConfig{Enabled: true}))
+		Expect(cfg.KartaDefinitionSource.Cluster.Enabled).To(BeTrue())
+	})
+
+	It("reads the file as Helm renders it", func() {
+		cfg, err := loadConfig(`kartaDefinitionSource:
+  catalog:
+    enabled: true
+    include: []
+    exclude:
+    - core-pod-v1
+  cluster:
+    enabled: true
+    include:
+    - platform-job
+    exclude: []
+`, nil)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(cfg.KartaDefinitionSource.InventoryConfig()).To(Equal(kartadefinitioninventory.Config{
+			Catalog: kartadefinitioninventory.SourceConfig{Enabled: true, Include: []string{}, Exclude: []string{"core-pod-v1"}},
+			Cluster: kartadefinitioninventory.SourceConfig{Enabled: true, Include: []string{"platform-job"}, Exclude: []string{}},
+		}))
+	})
+
+	DescribeTable("rejects an unknown key",
+		func(content string) {
+			_, err := loadConfig(content, nil)
+			Expect(err).To(MatchError(ContainSubstring("not found")))
+		},
+		Entry("a mistyped one in a source", "kartaDefinitionSource:\n  cluster:\n    exlude: [a]\n"),
+		Entry("labelSelector, which the sources no longer take", "kartaDefinitionSource:\n  cluster:\n    labelSelector: {}\n"),
+	)
 })
 
 func loadConfig(content string, env map[string]string, args ...string) (Config, error) {

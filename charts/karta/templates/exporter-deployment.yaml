@@ -9,10 +9,7 @@ metadata:
   name: {{ include "karta.exporter.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
-    {{- include "karta.exporter.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{- include "karta.exporter.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
@@ -26,7 +23,8 @@ spec:
         # Roll the Pod when the config changes; the file is read once at startup.
         checksum/config: {{ include (print $.Template.BasePath "/exporter-configmap.yaml") . | sha256sum }}
     spec:
-      automountServiceAccountToken: false
+      serviceAccountName: {{ include "karta.exporter.fullname" . }}
+      automountServiceAccountToken: true
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

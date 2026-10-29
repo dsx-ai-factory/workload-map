@@ -451,6 +451,11 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v2.3.0
 - License: MIT
 
+### github.com/pmezard/go-difflib
+- Name: github.com/pmezard/go-difflib
+- Version: v1.0.1-0.20181226105442-5d4384ee4fb2
+- License: BSD-3-Clause
+
 ### github.com/stretchr/objx
 - Name: github.com/stretchr/objx
 - Version: v0.5.3
@@ -463,7 +468,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### golang.org/x/exp
 - Name: golang.org/x/exp
-- Version: v0.0.0-20240823005443-9b4947da3948
+- Version: v0.0.0-20260410095643-746e56fc9e2f
 - License: BSD-3-Clause
 
 ### google.golang.org/genproto/googleapis/api

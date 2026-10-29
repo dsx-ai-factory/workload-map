@@ -42,12 +42,11 @@ exporter:
     catalog:
       enabled: true # Built-in definitions; default false.
       include: []
-      exclude: [core-pod-v1] # Clear to opt into bare-Pod catalog attribution.
+      exclude: [] # Default empty; add core-pod-v1 to skip bare Pods.
     cluster:
       enabled: true # Cluster-installed Karta definitions; default true.
       include: []
       exclude: []
-      labelSelector: {} # Select cluster Karta definitions by their labels.
   # Watch Pods and workload objects only in matching namespaces.
   namespaceSelector: # Default null or {}: all namespaces.
     matchExpressions:
@@ -110,7 +109,6 @@ catalog. `http.port` serves `/healthz` and `/readyz` in both delivery modes, plu
 | `objectSelector` | Resolved workload roots by their labels. |
 | `podSelector` | Pods whose attribution rows are exported, using each Pod's labels. |
 | `resourceRules` / `excludeResourceRules` | Root API types, using group, version and plural resource name. Exclusions win. |
-| `kartaDefinitionSource.cluster.labelSelector` | Cluster Karta definitions by their labels. |
 | Definition-source `include` / `exclude` | Definition names. Empty includes mean all; exclusions win. |
 
 Use [Kubernetes label selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors)
@@ -175,12 +173,11 @@ duplicate observations.
 
 Source filters apply before precedence. A selected cluster Karta overrides a
 selected catalog definition for the same group/kind. Disabled sources contribute
-none. Cluster definition names and their label selector must both match. Ties use
-oldest creation time, then name.
+none. Ties use oldest creation time, then name.
 
-The catalog excludes `core-pod-v1` by default. Clearing that exclusion, or selecting
-a cluster Pod Karta, enables bare-Pod workloads. `objectSelector` also applies to
-those roots.
+An enabled catalog includes `core-pod-v1`, so a bare Pod is a workload of its own,
+as it is with a selected cluster Pod Karta. Exclude `core-pod-v1` to skip bare Pods.
+`objectSelector` also applies to those roots.
 
 `ignoredOwnerKinds` stops the owner walk before an exact GVK. The last verified
 object below it becomes the root; missing owners below that boundary still fail.

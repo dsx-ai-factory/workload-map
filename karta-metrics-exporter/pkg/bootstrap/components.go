@@ -6,7 +6,6 @@ package bootstrap
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/stretchr/testify/mock"
 	"go.opentelemetry.io/otel/metric"
@@ -37,15 +36,10 @@ var (
 )
 
 // New is the temporary composition root. Replace the mock factories here as components land.
-// It fails when a label rule is invalid.
-func New(labelConfig labelresolver.Config) (app.Components, error) {
-	definitions := newInventory(inventory.Config{})
+// The caller builds the label resolver and runs the definition inventory.
+func New(labels labelresolver.Resolver, definitions inventory.Reader) app.Components {
 	reader := newObjectReader()
 	ownership := newDiscovery(discovery.Dependencies{Reader: reader, Inventory: definitions})
-	labels, err := labelresolver.New(labelConfig, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
-	if err != nil {
-		return app.Components{}, fmt.Errorf("label resolver: %w", err)
-	}
 	publications := newStore(store.Options{})
 	runtime := newRuntime(controller.Dependencies{
 		Discovery:    ownership,
@@ -53,13 +47,7 @@ func New(labelConfig labelresolver.Config) (app.Components, error) {
 		Labels:       labels,
 		Publications: publications,
 	})
-	return app.Components{Runtime: runtime, Store: publications, Collector: newCollector()}, nil
-}
-
-func newInventory(_ inventory.Config) inventory.Reader {
-	m := &inventory.MockInventory{}
-	m.EXPECT().Lookup(mock.Anything).Return(inventory.Selection{}, ErrNotImplemented)
-	return m
+	return app.Components{Runtime: runtime, Store: publications, Collector: newCollector()}
 }
 
 func newObjectReader() discovery.ObjectReader {

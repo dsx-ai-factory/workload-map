@@ -2,17 +2,18 @@
 # Copyright (c) 2026 NVIDIA Corporation
 
 {{- if .Values.exporter.enabled }}
+{{- /* A null would drop the Karta RBAC while the exporter defaults the cluster source on. */}}
+{{- if not (kindIs "bool" .Values.exporter.kartaDefinitionSource.cluster.enabled) }}
+{{- fail "exporter.kartaDefinitionSource.cluster.enabled must be true or false" }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "karta.exporter.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
-    {{- include "karta.exporter.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{- include "karta.exporter.labels" . | nindent 4 }}
 data:
   config.yaml: |
-    {{- dict "labelRules" .Values.exporter.labelRules "genericLabelEvaluationLimits" .Values.exporter.genericLabelEvaluationLimits | toYaml | nindent 4 }}
+    {{- dict "labelRules" .Values.exporter.labelRules "genericLabelEvaluationLimits" .Values.exporter.genericLabelEvaluationLimits "kartaDefinitionSource" .Values.exporter.kartaDefinitionSource | toYaml | nindent 4 }}
 {{- end }}

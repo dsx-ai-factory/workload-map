@@ -15,10 +15,15 @@ import (
 	"syscall"
 
 	"go.opentelemetry.io/otel/metric/noop"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/app"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/bootstrap"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/config"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/kartadefinitioninventory"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelevaluator"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelresolver"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/version"
 )
 
@@ -52,19 +57,51 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
-	components, err := bootstrap.New(cfg.Config)
+	labels, err := labelresolver.New(cfg.Config, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	slog.Info("Karta metrics exporter started; metrics collection is not implemented",
-		"version", version.String(), "labelRules", len(cfg.Rules))
-	if err := app.Run(ctx, components, noop.NewMeterProvider().Meter("karta-metrics-exporter")); err != nil {
-		return err
+	// Falls back to the in-cluster service account when no kubeconfig is found.
+	restConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{}).ClientConfig()
+	if err != nil {
+		return fmt.Errorf("kubernetes client configuration: %w", err)
+	}
+	client, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("kubernetes client: %w", err)
+	}
+	definitions := cfg.KartaDefinitionSource.InventoryConfig()
+	inventory, err := kartadefinitioninventory.New(client, definitions)
+	if err != nil {
+		return fmt.Errorf("invalid Karta definition sources: %w", err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	// Once shutdown begins, a second signal ends the process.
+	context.AfterFunc(ctx, stop)
+	inventoryDone := make(chan error, 1)
+	go func() { inventoryDone <- inventory.Run(ctx) }()
+	if err := inventory.WaitLoaded(ctx); err != nil && ctx.Err() == nil {
+		stop()
+		return fmt.Errorf("initial Karta definition load: %w", errors.Join(err, <-inventoryDone))
+	}
+	components := bootstrap.New(labels, inventory)
+	if ctx.Err() == nil {
+		slog.Info("Karta metrics exporter started; metrics collection is not implemented",
+			"version", version.String(), "labelRules", len(cfg.Rules),
+			"catalogDefinitions", definitions.Catalog.Enabled, "clusterDefinitions", definitions.Cluster.Enabled)
+	}
+	err = app.Run(ctx, components, noop.NewMeterProvider().Meter("karta-metrics-exporter"))
+	stop()
+	if inventoryErr := <-inventoryDone; inventoryErr != nil {
+		err = errors.Join(err, fmt.Errorf("karta definition inventory: %w", inventoryErr))
+	}
+	if err != nil {
+		return err
+	}
 	slog.Info("Karta metrics exporter stopped")
 	return nil
 }

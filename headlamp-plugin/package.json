@@ -41,7 +41,7 @@
     "vitest": "^4.1.12",
     "@vitest/mocker": "^4.1.11",
     "@vitest/coverage-istanbul": "^4.1.12",
-    "yargs": "^18.0.0"
+    "yargs": "^17.7.3"
   },
   "devDependencies": {
     "@kinvolk/headlamp-plugin": "^0.14.0"

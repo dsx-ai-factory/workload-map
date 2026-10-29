@@ -55,7 +55,7 @@ var _ = Describe("ValidateConfig", func() {
 			Expect(ValidateConfig(Config{Rules: []LabelRule{rule}})).To(Succeed(), name)
 		}
 	})
-	It("rejects duplicate labels on the same metric", func() {
-		Expect(ValidateConfig(Config{Rules: []LabelRule{base, base}})).To(HaveOccurred())
+	It("accepts several rules for the same label on the same metric", func() {
+		Expect(ValidateConfig(Config{Rules: []LabelRule{base, base}})).To(Succeed())
 	})
 })

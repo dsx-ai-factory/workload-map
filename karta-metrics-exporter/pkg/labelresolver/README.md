@@ -39,6 +39,9 @@ workload has no owner label, it gets `owner` from the Pod.
   it. A name that starts with `__` is not permitted.
 - A rule reads its sources in the configured order. The first nonempty value
   becomes the label value.
+- Several rules can set the same label on the same metric. Each rule can return
+  an empty value when it does not apply. If more than one rule gives a value,
+  the last rule in `labelRules` wins. The errors of every rule are reported.
 - If every source returns an empty value or fails, the rule gives no value. The
   metric does not get the label, or keeps its built-in value.
 - If a source fails, the next source is read. The failure is reported, also

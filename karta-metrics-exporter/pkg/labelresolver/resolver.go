@@ -183,7 +183,7 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 				result.Labels[r.rules[i].name] = outcome.value
 			}
 			if outcome.err != nil {
-				result.Errors[r.rules[i].name] = outcome.err
+				result.Errors[r.rules[i].name] = errors.Join(result.Errors[r.rules[i].name], outcome.err)
 			}
 		}
 		results = append(results, result)

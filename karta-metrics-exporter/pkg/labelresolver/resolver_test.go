@@ -235,6 +235,42 @@ var _ = Describe("Resolve", func() {
 		Expect(second[0].Errors).To(BeEmpty())
 	})
 
+	It("uses the last nonempty value when several rules set the same label", func(ctx SpecContext) {
+		job := LabelRule{
+			Name: "team", Metrics: []string{MetricWorkloadStatus}, Sources: []Source{SourceWorkload},
+			Expression: `object.kind == "Job" ? "jobs" : ""`,
+		}
+		jobSet := job
+		jobSet.Expression = `object.kind == "JobSet" ? "jobsets" : ""`
+		catchAll := job
+		catchAll.Expression = `"any"`
+		in := Input{Metrics: []string{MetricWorkloadStatus}, Workload: workload(nil)}
+
+		results, err := newResolver(jobSet, job).Resolve(ctx, in)
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "jobsets"}))
+
+		results, err = newResolver(jobSet, catchAll).Resolve(ctx, in)
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "any"}))
+	})
+
+	It("keeps the errors of every rule for the same label", func(ctx SpecContext) {
+		first := LabelRule{
+			Name: "team", Metrics: []string{MetricWorkloadStatus}, Sources: []Source{SourceWorkload},
+			Expression: `object.metadata.labels["first"]`,
+		}
+		second := first
+		second.Expression = `object.metadata.labels["second"]`
+		results, err := newResolver(first, second).Resolve(ctx, Input{
+			Metrics: []string{MetricWorkloadStatus}, Workload: workload(map[string]any{}),
+		})
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(BeEmpty())
+		Expect(results[0].Errors["team"]).To(MatchError(ContainSubstring("first")))
+		Expect(results[0].Errors["team"]).To(MatchError(ContainSubstring("second")))
+	})
+
 	It("stops at the first nonempty source", func(ctx SpecContext) {
 		rule := teamRule(MetricPodWorkloadInfo)
 		rule.Sources = []Source{SourceWorkload, SourcePod}

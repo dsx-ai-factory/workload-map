@@ -13,11 +13,6 @@ var labelName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 // ValidateConfig checks rule structure without compiling or evaluating expressions.
 func ValidateConfig(cfg Config) error {
-	type metricLabel struct {
-		metric string
-		label  string
-	}
-	seen := make(map[metricLabel]bool)
 	for i, rule := range cfg.Rules {
 		if !labelName.MatchString(rule.Name) || strings.HasPrefix(rule.Name, "__") {
 			return fmt.Errorf("labelRules[%d]: invalid label name %q", i, rule.Name)
@@ -32,6 +27,7 @@ func ValidateConfig(cfg Config) error {
 			}
 			sources[source] = true
 		}
+		metrics := make(map[string]bool)
 		for _, metric := range rule.Metrics {
 			allowsPod, ok := supportedMetrics[metric]
 			if !ok {
@@ -40,11 +36,10 @@ func ValidateConfig(cfg Config) error {
 			if sources[SourcePod] && !allowsPod {
 				return fmt.Errorf("labelRules[%d]: %s cannot use a Pod source", i, metric)
 			}
-			key := metricLabel{metric: metric, label: rule.Name}
-			if seen[key] {
-				return fmt.Errorf("labelRules[%d]: duplicate label %q for %s", i, rule.Name, metric)
+			if metrics[metric] {
+				return fmt.Errorf("labelRules[%d]: duplicate metric %q", i, metric)
 			}
-			seen[key] = true
+			metrics[metric] = true
 		}
 	}
 	return nil

@@ -3,30 +3,46 @@
 
 # Label resolver
 
-The resolver turns the `labelRules` configuration into extra label values for
-`karta_pod_workload_info` and `karta_workload_status`. `New` rejects invalid
-rules and expressions.
+The label resolver adds labels from `labelRules` to exporter metrics. Each rule
+names a label, the metrics that get it, the objects it reads and a CEL
+expression. The options, defaults and limits are described in
+[Configured labels](../../../docs/karta-metrics-exporter/configuration.md#configured-labels)
+and in the [evaluator configuration](../labelevaluator/README.md#configuration).
 
-`Resolve` receives the requested metrics, the root workload and, when a rule
-for a requested metric reads the Pod, that Pod. It returns the labels for each requested metric, with errors
-reported per label.
-
-```go
-results, err := resolver.Resolve(ctx, labelresolver.Input{
-    Metrics:  []string{labelresolver.MetricWorkloadStatus, labelresolver.MetricPodWorkloadInfo},
-    Workload: root, // Labeled example.com/team=research.
-    Pod:      pod,
-})
-// [
-//   {Metric: "karta_workload_status", Labels: {"team": "research"}},
-//   {Metric: "karta_pod_workload_info", Labels: {"team": "research"}},
-// ]
+```yaml
+labelRules:
+  - name: team
+    metrics: [karta_workload_status, karta_pod_workload_info]
+    sources: [workload]
+    expression: |
+      has(object.metadata.labels) && "example.com/team" in object.metadata.labels
+        ? object.metadata.labels["example.com/team"] : ""
+  - name: owner
+    metrics: [karta_pod_workload_info]
+    sources: [workload, pod]
+    expression: |
+      has(object.metadata.labels) && "example.com/owner" in object.metadata.labels
+        ? object.metadata.labels["example.com/owner"] : ""
 ```
 
-A rule reads its sources in the configured order and uses the first nonempty
-value. A label with no value is absent. Source errors are reported even when a
-later source supplies the value. Workload status rules cannot read the Pod.
-The returned error reports invalid input or cancellation.
+For a workload labeled `example.com/team=research`, both metrics get
+`team="research"`. The Pod metric also gets `owner` from the workload. If the
+workload has no owner label, it gets `owner` from the Pod.
 
-The resolver reads only the objects it receives. Runtime decides when to call it
-and saves the results; that integration is not implemented yet.
+## Behavior
+
+- A rule adds a new label. It cannot replace a built-in or reserved label.
+- A rule reads its sources in the configured order. The first nonempty value
+  becomes the label value.
+- If every source returns an empty value or fails, the metric does not get the
+  label.
+- If a source fails, the next source is read. The failure is reported, also
+  when a later source gives the value. A failed label does not change the other
+  labels.
+- A workload metric cannot read the Pod. A workload has zero or more Pods, so
+  there is no single value to use.
+- The resolver reads only the objects it receives. It does not call Kubernetes
+  and does not change the objects.
+- An invalid rule or expression stops the exporter at startup.
+
+Runtime decides when to resolve labels and saves the results.

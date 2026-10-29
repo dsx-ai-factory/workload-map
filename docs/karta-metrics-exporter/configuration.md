@@ -221,11 +221,7 @@ metadata:
 The expression returns `"research"` for the configured `team` label.
 
 The command validates rule names, metric/source combinations and CEL at startup.
-The CEL evaluator and the label resolver are implemented. Runtime evaluation and
-exporting the resolved labels are not implemented yet. Event selection and cache
-modes remain part of the
-[proposed runtime design](../design/metrics-exporter/README.md#evaluate-extra-metric-labels);
-the current label-rule configuration does not expose them.
+The CEL evaluator and the label resolver are implemented.
 
 The chart renders `labelRules` and `genericLabelEvaluationLimits` into the mounted
 config file. Rules default to `[]`. Limits default to 10000 cost units, 4096

@@ -22,7 +22,8 @@ type Resolver interface {
 	Resolve(context.Context, Input) ([]ResolvedMetricLabels, error)
 }
 
-// resolver is safe for concurrent use.
+// resolver is safe for concurrent use: it is read-only after New, and Resolve keeps
+// its per-call state local.
 type resolver struct {
 	rules         []compiledRule
 	rulesByMetric map[string][]int

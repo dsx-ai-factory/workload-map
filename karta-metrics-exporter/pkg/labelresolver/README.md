@@ -34,9 +34,9 @@ workload has no owner label, it gets `owner` from the Pod.
 - A rule adds a label. If a built-in label has the same name, the rule value
   replaces the built-in value. If the rule gives no value, the built-in value
   stays.
-- A rule cannot use a label that identifies or joins series: `namespace`,
-  `pod_name`, `pod_uid`, `workload_uid`, `phase`, `observation_valid`, `job`
-  and `instance`, or a name that starts with `__`.
+- Replacing a label that identifies or joins series, such as `workload_uid`,
+  `pod_name` or `phase`, changes the series and can break the queries that use
+  it. A name that starts with `__` is not permitted.
 - A rule reads its sources in the configured order. The first nonempty value
   becomes the label value.
 - If every source returns an empty value or fails, the rule gives no value. The
@@ -44,10 +44,14 @@ workload has no owner label, it gets `owner` from the Pod.
 - If a source fails, the next source is read. The failure is reported, also
   when a later source gives the value. A failed label does not change the other
   labels.
-- A workload metric cannot read the Pod. A workload has zero or more Pods, so
-  there is no single value to use.
+- A rule for `karta_workload_status` can read only the workload. That metric has
+  one series for each workload, but a workload can have many Pods or none, so a
+  Pod value is not defined. Use `karta_pod_workload_info` to label by Pod values.
 - The resolver reads only the objects it receives. It does not call Kubernetes
   and does not change the objects.
-- An invalid rule or expression stops the exporter at startup.
+- At startup, the exporter compiles each expression. It stops if a rule has an
+  invalid name, metric or source, or if the expression has a syntax error,
+  cannot return a string or is too long. Errors when the expression runs, such
+  as a missing field, do not stop the exporter; they are reported for that label.
 
 Runtime decides when to resolve labels and saves the results.

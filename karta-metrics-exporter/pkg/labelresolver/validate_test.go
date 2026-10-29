@@ -33,11 +33,6 @@ var _ = Describe("ValidateConfig", func() {
 		{"empty name", func(r *LabelRule) { r.Name = "" }},
 		{"invalid name", func(r *LabelRule) { r.Name = "my-team" }},
 		{"internal name", func(r *LabelRule) { r.Name = "__name__" }},
-		{"identity name", func(r *LabelRule) { r.Name = "workload_uid" }},
-		{"join name", func(r *LabelRule) { r.Name = "pod_name" }},
-		{"validity name", func(r *LabelRule) { r.Name = "observation_valid" }},
-		{"status series name", func(r *LabelRule) { r.Name = "phase" }},
-		{"target name", func(r *LabelRule) { r.Name = "instance" }},
 		{"no metrics", func(r *LabelRule) { r.Metrics = nil }},
 		{"unknown metric", func(r *LabelRule) { r.Metrics = []string{"other"} }},
 		{"duplicate metric", func(r *LabelRule) { r.Metrics = []string{"karta_pod_workload_info", "karta_pod_workload_info"} }},
@@ -53,8 +48,8 @@ var _ = Describe("ValidateConfig", func() {
 			Expect(ValidateConfig(Config{Rules: []LabelRule{rule}})).To(HaveOccurred())
 		})
 	}
-	It("accepts descriptive built-in names", func() {
-		for _, name := range []string{"workload_name", "workload_kind", "component", "karta"} {
+	It("accepts built-in names", func() {
+		for _, name := range []string{"workload_name", "workload_uid", "pod_name", "phase", "observation_valid", "instance"} {
 			rule := base
 			rule.Name = name
 			Expect(ValidateConfig(Config{Rules: []LabelRule{rule}})).To(Succeed(), name)

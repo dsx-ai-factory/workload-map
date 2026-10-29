@@ -13,6 +13,7 @@ import (
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/app"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/bootstrap"
+	inventory "github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/kartadefinitioninventory"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelresolver"
 )
 
@@ -20,7 +21,7 @@ var _ = Describe("bootstrap stops on cancellation", func() {
 	It("stops on cancellation without publishing data", func(specCtx SpecContext) {
 		ctx, cancel := context.WithCancel(specCtx)
 		defer cancel()
-		components := bootstrap.New(labelresolver.Config{})
+		components := bootstrap.New(labelresolver.Config{}, &inventory.MockInventory{})
 		done := make(chan error, 1)
 		go func() { done <- app.Run(ctx, components, noop.NewMeterProvider().Meter("test")) }()
 		cancel()

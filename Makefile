@@ -27,7 +27,7 @@ COMPONENTS := lib cli operator exporter karta-wasm release-helper
 # Every Go module in the repo. The tidy target fans out over this rather than
 # COMPONENTS because an untidy manifest in a module that ships no
 # binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
-GO_MODULES := karta/sdk cli karta-wasm operator karta-metrics-exporter test/e2e hack/imagelock \
+GO_MODULES := karta/sdk cli karta-wasm operator karta-metrics-exporter karta-metrics-exporter/test/integration test/e2e hack/imagelock \
 	docs/examples/quickstart docs/examples/controller-runtime \
 	hack/e2e/operators/nim/image
 
@@ -313,11 +313,10 @@ install-cli-completion-local: ## Run install-cli-completion, preferring the kli 
 uninstall-cli-completion: ## Stop loading kli completion from your bash or zsh rc file
 	hack/kli-completion.sh uninstall
 
-.PHONY: modules-check-cli modules-check-operator modules-check-exporter
+.PHONY: modules-check-cli modules-check-operator
 modules-check-cli: MODULE := cli
 modules-check-operator: MODULE := operator
-modules-check-exporter: MODULE := karta-metrics-exporter
-modules-check-cli modules-check-operator modules-check-exporter: ## Verify the module's requirements are tidy
+modules-check-cli modules-check-operator: ## Verify the module's requirements are tidy
 	cd $(MODULE) && go mod tidy -diff
 
 .PHONY: check-cli
@@ -421,33 +420,52 @@ operator-image-buildx-push: ## Build and push a multi-arch operator image via Bu
 
 ##@ Metrics exporter
 
+# The envtest suite is its own module, so envtest's dependencies stay out of
+# the exporter's go.mod and license inventory.
+EXPORTER_ENVTEST_DIR := karta-metrics-exporter/test/integration
+
 .PHONY: fmt-exporter
-fmt-exporter: ## Format the exporter module
+fmt-exporter: ## Format the exporter and its envtest modules
 	cd karta-metrics-exporter && go fmt ./...
+	cd $(EXPORTER_ENVTEST_DIR) && go fmt ./...
 
 .PHONY: fmt-check-exporter
 fmt-check-exporter: ## Check exporter formatting without modifying files
 	@set -e; \
-	cd karta-metrics-exporter; \
-	dirs="$$(go list -f '{{.Dir}}' ./...)"; \
+	dirs="$$(go -C karta-metrics-exporter list -f '{{.Dir}}' ./...) $$(go -C $(EXPORTER_ENVTEST_DIR) list -f '{{.Dir}}' ./...)"; \
 	unformatted="$$(gofmt -l $$dirs)"; \
 	test -z "$$unformatted" || { echo "go fmt required:"; echo "$$unformatted"; exit 1; }
 
 .PHONY: vet-exporter
-vet-exporter: ## go vet the exporter module
+vet-exporter: ## go vet the exporter and its envtest modules
 	cd karta-metrics-exporter && go vet ./...
+	cd $(EXPORTER_ENVTEST_DIR) && go vet ./...
 
 .PHONY: lint-exporter
-lint-exporter: golangci-lint ## Lint the exporter module
+lint-exporter: golangci-lint ## Lint the exporter and its envtest modules
 	cd karta-metrics-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+	cd $(EXPORTER_ENVTEST_DIR) && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+
+.PHONY: modules-check-exporter
+modules-check-exporter: ## Verify the exporter and envtest module requirements are tidy
+	cd karta-metrics-exporter && go mod tidy -diff
+	cd $(EXPORTER_ENVTEST_DIR) && go mod tidy -diff
+
+.PHONY: test-exporter-unit
+test-exporter-unit: ## Run the exporter unit tests with the race detector (no envtest binaries required)
+	cd karta-metrics-exporter && go test -race ./cmd/... ./pkg/...
+
+.PHONY: test-exporter-integration
+test-exporter-integration: envtest ## Run the exporter envtest suite (downloads control-plane binaries)
+	cd $(EXPORTER_ENVTEST_DIR) && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		go test -race ./...
 
 .PHONY: exporter-generate-mocks
 exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mockery
 	cd karta-metrics-exporter && go run github.com/vektra/mockery/v3@v3.8.1 --config .mockery.yaml
 
 .PHONY: test-exporter
-test-exporter: ## Run the exporter module tests
-	cd karta-metrics-exporter && go test ./...
+test-exporter: test-exporter-unit test-exporter-integration ## Run the exporter unit and envtest suites
 
 .PHONY: build-exporter
 build-exporter: $(LOCALBIN) ## Build the karta-metrics-exporter binary for the host OS/arch

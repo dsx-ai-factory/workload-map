@@ -98,6 +98,7 @@ Third-party Dependencies:
 - cel.dev/expr (Apache-2.0)
 - github.com/antlr4-go/antlr/v4 (BSD-3-Clause)
 - github.com/cespare/xxhash/v2 (MIT)
+- github.com/pmezard/go-difflib (BSD-3-Clause)
 - github.com/stretchr/objx (MIT)
 - go.opentelemetry.io/otel (Apache-2.0)
 - golang.org/x/exp (BSD-3-Clause)

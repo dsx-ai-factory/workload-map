@@ -1,0 +1,13 @@
+{{- if and .Values.exporter.enabled .Values.exporter.kartaDefinitionSource.cluster.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "karta.exporter.clusterScopedName" . }}
+  labels:
+    {{- include "karta.exporter.labels" . | nindent 4 }}
+rules:
+  # Read the cluster's Karta definitions; the inventory only lists and watches.
+  - apiGroups: ["run.ai"]
+    resources: ["kartas"]
+    verbs: ["list", "watch"]
+{{- end }}

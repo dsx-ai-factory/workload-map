@@ -85,3 +85,19 @@ var _ = Describe("chart label configuration", func() {
 		})
 	}
 })
+
+var _ = Describe("chart definition source configuration", func() {
+	It("refuses to render a cluster source enabled flag that is not a boolean", func() {
+		helm, err := exec.LookPath("helm")
+		if err != nil {
+			Skip("helm is needed for chart rendering")
+		}
+		chart := filepath.Join("..", "..", "..", "charts", "karta")
+		out, err := exec.Command(helm, "template", "sources", chart,
+			"--set", "exporter.enabled=true",
+			"--set", "exporter.kartaDefinitionSource.cluster.enabled=null",
+		).CombinedOutput()
+		Expect(err).To(HaveOccurred())
+		Expect(string(out)).To(ContainSubstring("exporter.kartaDefinitionSource.cluster.enabled must be true or false"))
+	})
+})

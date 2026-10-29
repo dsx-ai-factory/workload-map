@@ -21,7 +21,7 @@ var _ = Describe("bootstrap stops on cancellation", func() {
 	It("stops on cancellation without publishing data", func(specCtx SpecContext) {
 		ctx, cancel := context.WithCancel(specCtx)
 		defer cancel()
-		components := bootstrap.New(labelresolver.Config{}, &inventory.MockInventory{})
+		components := bootstrap.New(&labelresolver.MockLabelResolver{}, &inventory.MockInventory{})
 		done := make(chan error, 1)
 		go func() { done <- app.Run(ctx, components, noop.NewMeterProvider().Meter("test")) }()
 		cancel()

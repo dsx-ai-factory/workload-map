@@ -23,6 +23,7 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/config"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/kartadefinitioninventory"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelevaluator"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelresolver"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/version"
 )
 
@@ -56,11 +57,9 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
-	compiler := labelevaluator.NewCompiler()
-	for _, rule := range cfg.Rules {
-		if _, err := compiler.Compile(labelevaluator.Config{Expression: rule.Expression, Limits: cfg.Limits}); err != nil {
-			return fmt.Errorf("invalid label %q: %w", rule.Name, err)
-		}
+	labels, err := labelresolver.New(cfg.Config, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
+	if err != nil {
+		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
 
 	// Falls back to the in-cluster service account when no kubeconfig is found.
@@ -89,7 +88,7 @@ func run() error {
 		stop()
 		return fmt.Errorf("initial Karta definition load: %w", errors.Join(err, <-inventoryDone))
 	}
-	components := bootstrap.New(cfg.Config, inventory)
+	components := bootstrap.New(labels, inventory)
 	if ctx.Err() == nil {
 		slog.Info("Karta metrics exporter started; metrics collection is not implemented",
 			"version", version.String(), "labelRules", len(cfg.Rules),

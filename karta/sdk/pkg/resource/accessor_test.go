@@ -824,7 +824,7 @@ var _ = Describe("Accessor", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).NotTo(BeNil())
-				Expect(result.MatchedStatuses).To(ConsistOf(v1alpha1.InitializingStatus))
+				Expect(result.MatchedStatuses).To(Equal([]v1alpha1.ResourceStatus{"Initializing"}))
 			})
 
 			It("should match Running status", func() {
@@ -1034,6 +1034,47 @@ var _ = Describe("Accessor", func() {
 				Expect(result.MatchedStatuses).To(ConsistOf(v1alpha1.UndefinedStatus))
 			})
 
+			DescribeTable("preserves independent readiness and transition statuses in stable order",
+				func(conditions []metav1.Condition, expected []v1alpha1.ResourceStatus) {
+					reactorObject := types.NewReactorObject()
+					reactorObject.Status.Conditions = conditions
+					reactorKarta := types.ReactorKarta()
+					reactorKarta.Spec.StructureDefinition.RootComponent.StatusDefinition.StatusMappings = v1alpha1.StatusMappings{
+						Pending: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+							Expression: `any(.status.conditions[]?; .type == "Ready" and .status == "False")`, ExpectedResult: "true",
+						}}},
+						Running: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
+							{Type: "Ready", Status: ptr.To("True")},
+						}}},
+						Progressing: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
+							{Type: "Rollout", Status: ptr.To("True")},
+						}}},
+					}
+					_, component := accessorForObject(reactorKarta, reactorObject, "reactor")
+
+					result, err := component.GetStatus(ctx)
+
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result.MatchedStatuses).To(Equal(expected))
+				},
+				Entry("no observation stays Undefined", nil, []v1alpha1.ResourceStatus{v1alpha1.UndefinedStatus}),
+				Entry("waiting does not imply a transition", []metav1.Condition{
+					{Type: "Ready", Status: metav1.ConditionFalse},
+				}, []v1alpha1.ResourceStatus{v1alpha1.PendingStatus}),
+				Entry("a waiting rollout matches both", []metav1.Condition{
+					{Type: "Ready", Status: metav1.ConditionFalse},
+					{Type: "Rollout", Status: metav1.ConditionTrue},
+				}, []v1alpha1.ResourceStatus{v1alpha1.PendingStatus, v1alpha1.ProgressingStatus}),
+				Entry("an available rollout matches both", []metav1.Condition{
+					{Type: "Ready", Status: metav1.ConditionTrue},
+					{Type: "Rollout", Status: metav1.ConditionTrue},
+				}, []v1alpha1.ResourceStatus{v1alpha1.RunningStatus, v1alpha1.ProgressingStatus}),
+				Entry("a completed rollout stops matching Progressing", []metav1.Condition{
+					{Type: "Ready", Status: metav1.ConditionTrue},
+					{Type: "Rollout", Status: metav1.ConditionFalse},
+				}, []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}),
+			)
+
 			It("should match multiple statuses when overlapping matchers succeed", func() {
 				reactorObject := types.NewReactorObject()
 				reactorObject.Status.Phase = "running"
@@ -1061,7 +1102,7 @@ var _ = Describe("Accessor", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).NotTo(BeNil())
-				Expect(result.MatchedStatuses).To(ConsistOf(v1alpha1.RunningStatus, v1alpha1.InitializingStatus))
+				Expect(result.MatchedStatuses).To(Equal([]v1alpha1.ResourceStatus{v1alpha1.RunningStatus, "Initializing"}))
 			})
 
 			It("should not match when condition is missing", func() {

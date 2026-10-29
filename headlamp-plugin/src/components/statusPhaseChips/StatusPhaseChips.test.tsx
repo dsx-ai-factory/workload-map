@@ -3,7 +3,7 @@
 
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { StatusPhaseChips } from './StatusPhaseChips';
+import { KARTA_PHASES, StatusPhaseChips, worstPhaseSeverity } from './StatusPhaseChips';
 
 // Node 24 exposes its own localStorage, which shadows jsdom's and throws
 // unless the process was started with a store file. The real CommonComponents
@@ -40,5 +40,17 @@ describe('StatusPhaseChips', () => {
     render(<StatusPhaseChips phases={['SomeFuturePhase']} />);
 
     expect(screen.getByText('SomeFuturePhase')).toBeTruthy();
+  });
+
+  it.each([
+    { phases: ['Progressing', 'Pending'], expected: ['Pending', 'Progressing'] },
+    { phases: ['Running', 'Progressing'], expected: ['Progressing', 'Running'] },
+  ])('keeps both statuses visible for $phases', ({ phases, expected }) => {
+    render(<StatusPhaseChips phases={phases} />);
+
+    const labels = screen.getAllByText(/Pending|Progressing|Running/).map(el => el.textContent);
+    expect(labels).toEqual(expected);
+    expect(KARTA_PHASES).toEqual(expect.arrayContaining(phases));
+    expect(worstPhaseSeverity(phases)).toBeLessThan(worstPhaseSeverity(['UnknownStatus']));
   });
 });

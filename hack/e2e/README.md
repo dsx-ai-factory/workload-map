@@ -47,6 +47,16 @@ Selecting a subset keeps a run light, and `none` keeps only the base, which is w
 the operator e2e wants. Dependencies are added automatically: kserve pulls
 knative, dynamo pulls grove.
 
+## NIM operator image pin
+
+The NIM installer fetches the chart at `NIM_OPERATOR_VERSION` and overrides its
+mutable development image with the official release at `NIM_OPERATOR_IMAGE_TAG`.
+The default is v3.0.2 with an immutable multi-platform image digest from
+`nvcr.io/nvidia/cloud-native/k8s-nim-operator`.
+Changing the chart version also requires its matching image tag and digest.
+An existing release must use the configured image reference; otherwise the
+installer fails before building the CPU fixture or changing that installation.
+
 ## How up.sh runs an operator
 
 For each selected operator, up.sh runs `operators/<name>/install.sh` then

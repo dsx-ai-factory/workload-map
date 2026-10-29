@@ -72,29 +72,36 @@ var _ = Describe("Resolve", func() {
 })
 
 var _ = Describe("phase normalization", func() {
-	// The Deployment definition maps a Progressing condition with the
-	// NewReplicaSetAvailable reason onto Running.
-	It("reports the phase its definition maps the status onto", func() {
+	// Available capacity and an unfinished rollout are independent observations.
+	It("preserves running and progressing from the definition", func() {
 		view, err := resolveObject([]byte(`
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: serve
   namespace: ml-team
+  generation: 1
 spec:
-  replicas: 1
+  replicas: 2
   template:
     spec:
       containers:
         - name: serve
 status:
+  observedGeneration: 1
+  replicas: 2
+  updatedReplicas: 1
+  availableReplicas: 2
   conditions:
+    - type: Available
+      status: "True"
+      reason: MinimumReplicasAvailable
     - type: Progressing
       status: "True"
-      reason: NewReplicaSetAvailable
+      reason: ReplicaSetUpdated
 `))
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(view.Phases).To(ContainElement("Running"))
+		Expect(view.Phases).To(ConsistOf("Running", "Progressing"))
 	})
 })

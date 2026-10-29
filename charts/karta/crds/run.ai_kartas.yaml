@@ -646,6 +646,130 @@ spec:
                                   description: |-
                                     Initializing defines matchers for the Initializing status.
                                     Multiple matchers are OR'd together.
+
+                                    Deprecated: Use Pending and Progressing according to the source status. Initializing continues to produce Initializing.
+                                  items:
+                                    description: |-
+                                      StatusMatcher defines criteria for matching a specific status.
+                                      If both ByPhase and ByConditions are provided, ALL must match (AND logic).
+                                    properties:
+                                      byConditions:
+                                        description: ByConditions matches against
+                                          specific condition combinations (ANDed together)
+                                          at least one of status or reason must be
+                                          used.
+                                        items:
+                                          description: ExpectedCondition defines a
+                                            condition type and status that must be
+                                            present.
+                                          properties:
+                                            reason:
+                                              description: Reason is the expected
+                                                condition reason
+                                              type: string
+                                            status:
+                                              description: Status is the expected
+                                                condition status
+                                              type: string
+                                            type:
+                                              description: Type is the condition type
+                                                to match
+                                              type: string
+                                          required:
+                                          - type
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      byExpression:
+                                        description: ByExpression is a JQ expression
+                                          that matches against the object for status
+                                          matching
+                                        properties:
+                                          expectedResult:
+                                            description: ExpectedResult is the expected
+                                              result value in string format from the
+                                              expression evaluation
+                                            type: string
+                                          expression:
+                                            description: Expression is the JQ expression
+                                              to evaluate
+                                            type: string
+                                        required:
+                                        - expectedResult
+                                        - expression
+                                        type: object
+                                      byPhase:
+                                        description: ByPhase matches against a specific
+                                          phase value
+                                        type: string
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                pending:
+                                  description: |-
+                                    Pending defines matchers for waiting on a required prerequisite or readiness.
+                                    Multiple matchers are OR'd together.
+                                  items:
+                                    description: |-
+                                      StatusMatcher defines criteria for matching a specific status.
+                                      If both ByPhase and ByConditions are provided, ALL must match (AND logic).
+                                    properties:
+                                      byConditions:
+                                        description: ByConditions matches against
+                                          specific condition combinations (ANDed together)
+                                          at least one of status or reason must be
+                                          used.
+                                        items:
+                                          description: ExpectedCondition defines a
+                                            condition type and status that must be
+                                            present.
+                                          properties:
+                                            reason:
+                                              description: Reason is the expected
+                                                condition reason
+                                              type: string
+                                            status:
+                                              description: Status is the expected
+                                                condition status
+                                              type: string
+                                            type:
+                                              description: Type is the condition type
+                                                to match
+                                              type: string
+                                          required:
+                                          - type
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      byExpression:
+                                        description: ByExpression is a JQ expression
+                                          that matches against the object for status
+                                          matching
+                                        properties:
+                                          expectedResult:
+                                            description: ExpectedResult is the expected
+                                              result value in string format from the
+                                              expression evaluation
+                                            type: string
+                                          expression:
+                                            description: Expression is the JQ expression
+                                              to evaluate
+                                            type: string
+                                        required:
+                                        - expectedResult
+                                        - expression
+                                        type: object
+                                      byPhase:
+                                        description: ByPhase matches against a specific
+                                          phase value
+                                        type: string
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                progressing:
+                                  description: |-
+                                    Progressing defines matchers for an observed state transition that has not finished.
+                                    Multiple matchers are OR'd together.
                                   items:
                                     description: |-
                                       StatusMatcher defines criteria for matching a specific status.
@@ -1430,6 +1554,126 @@ spec:
                               initializing:
                                 description: |-
                                   Initializing defines matchers for the Initializing status.
+                                  Multiple matchers are OR'd together.
+
+                                  Deprecated: Use Pending and Progressing according to the source status. Initializing continues to produce Initializing.
+                                items:
+                                  description: |-
+                                    StatusMatcher defines criteria for matching a specific status.
+                                    If both ByPhase and ByConditions are provided, ALL must match (AND logic).
+                                  properties:
+                                    byConditions:
+                                      description: ByConditions matches against specific
+                                        condition combinations (ANDed together) at
+                                        least one of status or reason must be used.
+                                      items:
+                                        description: ExpectedCondition defines a condition
+                                          type and status that must be present.
+                                        properties:
+                                          reason:
+                                            description: Reason is the expected condition
+                                              reason
+                                            type: string
+                                          status:
+                                            description: Status is the expected condition
+                                              status
+                                            type: string
+                                          type:
+                                            description: Type is the condition type
+                                              to match
+                                            type: string
+                                        required:
+                                        - type
+                                        type: object
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                    byExpression:
+                                      description: ByExpression is a JQ expression
+                                        that matches against the object for status
+                                        matching
+                                      properties:
+                                        expectedResult:
+                                          description: ExpectedResult is the expected
+                                            result value in string format from the
+                                            expression evaluation
+                                          type: string
+                                        expression:
+                                          description: Expression is the JQ expression
+                                            to evaluate
+                                          type: string
+                                      required:
+                                      - expectedResult
+                                      - expression
+                                      type: object
+                                    byPhase:
+                                      description: ByPhase matches against a specific
+                                        phase value
+                                      type: string
+                                  type: object
+                                type: array
+                                x-kubernetes-list-type: atomic
+                              pending:
+                                description: |-
+                                  Pending defines matchers for waiting on a required prerequisite or readiness.
+                                  Multiple matchers are OR'd together.
+                                items:
+                                  description: |-
+                                    StatusMatcher defines criteria for matching a specific status.
+                                    If both ByPhase and ByConditions are provided, ALL must match (AND logic).
+                                  properties:
+                                    byConditions:
+                                      description: ByConditions matches against specific
+                                        condition combinations (ANDed together) at
+                                        least one of status or reason must be used.
+                                      items:
+                                        description: ExpectedCondition defines a condition
+                                          type and status that must be present.
+                                        properties:
+                                          reason:
+                                            description: Reason is the expected condition
+                                              reason
+                                            type: string
+                                          status:
+                                            description: Status is the expected condition
+                                              status
+                                            type: string
+                                          type:
+                                            description: Type is the condition type
+                                              to match
+                                            type: string
+                                        required:
+                                        - type
+                                        type: object
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                    byExpression:
+                                      description: ByExpression is a JQ expression
+                                        that matches against the object for status
+                                        matching
+                                      properties:
+                                        expectedResult:
+                                          description: ExpectedResult is the expected
+                                            result value in string format from the
+                                            expression evaluation
+                                          type: string
+                                        expression:
+                                          description: Expression is the JQ expression
+                                            to evaluate
+                                          type: string
+                                      required:
+                                      - expectedResult
+                                      - expression
+                                      type: object
+                                    byPhase:
+                                      description: ByPhase matches against a specific
+                                        phase value
+                                      type: string
+                                  type: object
+                                type: array
+                                x-kubernetes-list-type: atomic
+                              progressing:
+                                description: |-
+                                  Progressing defines matchers for an observed state transition that has not finished.
                                   Multiple matchers are OR'd together.
                                 items:
                                   description: |-

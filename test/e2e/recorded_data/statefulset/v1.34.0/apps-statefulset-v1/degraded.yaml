@@ -4,11 +4,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:03:48Z"
+      creationTimestamp: "2026-10-19T06:35:30Z"
       generation: 1
       name: karta-e2e-sts-degraded
-      namespace: test-ptfjd
-      uid: 0e9e2704-747d-4a1c-b622-3cea15676898
+      namespace: test-pb5h5
+      uid: 634e7c89-ea8e-46e7-b2c5-07e461b78b2d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -32,6 +32,7 @@ events:
                   matchLabels:
                     app: karta-e2e-sts-degraded
                 topologyKey: kubernetes.io/hostname
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -61,24 +62,25 @@ events:
     status:
       availableReplicas: 0
       collisionCount: 0
-      currentRevision: karta-e2e-sts-degraded-847895d6d4
+      currentRevision: karta-e2e-sts-degraded-5c445d77d8
       observedGeneration: 1
       replicas: 0
-      updateRevision: karta-e2e-sts-degraded-847895d6d4
+      updateRevision: karta-e2e-sts-degraded-5c445d77d8
   phases:
-  - Initializing
-  resourceVersion: "626019"
-  state: Initializing
+  - Progressing
+  - Pending
+  resourceVersion: "4197"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:03:48Z"
+      creationTimestamp: "2026-10-19T06:35:30Z"
       generation: 1
       name: karta-e2e-sts-degraded
-      namespace: test-ptfjd
-      uid: 0e9e2704-747d-4a1c-b622-3cea15676898
+      namespace: test-pb5h5
+      uid: 634e7c89-ea8e-46e7-b2c5-07e461b78b2d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -102,6 +104,7 @@ events:
                   matchLabels:
                     app: karta-e2e-sts-degraded
                 topologyKey: kubernetes.io/hostname
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -132,25 +135,25 @@ events:
       availableReplicas: 0
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-degraded-847895d6d4
+      currentRevision: karta-e2e-sts-degraded-5c445d77d8
       observedGeneration: 1
       replicas: 3
-      updateRevision: karta-e2e-sts-degraded-847895d6d4
+      updateRevision: karta-e2e-sts-degraded-5c445d77d8
       updatedReplicas: 3
   phases:
-  - Initializing
-  resourceVersion: "626026"
-  state: Initializing
+  - Pending
+  resourceVersion: "4204"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:03:48Z"
+      creationTimestamp: "2026-10-19T06:35:30Z"
       generation: 1
       name: karta-e2e-sts-degraded
-      namespace: test-ptfjd
-      uid: 0e9e2704-747d-4a1c-b622-3cea15676898
+      namespace: test-pb5h5
+      uid: 634e7c89-ea8e-46e7-b2c5-07e461b78b2d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -174,6 +177,7 @@ events:
                   matchLabels:
                     app: karta-e2e-sts-degraded
                 topologyKey: kubernetes.io/hostname
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -204,15 +208,16 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-degraded-847895d6d4
+      currentRevision: karta-e2e-sts-degraded-5c445d77d8
       observedGeneration: 1
       readyReplicas: 1
       replicas: 3
-      updateRevision: karta-e2e-sts-degraded-847895d6d4
+      updateRevision: karta-e2e-sts-degraded-5c445d77d8
       updatedReplicas: 3
   phases:
+  - Pending
   - Degraded
-  resourceVersion: "626046"
+  resourceVersion: "4221"
   state: Degraded
 flow: degraded
 kartaFile: docs/catalog/apps-statefulset-v1.yaml
@@ -222,11 +227,16 @@ result:
   succeeded: true
 schemaVersion: 1
 summary:
-- amount: 2
-  phases:
-  - Initializing
 - amount: 1
   phases:
+  - Progressing
+  - Pending
+- amount: 1
+  phases:
+  - Pending
+- amount: 1
+  phases:
+  - Pending
   - Degraded
 version: v1.34.0
 want: Degraded

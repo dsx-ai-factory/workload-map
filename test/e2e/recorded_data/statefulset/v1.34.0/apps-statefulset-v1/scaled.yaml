@@ -4,11 +4,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 1
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -25,6 +25,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -54,24 +55,25 @@ events:
     status:
       availableReplicas: 0
       collisionCount: 0
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 1
       replicas: 0
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
   phases:
-  - Initializing
-  resourceVersion: "625347"
-  state: Initializing
+  - Progressing
+  - Pending
+  resourceVersion: "3758"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 1
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -88,6 +90,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -118,25 +121,25 @@ events:
       availableReplicas: 0
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 1
   phases:
-  - Initializing
-  resourceVersion: "625349"
-  state: Initializing
+  - Pending
+  resourceVersion: "3760"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 1
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -153,6 +156,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -183,15 +187,15 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 1
       readyReplicas: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "625370"
+  resourceVersion: "3774"
   state: Running
 - action:
     name: Scale
@@ -207,11 +211,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -228,6 +232,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -258,27 +263,27 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 1
       readyReplicas: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 1
   phases:
-  - Initializing
-  resourceVersion: "625371"
+  - Pending
+  resourceVersion: "3775"
   staleObservedGeneration: true
-  state: Initializing
+  state: Pending
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -295,6 +300,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -325,26 +331,27 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 2
       readyReplicas: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 1
   phases:
-  - Initializing
-  resourceVersion: "625375"
-  state: Initializing
+  - Progressing
+  - Pending
+  resourceVersion: "3778"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -361,6 +368,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -391,26 +399,27 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 2
       readyReplicas: 1
       replicas: 2
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 2
   phases:
-  - Initializing
-  resourceVersion: "625379"
-  state: Initializing
+  - Progressing
+  - Pending
+  resourceVersion: "3781"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -427,6 +436,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -457,26 +467,27 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 2
       readyReplicas: 2
       replicas: 2
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 2
   phases:
-  - Initializing
-  resourceVersion: "625419"
-  state: Initializing
+  - Progressing
+  - Pending
+  resourceVersion: "3798"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -493,6 +504,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -523,26 +535,27 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 2
       readyReplicas: 2
       replicas: 3
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 3
   phases:
+  - Pending
   - Degraded
-  resourceVersion: "625422"
+  resourceVersion: "3800"
   state: Degraded
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 2
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -559,6 +572,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -589,15 +603,15 @@ events:
       availableReplicas: 3
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 2
       readyReplicas: 3
       replicas: 3
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 3
   phases:
   - Running
-  resourceVersion: "625445"
+  resourceVersion: "3816"
   state: Running
 - action:
     name: Scale
@@ -613,11 +627,11 @@ events:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -634,6 +648,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -664,27 +679,27 @@ events:
       availableReplicas: 3
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 2
       readyReplicas: 3
       replicas: 3
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 3
   phases:
-  - Initializing
-  resourceVersion: "625446"
+  - Pending
+  resourceVersion: "3817"
   staleObservedGeneration: true
-  state: Initializing
+  state: Pending
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -701,6 +716,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -731,26 +747,27 @@ events:
       availableReplicas: 3
       collisionCount: 0
       currentReplicas: 3
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 3
       readyReplicas: 3
       replicas: 3
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 3
   phases:
-  - Initializing
-  resourceVersion: "625449"
-  state: Initializing
+  - Progressing
+  - Running
+  resourceVersion: "3820"
+  state: Running
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -767,6 +784,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -797,26 +815,27 @@ events:
       availableReplicas: 3
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 3
       readyReplicas: 3
       replicas: 3
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 2
   phases:
-  - Initializing
-  resourceVersion: "625450"
-  state: Initializing
+  - Progressing
+  - Running
+  resourceVersion: "3821"
+  state: Running
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -833,6 +852,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -863,26 +883,27 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 3
       readyReplicas: 2
       replicas: 3
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 2
   phases:
-  - Initializing
-  resourceVersion: "625747"
-  state: Initializing
+  - Progressing
+  - Running
+  resourceVersion: "3929"
+  state: Running
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -899,6 +920,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -929,26 +951,27 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 2
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 3
       readyReplicas: 2
       replicas: 2
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 2
   phases:
-  - Initializing
-  resourceVersion: "625761"
-  state: Initializing
+  - Progressing
+  - Running
+  resourceVersion: "3937"
+  state: Running
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -965,6 +988,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -995,26 +1019,27 @@ events:
       availableReplicas: 2
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 3
       readyReplicas: 2
       replicas: 2
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 1
   phases:
-  - Initializing
-  resourceVersion: "625763"
-  state: Initializing
+  - Progressing
+  - Running
+  resourceVersion: "3939"
+  state: Running
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -1031,6 +1056,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -1061,26 +1087,27 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 3
       readyReplicas: 1
       replicas: 2
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 1
   phases:
-  - Initializing
-  resourceVersion: "625996"
-  state: Initializing
+  - Progressing
+  - Running
+  resourceVersion: "4176"
+  state: Running
 - kind: STATE
   object:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      creationTimestamp: "2026-09-16T11:02:36Z"
+      creationTimestamp: "2026-10-19T06:34:17Z"
       generation: 3
       name: karta-e2e-sts
-      namespace: test-ptfjd
-      uid: 4bb45d89-5404-463c-9e76-75f980219c9e
+      namespace: test-pb5h5
+      uid: cdffc564-bc4f-4c96-a5e1-62c691d61f8d
     spec:
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
@@ -1097,6 +1124,7 @@ events:
           labels:
             app: karta-e2e-sts
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -1127,15 +1155,15 @@ events:
       availableReplicas: 1
       collisionCount: 0
       currentReplicas: 1
-      currentRevision: karta-e2e-sts-7b8b4dd995
+      currentRevision: karta-e2e-sts-68d9dd46d9
       observedGeneration: 3
       readyReplicas: 1
       replicas: 1
-      updateRevision: karta-e2e-sts-7b8b4dd995
+      updateRevision: karta-e2e-sts-68d9dd46d9
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "626003"
+  resourceVersion: "4180"
   state: Running
 flow: scaled
 kartaFile: docs/catalog/apps-statefulset-v1.yaml
@@ -1145,24 +1173,37 @@ result:
   succeeded: true
 schemaVersion: 1
 summary:
-- amount: 2
+- amount: 1
   phases:
-  - Initializing
+  - Progressing
+  - Pending
+- amount: 1
+  phases:
+  - Pending
 - amount: 1
   phases:
   - Running
-- amount: 4
-  phases:
-  - Initializing
 - amount: 1
   phases:
+  - Pending
+- amount: 3
+  phases:
+  - Progressing
+  - Pending
+- amount: 1
+  phases:
+  - Pending
   - Degraded
 - amount: 1
   phases:
   - Running
-- amount: 7
+- amount: 1
   phases:
-  - Initializing
+  - Pending
+- amount: 6
+  phases:
+  - Progressing
+  - Running
 - amount: 1
   phases:
   - Running

@@ -4,16 +4,16 @@ events:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-16T11:00:48Z"
+      creationTimestamp: "2026-10-19T06:32:37Z"
       generation: 1
       labels:
-        batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         batch.kubernetes.io/job-name: karta-e2e-job-resumed
-        controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         job-name: karta-e2e-job-resumed
       name: karta-e2e-job-resumed
-      namespace: test-n88rk
-      uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+      namespace: test-pb5h5
+      uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -23,16 +23,17 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+          batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
       suspend: true
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             batch.kubernetes.io/job-name: karta-e2e-job-resumed
-            controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             job-name: karta-e2e-job-resumed
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -66,8 +67,8 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastProbeTime: "2026-09-16T11:00:48Z"
-        lastTransitionTime: "2026-09-16T11:00:48Z"
+      - lastProbeTime: "2026-10-19T06:32:37Z"
+        lastTransitionTime: "2026-10-19T06:32:37Z"
         message: Job suspended
         reason: JobSuspended
         status: "True"
@@ -77,7 +78,7 @@ events:
       uncountedTerminatedPods: {}
   phases:
   - Suspended
-  resourceVersion: "623990"
+  resourceVersion: "3139"
   state: Suspended
 - action:
     name: Resume
@@ -93,16 +94,16 @@ events:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-16T11:00:48Z"
+      creationTimestamp: "2026-10-19T06:32:37Z"
       generation: 2
       labels:
-        batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         batch.kubernetes.io/job-name: karta-e2e-job-resumed
-        controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         job-name: karta-e2e-job-resumed
       name: karta-e2e-job-resumed
-      namespace: test-n88rk
-      uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+      namespace: test-pb5h5
+      uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -112,16 +113,17 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+          batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             batch.kubernetes.io/job-name: karta-e2e-job-resumed
-            controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             job-name: karta-e2e-job-resumed
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -155,8 +157,8 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastProbeTime: "2026-09-16T11:00:48Z"
-        lastTransitionTime: "2026-09-16T11:00:48Z"
+      - lastProbeTime: "2026-10-19T06:32:37Z"
+        lastTransitionTime: "2026-10-19T06:32:37Z"
         message: Job suspended
         reason: JobSuspended
         status: "True"
@@ -166,23 +168,23 @@ events:
       uncountedTerminatedPods: {}
   phases:
   - Suspended
-  resourceVersion: "623992"
+  resourceVersion: "3141"
   state: Suspended
 - kind: STATE
   object:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-16T11:00:48Z"
+      creationTimestamp: "2026-10-19T06:32:37Z"
       generation: 2
       labels:
-        batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         batch.kubernetes.io/job-name: karta-e2e-job-resumed
-        controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         job-name: karta-e2e-job-resumed
       name: karta-e2e-job-resumed
-      namespace: test-n88rk
-      uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+      namespace: test-pb5h5
+      uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -192,16 +194,17 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+          batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             batch.kubernetes.io/job-name: karta-e2e-job-resumed
-            controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             job-name: karta-e2e-job-resumed
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -236,35 +239,35 @@ events:
     status:
       active: 1
       conditions:
-      - lastProbeTime: "2026-09-16T11:00:48Z"
-        lastTransitionTime: "2026-09-16T11:00:48Z"
+      - lastProbeTime: "2026-10-19T06:32:37Z"
+        lastTransitionTime: "2026-10-19T06:32:37Z"
         message: Job resumed
         reason: JobResumed
         status: "False"
         type: Suspended
       ready: 0
-      startTime: "2026-09-16T11:00:48Z"
+      startTime: "2026-10-19T06:32:37Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
-  - Initializing
-  resourceVersion: "623995"
-  state: Initializing
+  - Pending
+  resourceVersion: "3145"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-16T11:00:48Z"
+      creationTimestamp: "2026-10-19T06:32:37Z"
       generation: 2
       labels:
-        batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         batch.kubernetes.io/job-name: karta-e2e-job-resumed
-        controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         job-name: karta-e2e-job-resumed
       name: karta-e2e-job-resumed
-      namespace: test-n88rk
-      uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+      namespace: test-pb5h5
+      uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -274,16 +277,17 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+          batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             batch.kubernetes.io/job-name: karta-e2e-job-resumed
-            controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             job-name: karta-e2e-job-resumed
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -318,36 +322,35 @@ events:
     status:
       active: 1
       conditions:
-      - lastProbeTime: "2026-09-16T11:00:48Z"
-        lastTransitionTime: "2026-09-16T11:00:48Z"
+      - lastProbeTime: "2026-10-19T06:32:37Z"
+        lastTransitionTime: "2026-10-19T06:32:37Z"
         message: Job resumed
         reason: JobResumed
         status: "False"
         type: Suspended
       ready: 1
-      startTime: "2026-09-16T11:00:48Z"
+      startTime: "2026-10-19T06:32:37Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
-  - Initializing
   - Running
-  resourceVersion: "624081"
+  resourceVersion: "3181"
   state: Running
 - kind: STATE
   object:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-16T11:00:48Z"
+      creationTimestamp: "2026-10-19T06:32:37Z"
       generation: 2
       labels:
-        batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         batch.kubernetes.io/job-name: karta-e2e-job-resumed
-        controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         job-name: karta-e2e-job-resumed
       name: karta-e2e-job-resumed
-      namespace: test-n88rk
-      uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+      namespace: test-pb5h5
+      uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -357,16 +360,17 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+          batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             batch.kubernetes.io/job-name: karta-e2e-job-resumed
-            controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             job-name: karta-e2e-job-resumed
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -401,35 +405,35 @@ events:
     status:
       active: 1
       conditions:
-      - lastProbeTime: "2026-09-16T11:00:48Z"
-        lastTransitionTime: "2026-09-16T11:00:48Z"
+      - lastProbeTime: "2026-10-19T06:32:37Z"
+        lastTransitionTime: "2026-10-19T06:32:37Z"
         message: Job resumed
         reason: JobResumed
         status: "False"
         type: Suspended
       ready: 0
-      startTime: "2026-09-16T11:00:48Z"
+      startTime: "2026-10-19T06:32:37Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
-  - Initializing
-  resourceVersion: "624187"
-  state: Initializing
+  - Pending
+  resourceVersion: "3221"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-16T11:00:48Z"
+      creationTimestamp: "2026-10-19T06:32:37Z"
       generation: 2
       labels:
-        batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         batch.kubernetes.io/job-name: karta-e2e-job-resumed
-        controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+        controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
         job-name: karta-e2e-job-resumed
       name: karta-e2e-job-resumed
-      namespace: test-n88rk
-      uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+      namespace: test-pb5h5
+      uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -439,16 +443,17 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+          batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            batch.kubernetes.io/controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             batch.kubernetes.io/job-name: karta-e2e-job-resumed
-            controller-uid: 31dcb6f3-3854-4474-bec0-e2c457923694
+            controller-uid: 6ba34035-023d-4ae6-a14c-0c02f1d4c42f
             job-name: karta-e2e-job-resumed
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -482,27 +487,27 @@ events:
           terminationGracePeriodSeconds: 30
     status:
       conditions:
-      - lastProbeTime: "2026-09-16T11:00:48Z"
-        lastTransitionTime: "2026-09-16T11:00:48Z"
+      - lastProbeTime: "2026-10-19T06:32:37Z"
+        lastTransitionTime: "2026-10-19T06:32:37Z"
         message: Job resumed
         reason: JobResumed
         status: "False"
         type: Suspended
-      - lastProbeTime: "2026-09-16T11:01:12Z"
-        lastTransitionTime: "2026-09-16T11:01:12Z"
+      - lastProbeTime: "2026-10-19T06:33:01Z"
+        lastTransitionTime: "2026-10-19T06:33:01Z"
         message: Reached expected number of succeeded pods
         reason: CompletionsReached
         status: "True"
         type: SuccessCriteriaMet
       ready: 0
-      startTime: "2026-09-16T11:00:48Z"
+      startTime: "2026-10-19T06:32:37Z"
       terminating: 0
       uncountedTerminatedPods:
         succeeded:
-        - 40e90dab-a20c-4302-b7c6-1e05d3049594
+        - 4e509877-9dde-406d-97bf-ab1683441b71
   phases:
   - Completed
-  resourceVersion: "624199"
+  resourceVersion: "3227"
   state: Completed
 flow: resumed
 kartaFile: docs/catalog/batch-job-v1.yaml
@@ -517,14 +522,13 @@ summary:
   - Suspended
 - amount: 1
   phases:
-  - Initializing
+  - Pending
 - amount: 1
   phases:
-  - Initializing
   - Running
 - amount: 1
   phases:
-  - Initializing
+  - Pending
 - amount: 1
   phases:
   - Completed

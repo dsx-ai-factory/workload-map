@@ -1,0 +1,235 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: kubeflow.org/v1
+    kind: PyTorchJob
+    metadata:
+      creationTimestamp: "2026-10-19T06:36:49Z"
+      generation: 1
+      name: karta-e2e-pytorch
+      namespace: test-lr969
+      uid: c6203530-d430-4f09-9bd7-c0246f7266ba
+    spec:
+      pytorchReplicaSpecs:
+        Master:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+              - command:
+                - sleep
+                - infinity
+                image: busybox:1.36
+                name: pytorch
+                resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+        Worker:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+              - command:
+                - sleep
+                - infinity
+                image: busybox:1.36
+                name: pytorch
+                resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:36:49Z"
+        lastUpdateTime: "2026-10-19T06:36:49Z"
+        message: PyTorchJob karta-e2e-pytorch is created.
+        reason: PyTorchJobCreated
+        status: "True"
+        type: Created
+      replicaStatuses:
+        Master:
+          selector: training.kubeflow.org/job-name=karta-e2e-pytorch,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=master
+        Worker:
+          selector: training.kubeflow.org/job-name=karta-e2e-pytorch,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=worker
+      startTime: "2026-10-19T06:36:49Z"
+  phases:
+  - Pending
+  resourceVersion: "5068"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: kubeflow.org/v1
+    kind: PyTorchJob
+    metadata:
+      creationTimestamp: "2026-10-19T06:36:49Z"
+      generation: 1
+      name: karta-e2e-pytorch
+      namespace: test-lr969
+      uid: c6203530-d430-4f09-9bd7-c0246f7266ba
+    spec:
+      pytorchReplicaSpecs:
+        Master:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+              - command:
+                - sleep
+                - infinity
+                image: busybox:1.36
+                name: pytorch
+                resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+        Worker:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+              - command:
+                - sleep
+                - infinity
+                image: busybox:1.36
+                name: pytorch
+                resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:36:49Z"
+        lastUpdateTime: "2026-10-19T06:36:49Z"
+        message: PyTorchJob karta-e2e-pytorch is created.
+        reason: PyTorchJobCreated
+        status: "True"
+        type: Created
+      - lastTransitionTime: "2026-10-19T06:36:52Z"
+        lastUpdateTime: "2026-10-19T06:36:52Z"
+        message: PyTorchJob karta-e2e-pytorch is running.
+        reason: PyTorchJobRunning
+        status: "True"
+        type: Running
+      replicaStatuses:
+        Master:
+          active: 1
+          selector: training.kubeflow.org/job-name=karta-e2e-pytorch,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=master
+        Worker:
+          selector: training.kubeflow.org/job-name=karta-e2e-pytorch,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=worker
+      startTime: "2026-10-19T06:36:49Z"
+  phases:
+  - Pending
+  - Running
+  resourceVersion: "5098"
+  state: Running
+- kind: STATE
+  object:
+    apiVersion: kubeflow.org/v1
+    kind: PyTorchJob
+    metadata:
+      creationTimestamp: "2026-10-19T06:36:49Z"
+      generation: 1
+      name: karta-e2e-pytorch
+      namespace: test-lr969
+      uid: c6203530-d430-4f09-9bd7-c0246f7266ba
+    spec:
+      pytorchReplicaSpecs:
+        Master:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+              - command:
+                - sleep
+                - infinity
+                image: busybox:1.36
+                name: pytorch
+                resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+        Worker:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+              - command:
+                - sleep
+                - infinity
+                image: busybox:1.36
+                name: pytorch
+                resources:
+                  limits:
+                    cpu: 50m
+                    memory: 64Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:36:49Z"
+        lastUpdateTime: "2026-10-19T06:36:49Z"
+        message: PyTorchJob karta-e2e-pytorch is created.
+        reason: PyTorchJobCreated
+        status: "True"
+        type: Created
+      - lastTransitionTime: "2026-10-19T06:36:52Z"
+        lastUpdateTime: "2026-10-19T06:36:52Z"
+        message: PyTorchJob karta-e2e-pytorch is running.
+        reason: PyTorchJobRunning
+        status: "True"
+        type: Running
+      replicaStatuses:
+        Master:
+          active: 1
+          selector: training.kubeflow.org/job-name=karta-e2e-pytorch,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=master
+        Worker:
+          active: 1
+          selector: training.kubeflow.org/job-name=karta-e2e-pytorch,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=worker
+      startTime: "2026-10-19T06:36:49Z"
+  phases:
+  - Running
+  resourceVersion: "5129"
+  state: Running
+flow: running
+kartaFile: docs/catalog/kubeflow-org-pytorchjob-v1.yaml
+kartaName: kubeflow-org-pytorchjob-v1
+operator: kubeflow
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 1
+  phases:
+  - Pending
+- amount: 1
+  phases:
+  - Pending
+  - Running
+- amount: 1
+  phases:
+  - Running
+version: v1.9.0+mpiv0.8.2
+want: Running

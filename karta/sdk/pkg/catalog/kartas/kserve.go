@@ -29,6 +29,20 @@ func KServe() *v1alpha1.Karta {
 							MessageFieldName: ptr.To("message"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
+							Pending: []v1alpha1.StatusMatcher{
+								{ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     inferenceEmptyStatusExpression + ` and ((.metadata.annotations["serving.kserve.io/stop"] // "") | ascii_downcase) != "true"`,
+									ExpectedResult: "true",
+								}},
+								{ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     `(.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and ((any(.status.conditions[]?; .type == "PredictorReady" and .status == "False") and any(.status.conditions[]?; .type == "PredictorConfigurationReady" and .status == "False") and any(.status.conditions[]?; .type == "RoutesReady" and .status == "False")) | not) and (any(.status.conditions[]?; .type == "Ready" and .status == "True") | not) and (any(.status.conditions[]?; (.type | IN("Ready", "PredictorReady", "RoutesReady", "LatestDeploymentReady")) and .status == "Unknown") or (.status.modelStatus.states.targetModelState == "Loading" and any(.status.conditions[]?; .type == "PredictorReady" and .status == "False" and .reason == "MinimumReplicasUnavailable")))`,
+									ExpectedResult: "true",
+								}}},
+							// Loading is explicit model-transition evidence; Unknown readiness alone is not.
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression:     `(.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and ((any(.status.conditions[]?; .type == "PredictorReady" and .status == "False") and any(.status.conditions[]?; .type == "PredictorConfigurationReady" and .status == "False") and any(.status.conditions[]?; .type == "RoutesReady" and .status == "False")) | not) and .status.modelStatus.states.targetModelState == "Loading"`,
+								ExpectedResult: "true",
+							}}},
 							Running: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
 								{Type: "PredictorReady", Status: ptr.To("True")},
 								{Type: "RoutesReady", Status: ptr.To("True")},

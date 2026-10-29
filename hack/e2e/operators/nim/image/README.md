@@ -11,8 +11,8 @@ in particular `GET /v1/health/ready`, so the operator drives the NIMService to
 inference.
 
 The server uses the Go standard library only and ships as a static binary on a
-distroless base (see `Dockerfile`), so the image carries no Python runtime or
-third-party package CVEs.
+nonroot distroless base (see `Dockerfile`). The image has no shell or Python
+runtime. The base image and Go runtime still require normal security updates.
 
 ## What Karta uses
 
@@ -22,6 +22,24 @@ The operator only needs the readiness endpoint to mark the NIMService ready:
 - `GET /v1/health/ready` and `GET /v1/health/live` for health probing.
 - `GET /v1/models`, `POST /v1/chat/completions`, `GET /v1/metrics` for
   completeness; the Karta suite does not exercise these.
+
+## Cache jobs
+
+The image also includes `create-model-store`, a CPU stub for the universal NIM
+cache command in [NIM operator v3.0.2](https://github.com/NVIDIA/k8s-nim-operator/blob/1cc1750182177c4186713f0ac7c4194f836676ee/internal/controller/nimcache_controller.go#L1206).
+The NIMCache fixtures set `source.ngc.modelEndpoint`, which skips profile
+selection and manifest inspection in that release, then lets the real controller
+create a PVC and a Job. The installer pins the official operator image separately
+from the chart, whose default image is a mutable development tag. The stub writes
+`fictive-model.txt` to the PVC. It does not contact the model endpoint or use
+credentials. The existing HTTP server remains the image entrypoint.
+
+`NIM_CACHE_TEST_DELAY` accepts a Go duration such as `15s`, allowing the recorder
+to observe the active Job. `NIM_CACHE_TEST_FAIL=true` makes the command exit with
+an error before writing its marker. The controller reports Failed when it sees
+a failed Job Pod, which can precede exhausted Job retries.
+The native `InProgress` state is based on `Job.status.active`, which includes
+Pending Pods; it does not establish that a container has started.
 
 ## How the suite builds it
 

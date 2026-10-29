@@ -10,6 +10,31 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
+// The legacy ready state and provisioned condition remain true after startup.
+// The suspended state also remains until resumed Pods are ready. Current startup
+// conditions can supersede it once both suspension conditions have cleared.
+const rayClusterStartingExpression = `.spec.suspend != true and
+    .status.state != "failed" and
+    (.status.state != "suspended" or
+     (.spec.suspend == false and .metadata.generation != null and
+      .status.observedGeneration == .metadata.generation and
+      any(.status.conditions[]?; .type == "RayClusterSuspending" and .status == "False") and
+      any(.status.conditions[]?; .type == "RayClusterSuspended" and .status == "False"))) and
+    (any(.status.conditions[]?; .status == "True" and
+        (.type == "RayClusterSuspending" or .type == "RayClusterSuspended")) | not) and
+    any(.status.conditions[]?; .type == "RayClusterProvisioned" and .status == "False") and
+    any(.status.conditions[]?; .type == "HeadPodReady" and .status == "False")`
+
+// Suspension intent alone does not establish that the controller has removed the Pods.
+const rayClusterSuspendedExpression = `.metadata.deletionTimestamp == null and .spec.suspend == true and
+    .status.state == "suspended" and .metadata.generation != null and
+    .status.observedGeneration == .metadata.generation`
+
+const rayClusterPendingExpression = `.metadata.deletionTimestamp == null and (` + rayClusterStartingExpression + ` or
+    ((.metadata.generation // 0) > 0 and
+     ((.status == null or .status == {}) or
+      (.spec.suspend == false and .status.state == "suspended"))))`
+
 // Raycluster returns the built-in Karta for the RayCluster workload
 // (ray.io/v1).
 func Raycluster() *v1alpha1.Karta {
@@ -30,10 +55,21 @@ func Raycluster() *v1alpha1.Karta {
 							Path: ".status.state",
 						},
 						StatusMappings: v1alpha1.StatusMappings{
+							Pending: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression:     rayClusterPendingExpression,
+								ExpectedResult: "true",
+							}}},
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: `.metadata.deletionTimestamp == null and ` + rayClusterStartingExpression + ` and
+                                    any(.status.conditions[]?; .type == "HeadPodReady" and .status == "False" and
+                                        (.reason == "ContainerCreating" or .reason == "ContainersNotReady" or
+                                         .reason == "ErrImagePull" or .reason == "ImagePullBackOff" or .reason == "CrashLoopBackOff"))`,
+								ExpectedResult: "true",
+							}}},
 							Running: []v1alpha1.StatusMatcher{{ByPhase: "ready"}},
 							Failed:  []v1alpha1.StatusMatcher{{ByPhase: "failed"}},
 							Suspended: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								Expression:     `.spec.suspend == true and (.status.state == "suspended" or (.status.state | not))`,
+								Expression:     rayClusterSuspendedExpression,
 								ExpectedResult: "true",
 							}}},
 						},

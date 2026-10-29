@@ -657,6 +657,20 @@ func (in *StatusMappings) DeepCopyInto(out *StatusMappings) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Pending != nil {
+		in, out := &in.Pending, &out.Pending
+		*out = make([]StatusMatcher, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.Progressing != nil {
+		in, out := &in.Progressing, &out.Progressing
+		*out = make([]StatusMatcher, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.Running != nil {
 		in, out := &in.Running, &out.Running
 		*out = make([]StatusMatcher, len(*in))

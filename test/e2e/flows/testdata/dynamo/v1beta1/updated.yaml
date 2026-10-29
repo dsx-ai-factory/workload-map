@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# The served v1beta1 form of the CPU mocker flow. The operator creates real
+# workloads and reports their native state; no status fields are patched.
+apiVersion: nvidia.com/v1beta1
+kind: DynamoGraphDeployment
+metadata:
+  generateName: karta-e2e-dynamo-v1beta1-updated-
+  annotations:
+    nvidia.com/enable-grove: "false"
+  namespace: default
+spec:
+  components:
+  - name: frontend
+    type: frontend
+    replicas: 1
+    podTemplate:
+      spec:
+        containers:
+        - name: main
+          image: nvcr.io/nvidia/ai-dynamo/dynamo-planner:1.2.1
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  - name: decode
+    type: decode
+    replicas: 1
+    podTemplate:
+      spec:
+        containers:
+        - name: main
+          image: nvcr.io/nvidia/ai-dynamo/dynamo-planner:1.2.1
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          workingDir: /workspace
+          command:
+          - python3
+          - -m
+          - dynamo.mocker
+          args:
+          - --model-path
+          - nvidia/Llama-3.1-8B-Instruct-FP8
+          - --model-name
+          - nvidia/Llama-3.1-8B-Instruct-FP8
+          - --speedup-ratio
+          - '1.0'
+          - --planner-profile-data
+          - /workspace/components/src/dynamo/planner/tests/data/profiling_results/H200_TP1P_TP1D
+          envFrom:
+          - secretRef:
+              name: hf-token-secret-v1beta1

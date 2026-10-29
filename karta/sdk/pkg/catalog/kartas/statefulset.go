@@ -10,6 +10,10 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
+const statefulSetCurrentStatus = `.metadata.deletionTimestamp == null
+    and .status.observedGeneration != null
+    and .status.observedGeneration == .metadata.generation`
+
 // StatefulSet returns the built-in Karta for the apps/v1 StatefulSet workload.
 func StatefulSet() *v1alpha1.Karta {
 	return &v1alpha1.Karta{
@@ -28,27 +32,44 @@ func StatefulSet() *v1alpha1.Karta {
 					},
 					StatusDefinition: &v1alpha1.StatusDefinition{
 						StatusMappings: v1alpha1.StatusMappings{
+							Pending: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: `(` + statefulSetCurrentStatus + ` and (.spec.replicas // 1) > 0
+    and (.status.readyReplicas // 0) < (.spec.replicas // 1)) or (
+    .metadata.deletionTimestamp == null and (.spec.replicas // 1) > 0
+    and (.metadata.generation // 0) > 0
+    and (.status.observedGeneration == null or .status.observedGeneration < .metadata.generation)
+    and ((.status.conditions // []) | length == 0))`,
+								ExpectedResult: "true",
+							}}},
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								// OnDelete and partitioned updates can intentionally retain an old revision.
+								Expression: statefulSetCurrentStatus + ` and (
+    (.status.replicas // 0) != (.spec.replicas // 1)
+    or ((.spec.updateStrategy.type // "RollingUpdate") == "RollingUpdate"
+        and .status.currentRevision != null and .status.updateRevision != null
+        and .status.currentRevision != .status.updateRevision
+        and (.spec.replicas // 1) > (.spec.updateStrategy.rollingUpdate.partition // 0)
+        and ((.status.updatedReplicas // 0) < ((.spec.replicas // 1) - (.spec.updateStrategy.rollingUpdate.partition // 0))
+            or (.status.readyReplicas // 0) < (.spec.replicas // 1)))
+    or ((.spec.updateStrategy.type // "RollingUpdate") == "Recreate"
+        and any(.status.conditions[]?; .type == "Progressing" and .status == "True")
+        and ((.status.updatedReplicas // 0) < (.spec.replicas // 1)
+            or (.status.readyReplicas // 0) < (.spec.replicas // 1))))`,
+								ExpectedResult: "true",
+							}}},
 							Running: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								Expression:     "(.status.observedGeneration // 0) == (.metadata.generation // 0) and (.status.replicas // 0) == (.spec.replicas // 1) and (.status.readyReplicas // 0) == (.spec.replicas // 1) and (.status.updatedReplicas // 0) == (.spec.replicas // 1) and (.status.currentRevision == .status.updateRevision)",
+								Expression: statefulSetCurrentStatus + ` and (.spec.replicas // 1) > 0
+    and (.status.replicas // 0) >= (.spec.replicas // 1)
+    and (.status.readyReplicas // 0) >= (.spec.replicas // 1)`,
 								ExpectedResult: "true",
 							}}},
 							Degraded: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								Expression:     "(.status.readyReplicas // 0) > 0 and (.status.readyReplicas // 0) < (.spec.replicas // 1) and (.status.updatedReplicas // 0) == (.spec.replicas // 1) and (.status.currentRevision == .status.updateRevision) and (.status.observedGeneration // 0) == (.metadata.generation // 0)",
+								Expression: statefulSetCurrentStatus + ` and (.status.readyReplicas // 0) > 0
+    and (.status.readyReplicas // 0) < (.spec.replicas // 1)
+    and (.status.updatedReplicas // 0) == (.spec.replicas // 1)
+    and .status.currentRevision == .status.updateRevision`,
 								ExpectedResult: "true",
 							}}},
-							Initializing: []v1alpha1.StatusMatcher{
-								// Scale-down: the controller has acknowledged the new spec (generation
-								// caught up) while more pods exist than desired - the extras are
-								// still draining, ready or not.
-								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     ".status.observedGeneration == .metadata.generation and (.status.replicas // 0) > (.spec.replicas // 1)",
-									ExpectedResult: "true",
-								}},
-								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     "(.spec.replicas // 1) > 0 and ((.status.observedGeneration // 0) != (.metadata.generation // 0) or (.status.readyReplicas // 0) == 0 or (.status.updatedReplicas // 0) != (.spec.replicas // 1) or (.status.currentRevision != .status.updateRevision))",
-									ExpectedResult: "true",
-								}},
-							},
 						},
 					},
 				},

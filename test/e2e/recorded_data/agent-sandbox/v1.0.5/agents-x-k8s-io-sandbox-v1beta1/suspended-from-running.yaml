@@ -4,11 +4,11 @@ events:
     apiVersion: agents.x-k8s.io/v1beta1
     kind: Sandbox
     metadata:
-      creationTimestamp: "2026-10-11T17:21:23Z"
+      creationTimestamp: "2026-10-19T07:07:18Z"
       generation: 1
       name: karta-e2e-sandbox-suspended-from-running
-      namespace: test-5bmz2
-      uid: e1a36eea-954d-4425-aff3-0d87900cab8d
+      namespace: test-njrzk
+      uid: 3ff4a8f0-a9ca-42da-91fe-c6e3d6f685f3
     spec:
       operatingMode: Running
       podTemplate:
@@ -30,19 +30,19 @@ events:
       shutdownPolicy: Retain
     status:
       conditions:
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: Sandbox is not suspended
         observedGeneration: 1
         reason: NotSuspended
         status: "False"
         type: Suspended
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: Pod has not reported a PodScheduled condition yet
         observedGeneration: 1
         reason: PodSchedulingUnknown
         status: Unknown
         type: PodScheduled
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: 'Pod exists with phase: Pending'
         observedGeneration: 1
         reason: DependenciesNotReady
@@ -50,19 +50,19 @@ events:
         type: Ready
       selector: agents.x-k8s.io/sandbox-name-hash=30cfaf3c
   phases:
-  - Initializing
-  resourceVersion: "1327"
-  state: Initializing
+  - Pending
+  resourceVersion: "2214"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: agents.x-k8s.io/v1beta1
     kind: Sandbox
     metadata:
-      creationTimestamp: "2026-10-11T17:21:23Z"
+      creationTimestamp: "2026-10-19T07:07:18Z"
       generation: 1
       name: karta-e2e-sandbox-suspended-from-running
-      namespace: test-5bmz2
-      uid: e1a36eea-954d-4425-aff3-0d87900cab8d
+      namespace: test-njrzk
+      uid: 3ff4a8f0-a9ca-42da-91fe-c6e3d6f685f3
     spec:
       operatingMode: Running
       podTemplate:
@@ -84,40 +84,41 @@ events:
       shutdownPolicy: Retain
     status:
       conditions:
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: Sandbox is not suspended
         observedGeneration: 1
         reason: NotSuspended
         status: "False"
         type: Suspended
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: ""
         observedGeneration: 1
         reason: PodScheduled
         status: "True"
         type: PodScheduled
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: 'Pod exists with phase: Pending'
         observedGeneration: 1
         reason: DependenciesNotReady
         status: "False"
         type: Ready
-      nodeName: karta-skill-sandbox-worker2
+      nodeName: karta-all-gaps-worker
       selector: agents.x-k8s.io/sandbox-name-hash=30cfaf3c
   phases:
-  - Initializing
-  resourceVersion: "1329"
-  state: Initializing
+  - Progressing
+  - Pending
+  resourceVersion: "2216"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: agents.x-k8s.io/v1beta1
     kind: Sandbox
     metadata:
-      creationTimestamp: "2026-10-11T17:21:23Z"
+      creationTimestamp: "2026-10-19T07:07:18Z"
       generation: 1
       name: karta-e2e-sandbox-suspended-from-running
-      namespace: test-5bmz2
-      uid: e1a36eea-954d-4425-aff3-0d87900cab8d
+      namespace: test-njrzk
+      uid: 3ff4a8f0-a9ca-42da-91fe-c6e3d6f685f3
     spec:
       operatingMode: Running
       podTemplate:
@@ -139,31 +140,31 @@ events:
       shutdownPolicy: Retain
     status:
       conditions:
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: Sandbox is not suspended
         observedGeneration: 1
         reason: NotSuspended
         status: "False"
         type: Suspended
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: ""
         observedGeneration: 1
         reason: PodScheduled
         status: "True"
         type: PodScheduled
-      - lastTransitionTime: "2026-10-11T17:21:25Z"
+      - lastTransitionTime: "2026-10-19T07:07:20Z"
         message: Pod is Ready
         observedGeneration: 1
         reason: DependenciesReady
         status: "True"
         type: Ready
-      nodeName: karta-skill-sandbox-worker2
+      nodeName: karta-all-gaps-worker
       podIPs:
-      - 10.244.2.12
+      - 10.244.1.21
       selector: agents.x-k8s.io/sandbox-name-hash=30cfaf3c
   phases:
   - Running
-  resourceVersion: "1342"
+  resourceVersion: "2231"
   state: Running
 - action:
     name: Suspend
@@ -179,11 +180,11 @@ events:
     apiVersion: agents.x-k8s.io/v1beta1
     kind: Sandbox
     metadata:
-      creationTimestamp: "2026-10-11T17:21:23Z"
+      creationTimestamp: "2026-10-19T07:07:18Z"
       generation: 2
       name: karta-e2e-sandbox-suspended-from-running
-      namespace: test-5bmz2
-      uid: e1a36eea-954d-4425-aff3-0d87900cab8d
+      namespace: test-njrzk
+      uid: 3ff4a8f0-a9ca-42da-91fe-c6e3d6f685f3
     spec:
       operatingMode: Suspended
       podTemplate:
@@ -205,42 +206,42 @@ events:
       shutdownPolicy: Retain
     status:
       conditions:
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: Sandbox is not suspended
         observedGeneration: 1
         reason: NotSuspended
         status: "False"
         type: Suspended
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: ""
         observedGeneration: 1
         reason: PodScheduled
         status: "True"
         type: PodScheduled
-      - lastTransitionTime: "2026-10-11T17:21:25Z"
+      - lastTransitionTime: "2026-10-19T07:07:20Z"
         message: Pod is Ready
         observedGeneration: 1
         reason: DependenciesReady
         status: "True"
         type: Ready
-      nodeName: karta-skill-sandbox-worker2
+      nodeName: karta-all-gaps-worker
       podIPs:
-      - 10.244.2.12
+      - 10.244.1.21
       selector: agents.x-k8s.io/sandbox-name-hash=30cfaf3c
   phases:
   - Suspending
-  resourceVersion: "1344"
+  resourceVersion: "2233"
   state: Suspending
 - kind: STATE
   object:
     apiVersion: agents.x-k8s.io/v1beta1
     kind: Sandbox
     metadata:
-      creationTimestamp: "2026-10-11T17:21:23Z"
+      creationTimestamp: "2026-10-19T07:07:18Z"
       generation: 2
       name: karta-e2e-sandbox-suspended-from-running
-      namespace: test-5bmz2
-      uid: e1a36eea-954d-4425-aff3-0d87900cab8d
+      namespace: test-njrzk
+      uid: 3ff4a8f0-a9ca-42da-91fe-c6e3d6f685f3
     spec:
       operatingMode: Suspended
       podTemplate:
@@ -262,42 +263,42 @@ events:
       shutdownPolicy: Retain
     status:
       conditions:
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: Pod is terminating. Sandbox is suspending
         observedGeneration: 2
         reason: PodTerminating
         status: "False"
         type: Suspended
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: ""
         observedGeneration: 2
         reason: PodScheduled
         status: "True"
         type: PodScheduled
-      - lastTransitionTime: "2026-10-11T17:21:25Z"
+      - lastTransitionTime: "2026-10-19T07:07:20Z"
         message: Sandbox is suspending
         observedGeneration: 2
         reason: SandboxSuspended
         status: "False"
         type: Ready
-      nodeName: karta-skill-sandbox-worker2
+      nodeName: karta-all-gaps-worker
       podIPs:
-      - 10.244.2.12
+      - 10.244.1.21
       selector: agents.x-k8s.io/sandbox-name-hash=30cfaf3c
   phases:
   - Suspending
-  resourceVersion: "1346"
+  resourceVersion: "2235"
   state: Suspending
 - kind: STATE
   object:
     apiVersion: agents.x-k8s.io/v1beta1
     kind: Sandbox
     metadata:
-      creationTimestamp: "2026-10-11T17:21:23Z"
+      creationTimestamp: "2026-10-19T07:07:18Z"
       generation: 2
       name: karta-e2e-sandbox-suspended-from-running
-      namespace: test-5bmz2
-      uid: e1a36eea-954d-4425-aff3-0d87900cab8d
+      namespace: test-njrzk
+      uid: 3ff4a8f0-a9ca-42da-91fe-c6e3d6f685f3
     spec:
       operatingMode: Suspended
       podTemplate:
@@ -319,48 +320,48 @@ events:
       shutdownPolicy: Retain
     status:
       conditions:
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: Pod is terminating. Sandbox is suspending
         observedGeneration: 2
         reason: PodTerminating
         status: "False"
         type: Suspended
-      - lastTransitionTime: "2026-10-11T17:21:23Z"
+      - lastTransitionTime: "2026-10-19T07:07:18Z"
         message: ""
         observedGeneration: 2
         reason: PodScheduled
         status: "True"
         type: PodScheduled
-      - lastTransitionTime: "2026-10-11T17:21:25Z"
+      - lastTransitionTime: "2026-10-19T07:07:20Z"
         message: Sandbox is suspending
         observedGeneration: 2
         reason: SandboxSuspended
         status: "False"
         type: Ready
-      - lastTransitionTime: "2026-10-11T17:21:57Z"
+      - lastTransitionTime: "2026-10-19T07:07:52Z"
         message: Pod failed
         observedGeneration: 2
         reason: PodFailed
         status: "True"
         type: Finished
-      nodeName: karta-skill-sandbox-worker2
+      nodeName: karta-all-gaps-worker
       podIPs:
-      - 10.244.2.12
+      - 10.244.1.21
       selector: agents.x-k8s.io/sandbox-name-hash=30cfaf3c
   phases:
   - Suspending
-  resourceVersion: "1429"
+  resourceVersion: "2401"
   state: Suspending
 - kind: STATE
   object:
     apiVersion: agents.x-k8s.io/v1beta1
     kind: Sandbox
     metadata:
-      creationTimestamp: "2026-10-11T17:21:23Z"
+      creationTimestamp: "2026-10-19T07:07:18Z"
       generation: 2
       name: karta-e2e-sandbox-suspended-from-running
-      namespace: test-5bmz2
-      uid: e1a36eea-954d-4425-aff3-0d87900cab8d
+      namespace: test-njrzk
+      uid: 3ff4a8f0-a9ca-42da-91fe-c6e3d6f685f3
     spec:
       operatingMode: Suspended
       podTemplate:
@@ -382,13 +383,13 @@ events:
       shutdownPolicy: Retain
     status:
       conditions:
-      - lastTransitionTime: "2026-10-11T17:21:57Z"
+      - lastTransitionTime: "2026-10-19T07:07:53Z"
         message: Pod has been terminated. Sandbox is suspended
         observedGeneration: 2
         reason: PodTerminated
         status: "True"
         type: Suspended
-      - lastTransitionTime: "2026-10-11T17:21:25Z"
+      - lastTransitionTime: "2026-10-19T07:07:20Z"
         message: Sandbox is suspended
         observedGeneration: 2
         reason: SandboxSuspended
@@ -397,7 +398,7 @@ events:
       selector: agents.x-k8s.io/sandbox-name-hash=30cfaf3c
   phases:
   - Suspended
-  resourceVersion: "1432"
+  resourceVersion: "2416"
   state: Suspended
 flow: suspended-from-running
 kartaFile: docs/catalog/agents-x-k8s-io-sandbox-v1beta1.yaml
@@ -407,9 +408,13 @@ result:
   succeeded: true
 schemaVersion: 1
 summary:
-- amount: 2
+- amount: 1
   phases:
-  - Initializing
+  - Pending
+- amount: 1
+  phases:
+  - Progressing
+  - Pending
 - amount: 1
   phases:
   - Running

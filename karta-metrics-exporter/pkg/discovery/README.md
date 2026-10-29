@@ -3,20 +3,27 @@
 
 # Discovery
 
-`Get(ctx, ref)` resolves one object to its workload root. For a Pod owned by a Job
-owned by a JobSet, it returns the JobSet reference and the path from Pod to root.
-A missing Karta does not make the Job the root. Only an explicitly ignored owner
-allows traversal to stop early.
+Discovery resolves a Kubernetes object to its workload root and returns the
+verified ownership path. For a Pod owned by a Job owned by a JobSet, the root is
+that JobSet and the path is Pod -> Job -> JobSet. A missing Karta definition does
+not make the Job the root.
 
-`Dependencies` supplies the object reader and definition inventory. The reader
-checks Runtime's informer cache and performs metadata GETs. Discovery does not
-start watches. `MissingCoverage` requests a root watch only; intermediate owners
-are not included. Runtime handles the request and retries after synchronization.
+Traversal follows controller owner references. An explicitly ignored owner type
+stops traversal before that owner is read. The configured type must match the
+owner's group, version and kind. The last verified object below that owner becomes
+the root with an ignored-owner resolution.
 
-Callers inspect errors with `errors.Is`. Missing coverage can accompany a Karta
-selection error once the root is known. An unresolved chain cannot request a
-root watch.
+Objects are read from Runtime's informer cache when available. On a cache miss,
+the reader fetches metadata. The reader owns metadata refresh and coalescing.
+Discovery retains no metadata between requests. Returned references include the
+observed resource versions so the caller can verify them before publication.
+The reader resolves API scope; cluster-scoped owners have an empty namespace in
+the returned path.
 
-The interfaces and result types are included here. Ownership indexing, input
-verification, Karta evaluation handles and their batches remain implementation
-work. `GenericWorkload` currently carries identity, path and resolution only.
+UID replacement, stale input resource versions, malformed or multiple controller
+references, cycles and missing owners fail resolution without returning a partial
+workload. A chain may contain at most 1024 objects.
+
+Discovery handles ownership only. Karta definition selection, expression evaluation
+and watch registration are separate responsibilities. Resolution does not start
+watches or request watch coverage for roots or intermediate owners.

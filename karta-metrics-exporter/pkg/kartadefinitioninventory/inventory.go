@@ -424,12 +424,12 @@ func (s reflectorStore) Replace(list []any, _ string) error {
 		i.failure = nil
 	}
 	i.report()
-	i.applied = time.Now()
 	if !i.synced {
 		i.synced = true
 		close(i.loaded)
 		i.log.Info("Karta definition inventory synced", "listed", len(list), "error", i.ready())
 	}
+	i.applied = time.Now()
 	return nil
 }
 

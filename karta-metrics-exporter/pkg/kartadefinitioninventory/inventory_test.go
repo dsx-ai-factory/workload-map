@@ -104,6 +104,21 @@ var (
 	catalogJobOrigin = Origin{Source: SourceCatalog, Name: "batch-job-v1"}
 )
 
+// gatedWriter holds its first write until released, as a slow log sink does.
+type gatedWriter struct {
+	entered chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (w *gatedWriter) Write(p []byte) (int, error) {
+	w.once.Do(func() {
+		close(w.entered)
+		<-w.release
+	})
+	return len(p), nil
+}
+
 // pausedStore holds its first Replace until released, so a spec can act after
 // a streaming list ends and before the store applies it.
 type pausedStore struct {
@@ -1238,6 +1253,66 @@ var _ = Describe("Inventory watch recovery", func() {
 		Eventually(paused.entered, eventuallyTimeout).Should(BeClosed())
 		// Applying the list takes over a second, and the watch closes meanwhile.
 		// client-go times the watch only once Replace returns, so it relists.
+		time.Sleep(1100 * time.Millisecond)
+		first.Stop()
+		release()
+
+		Eventually(streams, eventuallyTimeout).Should(Receive(&recovery))
+		_, err = inventory.Lookup(jobGVK)
+		Expect(err).To(MatchError(ErrUnavailable), "the recovery list has not applied yet")
+
+		recovery.Add(unstructuredKarta(newKarta("cluster-job", jobGVK, fromCluster("uid-1", "2"))))
+		recovery.Action(watch.Bookmark, end("3"))
+		Eventually(func(g Gomega) {
+			sel, err := inventory.Lookup(jobGVK)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(sel.Origin.Name).To(Equal("cluster-job"))
+		}, eventuallyTimeout, eventuallyInterval).Should(Succeed())
+	})
+
+	It("is unavailable when a streaming list's watch closes while the sync is still being logged", func() {
+		streams := make(chan *watch.RaceFreeFakeWatcher, 8)
+		client := newFakeClient()
+		client.PrependWatchReactor("kartas", func(action ktesting.Action) (bool, watch.Interface, error) {
+			w := watch.NewRaceFreeFake()
+			if initial := action.(ktesting.WatchActionImpl).ListOptions.SendInitialEvents; initial != nil && *initial {
+				streams <- w
+			}
+			return true, w, nil
+		})
+		inventory, err := New(client, withCatalog)
+		Expect(err).NotTo(HaveOccurred())
+		logs := &gatedWriter{entered: make(chan struct{}), release: make(chan struct{})}
+		inventory.log = slog.New(slog.NewTextHandler(logs, nil))
+		// Without the fake client's opt-out, the reflector uses streaming lists.
+		reflector := cache.NewReflectorWithOptions(
+			cache.ToListWatcherWithWatchListSemantics(inventory.listWatch(client.Resource(kartasGVR)), nil),
+			&unstructured.Unstructured{}, reflectorStore{inventory: inventory}, cache.ReflectorOptions{})
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			reflector.RunWithContext(ctx)
+		}()
+		release := sync.OnceFunc(func() { close(logs.release) })
+		DeferCleanup(func() {
+			cancel()
+			release()
+			Eventually(done, eventuallyTimeout).Should(BeClosed())
+		})
+		end := func(resourceVersion string) *unstructured.Unstructured {
+			u := &unstructured.Unstructured{}
+			u.SetGroupVersionKind(v1alpha1.GroupVersion.WithKind("Karta"))
+			u.SetResourceVersion(resourceVersion)
+			u.SetAnnotations(map[string]string{metav1.InitialEventsAnnotationKey: "true"})
+			return u
+		}
+
+		var first, recovery *watch.RaceFreeFakeWatcher
+		Eventually(streams, eventuallyTimeout).Should(Receive(&first))
+		first.Action(watch.Bookmark, end("1"))
+		// The first sync log blocks inside Replace for over a second, and the watch closes meanwhile.
+		Eventually(logs.entered, eventuallyTimeout).Should(BeClosed())
 		time.Sleep(1100 * time.Millisecond)
 		first.Stop()
 		release()

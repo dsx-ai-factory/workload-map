@@ -16,6 +16,7 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -292,6 +293,12 @@ func (i *Inventory) forward(ctx context.Context, w watch.Interface, proxy *watch
 				return
 			}
 			received = true
+			// client-go times the watch that follows a streaming list from its end bookmark.
+			if event.Type == watch.Bookmark {
+				if m, err := meta.Accessor(event.Object); err == nil && m.GetAnnotations()[metav1.InitialEventsAnnotationKey] == "true" {
+					received, started = false, time.Now()
+				}
+			}
 			// A stopped watch is abandoned.
 			if event.Type == watch.Error {
 				i.failWatch(ctx, proxy, apierrors.FromObject(event.Object))

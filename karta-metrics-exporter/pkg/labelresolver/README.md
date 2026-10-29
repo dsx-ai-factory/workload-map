@@ -31,11 +31,16 @@ workload has no owner label, it gets `owner` from the Pod.
 
 ## Behavior
 
-- A rule adds a new label. It cannot replace a built-in or reserved label.
+- A rule adds a label. If a built-in label has the same name, the rule value
+  replaces the built-in value. If the rule gives no value, the built-in value
+  stays.
+- A rule cannot use a label that identifies or joins series: `namespace`,
+  `pod_name`, `pod_uid`, `workload_uid`, `phase`, `observation_valid`, `job`
+  and `instance`, or a name that starts with `__`.
 - A rule reads its sources in the configured order. The first nonempty value
   becomes the label value.
-- If every source returns an empty value or fails, the metric does not get the
-  label.
+- If every source returns an empty value or fails, the rule gives no value. The
+  metric does not get the label, or keeps its built-in value.
 - If a source fails, the next source is read. The failure is reported, also
   when a later source gives the value. A failed label does not change the other
   labels.

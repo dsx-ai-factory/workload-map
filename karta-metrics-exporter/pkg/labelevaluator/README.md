@@ -46,7 +46,8 @@ exporter:
 `labelRules` defaults to `[]`. Rules target Pod info or workload status. A Pod
 source is allowed only for Pod info. Sources run in listed order until a nonempty
 value is found. The resolver retains per-source evaluation errors, including
-when a fallback succeeds. Built-in labels cannot be replaced.
+when a fallback succeeds. A rule can replace a descriptive built-in label, but not
+a label that identifies or joins series.
 
 The evaluator, startup rule validation and the [label resolver](../labelresolver/README.md)
 work today. Runtime evaluation and metric delivery are not implemented yet.

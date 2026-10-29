@@ -368,6 +368,29 @@ var _ = Describe("Resolve", func() {
 	})
 })
 
+var _ = Describe("Apply", func() {
+	It("replaces built-in values and keeps built-in labels without a resolved value", func() {
+		builtIn := map[string]string{"workload_name": "train", "component": "workers", "workload_uid": "uid-1"}
+		resolved := ResolvedMetricLabels{Labels: map[string]string{"component": "trainer", "team": "research"}}
+		Expect(resolved.Apply(builtIn)).To(Equal(map[string]string{
+			"workload_name": "train", "component": "trainer", "workload_uid": "uid-1", "team": "research",
+		}))
+		Expect(builtIn).To(Equal(map[string]string{"workload_name": "train", "component": "workers", "workload_uid": "uid-1"}))
+	})
+
+	It("keeps the built-in value when the rule resolves an empty value", func(ctx SpecContext) {
+		rule := teamRule(MetricWorkloadStatus)
+		rule.Name = "workload_name"
+		results, err := newResolver(rule).Resolve(ctx, Input{Metrics: []string{MetricWorkloadStatus}, Workload: workload(nil)})
+		Expect(err).To(Succeed())
+		Expect(results[0].Apply(map[string]string{"workload_name": "train"})).To(Equal(map[string]string{"workload_name": "train"}))
+	})
+
+	It("accepts nil built-in labels", func() {
+		Expect(ResolvedMetricLabels{Labels: map[string]string{"team": "research"}}.Apply(nil)).To(Equal(map[string]string{"team": "research"}))
+	})
+})
+
 func realCompiler() Dependencies {
 	return Dependencies{Compiler: labelevaluator.NewCompiler()}
 }

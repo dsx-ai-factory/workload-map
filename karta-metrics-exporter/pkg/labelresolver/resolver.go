@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
@@ -217,4 +218,15 @@ func (rule compiledRule) evaluate(ctx context.Context, objects map[Source]*unstr
 		}
 	}
 	return ruleResult{err: errors.Join(errs...)}, nil
+}
+
+// Apply returns builtIn with the resolved values added. A resolved value replaces a
+// built-in value of the same name; a label without a resolved value keeps its built-in value.
+func (r ResolvedMetricLabels) Apply(builtIn map[string]string) map[string]string {
+	labels := maps.Clone(builtIn)
+	if labels == nil {
+		labels = make(map[string]string, len(r.Labels))
+	}
+	maps.Copy(labels, r.Labels)
+	return labels
 }

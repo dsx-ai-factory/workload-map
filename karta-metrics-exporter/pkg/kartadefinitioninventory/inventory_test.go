@@ -1195,6 +1195,66 @@ var _ = Describe("Inventory watch recovery", func() {
 		}, eventuallyTimeout, eventuallyInterval).Should(Succeed())
 	})
 
+	It("is unavailable when a streaming list's watch closes while the list is still being applied", func() {
+		streams := make(chan *watch.RaceFreeFakeWatcher, 8)
+		client := newFakeClient()
+		client.PrependWatchReactor("kartas", func(action ktesting.Action) (bool, watch.Interface, error) {
+			w := watch.NewRaceFreeFake()
+			if initial := action.(ktesting.WatchActionImpl).ListOptions.SendInitialEvents; initial != nil && *initial {
+				streams <- w
+			}
+			return true, w, nil
+		})
+		inventory, err := New(client, withCatalog)
+		Expect(err).NotTo(HaveOccurred())
+		paused := &pausedStore{ReflectorStore: reflectorStore{inventory: inventory}, entered: make(chan struct{}), release: make(chan struct{})}
+		// Without the fake client's opt-out, the reflector uses streaming lists.
+		reflector := cache.NewReflectorWithOptions(
+			cache.ToListWatcherWithWatchListSemantics(inventory.listWatch(client.Resource(kartasGVR)), nil),
+			&unstructured.Unstructured{}, paused, cache.ReflectorOptions{})
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			reflector.RunWithContext(ctx)
+		}()
+		release := sync.OnceFunc(func() { close(paused.release) })
+		DeferCleanup(func() {
+			cancel()
+			release()
+			Eventually(done, eventuallyTimeout).Should(BeClosed())
+		})
+		end := func(resourceVersion string) *unstructured.Unstructured {
+			u := &unstructured.Unstructured{}
+			u.SetGroupVersionKind(v1alpha1.GroupVersion.WithKind("Karta"))
+			u.SetResourceVersion(resourceVersion)
+			u.SetAnnotations(map[string]string{metav1.InitialEventsAnnotationKey: "true"})
+			return u
+		}
+
+		var first, recovery *watch.RaceFreeFakeWatcher
+		Eventually(streams, eventuallyTimeout).Should(Receive(&first))
+		first.Action(watch.Bookmark, end("1"))
+		Eventually(paused.entered, eventuallyTimeout).Should(BeClosed())
+		// Applying the list takes over a second, and the watch closes meanwhile.
+		// client-go times the watch only once Replace returns, so it relists.
+		time.Sleep(1100 * time.Millisecond)
+		first.Stop()
+		release()
+
+		Eventually(streams, eventuallyTimeout).Should(Receive(&recovery))
+		_, err = inventory.Lookup(jobGVK)
+		Expect(err).To(MatchError(ErrUnavailable), "the recovery list has not applied yet")
+
+		recovery.Add(unstructuredKarta(newKarta("cluster-job", jobGVK, fromCluster("uid-1", "2"))))
+		recovery.Action(watch.Bookmark, end("3"))
+		Eventually(func(g Gomega) {
+			sel, err := inventory.Lookup(jobGVK)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(sel.Origin.Name).To(Equal("cluster-job"))
+		}, eventuallyTimeout, eventuallyInterval).Should(Succeed())
+	})
+
 	It("resumes a truncated stream from its last resource version without a relist", func() {
 		client := newFakeClient()
 		decoder := &truncatedDecoder{bookmark: true, broken: make(chan struct{})}

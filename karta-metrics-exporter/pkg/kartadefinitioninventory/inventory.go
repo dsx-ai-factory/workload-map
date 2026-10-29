@@ -102,7 +102,9 @@ type Inventory struct {
 	failure  error
 	failures uint64
 	// listedFrom is the failure count when the latest list began.
-	listedFrom        uint64
+	listedFrom uint64
+	// applied is when Replace last applied a complete list.
+	applied           time.Time
 	unkeyable         []string
 	unmatchedIncludes []string
 }
@@ -283,20 +285,21 @@ func (i *Inventory) forward(ctx context.Context, w watch.Interface, proxy *watch
 	defer close(events)
 	defer w.Stop()
 	received := false
+	var listEnded time.Time
 	for {
 		select {
 		case event, ok := <-w.ResultChan():
 			if !ok {
-				if !received && time.Since(started) < time.Second {
+				if !received && i.shortWatch(started, listEnded) {
 					i.failWatch(ctx, proxy, errShortWatch)
 				}
 				return
 			}
 			received = true
-			// client-go times the watch that follows a streaming list from its end bookmark.
+			// The watch that follows a streaming list starts at its end bookmark.
 			if event.Type == watch.Bookmark {
 				if m, err := meta.Accessor(event.Object); err == nil && m.GetAnnotations()[metav1.InitialEventsAnnotationKey] == "true" {
-					received, started = false, time.Now()
+					received, listEnded = false, time.Now()
 				}
 			}
 			// A stopped watch is abandoned.
@@ -316,6 +319,18 @@ func (i *Inventory) forward(ctx context.Context, w watch.Interface, proxy *watch
 			return
 		}
 	}
+}
+
+// shortWatch matches client-go, which relists after a watch that ends within a
+// second without events. After a streaming list, client-go starts that second
+// once Replace has applied the list, so a close before then is always short.
+func (i *Inventory) shortWatch(started, listEnded time.Time) bool {
+	if listEnded.IsZero() {
+		return time.Since(started) < time.Second
+	}
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.applied.Before(listEnded) || time.Since(i.applied) < time.Second
 }
 
 // beginList marks the failure count a fresh list starts from.
@@ -409,6 +424,7 @@ func (s reflectorStore) Replace(list []any, _ string) error {
 		i.failure = nil
 	}
 	i.report()
+	i.applied = time.Now()
 	if !i.synced {
 		i.synced = true
 		close(i.loaded)

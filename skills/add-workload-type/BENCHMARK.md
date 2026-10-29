@@ -8,8 +8,8 @@ Date: 2026-08-18
 Evals: 1, 2, 3 from `evals/evals.json` (3 runs each per configuration, 18 runs total)
 
 These figures measure the skill as it was on that date, before step 8 (the
-catalog entry and recorded flow) and the later rules. The current skill has not
-been re-run.
+catalog entry and recorded flow) and the later rules. Evals 1 and 2 were re-run
+on the current skill; see the re-run section below.
 
 Each eval prompt was run by an agent with the skill available and by a baseline
 agent without it. Both configurations had full repository access. Every produced
@@ -73,9 +73,80 @@ module. Its results are in the eval 5 section below.
 The skill later made step 8 ship every definition in this repository as a
 catalog entry with a recorded flow. Evals 1 and 4 now expect that entry, the
 reverse of the "definition only" expectation graded above, and evals 1, 2 and
-4 run karta-verify from `karta/sdk/`. Every reworded expectation has a null
-measured count; the tables above the eval 5 section grade the earlier
-wording.
+4 run karta-verify from `karta/sdk/`. The tables above grade the earlier
+wording; the re-run below grades the current one.
+
+## Evals 1 and 2, re-run
+
+Model: claude-opus-5-5
+Date: 2026-10-29
+Runs: 3 per configuration per eval, 12 in total
+
+Setup. Each run had its own git worktree of this repository at the skill
+version under test. Runs with the skill were given the path to `SKILL.md`;
+runs without it had `skills/add-workload-type/` removed. No run could read the
+repository on GitHub. A run that needed a cluster created its own kind
+cluster. Each run logged every command with its exit code, and grading used
+those logs and the committed tree.
+
+| Expectation | Eval | With skill | Without |
+|-------------|------|------------|---------|
+| Ships a catalog entry: builder, generated sample, operator install, recorded flow | 1 | 3/3 | 3/3 |
+| Predictions written before the run, exercised with `--strict` | 1 | 3/3 | 1/3 |
+| Validated with karta-verify from `karta/sdk/` | 1 | 3/3 | 3/3 |
+| Suspend guarded, and a recorded flow reaches Suspended | 1 | 3/3 | 3/3 |
+| Real phases, null-safe, plain or documented read-only paths | 1 | 3/3 | 2/3 |
+| karta-verify from `karta/sdk/` with predictions and `--strict` | 2 | 3/3 | 3/3 |
+| Spec and scale paths are plain | 2 | 3/3 | 0/3 |
+| Names the shipped entry, adds no second builder or flow | 2 | 2/3 | 3/3 |
+
+What changed since 2026-08-18. Runs without the skill now do most of what
+only skill-guided runs did then. All three eval 1 baselines shipped a catalog
+builder, an operator install and a recorded flow, with a suspend-guarded
+Running rule; all three eval 2 baselines ran karta-verify with predictions.
+The repository now teaches this itself: `AGENTS.md` requires a recorded flow
+for every catalog entry, and the harness README describes karta-verify.
+
+What still separates the configurations:
+
+- Predictions. Every skill-guided eval 1 run wrote predictions and ran
+  `--strict` against live CRs and recorded frames; one baseline did, once.
+  Two skill-guided runs caught the same bug this way: a Workflow that uses
+  `workflowTemplateRef` crashed the read on the missing `.spec.templates`.
+- Scope on an existing entry. Every skill-guided eval 2 run audited the
+  shipped CronJob entry against the skill and fixed it: the scale path
+  `.spec.jobTemplate.spec.parallelism // 1` became plain, the builder gained a
+  comment on what the controller writes, and the flow predicates were made
+  exclusive. Baselines checked the entry and stopped; one noticed the
+  predicate overlap and left it. One skill-guided run added a new resume flow,
+  which the no-duplicate expectation counts as a miss.
+
+Tokens and time. Clean runs only, as means:
+
+| Eval | With skill | Without |
+|------|------------|---------|
+| 1 | 302,385 tokens, 2,564s (2 runs) | 227,563 tokens, 1,666s (1 run) |
+| 2 | not measured | 77,098 tokens, 270s (3 runs) |
+
+Skill-guided runs cost more on both evals, the reverse of 2026-08-18, because
+they do more: more flows and live checks on eval 1, and a repair of the
+existing entry on eval 2.
+
+Limits of this run:
+
+- A lapsed login stopped five runs midway; each resumed with its context
+  intact. Their tokens and time are not comparable and are left out above.
+  One more eval 1 baseline ran overnight, so its time is left out.
+- The first runs shared one Docker VM (4 CPUs, 8 GB) with up to five kind
+  clusters. One skill-guided eval 1 run could not record its flow until the
+  host was quiet and was then resumed to record it; one skill-guided eval 2
+  run never got a cluster and left its fixtures unrecorded. Later eval 1 runs
+  ran one at a time.
+- Triggering was not measured: skill-guided runs were given the skill's path.
+- The run prompt asked every run for what it left unverified, so the eval 2
+  unproven-parts expectation was not measured and keeps its 2026-08-18 count.
+- One skill-guided eval 1 run installed shellcheck with Homebrew, so the
+  baseline after it could run `make lint-shell`; earlier runs could not.
 
 ## Eval 5, no checkout
 
@@ -220,9 +291,9 @@ figures above for both configurations.
 ## Reproducing
 
 1. Run the eval 1, 2 and 3 prompts from `evals/evals.json` with and without the
-   skill available, 3 runs each. Eval 4 is documented but was not run. Eval 5
-   ran separately, with three configurations; its setup is in the eval 5
-   section.
+   skill available, 3 runs each. Eval 4 is documented but was not run. Evals
+   1 and 2 were re-run with the setup in the re-run section, and eval 5 ran
+   separately, with three configurations; its setup is in the eval 5 section.
 2. Grade each run against its `expectations` list.
 3. Validate every produced definition, and exercise it against a real CR with
    predictions written before the run, from `karta/sdk/` (for eval 5, with

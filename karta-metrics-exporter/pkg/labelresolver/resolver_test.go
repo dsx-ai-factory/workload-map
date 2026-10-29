@@ -404,6 +404,51 @@ var _ = Describe("Resolve", func() {
 	})
 })
 
+var _ = Describe("execution order", func() {
+	statusRule := func(expression string) LabelRule {
+		return LabelRule{Name: "team", Metrics: []string{MetricWorkloadStatus}, Sources: []Source{SourceWorkload}, Expression: expression}
+	}
+
+	It("reads sources in order and stops at the first nonempty successful value", func(ctx SpecContext) {
+		rule := LabelRule{
+			Name: "team", Metrics: []string{MetricPodWorkloadInfo}, Sources: []Source{SourceWorkload, SourcePod},
+			Expression: `object.kind == "Pod" ? "pod" : object.metadata.labels["team"]`,
+		}
+		in := Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(map[string]any{}), Pod: pod("", nil)}
+		results, err := newResolver(rule).Resolve(ctx, in)
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "pod"}))
+		Expect(results[0].Errors["team"]).To(MatchError(ContainSubstring("workload source")))
+
+		rule.Sources = []Source{SourcePod, SourceWorkload}
+		results, err = newResolver(rule).Resolve(ctx, in)
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "pod"}))
+		Expect(results[0].Errors).To(BeEmpty(), "the workload source must not be read after the Pod value")
+	})
+
+	It("keeps the last nonempty value across rules and reports later errors", func(ctx SpecContext) {
+		r := newResolver(
+			statusRule(`"research"`),
+			statusRule(`"platform"`),
+			statusRule(`""`),
+			statusRule(`object.metadata.labels["missing"]`),
+		)
+		results, err := r.Resolve(ctx, Input{Metrics: []string{MetricWorkloadStatus}, Workload: workload(map[string]any{})})
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "platform"}))
+		Expect(results[0].Errors["team"]).To(MatchError(ContainSubstring("missing")))
+	})
+
+	It("keeps the built-in label when every rule is empty or fails", func(ctx SpecContext) {
+		r := newResolver(statusRule(`""`), statusRule(`object.metadata.labels["missing"]`))
+		results, err := r.Resolve(ctx, Input{Metrics: []string{MetricWorkloadStatus}, Workload: workload(map[string]any{})})
+		Expect(err).To(Succeed())
+		Expect(results[0].Errors).To(HaveKey("team"))
+		Expect(results[0].Apply(map[string]string{"team": "built-in"})).To(Equal(map[string]string{"team": "built-in"}))
+	})
+})
+
 var _ = Describe("Apply", func() {
 	It("replaces built-in values and keeps built-in labels without a resolved value", func() {
 		builtIn := map[string]string{"workload_name": "train", "component": "workers", "workload_uid": "uid-1"}

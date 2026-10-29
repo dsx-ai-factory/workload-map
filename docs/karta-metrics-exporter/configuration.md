@@ -191,7 +191,8 @@ remain active; failed checks invalidate dependent observations.
 `karta_workload_status`. Each rule provides metric names, ordered sources and a
 CEL expression. Sources are `workload` and `pod`. Status rules cannot use `pod`.
 Expressions read the supplied full object through `object`; they do not call
-Kubernetes or mutate it. Guard optional fields with `has(...)`.
+Kubernetes or mutate it. Guard optional fields with `has(...)`. A rule can
+replace a built-in label of the same name.
 
 This rule reads a team from the workload object:
 
@@ -219,6 +220,39 @@ metadata:
 ```
 
 The expression returns `"research"` for the configured `team` label.
+
+### Order of evaluation
+
+For each metric, the exporter evaluates the rules in this order:
+
+1. It selects every rule that targets the metric.
+2. It runs these rules in `labelRules` order.
+3. In a rule, it reads the sources in order. The first nonempty value from a
+   source that does not fail is the rule value.
+4. If several rules set the same label, the last rule that gives a value wins.
+5. A rule that gives no value, because every source is empty or fails, keeps the
+   earlier value. Evaluation errors are reported for the label.
+6. If no rule gives a value, the metric keeps its built-in label, if it has one.
+
+Put a general default first and specific overrides after it:
+
+```yaml
+exporter:
+  labelRules:
+    - name: team # Default for every workload.
+      metrics: [karta_workload_status]
+      sources: [workload]
+      expression: '"platform"'
+    - name: team # Override when the workload has a team label.
+      metrics: [karta_workload_status]
+      sources: [workload]
+      expression: |
+        has(object.metadata.labels) && "example.com/team" in object.metadata.labels
+          ? object.metadata.labels["example.com/team"] : ""
+```
+
+A workload labeled `example.com/team=research` gets `team="research"`. Other
+workloads get `team="platform"`.
 
 The command validates rule names, metric/source combinations and CEL at startup.
 The CEL evaluator and the label resolver are implemented.

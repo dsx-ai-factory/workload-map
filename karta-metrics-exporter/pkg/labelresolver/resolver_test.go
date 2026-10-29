@@ -51,6 +51,37 @@ var _ = Describe("New", func() {
 		Expect(err).To(MatchError(ContainSubstring("cannot use a Pod source")))
 	})
 
+	for _, tc := range []struct {
+		name   string
+		limits labelevaluator.Limits
+	}{
+		{"negative expression limit", labelevaluator.Limits{MaxExpressionBytes: -1}},
+		{"negative result limit", labelevaluator.Limits{MaxResultBytes: -1}},
+	} {
+		It("rejects a "+tc.name+" without rules", func() {
+			_, err := New(Config{Limits: tc.limits}, realCompiler())
+			Expect(err).To(MatchError(labelevaluator.ErrNegativeLimit))
+		})
+	}
+
+	It("is not affected by changes to the configuration after construction", func(ctx SpecContext) {
+		rule := teamRule(MetricPodWorkloadInfo)
+		rule.Sources = []Source{SourceWorkload, SourcePod}
+		rules := []LabelRule{rule}
+		r, err := New(Config{Rules: rules}, realCompiler())
+		Expect(err).To(Succeed())
+		rules[0].Sources[1] = SourceWorkload
+		rules[0].Metrics[0] = MetricWorkloadStatus
+		rules[0].Name = "changed"
+		results, err := r.Resolve(ctx, Input{
+			Metrics:  []string{MetricPodWorkloadInfo},
+			Workload: workload(nil),
+			Pod:      pod("", map[string]string{"example.com/team": "from-pod"}),
+		})
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "from-pod"}))
+	})
+
 	It("requires a compiler", func() {
 		_, err := New(Config{}, Dependencies{})
 		Expect(err).To(MatchError(ErrMissingCompiler))
@@ -141,6 +172,67 @@ var _ = Describe("Resolve", func() {
 		Expect(err).To(Succeed())
 		Expect(results[0].Labels).To(Equal(map[string]string{"team": "from-pod"}))
 		Expect(results[0].Errors).To(HaveKeyWithValue("team", MatchError(ContainSubstring("workload source"))))
+	})
+
+	It("retains the workload limit error after a successful Pod fallback", func(ctx SpecContext) {
+		r, err := New(Config{
+			Limits: labelevaluator.Limits{MaxResultBytes: 3},
+			Rules: []LabelRule{{
+				Name:       "team",
+				Metrics:    []string{MetricPodWorkloadInfo},
+				Sources:    []Source{SourceWorkload, SourcePod},
+				Expression: `object.kind == "Pod" ? "pod" : "too-long"`,
+			}},
+		}, realCompiler())
+		Expect(err).To(Succeed())
+		results, err := r.Resolve(ctx, Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil), Pod: pod("", nil)})
+		Expect(err).To(Succeed())
+		Expect(results).To(HaveLen(1))
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "pod"}))
+		Expect(results[0].Errors["team"]).To(MatchError(labelevaluator.ErrValueTooLong))
+	})
+
+	It("reads the Pod first when it is listed first", func(ctx SpecContext) {
+		rule := teamRule(MetricPodWorkloadInfo)
+		rule.Sources = []Source{SourcePod, SourceWorkload}
+		r := newResolver(rule)
+		root := workload(map[string]any{"example.com/team": "research"})
+		results, err := r.Resolve(ctx, Input{
+			Metrics: []string{MetricPodWorkloadInfo}, Workload: root, Pod: pod("", map[string]string{"example.com/team": "from-pod"}),
+		})
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "from-pod"}))
+		results, err = r.Resolve(ctx, Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: root, Pod: pod("", nil)})
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "research"}))
+	})
+
+	It("does not need a Pod for workload status when another rule reads the Pod", func(ctx SpecContext) {
+		r := newResolver(teamRule(MetricWorkloadStatus), schedulerRule())
+		results, err := r.Resolve(ctx, Input{
+			Metrics: []string{MetricWorkloadStatus}, Workload: workload(map[string]any{"example.com/team": "research"}),
+		})
+		Expect(err).To(Succeed())
+		Expect(results[0].Labels).To(Equal(map[string]string{"team": "research"}))
+	})
+
+	It("returns independent maps for each metric and call", func(ctx SpecContext) {
+		r := newResolver(teamRule(MetricWorkloadStatus, MetricPodWorkloadInfo))
+		in := Input{
+			Metrics:  []string{MetricWorkloadStatus, MetricPodWorkloadInfo},
+			Workload: workload(map[string]any{"example.com/team": "research"}),
+			Pod:      pod("", nil),
+		}
+		first, err := r.Resolve(ctx, in)
+		Expect(err).To(Succeed())
+		first[0].Labels["team"] = "changed"
+		first[0].Errors["team"] = errors.New("changed")
+		Expect(first[1].Labels).To(Equal(map[string]string{"team": "research"}))
+		Expect(first[1].Errors).To(BeEmpty())
+		second, err := r.Resolve(ctx, in)
+		Expect(err).To(Succeed())
+		Expect(second[0].Labels).To(Equal(map[string]string{"team": "research"}))
+		Expect(second[0].Errors).To(BeEmpty())
 	})
 
 	It("stops at the first nonempty source", func(ctx SpecContext) {

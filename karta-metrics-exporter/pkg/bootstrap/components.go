@@ -36,9 +36,8 @@ var (
 	_ controller.Runner        = (*controller.MockRuntime)(nil)
 )
 
-// New is the temporary composition root. Replace the mock factories here as
-// components land; the label resolver is already real.
-// It returns an error when a label rule is invalid or fails to compile.
+// New is the temporary composition root. Replace the mock factories here as components land.
+// It fails when a label rule is invalid.
 func New(labelConfig labelresolver.Config) (app.Components, error) {
 	definitions := newInventory(inventory.Config{})
 	reader := newObjectReader()

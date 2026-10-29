@@ -21,11 +21,11 @@ type Resolver interface {
 	Resolve(context.Context, Input) ([]ResolvedMetricLabels, error)
 }
 
-// resolver evaluates compiled rules. It is safe for concurrent use.
+// resolver is safe for concurrent use.
 type resolver struct {
 	rules         []compiledRule
 	rulesByMetric map[string][]int
-	// podMetrics holds the metrics with at least one rule that reads the Pod.
+	// podMetrics marks the metrics with a rule that reads the Pod.
 	podMetrics map[string]bool
 }
 
@@ -106,6 +106,10 @@ func New(cfg Config, deps Dependencies) (Resolver, error) {
 	if deps.Compiler == nil {
 		return nil, ErrMissingCompiler
 	}
+	// The compiler checks limits only per rule, so an empty rule list would accept them.
+	if cfg.Limits.MaxExpressionBytes < 0 || cfg.Limits.MaxResultBytes < 0 {
+		return nil, labelevaluator.ErrNegativeLimit
+	}
 	if err := ValidateConfig(cfg); err != nil {
 		return nil, err
 	}
@@ -131,10 +135,8 @@ func New(cfg Config, deps Dependencies) (Resolver, error) {
 	return r, nil
 }
 
-// Resolve returns one result per requested metric, in request order. Each rule
-// runs at most once per call, even when it targets several metrics. Sources run
-// in order until one returns a nonempty value; every source error is kept.
-// The returned error reports invalid input or cancellation.
+// Resolve returns one result per requested metric, in request order. The error
+// reports invalid input, a Pod conversion failure or cancellation.
 func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabels, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -155,22 +157,12 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 		readsPod = readsPod || r.podMetrics[metric]
 	}
 
-	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload}
-	// Converting a full Pod is costly; skip it unless a requested metric reads the Pod.
-	if readsPod {
-		if in.Pod == nil {
-			return nil, ErrMissingPod
-		}
-		content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(in.Pod)
-		if err != nil {
-			return nil, fmt.Errorf("converting Pod %s/%s: %w", in.Pod.Namespace, in.Pod.Name, err)
-		}
-		pod := &unstructured.Unstructured{Object: content}
-		// Typed objects from informer caches have no TypeMeta; expose the same
-		// apiVersion and kind that the workload source always carries.
-		pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
-		objects[SourcePod] = pod
+	if readsPod && in.Pod == nil {
+		return nil, ErrMissingPod
 	}
+
+	// The Pod is added only when a rule reaches it, so a workload value avoids the conversion.
+	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload}
 
 	evaluated := make(map[int]ruleResult)
 	results := make([]ResolvedMetricLabels, 0, len(in.Metrics))
@@ -180,7 +172,7 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 			outcome, ok := evaluated[i]
 			if !ok {
 				var err error
-				if outcome, err = r.rules[i].evaluate(ctx, objects); err != nil {
+				if outcome, err = r.rules[i].evaluate(ctx, objects, in.Pod); err != nil {
 					return nil, err
 				}
 				evaluated[i] = outcome
@@ -197,11 +189,21 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 	return results, nil
 }
 
-// evaluate returns the first nonempty source value with the errors of the sources
-// tried before it. The error result reports only cancellation.
-func (rule compiledRule) evaluate(ctx context.Context, objects map[Source]*unstructured.Unstructured) (ruleResult, error) {
+// evaluate returns the first nonempty source value and the errors of earlier sources.
+// The error result reports cancellation or a Pod conversion failure.
+func (rule compiledRule) evaluate(ctx context.Context, objects map[Source]*unstructured.Unstructured, inputPod *corev1.Pod) (ruleResult, error) {
 	var errs []error
 	for _, source := range rule.sources {
+		if source == SourcePod && objects[SourcePod] == nil {
+			content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(inputPod)
+			if err != nil {
+				return ruleResult{}, fmt.Errorf("converting Pod %s/%s: %w", inputPod.Namespace, inputPod.Name, err)
+			}
+			pod := &unstructured.Unstructured{Object: content}
+			// Cached typed Pods have no TypeMeta; CEL must still see apiVersion and kind.
+			pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
+			objects[SourcePod] = pod
+		}
 		value, err := rule.evaluator.Evaluate(ctx, objects[source])
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ruleResult{}, ctxErr

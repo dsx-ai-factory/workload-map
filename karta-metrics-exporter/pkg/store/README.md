@@ -3,46 +3,41 @@
 
 # Publication Store
 
-Runtime publishes one immutable result per root UID. Collector calls `Capture`
-to read publications and resource health from one point in time.
+Store holds completed Pod mapping and workload results in separate UID maps.
+`New()` returns `PublicationStore`, which combines `Writer` and `Capturer`.
+Runtime receives `Writer`; collection receives `Capturer`.
 
-`Writer` exposes Runtime's operations. `Capturer` exposes only the read operation.
-`PublicationStore` combines them for startup wiring.
+Each method uses one private Store lock. Upsert clones the input struct and all
+mutable maps and slices before replacing the UID entry. Callers must keep inputs
+stable during the call and may reuse them afterward. Lookup and capture return
+shared result pointers that callers must never mutate. Go does not enforce this
+read-only convention.
 
-## Synchronization
+`Capture` copies result pointers, source health and discovery failures under one
+read lock. Its containers belong to the capture. Later replacements, deletion
+and health changes cannot change an existing view. Iteration order is unspecified.
+Consumers process the view after the lock is released. Separate Pod and workload
+writes may appear in different revisions in a single capture.
 
-Store owns its mutex. Every method is safe to call concurrently and completes
-atomically. `Capture` fixes one time, record references, health and failure state
-under the Store lock. It releases the lock before Collector walks the view.
-Pass a fake clock through `Options.Now` in tests. Nil uses `time.Now`.
+`Valid(sources, reason)` uses only the captured source health. A saved operation
+error wins. Otherwise any permission denial wins, followed by missing, unsynced
+or failed sources as `api_unavailable`. Healthy or empty dependencies return
+`none`. Keys match the exact resource group, version, resource and collection
+namespace. An all-namespace collection uses the empty namespace.
 
-Runtime owns input verification and operation ordering. It serializes accepted
-events with final verification and publication. A `Published` read followed by
-`Publish` is two operations, so Runtime must serialize that sequence too. It
-rechecks deletion and input versions before publishing. Store's mutex does not
-make a stale calculation current.
+`HasValue` is independent of validity. Runtime constructs replacements containing
+retained successful values and current errors. Store does not merge or evaluate
+results. Workload `Error` applies to status and creation; `StatusError` applies
+only to status. `CreationSources` identifies creation's separate dependencies.
+Discovery failures are stored separately by input UID.
 
-Collection can happen between writes. Runtime must invalidate affected evidence
-before clearing a shared failure. Only newly verified data can become valid.
-Failure updates use the same Runtime ordering as publications. One Runtime owner
-replaces the complete health list.
+There is no clock or TTL. Accepted source recovery can restore source-only
+validity before reconciliation completes. A saved evaluation error persists
+until Runtime publishes its replacement. Source recovery does not prove that a
+retained calculation used the recovered input.
 
-## Operations
-
-- `Publish` replaces a root's complete publication. Do not mutate it afterward.
-- `Published` returns the immutable publication, or nil.
-- `RemovePublication` removes the root and its Pod rows. An absent UID is safe.
-- `SetPublicationFailure` sets a shared failure for a key in
-  `Evidence.Dependencies`. An empty reason clears it. The key identifies a shared
-  dependency, such as a resource watch, rather than a workload UID.
-- `SetPublicationHealth` replaces the resource health list.
-- `Capture` returns a view that later writes cannot change.
-
-The data types and interfaces are included here. Storage, internal locking,
-expiry checks and copy-on-write Pod updates are not implemented. The implementation
-will add `Publication.WithPod(uid, replacement)` and `CapturedView.Valid(evidence)`,
-including the captured view's private failure state. `Valid` checks explicit
-failure, dependency failures and expiry at the captured time.
-
-Store owns its data types and does not import discovery. Runtime translates the
-resolved identity into a publication.
+Removal affects only the named UID in its own domain. A workload removal leaves
+Pod mappings intact. The same UID may occupy both domains. Reassignment replaces
+a Pod's entire mapping and root identity once. Runtime owns event ordering,
+source recovery, dependent cleanup and protection against stale work publishing
+after deletion. An earlier capture may finish emitting removed results.

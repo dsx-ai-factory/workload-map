@@ -31,6 +31,8 @@ var _ = Describe("bootstrap stops on cancellation", func() {
 		case <-time.After(5 * time.Second):
 			Fail("mock runtime did not stop")
 		}
-		Expect(components.Store.Capture().Records).To(BeEmpty())
+		view := components.Store.Capture()
+		Expect(view.Pods).To(BeEmpty())
+		Expect(view.Workloads).To(BeEmpty())
 	})
 })

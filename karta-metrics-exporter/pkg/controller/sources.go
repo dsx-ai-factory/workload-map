@@ -250,6 +250,9 @@ func (r *controllerState) listResource(ctx context.Context, w *resourceWatch, op
 				}
 				result.Items = append(result.Items, *object)
 			}
+			if err == nil {
+				return result, nil
+			}
 		} else if apierrors.IsNotAcceptable(err) || apierrors.IsUnsupportedMediaType(err) {
 			result, err = r.reader.clients.Dynamic.Resource(w.key.Resource).Namespace(w.key.Namespace).List(requestCtx, options)
 		}

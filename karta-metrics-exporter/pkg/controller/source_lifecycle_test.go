@@ -170,6 +170,51 @@ func TestMetadataNegotiationFallbackPreservesMetadataCache(t *testing.T) {
 	}
 }
 
+func TestMetadataListPreservesPaginationAndOwnsObjects(t *testing.T) {
+	r, _ := simpleRuntime(t, nil)
+	w := seedSource(t, r, replicaSetKind, false)
+	remaining := int64(2)
+	input := &metav1.PartialObjectMetadataList{
+		ListMeta: metav1.ListMeta{ResourceVersion: "17", Continue: "next-page", RemainingItemCount: &remaining},
+		Items: []metav1.PartialObjectMetadata{{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "middle", Namespace: "default", UID: "middle-uid", ResourceVersion: "16",
+				Labels:        map[string]string{"app": "test"},
+				ManagedFields: []metav1.ManagedFieldsEntry{{Manager: "test"}},
+			},
+		}},
+	}
+	original := input.DeepCopy()
+	r.state.reader.clients.Metadata.(*metadatafake.FakeMetadataClient).PrependReactor("list", "replicasets", func(clienttesting.Action) (bool, kruntime.Object, error) {
+		list := &metav1.List{ListMeta: input.ListMeta}
+		for i := range input.Items {
+			list.Items = append(list.Items, kruntime.RawExtension{Object: &input.Items[i]})
+		}
+		return true, list, nil
+	})
+	result, err := r.state.listResource(context.Background(), w, metav1.ListOptions{})
+	require.NoError(t, err)
+	list := result.(*unstructured.UnstructuredList)
+	require.Equal(t, "17", list.GetResourceVersion())
+	require.Equal(t, "next-page", list.GetContinue())
+	require.Equal(t, &remaining, list.GetRemainingItemCount())
+	require.Len(t, list.Items, 1)
+	object := &list.Items[0]
+	require.Equal(t, replicaSetKind, object.GroupVersionKind())
+	require.Equal(t, "middle", object.GetName())
+	require.Equal(t, types.UID("middle-uid"), object.GetUID())
+	require.Equal(t, "16", object.GetResourceVersion())
+	require.Nil(t, object.GetManagedFields())
+	require.Equal(t, map[string]string{"app": "test"}, object.GetLabels())
+	object.Object["metadata"].(map[string]any)["labels"].(map[string]any)["app"] = "changed"
+	require.Equal(t, original, input)
+
+	input.Items = nil
+	result, err = r.state.listResource(context.Background(), w, metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Nil(t, result.(*unstructured.UnstructuredList).Items)
+}
+
 func TestWatchFailureAndEOFRemainVisibleUntilReconnect(t *testing.T) {
 	r, values := simpleRuntime(t, nil)
 	_, _, source, _ := seedPair(t, r)

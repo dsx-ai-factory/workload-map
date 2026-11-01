@@ -143,9 +143,17 @@ For example, a selected Job owned by a Deployment registers that Deployment.
 Only a root-UID job publishes a workload result. A selected-object job registers
 or removes membership and queues the affected root.
 
-Selector configuration is fixed when the runtime is constructed. Watched object
-labels can still change. Workers match current labels against those fixed
-selectors before evaluation.
+Selector settings from configuration and environment variables are fixed when
+the runtime is constructed. Their inputs are not fixed:
+
+| Setting | Labels checked |
+| --- | --- |
+| `PodSelector` | The current Pod |
+| `ObjectSelector` | The discovered root |
+| `NamespaceSelector` | The Namespace object |
+
+A watched object can enter or leave a fixed selector when its labels change.
+Workers therefore check current labels before evaluation.
 
 Pod selection filters leaf work, but unselected Pods remain cached because they
 may own other Pods. A Pod leaving the selector is queued to remove its previous
@@ -159,12 +167,17 @@ This mutex protects cache acceptance, ownership membership and publication.
 Discovery and expression evaluation run outside it. Accepted objects are
 immutable, and state methods return values or owned snapshots.
 
-State entry points acquire `stateMu` and immediately defer its release. Their
-helpers reuse that scope. For example, `publishPod` checks `isPathCurrent`,
+Read-only state operations use `stateMu.RLock`. Cache, membership and publication
+changes use `stateMu.Lock`. Each acquisition immediately defers its release.
+Helpers that require the caller's lock do not acquire it again. For example,
+`publishPod` checks `isPathCurrent`,
 `hasRootOwnership` and `isDefinitionCurrent`, then publishes before releasing the
-lock. These helpers do not lock again. Their source comments identify this rule.
-Splitting the checks into separately locked calls would allow a source event
-between validation and publication.
+lock.
+
+Queues do not replace this mutex. A queue prevents concurrent processing of the
+same key, but different keys, both evaluation queues and reflector callbacks
+share state. Validation and publication must stay in one critical section so a
+source event cannot change the checked objects before the result is saved.
 
 `Reader.read` holds the read lock while `lookupObject` checks the accepted object
 and source health. `Reader.mapperMu` only serializes REST mapper resets. It is
@@ -172,9 +185,11 @@ separate so API discovery cannot hold up cache reads or publication.
 
 Before publishing, the controller checks that the input path still has the same
 UIDs and resource versions, the root is still a root, and the selected definition
-has not changed. Workload publication also checks the root's membership
-generation. A stale evaluation returns an error and retries instead of replacing
-a newer result. Pod and workload publications are independent.
+has not changed. Workload publication also checks that the root tracking entry
+has not been removed and recreated since the snapshot. Its `generation` identifies
+that entry's lifetime, not each membership update. A stale evaluation returns an
+error and retries instead of replacing a newer result. Pod and workload
+publications are independent.
 
 A root change queues that root and its Pods. An intermediate owner change queues
 a scope rescan so unchanged Pods can discover the new root. Definition changes

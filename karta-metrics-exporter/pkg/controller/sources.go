@@ -183,10 +183,12 @@ func (r *controllerState) ensureWatch(ctx context.Context, gvk schema.GroupVersi
 	return key, nil
 }
 
-// Source-state helpers reuse the caller's stateMu lock.
+// isTrackedWatch requires the caller to hold stateMu in read or write mode.
 func (r *controllerState) isTrackedWatch(w *resourceWatch) bool {
 	return r.watches[w.key] == w || r.replacements[w.key] == w
 }
+
+// updateWatchHealth requires the caller to hold stateMu in write mode.
 func (r *controllerState) updateWatchHealth(w *resourceWatch, err error) {
 	if !r.isTrackedWatch(w) {
 		return
@@ -209,6 +211,8 @@ func (r *controllerState) updateWatchHealth(w *resourceWatch, err error) {
 		r.watchSyncQueue.Add("sources")
 	}
 }
+
+// retireWatch requires the caller to hold stateMu in write mode.
 func (r *controllerState) retireWatch(w *resourceWatch) {
 	w.cancel()
 	delete(r.watches, w.key)
@@ -456,7 +460,8 @@ func (r *controllerState) applyWatchEvent(w *resourceWatch, value any, deleted b
 	return nil
 }
 
-// queueObjectChange runs inside cache acceptance under stateMu. It only queues work.
+// queueObjectChange requires stateMu in write mode.
+// It updates ancestor tracking and queues work without evaluating objects.
 func (r *controllerState) queueObjectChange(old, current *unstructured.Unstructured) {
 	// Keep the old match so an update that leaves the selector can clean up.
 	r.enqueuePod(old)

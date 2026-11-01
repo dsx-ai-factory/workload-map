@@ -70,6 +70,7 @@ type objectCache struct {
 }
 
 type rootState struct {
+	// generation distinguishes entries removed and recreated for the same root UID.
 	generation      uint64
 	ref             discovery.ObjectRef
 	resolution      discovery.OwnerResolution
@@ -178,7 +179,11 @@ func (r *controllerState) failWorkload(uid types.UID, ref discovery.ObjectRef, c
 	if r.roots[uid] == nil {
 		return nil
 	}
-	next := store.WorkloadResult{Record: store.WorkloadRecord{UID: uid, Ref: storedRef(ref)}, Sources: sources, CreationSources: sources}
+	next := store.WorkloadResult{
+		Record:          store.WorkloadRecord{UID: uid, Ref: storedRef(ref)},
+		Sources:         sources,
+		CreationSources: sources,
+	}
 	if previous := r.deps.Publications.Workload(uid); previous != nil {
 		next = *previous
 		next.Sources = appendSources(previous.Sources, sources)
@@ -345,8 +350,12 @@ func (r *controllerState) isRoot(ref discovery.ObjectRef) bool {
 func (r *controllerState) publishWorkload(uid types.UID, generation uint64, ref discovery.ObjectRef, selection selectedDefinition, next store.WorkloadResult) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	state := r.roots[uid]
-	if state == nil || state.generation != generation || !r.isPathCurrent([]discovery.ObjectRef{ref}) || !r.hasRootOwnership(ref) {
+	root := r.roots[uid]
+	hasCurrentEntry := root != nil && root.generation == generation
+	if !hasCurrentEntry {
+		return discovery.ErrStale
+	}
+	if !r.isPathCurrent([]discovery.ObjectRef{ref}) || !r.hasRootOwnership(ref) {
 		return discovery.ErrStale
 	}
 	if !r.isDefinitionCurrent(ref, selection) {
@@ -358,7 +367,7 @@ func (r *controllerState) publishWorkload(uid types.UID, generation uint64, ref 
 			next.Sources = appendSources(previous.Sources, next.Sources)
 		}
 	}
-	state.ref = ref
+	root.ref = ref
 	r.deps.Publications.UpsertWorkload(&next)
 	return nil
 }
@@ -442,7 +451,12 @@ func (r *controllerState) ensureRoot(workload *discovery.GenericWorkload) *rootS
 	root := r.roots[workload.Root.UID]
 	if root == nil {
 		r.nextRoot++
-		root = &rootState{generation: r.nextRoot, ref: workload.Root, pods: map[types.UID]objectJobKey{}, selectedObjects: map[objectJobKey]selectedObjectState{}}
+		root = &rootState{
+			generation:      r.nextRoot,
+			ref:             workload.Root,
+			pods:            map[types.UID]objectJobKey{},
+			selectedObjects: map[objectJobKey]selectedObjectState{},
+		}
 		r.roots[workload.Root.UID] = root
 	}
 	root.resolution = workload.Resolution
@@ -492,6 +506,7 @@ func (r *controllerState) publishPodFailure(key objectJobKey, sources []store.So
 	return cause
 }
 
+// isPathCurrent requires the caller to hold stateMu in read or write mode.
 func (r *controllerState) isPathCurrent(path []discovery.ObjectRef) bool {
 	for _, ref := range path {
 		if _, _, err := r.lookupObject(ref, false); err != nil {
@@ -501,6 +516,7 @@ func (r *controllerState) isPathCurrent(path []discovery.ObjectRef) bool {
 	return true
 }
 
+// isDefinitionCurrent requires the caller to hold stateMu in read or write mode.
 func (r *controllerState) isDefinitionCurrent(ref discovery.ObjectRef, selection selectedDefinition) bool {
 	if r.definitionVersion != selection.version {
 		return false
@@ -509,6 +525,7 @@ func (r *controllerState) isDefinitionCurrent(ref discovery.ObjectRef, selection
 	return current.GVK == selection.GVK && current.Origin == selection.Origin
 }
 
+// hasRootOwnership requires the caller to hold stateMu in read or write mode.
 func (r *controllerState) hasRootOwnership(ref discovery.ObjectRef) bool {
 	selected := r.selectedDefinitions[ref.GVK.GroupKind()]
 	if selected.Definition != nil && selected.err == nil {

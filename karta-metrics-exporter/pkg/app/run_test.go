@@ -48,7 +48,7 @@ var _ = Describe("App lifecycle", func() {
 		{name: "missing registration", nilRegistration: true},
 	} {
 		It(tc.name, func(ctx SpecContext) {
-			publications := store.NewMockStore(GinkgoT())
+			publications := store.New()
 			runtime := controller.NewMockRuntime(GinkgoT())
 
 			reg := &registration{err: tc.cleanupError}

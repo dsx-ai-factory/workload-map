@@ -31,7 +31,6 @@ var (
 	_ discovery.ObjectReader   = (*discovery.MockObjectReader)(nil)
 	_ labelevaluator.Evaluator = (*labelevaluator.MockLabelEvaluator)(nil)
 	_ labelresolver.Resolver   = (*labelresolver.MockLabelResolver)(nil)
-	_ store.PublicationStore   = (*store.MockStore)(nil)
 	_ controller.Runner        = (*controller.MockRuntime)(nil)
 )
 
@@ -40,7 +39,7 @@ var (
 func New(labels labelresolver.Resolver, definitions inventory.Reader) app.Components {
 	reader := newObjectReader()
 	ownership := newDiscovery(discovery.Dependencies{Reader: reader, Inventory: definitions})
-	publications := newStore(store.Options{})
+	publications := store.New()
 	runtime := newRuntime(controller.Dependencies{
 		Discovery:    ownership,
 		Inventory:    definitions,
@@ -60,13 +59,6 @@ func newObjectReader() discovery.ObjectReader {
 func newDiscovery(_ discovery.Dependencies) discovery.Discoverer {
 	m := &discovery.MockDiscovery{}
 	m.EXPECT().Get(mock.Anything, mock.Anything).Return(discovery.Result{}, ErrNotImplemented)
-	return m
-}
-
-func newStore(_ store.Options) store.PublicationStore {
-	m := &store.MockStore{}
-	m.EXPECT().Capture().Return(store.CapturedView{})
-	// Writes are deliberately unconfigured: a real worker must use a real Store.
 	return m
 }
 

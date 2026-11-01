@@ -24,7 +24,7 @@ import (
 // controllerState serializes source events, ownership changes and publication.
 // Methods return values or owned snapshots. Mutable membership maps stay here.
 // Accepted objects are immutable. Reader shares stateMu with this state.
-// Helpers ending in Locked reuse the caller's stateMu; they never acquire it.
+// State operations acquire the lock; their helpers reuse it for the full operation.
 // Discovery and evaluation run outside stateMu.
 type controllerState struct {
 	*objectCache
@@ -137,20 +137,20 @@ func (r *controllerState) failPod(key objectJobKey, path []discovery.ObjectRef, 
 	sources := r.sourcesFor(path)
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	return r.publishPodFailureLocked(key, sources, cause, root...)
+	return r.publishPodFailure(key, sources, cause, root...)
 }
 
 func (r *controllerState) failPodEvaluation(key objectJobKey, path []discovery.ObjectRef, cause error, root discovery.ObjectRef, selection selectedDefinition) error {
 	sources := r.sourcesFor(path)
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if !r.isDefinitionCurrentLocked(root, selection) || !r.isPathCurrentLocked(path) {
+	if !r.isDefinitionCurrent(root, selection) || !r.isPathCurrent(path) {
 		return discovery.ErrStale
 	}
-	if _, _, err := r.lookupObjectLocked(root, false); err != nil || !r.isRootLocked(root) {
+	if _, _, err := r.lookupObject(root, false); err != nil || !r.hasRootOwnership(root) {
 		return discovery.ErrStale
 	}
-	return r.publishPodFailureLocked(key, sources, cause, root)
+	return r.publishPodFailure(key, sources, cause, root)
 }
 
 func (r *controllerState) failSelectedObjectDiscovery(key objectJobKey, err error) {
@@ -189,15 +189,15 @@ func (r *controllerState) failWorkload(uid types.UID, ref discovery.ObjectRef, c
 func (r *controllerState) registerPodRoot(key objectJobKey, workload *discovery.GenericWorkload) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if !r.isPathCurrentLocked(workload.Path) {
+	if !r.isPathCurrent(workload.Path) {
 		return discovery.ErrStale
 	}
-	if !r.isRootLocked(workload.Root) {
+	if !r.hasRootOwnership(workload.Root) {
 		return discovery.ErrUnresolvedOwner
 	}
 	// Register before reading the root body. Root events use the same lock when queuing members.
 	previous := r.podRoots[key.UID]
-	root := r.ensureRootLocked(workload)
+	root := r.ensureRoot(workload)
 	if previous != root.ref.UID {
 		if old := r.roots[previous]; old != nil {
 			delete(old.pods, key.UID)
@@ -220,10 +220,10 @@ func (r *controllerState) watchFailed(ref discovery.ObjectRef) bool {
 func (r *controllerState) publishPod(path []discovery.ObjectRef, rootRef discovery.ObjectRef, selection selectedDefinition, next store.PodResult, labelFailed bool) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if !r.isPathCurrentLocked(path) || !r.isRootLocked(rootRef) || !r.isDefinitionCurrentLocked(rootRef, selection) {
+	if !r.isPathCurrent(path) || !r.hasRootOwnership(rootRef) || !r.isDefinitionCurrent(rootRef, selection) {
 		return discovery.ErrStale
 	}
-	if current, _, err := r.lookupObjectLocked(rootRef, false); err != nil || current.GetResourceVersion() != rootRef.ResourceVersion {
+	if current, _, err := r.lookupObject(rootRef, false); err != nil || current.GetResourceVersion() != rootRef.ResourceVersion {
 		return discovery.ErrStale
 	}
 	if labelFailed {
@@ -242,7 +242,7 @@ func (r *controllerState) requeueScope(namespace string) error {
 	defer r.stateMu.Unlock()
 	for _, entry := range r.objects {
 		if namespace == "" || entry.object.GetNamespace() == namespace {
-			r.enqueueObjectLocked(entry.object)
+			r.enqueueObject(entry.object)
 		}
 	}
 	// Include previous memberships so a removed definition can withdraw its roots.
@@ -272,18 +272,18 @@ func (r *controllerState) replaceSelectedObjectTracking(key objectJobKey, object
 			return discovery.ErrPending
 		}
 	}
-	r.unregisterSelectedObjectLocked(key)
+	r.removeSelectedObjectMembership(key)
 	return nil
 }
 
 func (r *controllerState) registerSelectedObjectRoot(key objectJobKey, workload *discovery.GenericWorkload, selection, rootSelection selectedDefinition, sources []store.SourceKey) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if !r.isPathCurrentLocked(workload.Path) || !r.isDefinitionCurrentLocked(key.ref(), selection) || !r.isDefinitionCurrentLocked(workload.Root, rootSelection) {
+	if !r.isPathCurrent(workload.Path) || !r.isDefinitionCurrent(key.ref(), selection) || !r.isDefinitionCurrent(workload.Root, rootSelection) {
 		return discovery.ErrStale
 	}
 	previous := r.selectedObjectRoots[key]
-	root := r.ensureRootLocked(workload)
+	root := r.ensureRoot(workload)
 	if previous != root.ref.UID {
 		if old := r.roots[previous]; old != nil {
 			delete(old.selectedObjects, key)
@@ -301,7 +301,7 @@ func (r *controllerState) registerSelectedObjectRoot(key objectJobKey, workload 
 func (r *controllerState) unregisterSelectedObject(key objectJobKey) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	r.unregisterSelectedObjectLocked(key)
+	r.removeSelectedObjectMembership(key)
 }
 
 func (r *controllerState) snapshotRoot(uid types.UID) (rootSnapshot, bool) {
@@ -328,7 +328,7 @@ func (r *controllerState) withdrawWorkload(uid types.UID) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	if root := r.roots[uid]; root != nil {
-		r.enqueueMembersLocked(root)
+		r.enqueueMembers(root)
 	}
 	r.deps.Publications.RemoveWorkload(uid)
 }
@@ -336,17 +336,17 @@ func (r *controllerState) withdrawWorkload(uid types.UID) {
 func (r *controllerState) isRoot(ref discovery.ObjectRef) bool {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	return r.isRootLocked(ref)
+	return r.hasRootOwnership(ref)
 }
 
 func (r *controllerState) publishWorkload(uid types.UID, generation uint64, ref discovery.ObjectRef, selection selectedDefinition, next store.WorkloadResult) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	state := r.roots[uid]
-	if state == nil || state.generation != generation || !r.isPathCurrentLocked([]discovery.ObjectRef{ref}) || !r.isRootLocked(ref) {
+	if state == nil || state.generation != generation || !r.isPathCurrent([]discovery.ObjectRef{ref}) || !r.hasRootOwnership(ref) {
 		return discovery.ErrStale
 	}
-	if !r.isDefinitionCurrentLocked(ref, selection) {
+	if !r.isDefinitionCurrent(ref, selection) {
 		return discovery.ErrStale
 	}
 	if next.StatusError != "" {
@@ -381,18 +381,21 @@ func (r *controllerState) stopWatches() {
 		w.cancel()
 	}
 }
-func (r *controllerState) enqueueScopeRefreshLocked(namespace string) {
+
+// State helpers below run inside the caller's stateMu critical section.
+// They keep validation, membership updates and publication in one operation.
+func (r *controllerState) enqueueScopeRefresh(namespace string) {
 	r.podQueue.Add(objectJobKey{Object: objectKey{Namespace: namespace}, Rescan: true})
 }
 
-func (r *controllerState) enqueueObjectLocked(object *unstructured.Unstructured) {
-	r.enqueuePodLocked(object)
-	if r.hasSelectedDefinitionLocked(object.GroupVersionKind()) {
+func (r *controllerState) enqueueObject(object *unstructured.Unstructured) {
+	r.enqueuePod(object)
+	if r.hasSelectedDefinition(object.GroupVersionKind()) {
 		r.workloadQueue.Add(workloadJobKey{SelectedObject: objectJobFor(refOf(object))})
 	}
 }
 
-func (r *controllerState) enqueuePodLocked(object *unstructured.Unstructured) {
+func (r *controllerState) enqueuePod(object *unstructured.Unstructured) {
 	if object == nil || object.GroupVersionKind() != podGVK {
 		return
 	}
@@ -404,21 +407,21 @@ func (r *controllerState) enqueuePodLocked(object *unstructured.Unstructured) {
 	}
 }
 
-func (r *controllerState) hasSelectedDefinitionLocked(gvk schema.GroupVersionKind) bool {
+func (r *controllerState) hasSelectedDefinition(gvk schema.GroupVersionKind) bool {
 	selection := r.selectedDefinitions[gvk.GroupKind()]
 	return selection.Definition != nil && selection.GVK == gvk
 }
 
-func (r *controllerState) enqueueRootAndMembersLocked(uid types.UID) {
+func (r *controllerState) enqueueRootAndMembers(uid types.UID) {
 	root := r.roots[uid]
 	if root == nil {
 		return
 	}
 	r.workloadQueue.Add(workloadJobKey{RootUID: uid})
-	r.enqueueMembersLocked(root)
+	r.enqueueMembers(root)
 }
 
-func (r *controllerState) enqueueMembersLocked(root *rootState) {
+func (r *controllerState) enqueueMembers(root *rootState) {
 	for _, key := range root.pods {
 		r.podQueue.Add(key)
 	}
@@ -427,7 +430,7 @@ func (r *controllerState) enqueueMembersLocked(root *rootState) {
 	}
 }
 
-func (r *controllerState) ensureRootLocked(workload *discovery.GenericWorkload) *rootState {
+func (r *controllerState) ensureRoot(workload *discovery.GenericWorkload) *rootState {
 	for _, ref := range workload.Path[1:] {
 		if ref.GVK == podGVK {
 			r.ancestorPods[ref.UID] = true
@@ -445,7 +448,7 @@ func (r *controllerState) ensureRootLocked(workload *discovery.GenericWorkload) 
 	} else if root.ref.GVK != workload.Root.GVK {
 		current := root.ref
 		current.ResourceVersion = ""
-		if _, _, err := r.lookupObjectLocked(current, false); err != nil {
+		if _, _, err := r.lookupObject(current, false); err != nil {
 			root.ref = workload.Root
 			r.workloadQueue.Add(workloadJobKey{RootUID: root.ref.UID})
 		}
@@ -453,7 +456,7 @@ func (r *controllerState) ensureRootLocked(workload *discovery.GenericWorkload) 
 	return root
 }
 
-func (r *controllerState) unregisterSelectedObjectLocked(key objectJobKey) {
+func (r *controllerState) removeSelectedObjectMembership(key objectJobKey) {
 	if root := r.roots[r.selectedObjectRoots[key]]; root != nil {
 		delete(root.selectedObjects, key)
 		r.workloadQueue.Add(workloadJobKey{RootUID: root.ref.UID})
@@ -462,7 +465,7 @@ func (r *controllerState) unregisterSelectedObjectLocked(key objectJobKey) {
 	r.deps.Publications.RemoveDiscoveryFailure(key.UID)
 }
 
-func (r *controllerState) publishPodFailureLocked(key objectJobKey, sources []store.SourceKey, cause error, root ...discovery.ObjectRef) error {
+func (r *controllerState) publishPodFailure(key objectJobKey, sources []store.SourceKey, cause error, root ...discovery.ObjectRef) error {
 	if errors.Is(cause, context.Canceled) {
 		return cause
 	}
@@ -486,16 +489,16 @@ func (r *controllerState) publishPodFailureLocked(key objectJobKey, sources []st
 	return cause
 }
 
-func (r *controllerState) isPathCurrentLocked(path []discovery.ObjectRef) bool {
+func (r *controllerState) isPathCurrent(path []discovery.ObjectRef) bool {
 	for _, ref := range path {
-		if _, _, err := r.lookupObjectLocked(ref, false); err != nil {
+		if _, _, err := r.lookupObject(ref, false); err != nil {
 			return false
 		}
 	}
 	return true
 }
 
-func (r *controllerState) isDefinitionCurrentLocked(ref discovery.ObjectRef, selection selectedDefinition) bool {
+func (r *controllerState) isDefinitionCurrent(ref discovery.ObjectRef, selection selectedDefinition) bool {
 	if r.definitionVersion != selection.version {
 		return false
 	}
@@ -503,7 +506,7 @@ func (r *controllerState) isDefinitionCurrentLocked(ref discovery.ObjectRef, sel
 	return current.GVK == selection.GVK && current.Origin == selection.Origin
 }
 
-func (r *controllerState) isRootLocked(ref discovery.ObjectRef) bool {
+func (r *controllerState) hasRootOwnership(ref discovery.ObjectRef) bool {
 	selected := r.selectedDefinitions[ref.GVK.GroupKind()]
 	if selected.Definition != nil && selected.err == nil {
 		entry := r.objects[objectKey{GVK: selected.GVK, Namespace: ref.Namespace, Name: ref.Name}]
@@ -529,8 +532,8 @@ func (r *controllerState) isRootLocked(ref discovery.ObjectRef) bool {
 	return true
 }
 
-// lookupObjectLocked requires stateMu in read or write mode. It makes no API calls.
-func (r *objectCache) lookupObjectLocked(ref discovery.ObjectRef, requireFullObject bool) (*unstructured.Unstructured, watchKey, error) {
+// lookupObject requires stateMu in read or write mode. It makes no API calls.
+func (r *objectCache) lookupObject(ref discovery.ObjectRef, requireFullObject bool) (*unstructured.Unstructured, watchKey, error) {
 	key := keyOf(ref)
 	entry, ok := r.objects[key]
 	if !ok && key.Namespace != "" {

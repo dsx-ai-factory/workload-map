@@ -46,7 +46,7 @@ func enableClusterDefinitions(t *testing.T, r *Runtime) {
 func refreshSelection(t *testing.T, r *Runtime) {
 	t.Helper()
 	r.state.stateMu.Lock()
-	err := r.state.refreshDefinitionsLocked()
+	err := r.state.refreshDefinitions()
 	r.state.stateMu.Unlock()
 	require.NoError(t, err)
 }
@@ -73,7 +73,7 @@ func TestDefinitionReadFailurePreservesSelectionAndCreation(t *testing.T) {
 	require.Equal(t, "cluster-job", beforeRoot.Record.Karta)
 	r.state.stateMu.Lock()
 	definitions.setError(inventory.ErrUnavailable)
-	err := r.state.refreshDefinitionsLocked()
+	err := r.state.refreshDefinitions()
 	r.state.stateMu.Unlock()
 	require.Error(t, err)
 	require.Error(t, r.reconcilePod(context.Background(), objectJobFor(refOf(pod))))
@@ -197,7 +197,7 @@ func TestInitialDefinitionFailureStillPublishesConfirmedRootCreation(t *testing.
 			} else {
 				r.state.stateMu.Lock()
 				definitions.setError(inventory.ErrPermissionDenied)
-				require.Error(t, r.state.refreshDefinitionsLocked())
+				require.Error(t, r.state.refreshDefinitions())
 				r.state.stateMu.Unlock()
 			}
 			root, pod := simpleObject(jobKind, "root"), simpleObject(podGVK, "pod")
@@ -307,7 +307,7 @@ func TestSelectedVersionHandoverWaitsForReplacementAndUsesItsBoundary(t *testing
 	simpleOwner(oldOwned, simpleObject(jobKind, "missing"))
 	require.NoError(t, r.state.applyWatchEvent(old, oldOwned, false))
 	r.state.stateMu.Lock()
-	r.state.setWatchHealthLocked(old, errors.New("version retired"))
+	r.state.updateWatchHealth(old, errors.New("version retired"))
 	r.state.stateMu.Unlock()
 	replacement := root.DeepCopy()
 	replacement.SetGroupVersionKind(v2)
@@ -370,9 +370,9 @@ func TestGenericCanonicalVersionRecoversAfterElectionRemoval(t *testing.T) {
 			r.state.stateMu.Lock()
 			switch condition {
 			case "failed":
-				r.state.setWatchHealthLocked(alternate, errors.New("old API version unavailable"))
+				r.state.updateWatchHealth(alternate, errors.New("old API version unavailable"))
 			case "retired":
-				r.state.retireWatchLocked(alternate)
+				r.state.retireWatch(alternate)
 			}
 			r.state.stateMu.Unlock()
 			emptyQueue(r.state.workloadQueue)

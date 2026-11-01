@@ -154,14 +154,16 @@ This mutex protects cache acceptance, ownership membership and publication.
 Discovery and expression evaluation run outside it. Accepted objects are
 immutable, and state methods return values or owned snapshots.
 
-A method that acquires `stateMu` immediately defers its release. Helpers ending
-in `Locked` reuse the caller's lock; they do not acquire another lock. For example,
-`publishPod` holds the write lock while `isPathCurrentLocked`, `isRootLocked` and
-`isDefinitionCurrentLocked` check its inputs, then publishes before releasing it.
-Splitting those checks into separate locking calls would allow a source event
-between validation and publication. `Reader.read` instead holds the read lock
-while `lookupObjectLocked` checks the accepted object and source health.
-`Reader.mapperMu` is independent and only serializes REST mapper resets.
+State entry points acquire `stateMu` and immediately defer its release. Their
+helpers reuse that scope. For example, `publishPod` checks `isPathCurrent`,
+`hasRootOwnership` and `isDefinitionCurrent`, then publishes before releasing the
+lock. These helpers do not lock again. Their source comments identify this rule.
+Splitting the checks into separately locked calls would allow a source event
+between validation and publication.
+
+`Reader.read` holds the read lock while `lookupObject` checks the accepted object
+and source health. `Reader.mapperMu` only serializes REST mapper resets. It is
+separate so API discovery cannot hold up cache reads or publication.
 
 Before publishing, the controller checks that the input path still has the same
 UIDs and resource versions, the root is still a root, and the selected definition

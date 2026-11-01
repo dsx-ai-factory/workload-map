@@ -294,7 +294,7 @@ func TestReadinessUsesInitialSynchronizationAndRequiredSourceErrors(t *testing.T
 	supplemental := seedSource(t, r, deploymentKind, true)
 	require.True(t, r.Ready())
 	r.state.stateMu.Lock()
-	r.state.setWatchHealthLocked(supplemental, errors.New("unavailable"))
+	r.state.updateWatchHealth(supplemental, errors.New("unavailable"))
 	r.state.stateMu.Unlock()
 	require.True(t, r.Ready())
 	r.state.config.RequiredKinds = []schema.GroupVersionKind{deploymentKind}

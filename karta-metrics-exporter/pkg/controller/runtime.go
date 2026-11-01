@@ -211,7 +211,8 @@ func (r *controllerState) requiredWatch(gvk schema.GroupVersionKind) bool {
 	return gvk == podGVK || (gvk == namespaceGVK && r.config.NamespaceSelector != nil) || slices.Contains(r.config.RequiredKinds, gvk)
 }
 
-func (r *controllerState) refreshDefinitionsLocked() error {
+// refreshDefinitions runs inside prepareWatchRequests while stateMu is held.
+func (r *controllerState) refreshDefinitions() error {
 	results, sourceErr := r.deps.Inventory.List()
 	next := r.selectedDefinitions
 	if sourceErr == nil {
@@ -248,17 +249,17 @@ func (r *controllerState) refreshDefinitionsLocked() error {
 	if healthChanged || len(changedKinds) > 0 {
 		r.definitionVersion++
 		if healthChanged {
-			r.enqueueScopeRefreshLocked("")
+			r.enqueueScopeRefresh("")
 		} else {
 			for _, entry := range r.objects {
 				ref := refOf(entry.object)
 				if changedKinds[ref.GVK.GroupKind()] {
-					r.enqueueObjectLocked(entry.object)
+					r.enqueueObject(entry.object)
 				}
 				if ref.GVK == podGVK {
 					root := r.roots[r.podRoots[ref.UID]]
 					if root == nil || changedKinds[root.ref.GVK.GroupKind()] {
-						r.enqueuePodLocked(entry.object)
+						r.enqueuePod(entry.object)
 					}
 				}
 			}
@@ -266,7 +267,7 @@ func (r *controllerState) refreshDefinitionsLocked() error {
 		for uid, root := range r.roots {
 			if healthChanged || changedKinds[root.ref.GVK.GroupKind()] {
 				r.workloadQueue.Add(workloadJobKey{RootUID: uid})
-				r.enqueueMembersLocked(root)
+				r.enqueueMembers(root)
 			}
 		}
 		for selectedObject := range r.selectedObjectRoots {

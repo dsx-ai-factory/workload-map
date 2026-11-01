@@ -107,19 +107,24 @@ func (r *Reader) restMapping(ctx context.Context, gvk schema.GroupVersionKind) (
 	}
 	mapping, err := meta.ToRESTMapperWithContext(r.clients.Mapper).RESTMappingWithContext(requestCtx, gvk.GroupKind(), gvk.Version)
 	if meta.IsNoMatchError(err) {
-		r.mapperMu.Lock()
-		if time.Since(r.lastMapperReset) >= 45*time.Second {
-			if mapper, ok := r.clients.Mapper.(meta.ResettableRESTMapper); ok {
-				meta.ToResettableRESTMapperWithContext(mapper).ResetWithContext(requestCtx)
-				r.lastMapperReset = time.Now()
-			}
-		}
-		r.mapperMu.Unlock()
+		r.resetMapperIfNeeded(requestCtx)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("map %s: %w", gvk, err)
 	}
 	return mapping, nil
+}
+
+func (r *Reader) resetMapperIfNeeded(ctx context.Context) {
+	r.mapperMu.Lock()
+	defer r.mapperMu.Unlock()
+	if time.Since(r.lastMapperReset) < 45*time.Second {
+		return
+	}
+	if mapper, ok := r.clients.Mapper.(meta.ResettableRESTMapper); ok {
+		meta.ToResettableRESTMapperWithContext(mapper).ResetWithContext(ctx)
+		r.lastMapperReset = time.Now()
+	}
 }
 
 func keyOf(ref discovery.ObjectRef) objectKey {

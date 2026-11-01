@@ -254,10 +254,10 @@ func (r *controllerState) requeueScope(namespace string) error {
 
 func (r *controllerState) trackSelectedObject(key objectJobKey) {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	if _, known := r.selectedObjectRoots[key]; !known {
 		r.selectedObjectRoots[key] = ""
 	}
-	r.mu.Unlock()
 }
 
 func (r *controllerState) replaceSelectedObjectTracking(key objectJobKey, object *unstructured.Unstructured) error {
@@ -360,25 +360,24 @@ func (r *controllerState) publishWorkload(uid types.UID, generation uint64, ref 
 
 func (r *controllerState) start(ctx context.Context) error {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.started {
-		r.mu.Unlock()
 		return errors.New("runtime already started")
 	}
 	r.started = true
 	r.ctx = ctx
-	r.mu.Unlock()
 	return nil
 }
 
 func (r *controllerState) stopWatches() {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	for _, w := range r.watches {
 		w.cancel()
 	}
 	for _, w := range r.replacements {
 		w.cancel()
 	}
-	r.mu.Unlock()
 }
 func (r *controllerState) enqueueScopeRefreshLocked(namespace string) {
 	r.podQueue.Add(objectJobKey{Object: objectKey{Namespace: namespace}, Rescan: true})

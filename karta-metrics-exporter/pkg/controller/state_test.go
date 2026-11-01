@@ -58,3 +58,13 @@ func TestRootSnapshotCannotPublishAfterMembershipRecreation(t *testing.T) {
 	require.NoError(t, r.state.publishWorkload(ref.UID, after.generation, ref, selection, previous))
 	require.NotNil(t, values.Workload(ref.UID))
 }
+
+func TestStartPreservesOriginalContext(t *testing.T) {
+	r, _ := simpleRuntime(t, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	require.NoError(t, r.state.start(ctx))
+	require.EqualError(t, r.state.start(context.Background()), "runtime already started")
+	require.Same(t, ctx, r.state.ctx)
+	r.state.stopWatches()
+}

@@ -6,11 +6,13 @@ package controller
 import (
 	"context"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubediscovery "k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/rest"
@@ -101,4 +103,40 @@ func TestRuntimeCancellationStopsDiscoveryMapping(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("runtime did not stop after discovery cancellation")
 	}
+}
+
+type resetCountingMapper struct {
+	meta.RESTMapper
+	resets int
+}
+
+func (m *resetCountingMapper) Reset() { m.resets++ }
+
+func TestMapperResetIsThrottled(t *testing.T) {
+	mapper := &resetCountingMapper{RESTMapper: meta.NewDefaultRESTMapper([]schema.GroupVersion{})}
+	r, _ := simpleRuntime(t, nil)
+	reader := r.state.reader
+	reader.clients.Mapper = mapper
+
+	_, err := reader.restMapping(context.Background(), podGVK)
+	require.True(t, meta.IsNoMatchError(err))
+	require.Equal(t, 1, mapper.resets)
+	lastReset := reader.lastMapperReset
+
+	var workers sync.WaitGroup
+	for range 20 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			reader.resetMapperIfNeeded(context.Background())
+		}()
+	}
+	workers.Wait()
+	require.Equal(t, 1, mapper.resets)
+	require.Equal(t, lastReset, reader.lastMapperReset)
+
+	reader.lastMapperReset = time.Now().Add(-time.Minute)
+	reader.resetMapperIfNeeded(context.Background())
+	require.Equal(t, 2, mapper.resets)
+	require.False(t, reader.lastMapperReset.Before(lastReset))
 }

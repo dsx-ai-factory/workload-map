@@ -55,7 +55,11 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 		return app.Components{}, err
 	}
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(discoveryClient))
-	reader, err := controller.NewReader(controller.Clients{Dynamic: dynamicClient, Metadata: metadataClient, Mapper: mapper}, controller.ReaderOptions{RequestTimeout: timeout})
+	reader, err := controller.NewReader(controller.Clients{
+		Dynamic:  dynamicClient,
+		Metadata: metadataClient,
+		Mapper:   mapper,
+	}, controller.ReaderOptions{RequestTimeout: timeout})
 	if err != nil {
 		return app.Components{}, err
 	}
@@ -74,7 +78,24 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 		return app.Components{}, err
 	}
 	publications := store.New()
-	runtime, err := controller.New(controller.Config{IgnoredOwnerKinds: cfg.IgnoredOwnerKinds, ResourceRules: cfg.ResourceRules, ExcludeResourceRules: cfg.ExcludeResourceRules, NamespaceSelector: cfg.NamespaceSelector, ObjectSelector: cfg.ObjectSelector, PodSelector: cfg.PodSelector, ClusterDefinitions: cfg.KartaDefinitionSource.Cluster.Enabled, RequiredKinds: cfg.RequiredKinds, Workers: cfg.Workers, LeafWorkers: cfg.LeafWorkers, RootWorkers: cfg.RootWorkers}, controller.Dependencies{Discovery: ownership, Inventory: definitions, Labels: labels, Publications: publications}, reader)
+	runtime, err := controller.New(controller.Config{
+		IgnoredOwnerKinds:    cfg.IgnoredOwnerKinds,
+		ResourceRules:        cfg.ResourceRules,
+		ExcludeResourceRules: cfg.ExcludeResourceRules,
+		NamespaceSelector:    cfg.NamespaceSelector,
+		ObjectSelector:       cfg.ObjectSelector,
+		PodSelector:          cfg.PodSelector,
+		ClusterDefinitions:   cfg.KartaDefinitionSource.Cluster.Enabled,
+		RequiredKinds:        cfg.RequiredKinds,
+		Workers:              cfg.Workers,
+		LeafWorkers:          cfg.LeafWorkers,
+		RootWorkers:          cfg.RootWorkers,
+	}, controller.Dependencies{
+		Discovery:    ownership,
+		Inventory:    definitions,
+		Labels:       labels,
+		Publications: publications,
+	}, reader)
 	if err != nil {
 		return app.Components{}, err
 	}

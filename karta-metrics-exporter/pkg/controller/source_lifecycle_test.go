@@ -898,3 +898,52 @@ func TestPrepareWatchSnapshotValidatesBeforeAcceptance(t *testing.T) {
 		})
 	}
 }
+
+func TestWatchNegotiationRequests(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		full bool
+		code int
+		want []string
+	}{
+		{name: "full", full: true, want: []string{"dynamic"}},
+		{name: "metadata", want: []string{"metadata"}},
+		{name: "not acceptable", code: 406, want: []string{"metadata", "dynamic"}},
+		{name: "unsupported media type", code: 415, want: []string{"metadata", "dynamic"}},
+		{name: "forbidden", code: 403, want: []string{"metadata"}},
+		{name: "unavailable", code: 503, want: []string{"metadata"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			r, _ := simpleRuntime(t, nil)
+			source := seedSource(t, r, replicaSetKind, test.full)
+			stream := watch.NewRaceFreeFake()
+			var calls []string
+			var metadataErr error
+			if test.code != 0 {
+				metadataErr = apierrors.NewGenericServerResponse(test.code, "watch", source.key.Resource.GroupResource(), "", "negotiation error", 0, false)
+			}
+			r.state.reader.clients.Metadata.(*metadatafake.FakeMetadataClient).PrependWatchReactor("replicasets", func(clienttesting.Action) (bool, watch.Interface, error) {
+				calls = append(calls, "metadata")
+				if metadataErr != nil {
+					return true, nil, metadataErr
+				}
+				return true, stream, nil
+			})
+			r.state.reader.clients.Dynamic.(*dynamicfake.FakeDynamicClient).PrependWatchReactor("replicasets", func(clienttesting.Action) (bool, watch.Interface, error) {
+				calls = append(calls, "dynamic")
+				return true, stream, nil
+			})
+			monitored, err := r.state.watchResource(context.Background(), source, metav1.ListOptions{})
+			require.Equal(t, test.want, calls)
+			if test.code == 403 || test.code == 503 {
+				require.Same(t, metadataErr, err)
+				require.Nil(t, monitored)
+				stream.Stop()
+				return
+			}
+			require.NoError(t, err)
+			monitored.Stop()
+			r.state.wg.Wait()
+		})
+	}
+}

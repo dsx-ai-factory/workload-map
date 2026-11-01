@@ -275,13 +275,12 @@ func (r *controllerState) listResource(ctx context.Context, w *resourceWatch, op
 func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, options metav1.ListOptions) (watch.Interface, error) {
 	var stream watch.Interface
 	var err error
-	if w.full {
-		stream, err = r.reader.clients.Dynamic.Resource(w.key.Resource).Namespace(w.key.Namespace).Watch(ctx, options)
-	} else {
+	if !w.full {
 		stream, err = r.reader.clients.Metadata.Resource(w.key.Resource).Namespace(w.key.Namespace).Watch(ctx, options)
-		if apierrors.IsNotAcceptable(err) || apierrors.IsUnsupportedMediaType(err) {
-			stream, err = r.reader.clients.Dynamic.Resource(w.key.Resource).Namespace(w.key.Namespace).Watch(ctx, options)
-		}
+	}
+	needsDynamicWatch := w.full || apierrors.IsNotAcceptable(err) || apierrors.IsUnsupportedMediaType(err)
+	if needsDynamicWatch {
+		stream, err = r.reader.clients.Dynamic.Resource(w.key.Resource).Namespace(w.key.Namespace).Watch(ctx, options)
 	}
 	r.recordWatchStart(ctx, w, options, err)
 	if err != nil {

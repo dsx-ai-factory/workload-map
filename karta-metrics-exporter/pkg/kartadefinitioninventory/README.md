@@ -16,6 +16,27 @@ selection. Deleting it selects the next cluster candidate or the catalog.
 `Config` is constructor input. Catalog and cluster sources each have an enable
 flag and definition-name include/exclude lists. Empty includes mean all;
 exclusions win. Selected cluster definitions take precedence over catalog ones.
+The cluster source also accepts `LabelSelector`. A definition must match both
+its name filters and the label selector. Losing a label match removes its cached
+entry. Catalog label selectors are rejected.
+`RequestTimeout` bounds each LIST page. Zero uses the caller's context without
+adding a deadline. Negative values are rejected. Watches use the caller's context
+and remain open independently of the LIST timeout.
+
+`Observer` exposes `List` and `Changes` to a controller. `List` returns an atomic,
+sorted snapshot of `SelectionResult` values. Each result embeds `Selection` and
+has an `Err` field. An invalid winner keeps its definition, GVK and origin in the
+snapshot, so callers can report its error without treating the kind as absent.
+Missing root versions or kinds are omitted. Returned definitions belong to the
+caller. A top-level error reports source health and returns no snapshot.
+
+`Changes` is a buffered, coalesced signal for one observer. It reports accepted
+definition changes, initial loading, source failures, recovery and shutdown.
+Read the initial snapshot, then read `List` again after each signal. A signal is
+not an event log. The observer decides which roots and Pods need work. The channel
+remains open after shutdown so the observer can read the final health; stop on
+the caller's context. Inventory has no dependency on controller queues or metric
+storage.
 
 The inventory owns two maps: cluster definitions by Karta name and catalog
 winners by workload group and kind. The catalog map is built once. Watch events

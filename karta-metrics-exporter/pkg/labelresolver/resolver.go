@@ -43,12 +43,14 @@ type ruleResult struct {
 	err   error
 }
 
-// Input supplies the root workload and, when a rule for a requested metric
-// reads the Pod, the individual Pod.
+// Input supplies full read-only source objects. A rule that reads the Pod needs
+// either Pod or PodObject. Callers must not mutate the objects during Resolve.
 type Input struct {
 	Metrics  []string
 	Workload *unstructured.Unstructured
 	Pod      *corev1.Pod
+	// PodObject is used as supplied, preserving field presence. Do not also set Pod.
+	PodObject *unstructured.Unstructured
 }
 
 // ResolvedMetricLabels holds values and evaluation errors keyed by label name.
@@ -92,11 +94,12 @@ var supportedMetrics = map[string]bool{
 }
 
 var (
-	ErrMissingCompiler   = errors.New("label resolver requires a compiler")
-	ErrDuplicateMetric   = errors.New("duplicate metric")
-	ErrUnsupportedMetric = errors.New("unsupported metric")
-	ErrMissingWorkload   = errors.New("label input workload is nil")
-	ErrMissingPod        = errors.New("label input Pod is nil")
+	ErrMissingCompiler      = errors.New("label resolver requires a compiler")
+	ErrDuplicateMetric      = errors.New("duplicate metric")
+	ErrUnsupportedMetric    = errors.New("unsupported metric")
+	ErrMissingWorkload      = errors.New("label input workload is nil")
+	ErrMissingPod           = errors.New("label input Pod is nil")
+	ErrConflictingPodInputs = errors.New("label input must not set both Pod and PodObject")
 )
 
 type Dependencies struct {
@@ -146,6 +149,9 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 	if in.Workload == nil {
 		return nil, ErrMissingWorkload
 	}
+	if in.Pod != nil && in.PodObject != nil {
+		return nil, ErrConflictingPodInputs
+	}
 	requested := make(map[string]bool, len(in.Metrics))
 	readsPod := false
 	for _, metric := range in.Metrics {
@@ -159,12 +165,12 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 		readsPod = readsPod || r.podMetrics[metric]
 	}
 
-	if readsPod && in.Pod == nil {
+	if readsPod && in.Pod == nil && in.PodObject == nil {
 		return nil, ErrMissingPod
 	}
 
-	// The Pod is added only when a rule reaches it, so a workload value avoids the conversion.
-	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload}
+	// A typed Pod is converted only when a rule reaches it.
+	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload, SourcePod: in.PodObject}
 
 	evaluated := make(map[int]ruleResult)
 	results := make([]ResolvedMetricLabels, 0, len(in.Metrics))

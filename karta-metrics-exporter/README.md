@@ -13,9 +13,9 @@ For example, a Pod in JobSet `train` can belong to component `replicatedjob`,
 instance `worker` and group `0`. The [query guide](../docs/karta-metrics-exporter/README.md)
 shows how to group measurements by that identity.
 
-The command loads definition sources and validates label configuration. A real
-collector serves saved Store results at `/metrics`. Kubernetes runtime workers
-remain mocked, so the command does not yet populate workload or Pod results.
+The command watches Kubernetes objects and maintains Pod and workload records
+in the publication store. Metric delivery is not implemented yet. The collector
+contract remains available for the separate metrics integration.
 
 ## Run
 
@@ -28,10 +28,15 @@ make build-exporter
 ./bin/karta-metrics-exporter
 ```
 
-The process waits until Ctrl-C (`SIGINT`) or `SIGTERM` stops it.
-Metrics and health endpoints listen on `:8080`; use `--metrics-bind-address` to
-change the address. `/healthz` checks process health. `/readyz` stays unavailable
-until a runtime reports initialized Kubernetes data; the runtime mock never does.
+The command uses the current kubeconfig, or the in-cluster service account.
+It starts the definition inventory and controller together, then runs until
+Ctrl-C (`SIGINT`) or `SIGTERM`. Shutdown joins the inventory,
+resource watches and queue workers.
+
+If the initial Karta LIST fails, discovery can still resolve ownership and
+publish workload creation information. Pod results record the definition error
+without claiming a complete mapping. Status and component mapping remain
+unavailable and readiness stays false until the definition source recovers.
 
 To configure labels, create a YAML file using the
 [label configuration example](pkg/labelevaluator/README.md#configuration).
@@ -50,7 +55,72 @@ variables, defaults and precedence.
 Build a container image with `make exporter-image IMAGE_TAG=dev`. The Helm chart
 keeps the exporter disabled by default. The
 [configuration reference](../docs/karta-metrics-exporter/configuration.md)
-describes the proposed deployment, selection and metric delivery settings.
+describes the overall deployment and metric contract. This branch implements
+observation and publication, without an HTTP metrics endpoint or Service.
+
+## Runtime configuration
+
+For example, this file observes Pods in namespaces labeled `team: platform` and
+uses the built-in Deployment definition:
+
+```yaml
+kartaDefinitionSource:
+  catalog:
+    enabled: true
+    include: [apps-deployment-v1]
+  cluster:
+    enabled: false
+namespaceSelector:
+  matchLabels:
+    team: platform
+workers: 2
+```
+
+The runtime settings below use the same names under Helm's `exporter:` key.
+
+| Setting | Default | Behavior |
+| --- | --- | --- |
+| `namespaceSelector` | Empty | Observe all namespaces; otherwise watch matching namespaces |
+| `podSelector` | Empty | Publish matching Pods; other Pods remain available for owner traversal |
+| `objectSelector` | Empty | Select workload objects by labels |
+| `resourceRules`, `excludeResourceRules` | Empty | Select workload API groups, versions and resources; exclusions win |
+| `ignoredOwnerKinds` | Empty | Stop discovery immediately before these owner kinds |
+| `requiredKinds` | Empty | Require these resource sources to synchronize before readiness |
+| `workers` | `2` | Default worker count for each Pod and workload queue |
+| `leafWorkers`, `rootWorkers` | `0` | Override each queue's count; zero inherits `workers` |
+| `requestTimeout` | `30s` | Bound resource discovery and each LIST page, not the lifetime of a watch |
+| `apiQPS`, `apiBurst` | `20`, `40` | Share one Kubernetes client request limiter |
+
+Kinds use slash strings, such as `apps/v1/Deployment` or `v1/Node`. Each resource
+rule contains `apiGroups`, `apiVersions` and `resources` lists. An empty inclusion
+list permits every resource. These filters select work; they do not grant RBAC.
+
+Worker counts, request timeout and API limits also have kebab-case flags and
+`KARTA_EXPORTER_*` environment variables, shown by `--help`. A flag overrides
+the environment, which overrides the YAML file. Selectors, resource rules,
+kinds and definition sources are configured in YAML only.
+
+The chart grants LIST/WATCH access to Pods, Namespaces and the workload and
+ancestor resources listed in `exporter.rbac.workloadRules`. Cluster Karta access
+is conditional on the cluster definition source. Extend the workload rules for
+custom owners. No wildcard resource or write permissions are granted by default.
+
+## Controller flow
+
+The [controller guide](pkg/controller/README.md) explains each of its six files,
+the three queues, full-object and metadata watches, publication checks, and
+cleanup. The definition inventory owns its Karta watch. The controller observes
+inventory changes and owns workload watches. Pod and workload workers evaluate
+the latest cached objects and write independent records to the upstream store.
+
+`bootstrap.New` constructs these real components. `app.RunController` owns their
+lifecycle without a collector. `app.Run` retains the collector registration
+contract and also starts the inventory when it is supplied.
+
+This change keeps the merged discovery, store, evaluator and catalog behavior.
+Operator-specific mapping corrections remain separate, including Dynamo replica
+keys, Grove instance names, JobSet group identity, RayJob submitter Pods and
+KServe status. Controller tests do not establish complete operator coverage.
 
 ## Development
 
@@ -73,3 +143,7 @@ Generated Mockery mocks live beside the interfaces they implement.
 make exporter-generate-mocks
 make check-exporter
 ```
+
+The controller integration tests use a real Kubernetes API server through
+envtest. They inspect store records and readiness. They do not install operators
+or test a metrics collector.

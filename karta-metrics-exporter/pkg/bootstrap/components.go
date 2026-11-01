@@ -4,12 +4,20 @@
 package bootstrap
 
 import (
-	"context"
 	"errors"
+	"fmt"
+	"time"
 
-	"github.com/stretchr/testify/mock"
+	kubediscovery "k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/util/flowcontrol"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/app"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/config"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/controller"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/discovery"
 	inventory "github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/kartadefinitioninventory"
@@ -18,52 +26,57 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/store"
 )
 
-var ErrNotImplemented = errors.New("exporter component is not implemented")
-
-// Keep generated mocks checked against their contracts even before implementations exist.
-var (
-	_ labelevaluator.Compiler  = (*labelevaluator.MockLabelCompiler)(nil)
-	_ inventory.Reader         = (*inventory.MockInventory)(nil)
-	_ discovery.Discoverer     = (*discovery.MockDiscovery)(nil)
-	_ discovery.ObjectReader   = (*discovery.MockObjectReader)(nil)
-	_ labelevaluator.Evaluator = (*labelevaluator.MockLabelEvaluator)(nil)
-	_ labelresolver.Resolver   = (*labelresolver.MockLabelResolver)(nil)
-	_ controller.Runner        = (*controller.MockRuntime)(nil)
-)
-
-// New is the temporary composition root. Replace the mock factories here as components land.
-// The caller builds the label resolver and runs the definition inventory.
-func New(labels labelresolver.Resolver, definitions inventory.Reader) app.Components {
-	reader := newObjectReader()
-	ownership := newDiscovery(discovery.Dependencies{Reader: reader, Inventory: definitions})
+// New constructs the exporter components. The application starts their workers.
+func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
+	if err := cfg.Validate(); err != nil {
+		return app.Components{}, err
+	}
+	if kubeConfig == nil {
+		return app.Components{}, errors.New("kubernetes configuration is required")
+	}
+	timeout, err := time.ParseDuration(cfg.RequestTimeout)
+	if err != nil {
+		return app.Components{}, fmt.Errorf("requestTimeout: %w", err)
+	}
+	kubeConfig = rest.CopyConfig(kubeConfig)
+	kubeConfig.QPS = cfg.APIQPS
+	kubeConfig.Burst = cfg.APIBurst
+	kubeConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(cfg.APIQPS, cfg.APIBurst)
+	dynamicClient, err := dynamic.NewForConfig(kubeConfig)
+	if err != nil {
+		return app.Components{}, err
+	}
+	metadataClient, err := metadata.NewForConfig(kubeConfig)
+	if err != nil {
+		return app.Components{}, err
+	}
+	discoveryClient, err := kubediscovery.NewDiscoveryClientForConfig(kubeConfig)
+	if err != nil {
+		return app.Components{}, err
+	}
+	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(discoveryClient))
+	reader, err := controller.NewReader(controller.Clients{Dynamic: dynamicClient, Metadata: metadataClient, Mapper: mapper}, controller.ReaderOptions{RequestTimeout: timeout})
+	if err != nil {
+		return app.Components{}, err
+	}
+	definitionConfig := cfg.KartaDefinitionSource.InventoryConfig()
+	definitionConfig.RequestTimeout = timeout
+	definitions, err := inventory.New(dynamicClient, definitionConfig)
+	if err != nil {
+		return app.Components{}, err
+	}
+	ownership, err := discovery.New(reader, discovery.Config{IgnoredTopOwners: cfg.IgnoredOwnerKinds})
+	if err != nil {
+		return app.Components{}, err
+	}
+	labels, err := labelresolver.New(cfg.Config, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
+	if err != nil {
+		return app.Components{}, err
+	}
 	publications := store.New()
-	runtime := newRuntime(controller.Dependencies{
-		Discovery:    ownership,
-		Inventory:    definitions,
-		Labels:       labels,
-		Publications: publications,
-	})
-	return app.Components{Runtime: runtime, Store: publications}
-}
-
-func newObjectReader() discovery.ObjectReader {
-	m := &discovery.MockObjectReader{}
-	m.EXPECT().Cached(mock.Anything).Return(nil, false)
-	m.EXPECT().GetMetadata(mock.Anything, mock.Anything).Return(nil, ErrNotImplemented)
-	return m
-}
-
-func newDiscovery(_ discovery.Dependencies) discovery.Discoverer {
-	m := &discovery.MockDiscovery{}
-	m.EXPECT().Get(mock.Anything, mock.Anything).Return(discovery.Result{}, ErrNotImplemented)
-	return m
-}
-
-func newRuntime(_ controller.Dependencies) controller.Runner {
-	m := &controller.MockRuntime{}
-	m.EXPECT().Run(mock.Anything).RunAndReturn(func(ctx context.Context) error {
-		<-ctx.Done()
-		return nil
-	})
-	return m
+	runtime, err := controller.New(controller.Config{IgnoredOwnerKinds: cfg.IgnoredOwnerKinds, ResourceRules: cfg.ResourceRules, ExcludeResourceRules: cfg.ExcludeResourceRules, NamespaceSelector: cfg.NamespaceSelector, ObjectSelector: cfg.ObjectSelector, PodSelector: cfg.PodSelector, ClusterDefinitions: cfg.KartaDefinitionSource.Cluster.Enabled, RequiredKinds: cfg.RequiredKinds, Workers: cfg.Workers, LeafWorkers: cfg.LeafWorkers, RootWorkers: cfg.RootWorkers}, controller.Dependencies{Discovery: ownership, Inventory: definitions, Labels: labels, Publications: publications}, reader)
+	if err != nil {
+		return app.Components{}, err
+	}
+	return app.Components{Runtime: runtime, Store: publications, Definitions: definitions}, nil
 }

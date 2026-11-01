@@ -16,6 +16,50 @@ exporter:
     # When empty, falls back to .Chart.AppVersion.
     tag: ""
     pullPolicy: IfNotPresent
+  # Select which objects the publication controller observes.
+  namespaceSelector: {}
+  objectSelector: {}
+  podSelector: {}
+  resourceRules: []
+  excludeResourceRules: []
+  ignoredOwnerKinds: []
+  requiredKinds: []
+  workers: 2
+  # Zero inherits workers.
+  leafWorkers: 0
+  rootWorkers: 0
+  requestTimeout: 30s
+  apiQPS: 20
+  apiBurst: 40
+  rbac:
+    # Read workload and ancestor kinds. Add rules for additional custom owners.
+    workloadRules:
+      - apiGroups: [""]
+        resources: ["replicationcontrollers"]
+      - apiGroups: ["batch"]
+        resources: ["jobs", "cronjobs"]
+      - apiGroups: ["apps"]
+        resources: ["deployments", "statefulsets", "replicasets", "daemonsets"]
+      - apiGroups: ["jobset.x-k8s.io"]
+        resources: ["jobsets"]
+      - apiGroups: ["kubeflow.org"]
+        resources: ["pytorchjobs", "mpijobs"]
+      - apiGroups: ["ray.io"]
+        resources: ["rayclusters", "rayjobs", "rayservices"]
+      - apiGroups: ["leaderworkerset.x-k8s.io"]
+        resources: ["leaderworkersets"]
+      - apiGroups: ["serving.knative.dev"]
+        resources: ["services", "configurations", "revisions"]
+      - apiGroups: ["serving.kserve.io"]
+        resources: ["inferenceservices"]
+      - apiGroups: ["milvus.io"]
+        resources: ["milvuses"]
+      - apiGroups: ["apps.nvidia.com"]
+        resources: ["nimservices", "nimcaches"]
+      - apiGroups: ["nvidia.com"]
+        resources: ["dynamographdeployments", "dynamocomponentdeployments"]
+      - apiGroups: ["grove.io", "scheduler.grove.io"]
+        resources: ["podcliquesets", "podcliques", "podcliquescalinggroups", "podgangs"]
   # Extra labels for Pod info and workload status. Expressions read object.
   # See karta-metrics-exporter/pkg/labelevaluator/README.md.
   labelRules: []
@@ -46,6 +90,7 @@ exporter:
       enabled: true
       include: []
       exclude: []
+      labelSelector: {}
 
 # Overrides for resource names. Rarely needed.
 fullnameOverride: ""

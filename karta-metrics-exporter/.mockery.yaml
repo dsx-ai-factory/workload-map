@@ -14,6 +14,10 @@ packages:
         config:
           structname: MockInventory
           filename: inventory_mock.go
+      Observer:
+        config:
+          structname: MockObserver
+          filename: observer_mock.go
   github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/discovery:
     interfaces:
       Discoverer:

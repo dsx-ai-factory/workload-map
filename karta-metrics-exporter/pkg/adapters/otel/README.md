@@ -3,18 +3,18 @@
 
 # OTel Collector
 
-`Collector.Register` takes an OTel Meter and a Store `Capturer` and returns a
-`metric.Registration`. Collector publishes all supported workload phases.
-The generated Collector mock lets startup be tested independently.
+`Register` takes an OTel Meter and a Store `Capturer` and returns a
+`metric.Registration`. It creates four observable gauges and one callback.
+Each callback captures Store once and formats saved values, labels and health.
 
-The implementation will register one callback for the four KEP metric families.
-Each collection captures Store once, checks evidence validity and emits saved
-values. It does not read Kubernetes or run expressions.
+Status emits all nine normalized phases as zeros or ones. Invalid retained Pod
+mapping and status values carry `observation_valid="false"`. Invalid creation
+timestamps are omitted. Collection does not read Kubernetes or run expressions.
 
-`app.Run` calls `registration.Unregister()` after `Runtime.Run` returns. This
-removes the callback from the meter. Any unregister error is returned alongside
-the runtime error. The reader, HTTP endpoint and provider shutdown are not
-implemented.
+The caller must unregister collection before shutting down the OTel provider.
+The tests use a real provider, Prometheus reader and HTTP handler. Provider
+settings, including the cardinality limit, are outside this formatter.
 
-No instruments or collection callback are implemented here. The bootstrap package uses
-a no-op meter and registers no instruments.
+The existing `Collector` interface and its generated mock remain for the startup
+scaffold. The command still uses that scaffold. Phase selection, command HTTP
+wiring and provider shutdown are separate work from this formatter baseline.

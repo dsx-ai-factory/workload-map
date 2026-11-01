@@ -121,23 +121,29 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 	if !valid {
 		return r.state.failWorkload(uid, ref, discovery.ErrUnresolvedOwner)
 	}
-	if owner.UID != "" && !slices.Contains(r.state.config.IgnoredOwnerKinds, owner.GVK) {
+	hasNonIgnoredOwner := owner.UID != "" && !slices.Contains(r.state.config.IgnoredOwnerKinds, owner.GVK)
+	if hasNonIgnoredOwner {
 		r.state.withdrawWorkload(uid)
 		return nil
 	}
-	terminal := r.state.isRoot(ref)
-	if !terminal {
+	if !r.state.isRoot(ref) {
 		return r.state.failWorkload(uid, ref, discovery.ErrUnresolvedOwner)
 	}
 	selected, err := r.state.isRootSelected(ctx, workloadObject)
 	if err != nil {
 		return r.state.failWorkload(uid, ref, err)
 	}
-	if !selected || (ref.GVK == podGVK && selection.Definition == nil && selectionErr == nil) {
+	isPodWithoutDefinition := ref.GVK == podGVK && selection.Definition == nil && selectionErr == nil
+	if !selected || isPodWithoutDefinition {
 		r.state.deps.Publications.RemoveWorkload(uid)
 		return nil
 	}
-	record := store.WorkloadRecord{UID: uid, Ref: storedRef(ref), OwnerResolution: store.OwnerResolution(snapshot.resolution), CreatedTimestamp: workloadObject.GetCreationTimestamp().Unix()}
+	record := store.WorkloadRecord{
+		UID:              uid,
+		Ref:              storedRef(ref),
+		OwnerResolution:  store.OwnerResolution(snapshot.resolution),
+		CreatedTimestamp: workloadObject.GetCreationTimestamp().Unix(),
+	}
 	statusErr := selectionErr
 	if selection.Definition != nil && statusErr == nil {
 		record.Karta = selection.Origin.Name
@@ -145,19 +151,21 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 		factory := resource.NewComponentFactoryFromObject(selection.Definition, workloadObject)
 		statusErr = evaluateWorkloadStatus(ctx, factory, &record)
 	}
-	labelResults, labelErr := r.state.deps.Labels.Resolve(ctx, labelresolver.Input{Metrics: []string{labelresolver.MetricWorkloadStatus}, Workload: workloadObject})
-	if labelErr != nil {
-		statusErr = fmt.Errorf("%w: %w", discovery.ErrEvaluation, labelErr)
-	} else if len(labelResults[0].Errors) > 0 {
-		statusErr = discovery.ErrEvaluation
-	} else {
-		record.StatusLabels = labelResults[0].Labels
+	if labelErr := r.evaluateWorkloadStatusLabels(ctx, workloadObject, &record); labelErr != nil {
+		statusErr = labelErr
 	}
 	sources := appendSources(r.state.sourcesFor([]discovery.ObjectRef{ref}), snapshot.sources)
 	creationSources := slices.DeleteFunc(slices.Clone(sources), func(key store.SourceKey) bool {
 		return key.Resource.Group == kartaGVK.Group && key.Resource.Resource == "kartas"
 	})
-	workloadResult := store.WorkloadResult{Record: record, HasValue: true, Error: failureReason(snapshot.err), StatusError: failureReason(statusErr), Sources: sources, CreationSources: creationSources}
+	workloadResult := store.WorkloadResult{
+		Record:          record,
+		HasValue:        true,
+		Error:           failureReason(snapshot.err),
+		StatusError:     failureReason(statusErr),
+		Sources:         sources,
+		CreationSources: creationSources,
+	}
 	return r.state.publishWorkload(uid, snapshot.generation, ref, selection, workloadResult)
 }
 
@@ -179,6 +187,22 @@ func evaluateWorkloadStatus(ctx context.Context, factory *resource.ComponentFact
 	return statusErr
 }
 
+func (r *Runtime) evaluateWorkloadStatusLabels(ctx context.Context, object *unstructured.Unstructured, record *store.WorkloadRecord) error {
+	results, err := r.state.deps.Labels.Resolve(ctx, labelresolver.Input{
+		Metrics:  []string{labelresolver.MetricWorkloadStatus},
+		Workload: object,
+	})
+	if err != nil {
+		return fmt.Errorf("%w: %w", discovery.ErrEvaluation, err)
+	}
+	statusLabels := results[0]
+	if len(statusLabels.Errors) > 0 {
+		return discovery.ErrEvaluation
+	}
+	record.StatusLabels = statusLabels.Labels
+	return nil
+}
+
 func ValidateResourceRules(rules []ResourceRule) error {
 	for index, rule := range rules {
 		if len(rule.APIGroups) == 0 || len(rule.APIVersions) == 0 || len(rule.Resources) == 0 {
@@ -196,12 +220,6 @@ func ValidateResourceRules(rules []ResourceRule) error {
 		}
 	}
 	return nil
-}
-
-func matchesResourceRule(rule ResourceRule, gvr schema.GroupVersionResource) bool {
-	return (slices.Contains(rule.APIGroups, "*") || slices.Contains(rule.APIGroups, gvr.Group)) &&
-		(slices.Contains(rule.APIVersions, "*") || slices.Contains(rule.APIVersions, gvr.Version)) &&
-		(slices.Contains(rule.Resources, "*") || slices.Contains(rule.Resources, gvr.Resource))
 }
 
 func (r *controllerState) isRootSelected(ctx context.Context, object *unstructured.Unstructured) (bool, error) {
@@ -233,4 +251,10 @@ func (r *controllerState) isResourceSelected(ctx context.Context, gvk schema.Gro
 		}
 	}
 	return false, nil
+}
+
+func matchesResourceRule(rule ResourceRule, gvr schema.GroupVersionResource) bool {
+	return (slices.Contains(rule.APIGroups, "*") || slices.Contains(rule.APIGroups, gvr.Group)) &&
+		(slices.Contains(rule.APIVersions, "*") || slices.Contains(rule.APIVersions, gvr.Version)) &&
+		(slices.Contains(rule.Resources, "*") || slices.Contains(rule.Resources, gvr.Resource))
 }

@@ -5,12 +5,17 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/discovery"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelresolver"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/store"
 )
 
@@ -34,30 +39,85 @@ func TestRootSnapshotOwnsSources(t *testing.T) {
 	require.Equal(t, "original", next.sources[0].Namespace)
 }
 
-func TestRootSnapshotCannotPublishAfterMembershipRecreation(t *testing.T) {
-	r, values := simpleRuntime(t, nil)
-	root, pod, _, _ := seedPair(t, r)
-	ref := refOf(root)
-	before, ok := r.state.snapshotRoot(ref.UID)
-	require.True(t, ok)
-	selection, err := r.state.lookupDefinition(ref.GVK)
-	require.NoError(t, err)
-	previous := *values.Workload(ref.UID)
+type blockedRootLabels struct {
+	root            types.UID
+	calls           atomic.Int32
+	entered, resume chan struct{}
+}
 
-	// Keep the same cached object and definition. Only the membership lifetime changes.
-	r.state.unregisterPod(objectJobFor(refOf(pod)))
-	r.state.unregisterSelectedObject(objectJobFor(ref))
-	_, ok = r.state.snapshotRoot(ref.UID)
-	require.False(t, ok)
-	require.Nil(t, values.Workload(ref.UID))
-	require.NoError(t, r.reconcilePod(context.Background(), objectJobFor(refOf(pod))))
-	after, ok := r.state.snapshotRoot(ref.UID)
-	require.True(t, ok)
-	require.NotEqual(t, before.generation, after.generation)
-	require.ErrorIs(t, r.state.publishWorkload(ref.UID, before.generation, ref, selection, previous), discovery.ErrStale)
-	require.Nil(t, values.Workload(ref.UID))
-	require.NoError(t, r.state.publishWorkload(ref.UID, after.generation, ref, selection, previous))
-	require.NotNil(t, values.Workload(ref.UID))
+func (l *blockedRootLabels) Resolve(ctx context.Context, input labelresolver.Input) ([]labelresolver.ResolvedMetricLabels, error) {
+	var call int32
+	if input.Metrics[0] == labelresolver.MetricWorkloadStatus && input.Workload.GetUID() == l.root {
+		call = l.calls.Add(1)
+		if call == 1 {
+			close(l.entered)
+			select {
+			case <-l.resume:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+	}
+	return []labelresolver.ResolvedMetricLabels{{Labels: map[string]string{"evaluation": fmt.Sprint(call)}}}, nil
+}
+
+func TestWorkloadQueueSerializesRootPublication(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r, values := simpleRuntime(t, nil)
+		root, pod, roots, pods := seedPair(t, r)
+		otherRoot, otherPod := simpleObject(deploymentKind, "other-root"), simpleObject(podGVK, "other-pod")
+		simpleOwner(otherPod, otherRoot)
+		require.NoError(t, r.state.applyWatchEvent(roots, otherRoot, false))
+		require.NoError(t, r.state.applyWatchEvent(pods, otherPod, false))
+		settle(t, r)
+		previousRoot := values.Workload(root.GetUID())
+		previousOther := values.Workload(otherRoot.GetUID())
+		entry := r.state.roots[root.GetUID()]
+		resolver := &blockedRootLabels{root: root.GetUID(), entered: make(chan struct{}), resume: make(chan struct{})}
+		r.state.deps.Labels = resolver
+		for range 2 {
+			r.state.wg.Go(func() { runWorker(r.state.ctx, r.state.workloadQueue, r.handleWorkloadInput) })
+		}
+		key := workloadJobKey{RootUID: root.GetUID()}
+		r.state.workloadQueue.Add(key)
+		<-resolver.entered
+
+		// An empty membership queues cleanup, but cannot remove an in-flight root entry.
+		r.state.unregisterPod(objectJobFor(refOf(pod)))
+		r.state.unregisterSelectedObject(objectJobFor(refOf(root)))
+		for range 5 {
+			r.state.workloadQueue.Add(key)
+		}
+		r.state.workloadQueue.Add(workloadJobKey{RootUID: otherRoot.GetUID()})
+		synctest.Wait()
+		require.Equal(t, int32(1), resolver.calls.Load(), "same-root work must wait for publication")
+		require.Same(t, entry, r.state.roots[root.GetUID()])
+		require.Empty(t, entry.pods)
+		require.Empty(t, entry.selectedObjects)
+		require.Same(t, previousRoot, values.Workload(root.GetUID()), "blocked evaluation has not published")
+		otherResult := values.Workload(otherRoot.GetUID())
+		require.NotNil(t, otherResult)
+		require.NotSame(t, previousOther, otherResult, "another root must progress")
+
+		// Restore membership while the first evaluation still owns the queue key.
+		require.NoError(t, r.reconcilePod(context.Background(), objectJobFor(refOf(pod))))
+		synctest.Wait()
+		require.Same(t, entry, r.state.roots[root.GetUID()])
+		require.Contains(t, entry.pods, pod.GetUID())
+		require.Equal(t, int32(1), resolver.calls.Load())
+		close(resolver.resume)
+		synctest.Wait()
+		require.Equal(t, int32(2), resolver.calls.Load(), "requeues coalesce until the first worker calls Done")
+		require.Equal(t, "2", values.Workload(root.GetUID()).Record.StatusLabels["evaluation"])
+
+		// With no evaluation in flight, the next root-UID job removes the empty entry.
+		r.state.unregisterPod(objectJobFor(refOf(pod)))
+		synctest.Wait()
+		require.NotContains(t, r.state.roots, root.GetUID())
+		require.Nil(t, values.Workload(root.GetUID()))
+		r.state.workloadQueue.ShutDown()
+		r.state.wg.Wait()
+	})
 }
 
 func TestStartPreservesOriginalContext(t *testing.T) {

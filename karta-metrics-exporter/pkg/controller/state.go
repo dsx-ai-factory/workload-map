@@ -41,7 +41,6 @@ type controllerState struct {
 	watchFailures map[discovery.WatchRequest]error
 	scopes        map[string]bool
 
-	nextRoot     uint64
 	roots        map[types.UID]*rootState
 	podRoots     map[types.UID]types.UID
 	ancestorPods map[types.UID]bool
@@ -70,8 +69,6 @@ type objectCache struct {
 }
 
 type rootState struct {
-	// generation distinguishes entries removed and recreated for the same root UID.
-	generation      uint64
 	ref             discovery.ObjectRef
 	resolution      discovery.OwnerResolution
 	pods            map[types.UID]objectJobKey
@@ -86,7 +83,6 @@ type selectedObjectState struct {
 type rootSnapshot struct {
 	ref        discovery.ObjectRef
 	resolution discovery.OwnerResolution
-	generation uint64
 	sources    []store.SourceKey
 	err        error
 }
@@ -312,6 +308,8 @@ func (r *controllerState) unregisterSelectedObject(key objectJobKey) {
 	r.removeSelectedObjectMembership(key)
 }
 
+// snapshotRoot is called only by the root-UID job, which owns its queue key
+// through publication. Only this operation removes empty root entries.
 func (r *controllerState) snapshotRoot(uid types.UID) (rootSnapshot, bool) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
@@ -324,7 +322,7 @@ func (r *controllerState) snapshotRoot(uid types.UID) (rootSnapshot, bool) {
 		r.deps.Publications.RemoveWorkload(uid)
 		return rootSnapshot{}, false
 	}
-	snapshot := rootSnapshot{ref: root.ref, resolution: root.resolution, generation: root.generation}
+	snapshot := rootSnapshot{ref: root.ref, resolution: root.resolution}
 	for _, selectedObject := range root.selectedObjects {
 		snapshot.sources = appendSources(snapshot.sources, selectedObject.sources)
 		snapshot.err = errors.Join(snapshot.err, selectedObject.err)
@@ -347,12 +345,11 @@ func (r *controllerState) isRoot(ref discovery.ObjectRef) bool {
 	return r.hasRootOwnership(ref)
 }
 
-func (r *controllerState) publishWorkload(uid types.UID, generation uint64, ref discovery.ObjectRef, selection selectedDefinition, next store.WorkloadResult) error {
+func (r *controllerState) publishWorkload(uid types.UID, ref discovery.ObjectRef, selection selectedDefinition, next store.WorkloadResult) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	root := r.roots[uid]
-	hasCurrentEntry := root != nil && root.generation == generation
-	if !hasCurrentEntry {
+	if root == nil {
 		return discovery.ErrStale
 	}
 	if !r.isPathCurrent([]discovery.ObjectRef{ref}) || !r.hasRootOwnership(ref) {
@@ -450,9 +447,7 @@ func (r *controllerState) ensureRoot(workload *discovery.GenericWorkload) *rootS
 	}
 	root := r.roots[workload.Root.UID]
 	if root == nil {
-		r.nextRoot++
 		root = &rootState{
-			generation:      r.nextRoot,
 			ref:             workload.Root,
 			pods:            map[types.UID]objectJobKey{},
 			selectedObjects: map[objectJobKey]selectedObjectState{},

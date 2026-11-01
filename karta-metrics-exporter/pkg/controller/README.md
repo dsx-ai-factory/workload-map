@@ -185,11 +185,14 @@ separate so API discovery cannot hold up cache reads or publication.
 
 Before publishing, the controller checks that the input path still has the same
 UIDs and resource versions, the root is still a root, and the selected definition
-has not changed. Workload publication also checks that the root tracking entry
-has not been removed and recreated since the snapshot. Its `generation` identifies
-that entry's lifetime, not each membership update. A stale evaluation returns an
-error and retries instead of replacing a newer result. Pod and workload
-publications are independent.
+has not changed. A stale evaluation returns an error and retries instead of
+replacing a newer result. Pod and workload publications are independent.
+
+Only a root-UID job removes an empty root tracking entry, at the start of
+`reconcileWorkload`. That job holds its queue key through publication until
+`runWorker` calls `Done`. Another job for the same root cannot remove the entry
+during evaluation. Pod and selected-object jobs can change membership, but they
+queue the root-UID job rather than remove its entry.
 
 A root change queues that root and its Pods. An intermediate owner change queues
 a scope rescan so unchanged Pods can discover the new root. Definition changes

@@ -166,7 +166,7 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 		Sources:         sources,
 		CreationSources: creationSources,
 	}
-	return r.state.publishWorkload(uid, snapshot.generation, ref, selection, workloadResult)
+	return r.state.publishWorkload(uid, ref, selection, workloadResult)
 }
 
 func evaluateWorkloadStatus(ctx context.Context, factory *resource.ComponentFactory, record *store.WorkloadRecord) error {

@@ -132,18 +132,14 @@ func (r *Runtime) Run(ctx context.Context) error {
 		return err
 	}
 	for i := 0; i < r.state.config.LeafWorkers; i++ {
-		r.state.wg.Add(1)
-		go func() { defer r.state.wg.Done(); runWorker(ctx, r.state.podQueue, r.handlePodInput) }()
+		r.state.wg.Go(func() { runWorker(ctx, r.state.podQueue, r.handlePodInput) })
 	}
 	for i := 0; i < r.state.config.RootWorkers; i++ {
-		r.state.wg.Add(1)
-		go func() { defer r.state.wg.Done(); runWorker(ctx, r.state.workloadQueue, r.handleWorkloadInput) }()
+		r.state.wg.Go(func() { runWorker(ctx, r.state.workloadQueue, r.handleWorkloadInput) })
 	}
-	r.state.wg.Add(1)
-	go func() {
-		defer r.state.wg.Done()
+	r.state.wg.Go(func() {
 		runWorker(ctx, r.state.watchSyncQueue, func(ctx context.Context, _ string) error { return r.state.syncWatches(ctx) })
-	}()
+	})
 	r.state.watchSyncQueue.Add("sources")
 	changes := r.state.deps.Inventory.Changes()
 running:

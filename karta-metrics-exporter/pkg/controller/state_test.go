@@ -5,13 +5,16 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
 
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/discovery"
@@ -153,4 +156,96 @@ func TestNamespaceAdmissionUsesCurrentScopes(t *testing.T) {
 			require.Equal(t, tc.admitted, runtime.state.namespaceAdmitted(tc.namespace))
 		})
 	}
+}
+
+func TestCacheReadHealthPrecedesIdentity(t *testing.T) {
+	sourceKey := watchKey{Resource: podGVK.GroupVersion().WithResource("pods"), Namespace: "ns"}
+	ref := discovery.ObjectRef{GVK: podGVK, Namespace: "ns", Name: "pod", UID: "expected", ResourceVersion: "2"}
+	failure := errors.New("source failed")
+	for _, present := range []bool{false, true} {
+		for _, tc := range []struct {
+			name   string
+			source cacheSource
+			want   error
+		}{
+			{"failed", cacheSource{err: failure}, failure},
+			{"unsynced", cacheSource{hasFullObject: true}, discovery.ErrPending},
+			{"metadata", cacheSource{synced: true}, discovery.ErrPending},
+			{"ready", cacheSource{synced: true, hasFullObject: true}, apierrors.NewNotFound(sourceKey.Resource.GroupResource(), ref.Name)},
+		} {
+			name := tc.name + "/absent"
+			if present {
+				name = tc.name + "/wrong-uid"
+			}
+			t.Run(name, func(t *testing.T) {
+				tc.source.gvk = podGVK
+				objects := &objectCache{objects: map[objectKey]cachedObject{}, sources: map[watchKey]cacheSource{sourceKey: tc.source}}
+				if present {
+					object := &unstructured.Unstructured{}
+					object.SetUID("old")
+					object.SetResourceVersion("1")
+					objects.objects[keyOf(ref)] = cachedObject{object: object, source: sourceKey}
+				}
+				object, source, err := objects.lookupObject(ref, true)
+				require.Nil(t, object)
+				require.Equal(t, sourceKey, source)
+				if apierrors.IsNotFound(tc.want) {
+					require.EqualError(t, err, tc.want.Error())
+					require.True(t, apierrors.IsNotFound(err))
+				} else {
+					require.Same(t, tc.want, err)
+				}
+			})
+		}
+	}
+}
+
+func TestCacheReadIdentityAndScope(t *testing.T) {
+	sourceKey := watchKey{Resource: podGVK.GroupVersion().WithResource("pods")}
+	ref := discovery.ObjectRef{GVK: podGVK, Namespace: "ns", Name: "pod", UID: "expected", ResourceVersion: "2"}
+	for _, tc := range []struct {
+		name                                          string
+		clusterObject, stale, metadata, missingSource bool
+	}{
+		{name: "namespaced"},
+		{name: "cluster fallback", clusterObject: true},
+		{name: "stale version", stale: true},
+		{name: "metadata read", metadata: true},
+		{name: "missing source", missingSource: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			object := &unstructured.Unstructured{}
+			object.SetUID(ref.UID)
+			object.SetResourceVersion(ref.ResourceVersion)
+			if tc.stale {
+				object.SetResourceVersion("1")
+			}
+			key := keyOf(ref)
+			if tc.clusterObject {
+				key.Namespace = ""
+			}
+			objects := &objectCache{objects: map[objectKey]cachedObject{key: {object: object, source: sourceKey}}, sources: map[watchKey]cacheSource{}}
+			if !tc.missingSource {
+				objects.sources[sourceKey] = cacheSource{gvk: podGVK, synced: true, hasFullObject: !tc.metadata}
+			}
+			got, source, err := objects.lookupObject(ref, !tc.metadata)
+			require.Equal(t, sourceKey, source)
+			switch {
+			case tc.missingSource:
+				require.ErrorIs(t, err, discovery.ErrPending)
+				require.Nil(t, got)
+			case tc.stale:
+				require.ErrorIs(t, err, discovery.ErrStale)
+				require.Nil(t, got)
+			default:
+				require.NoError(t, err)
+				require.Same(t, object, got)
+			}
+		})
+	}
+	objects := &objectCache{sources: map[watchKey]cacheSource{{Resource: sourceKey.Resource, Namespace: "other"}: {gvk: podGVK, synced: true, hasFullObject: true}}}
+	got, source, err := objects.lookupObject(ref, true)
+	require.Nil(t, got)
+	require.Equal(t, watchKey{}, source)
+	require.ErrorIs(t, err, discovery.ErrPending)
 }

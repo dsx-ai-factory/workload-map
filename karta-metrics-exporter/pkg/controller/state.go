@@ -555,34 +555,31 @@ func (r *objectCache) lookupObject(ref discovery.ObjectRef, requireFullObject bo
 		key.Namespace = ""
 		entry, ok = r.objects[key]
 	}
-	if ok {
-		source := r.sources[entry.source]
-		if source.err != nil {
-			return nil, entry.source, source.err
+	sourceKey := entry.source
+	if !ok {
+		found := false
+		for key, source := range r.sources {
+			if source.gvk == ref.GVK && (key.Namespace == "" || key.Namespace == ref.Namespace) {
+				sourceKey, found = key, true
+				break
+			}
 		}
-		if !source.synced || (requireFullObject && !source.hasFullObject) {
-			return nil, entry.source, discovery.ErrPending
+		if !found {
+			return nil, watchKey{}, discovery.ErrPending
 		}
-		object := entry.object
-		if ref.UID != "" && object.GetUID() != ref.UID {
-			return nil, entry.source, apierrors.NewNotFound(entry.source.Resource.GroupResource(), ref.Name)
-		}
-		if ref.ResourceVersion != "" && object.GetResourceVersion() != ref.ResourceVersion {
-			return nil, entry.source, discovery.ErrStale
-		}
-		return object, entry.source, nil
 	}
-	for sourceKey, source := range r.sources {
-		if source.gvk != ref.GVK || (sourceKey.Namespace != "" && sourceKey.Namespace != ref.Namespace) {
-			continue
-		}
-		if source.err != nil {
-			return nil, sourceKey, source.err
-		}
-		if !source.synced || (requireFullObject && !source.hasFullObject) {
-			return nil, sourceKey, discovery.ErrPending
-		}
+	source := r.sources[sourceKey]
+	if source.err != nil {
+		return nil, sourceKey, source.err
+	}
+	if !source.synced || (requireFullObject && !source.hasFullObject) {
+		return nil, sourceKey, discovery.ErrPending
+	}
+	if !ok || (ref.UID != "" && entry.object.GetUID() != ref.UID) {
 		return nil, sourceKey, apierrors.NewNotFound(sourceKey.Resource.GroupResource(), ref.Name)
 	}
-	return nil, watchKey{}, discovery.ErrPending
+	if ref.ResourceVersion != "" && entry.object.GetResourceVersion() != ref.ResourceVersion {
+		return nil, sourceKey, discovery.ErrStale
+	}
+	return entry.object, sourceKey, nil
 }

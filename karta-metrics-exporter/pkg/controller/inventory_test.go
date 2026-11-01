@@ -285,6 +285,13 @@ func TestInventoryWatchDrivesRuntimeWithoutControllerKartaWatch(t *testing.T) {
 		return values.Pod(pod.GetUID()).Record.Karta == ""
 	}, 3*time.Second, time.Millisecond)
 	require.NotNil(t, values.Workload(root.GetUID()))
+	replacement := definitionObject(t, "replacement")
+	_, err = api.Resource(resource).Create(ctx, replacement, metav1.CreateOptions{})
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return values.Pod(pod.GetUID()).Record.Karta == "replacement" &&
+			values.Pod(pod.GetUID()).Record.Component == "job"
+	}, 3*time.Second, time.Millisecond)
 	for _, action := range r.state.reader.clients.Dynamic.(*dynamicfake.FakeDynamicClient).Actions() {
 		require.NotEqual(t, resource, action.GetResource())
 	}

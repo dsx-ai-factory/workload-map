@@ -248,34 +248,36 @@ func (r *controllerState) refreshDefinitions() error {
 	if r.config.ClusterDefinitions {
 		r.deps.Publications.SetSourceHealth(definitionSource, store.SourceHealth{GVK: kartaGVK, Synced: sourceErr == nil, Error: failureReason(sourceErr)})
 	}
-	if healthChanged || len(changedKinds) > 0 {
-		r.definitionVersion++
-		if healthChanged {
-			r.enqueueScopeRefresh("")
-		} else {
-			for _, entry := range r.objects {
-				ref := refOf(entry.object)
-				if changedKinds[ref.GVK.GroupKind()] {
-					r.enqueueObject(entry.object)
-				}
-				if ref.GVK == podGVK {
-					root := r.roots[r.podRoots[ref.UID]]
-					if root == nil || changedKinds[root.ref.GVK.GroupKind()] {
-						r.enqueuePod(entry.object)
-					}
-				}
+	if !healthChanged && len(changedKinds) == 0 {
+		return sourceErr
+	}
+	r.definitionVersion++
+	if healthChanged {
+		r.enqueueScopeRefresh("")
+	} else {
+		for _, entry := range r.objects {
+			ref := refOf(entry.object)
+			if changedKinds[ref.GVK.GroupKind()] {
+				r.enqueueObject(entry.object)
+			}
+			if ref.GVK != podGVK {
+				continue
+			}
+			root := r.roots[r.podRoots[ref.UID]]
+			if root == nil || changedKinds[root.ref.GVK.GroupKind()] {
+				r.enqueuePod(entry.object)
 			}
 		}
-		for uid, root := range r.roots {
-			if healthChanged || changedKinds[root.ref.GVK.GroupKind()] {
-				r.workloadQueue.Add(workloadJobKey{RootUID: uid})
-				r.enqueueMembers(root)
-			}
+	}
+	for uid, root := range r.roots {
+		if healthChanged || changedKinds[root.ref.GVK.GroupKind()] {
+			r.workloadQueue.Add(workloadJobKey{RootUID: uid})
+			r.enqueueMembers(root)
 		}
-		for selectedObject := range r.selectedObjectRoots {
-			if changedKinds[selectedObject.Object.GVK.GroupKind()] {
-				r.workloadQueue.Add(workloadJobKey{SelectedObject: selectedObject})
-			}
+	}
+	for selectedObject := range r.selectedObjectRoots {
+		if changedKinds[selectedObject.Object.GVK.GroupKind()] {
+			r.workloadQueue.Add(workloadJobKey{SelectedObject: selectedObject})
 		}
 	}
 	return sourceErr

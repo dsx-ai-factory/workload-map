@@ -33,17 +33,17 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### go.yaml.in/yaml/v3
 - Name: go.yaml.in/yaml/v3
-- Version: v3.0.5
+- Version: v3.0.6
 - License: MIT
 
 ### k8s.io/api
 - Name: k8s.io/api
-- Version: v0.37.1
+- Version: v0.37.2
 - License: Apache-2.0
 
 ### k8s.io/apimachinery
 - Name: k8s.io/apimachinery
-- Version: v0.37.1
+- Version: v0.37.2
 - License: Apache-2.0
 
 ### k8s.io/utils
@@ -193,12 +193,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### k8s.io/cli-runtime
 - Name: k8s.io/cli-runtime
-- Version: v0.37.1
+- Version: v0.37.2
 - License: Apache-2.0
 
 ### k8s.io/client-go
 - Name: k8s.io/client-go
-- Version: v0.37.1
+- Version: v0.37.2
 - License: Apache-2.0
 
 ### github.com/Azure/go-ansiterm

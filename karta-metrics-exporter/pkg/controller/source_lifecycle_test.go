@@ -813,3 +813,43 @@ func TestRecordWatchStartHealth(t *testing.T) {
 		})
 	}
 }
+
+func TestPrepareWatchSnapshotValidatesBeforeAcceptance(t *testing.T) {
+	object := simpleObject(podGVK, "pod")
+	object.Object["spec"] = map[string]any{"nodeName": "example-node"}
+	missingUID := object.DeepCopy()
+	missingUID.SetUID("")
+	missingName := object.DeepCopy()
+	missingName.SetName("")
+	for _, tc := range []struct {
+		name   string
+		values []any
+		err    string
+	}{
+		{name: "empty"},
+		{name: "valid", values: []any{object}},
+		{name: "conversion failure", values: []any{object, &metav1.Status{}}, err: "unexpected source object *v1.Status"},
+		{name: "missing UID", values: []any{missingUID}, err: "LIST object has no identity"},
+		{name: "missing name", values: []any{missingName}, err: "LIST object has no identity"},
+		{name: "duplicate", values: []any{object, object.DeepCopy()}, err: "LIST contains duplicate object names"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			objects, err := prepareWatchSnapshot(tc.values, podGVK, false)
+			if tc.err != "" {
+				require.EqualError(t, err, tc.err)
+				require.Nil(t, objects, "invalid snapshots cannot become authoritative")
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, objects)
+			require.Len(t, objects, len(tc.values))
+			if len(tc.values) > 0 {
+				prepared := objects[keyOf(refOf(object))]
+				require.NotSame(t, object, prepared)
+				require.NotContains(t, prepared.Object, "spec")
+				require.Contains(t, object.Object, "spec")
+				require.Equal(t, object.GetResourceVersion(), prepared.GetResourceVersion())
+			}
+		})
+	}
+}

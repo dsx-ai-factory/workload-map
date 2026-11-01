@@ -172,7 +172,13 @@ func (r *controllerState) ensureWatch(ctx context.Context, gvk schema.GroupVersi
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
-		cache.NewReflectorWithOptions(listWatch, &unstructured.Unstructured{}, &reflectorStore{controller: r, watch: w}, cache.ReflectorOptions{Name: key.Resource.String() + "/" + namespace}).RunWithContext(watchCtx)
+		reflector := cache.NewReflectorWithOptions(
+			listWatch,
+			&unstructured.Unstructured{},
+			&reflectorStore{controller: r, watch: w},
+			cache.ReflectorOptions{Name: key.Resource.String() + "/" + namespace},
+		)
+		reflector.RunWithContext(watchCtx)
 	}()
 	return key, nil
 }
@@ -363,21 +369,9 @@ func (s *reflectorStore) Delete(object any) error {
 }
 func (s *reflectorStore) Resync() error { return nil }
 func (s *reflectorStore) Replace(values []any, _ string) error {
-	// Validate the complete snapshot before making absence authoritative.
-	objects := make(map[objectKey]*unstructured.Unstructured, len(values))
-	for _, value := range values {
-		object, err := prepareWatchObject(value, s.watch.gvk, s.watch.full)
-		if err != nil {
-			return s.controller.rejectWatchObject(s.watch, err)
-		}
-		if object.GetUID() == "" || object.GetName() == "" {
-			return s.controller.rejectWatchObject(s.watch, errors.New("LIST object has no identity"))
-		}
-		key := keyOf(refOf(object))
-		if _, duplicate := objects[key]; duplicate {
-			return s.controller.rejectWatchObject(s.watch, errors.New("LIST contains duplicate object names"))
-		}
-		objects[key] = object
+	objects, err := prepareWatchSnapshot(values, s.watch.gvk, s.watch.full)
+	if err != nil {
+		return s.controller.rejectWatchObject(s.watch, err)
 	}
 	r, w := s.controller, s.watch
 	r.stateMu.Lock()
@@ -412,6 +406,26 @@ func (s *reflectorStore) Replace(values []any, _ string) error {
 	r.enqueueScopeRefresh(w.key.Namespace)
 	return nil
 }
+func prepareWatchSnapshot(values []any, gvk schema.GroupVersionKind, full bool) (map[objectKey]*unstructured.Unstructured, error) {
+	// Validate the complete snapshot before making absence authoritative.
+	objects := make(map[objectKey]*unstructured.Unstructured, len(values))
+	for _, value := range values {
+		object, err := prepareWatchObject(value, gvk, full)
+		if err != nil {
+			return nil, err
+		}
+		if object.GetUID() == "" || object.GetName() == "" {
+			return nil, errors.New("LIST object has no identity")
+		}
+		key := keyOf(refOf(object))
+		if _, duplicate := objects[key]; duplicate {
+			return nil, errors.New("LIST contains duplicate object names")
+		}
+		objects[key] = object
+	}
+	return objects, nil
+}
+
 func (r *controllerState) applyWatchEvent(w *resourceWatch, value any, deleted bool) error {
 	object, err := prepareWatchObject(value, w.gvk, w.full)
 	if err != nil {

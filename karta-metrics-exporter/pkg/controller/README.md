@@ -143,9 +143,14 @@ For example, a selected Job owned by a Deployment registers that Deployment.
 Only a root-UID job publishes a workload result. A selected-object job registers
 or removes membership and queues the affected root.
 
+Selector configuration is fixed when the runtime is constructed. Watched object
+labels can still change. Workers match current labels against those fixed
+selectors before evaluation.
+
 Pod selection filters leaf work, but unselected Pods remain cached because they
-may own other Pods. Workers recheck labels before evaluation. A Pod leaving the
-selector is queued to remove its previous result.
+may own other Pods. A Pod leaving the selector is queued to remove its previous
+result. A change in object-selector membership triggers a scope rescan. Namespace
+label changes refresh admitted scopes and retire watches for excluded namespaces.
 
 ## State and publication checks
 

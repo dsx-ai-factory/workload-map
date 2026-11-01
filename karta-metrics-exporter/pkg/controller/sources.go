@@ -486,8 +486,9 @@ func (r *controllerState) queueObjectChange(old, current *unstructured.Unstructu
 			}
 		}
 	}
-	selectorChanged := !r.objectSelector.Empty() && old != nil && current != nil && r.objectSelector.Matches(labelsFor(old)) != r.objectSelector.Matches(labelsFor(current))
-	if (ownershipChanged && ancestor) || selectorChanged {
+	objectMembershipChanged := old != nil && current != nil && r.objectSelector.Matches(labelsFor(old)) != r.objectSelector.Matches(labelsFor(current))
+	ancestorOwnershipChanged := ownershipChanged && ancestor
+	if ancestorOwnershipChanged || objectMembershipChanged {
 		r.enqueueScopeRefresh(object.GetNamespace())
 	}
 }

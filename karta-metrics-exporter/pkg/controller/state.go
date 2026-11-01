@@ -106,8 +106,8 @@ func newControllerState(objects *objectCache) *controllerState {
 }
 
 func (r *controllerState) lookupDefinition(gvk schema.GroupVersionKind) (selectedDefinition, error) {
-	r.stateMu.Lock()
-	defer r.stateMu.Unlock()
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
 	selected := r.selectedDefinitions[gvk.GroupKind()]
 	selected.version = r.definitionVersion
 	if r.definitionInventoryErr != nil {
@@ -117,9 +117,12 @@ func (r *controllerState) lookupDefinition(gvk schema.GroupVersionKind) (selecte
 }
 
 func (r *controllerState) namespaceAdmitted(namespace string) bool {
-	r.stateMu.Lock()
-	defer r.stateMu.Unlock()
-	return r.config.NamespaceSelector == nil || namespace == "" || r.scopes[namespace]
+	if r.config.NamespaceSelector == nil || namespace == "" {
+		return true
+	}
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
+	return r.scopes[namespace]
 }
 
 func (r *controllerState) unregisterPod(key objectJobKey) {
@@ -211,8 +214,8 @@ func (r *controllerState) registerPodRoot(key objectJobKey, workload *discovery.
 }
 
 func (r *controllerState) watchFailed(ref discovery.ObjectRef) bool {
-	r.stateMu.Lock()
-	defer r.stateMu.Unlock()
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
 	_, failed := r.watchFailures[discovery.WatchRequest{GVK: ref.GVK, Namespace: ref.Namespace}]
 	return failed
 }
@@ -334,8 +337,8 @@ func (r *controllerState) withdrawWorkload(uid types.UID) {
 }
 
 func (r *controllerState) isRoot(ref discovery.ObjectRef) bool {
-	r.stateMu.Lock()
-	defer r.stateMu.Unlock()
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
 	return r.hasRootOwnership(ref)
 }
 
@@ -402,7 +405,7 @@ func (r *controllerState) enqueuePod(object *unstructured.Unstructured) {
 	uid := object.GetUID()
 	_, member := r.podRoots[uid]
 	// Previously tracked Pods still need a worker to remove their result.
-	if r.podSelector.Empty() || r.podSelector.Matches(labelsFor(object)) || member || r.deps.Publications.Pod(uid) != nil {
+	if r.podSelector.Matches(labelsFor(object)) || member || r.deps.Publications.Pod(uid) != nil {
 		r.podQueue.Add(objectJobFor(refOf(object)))
 	}
 }

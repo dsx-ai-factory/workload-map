@@ -169,7 +169,8 @@ func (r *Runtime) Ready() bool {
 func (r *controllerState) ready() bool {
 	r.stateMu.RLock()
 	defer r.stateMu.RUnlock()
-	if !r.started || (r.ctx != nil && r.ctx.Err() != nil) || r.definitionInventoryErr != nil || len(r.watches) == 0 {
+	isRunning := r.started && (r.ctx == nil || r.ctx.Err() == nil)
+	if !isRunning || r.definitionInventoryErr != nil || len(r.watches) == 0 {
 		return false
 	}
 	for request := range r.watchFailures {
@@ -178,7 +179,8 @@ func (r *controllerState) ready() bool {
 		}
 	}
 	for _, w := range r.watches {
-		if r.requiredWatch(w.gvk) && (!w.ready || w.err != nil || r.replacements[w.key] != nil) {
+		isUnavailable := !w.ready || w.err != nil || r.replacements[w.key] != nil
+		if r.requiredWatch(w.gvk) && isUnavailable {
 			return false
 		}
 	}

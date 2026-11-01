@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/discovery"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/store"
@@ -67,4 +68,29 @@ func TestStartPreservesOriginalContext(t *testing.T) {
 	require.EqualError(t, r.state.start(context.Background()), "runtime already started")
 	require.Same(t, ctx, r.state.ctx)
 	r.state.stopWatches()
+}
+
+func TestNamespaceAdmissionUsesCurrentScopes(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		selector  *metav1.LabelSelector
+		namespace string
+		admitted  bool
+	}{
+		{name: "no selector", namespace: "ns", admitted: true},
+		{name: "empty selector", selector: &metav1.LabelSelector{}, namespace: "ns", admitted: true},
+		{name: "cluster scoped", selector: &metav1.LabelSelector{MatchLabels: map[string]string{"include": "yes"}}, admitted: true},
+		{name: "namespaced", selector: &metav1.LabelSelector{MatchLabels: map[string]string{"include": "yes"}}, namespace: "ns"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r, _ := simpleRuntime(t, nil)
+			runtime, err := New(Config{NamespaceSelector: tc.selector}, r.state.deps, r.state.reader)
+			require.NoError(t, err)
+			require.Equal(t, tc.admitted, runtime.state.namespaceAdmitted(tc.namespace))
+			runtime.state.scopes[tc.namespace] = true
+			require.True(t, runtime.state.namespaceAdmitted(tc.namespace))
+			delete(runtime.state.scopes, tc.namespace)
+			require.Equal(t, tc.admitted, runtime.state.namespaceAdmitted(tc.namespace))
+		})
+	}
 }

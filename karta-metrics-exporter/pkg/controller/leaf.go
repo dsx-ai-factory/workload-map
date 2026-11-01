@@ -42,7 +42,7 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 	if err != nil {
 		return r.state.failPod(key, nil, err)
 	}
-	if !r.state.podSelector.Empty() && !r.state.podSelector.Matches(labelsFor(podObject)) {
+	if !r.state.podSelector.Matches(labelsFor(podObject)) {
 		r.state.unregisterPod(key)
 		return nil
 	}

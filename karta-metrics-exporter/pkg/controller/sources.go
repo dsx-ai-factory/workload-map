@@ -41,28 +41,44 @@ func (r *controllerState) syncWatches(ctx context.Context) error {
 			return err
 		}
 	}
+	requests, preparationErr := r.prepareWatchRequests()
+	if requests == nil {
+		return preparationErr
+	}
+	var errs []error
+	if preparationErr != nil {
+		errs = append(errs, preparationErr)
+	}
+	for _, request := range requests {
+		if _, err := r.ensureWatch(ctx, request.GVK, request.Namespace, false); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// Prepare source changes under the state lock. REST mapping and watch startup run after it is released.
+func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, error) {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	definitionErr := r.refreshDefinitionsLocked()
 	if r.config.NamespaceSelector != nil {
 		namespaceWatchReady := false
 		admittedNamespaces := map[string]bool{}
 		for _, w := range r.watches {
-			if w.gvk != namespaceGVK {
+			if w.gvk != namespaceGVK || !w.ready || w.err != nil {
 				continue
 			}
-			if w.ready && w.err == nil {
-				namespaceWatchReady = true
-				for key := range w.objects {
-					object := r.objects[key].object
-					if r.namespaceSelector.Matches(labelsFor(object)) {
-						admittedNamespaces[object.GetName()] = true
-					}
+			namespaceWatchReady = true
+			for key := range w.objects {
+				object := r.objects[key].object
+				if r.namespaceSelector.Matches(labelsFor(object)) {
+					admittedNamespaces[object.GetName()] = true
 				}
 			}
 		}
 		if !namespaceWatchReady {
-			r.mu.Unlock()
-			return discovery.ErrPending
+			return nil, discovery.ErrPending
 		}
 		r.scopes = admittedNamespaces
 	}
@@ -95,19 +111,13 @@ func (r *controllerState) syncWatches(ctx context.Context) error {
 			r.deps.Publications.RemoveDiscoveryFailure(types.UID("source:" + request.GVK.String() + "/" + request.Namespace))
 		}
 	}
-	r.mu.Unlock()
-	var errs []error
-	if definitionErr != nil {
-		errs = append(errs, definitionErr)
-	}
+	requests := make([]discovery.WatchRequest, 0, len(kinds)*len(scopes))
 	for gvk := range kinds {
 		for _, namespace := range scopes {
-			if _, err := r.ensureWatch(ctx, gvk, namespace, false); err != nil {
-				errs = append(errs, err)
-			}
+			requests = append(requests, discovery.WatchRequest{GVK: gvk, Namespace: namespace})
 		}
 	}
-	return errors.Join(errs...)
+	return requests, definitionErr
 }
 
 func (r *controllerState) ensureWatch(ctx context.Context, gvk schema.GroupVersionKind, namespace string, metadataOnly bool) (watchKey, error) {
@@ -258,13 +268,7 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 			stream, err = r.reader.clients.Dynamic.Resource(w.key.Resource).Namespace(w.key.Namespace).Watch(ctx, options)
 		}
 	}
-	r.mu.Lock()
-	if err == nil {
-		r.setWatchHealthLocked(w, nil)
-	} else if ctx.Err() == nil && (options.SendInitialEvents == nil || !*options.SendInitialEvents || !apierrors.IsBadRequest(err)) {
-		r.setWatchHealthLocked(w, err)
-	}
-	r.mu.Unlock()
+	r.recordWatchStart(ctx, w, options, err)
 	if err != nil {
 		return nil, err
 	}
@@ -309,6 +313,17 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 		}
 	}()
 	return monitored, nil
+}
+
+func (r *controllerState) recordWatchStart(ctx context.Context, w *resourceWatch, options metav1.ListOptions, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	isWatchListFallback := options.SendInitialEvents != nil && *options.SendInitialEvents && apierrors.IsBadRequest(err)
+	if err == nil {
+		r.setWatchHealthLocked(w, nil)
+	} else if ctx.Err() == nil && !isWatchListFallback {
+		r.setWatchHealthLocked(w, err)
+	}
 }
 
 func prepareWatchObject(value any, gvk schema.GroupVersionKind, full bool) (*unstructured.Unstructured, error) {

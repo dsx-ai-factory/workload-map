@@ -742,3 +742,74 @@ func TestConcurrentCacheReadsAndSourceUpdates(t *testing.T) {
 	require.Equal(t, "100", current.GetResourceVersion())
 	require.Equal(t, "1", pod.GetResourceVersion())
 }
+
+func TestPrepareWatchRequestsWaitsForHealthyNamespaces(t *testing.T) {
+	for _, sourceError := range []error{nil, errors.New("namespace unavailable")} {
+		t.Run(fmt.Sprint(sourceError), func(t *testing.T) {
+			r, _ := simpleRuntime(t, nil)
+			r.state.config.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"include": "yes"}}
+			r.state.namespaceSelector, _ = selector(r.state.config.NamespaceSelector)
+			r.state.scopes = map[string]bool{"previous": true}
+			w := seedSource(t, r, namespaceGVK, true)
+			w.ready, w.err = sourceError != nil, sourceError
+			inventoryError := errors.New("inventory unavailable")
+			r.state.deps.Inventory = &observedInventory{err: inventoryError}
+
+			requests, err := r.state.prepareWatchRequests()
+			require.Same(t, discovery.ErrPending, err)
+			require.Nil(t, requests)
+			require.Equal(t, map[string]bool{"previous": true}, r.state.scopes)
+			require.Same(t, inventoryError, r.state.definitionInventoryErr)
+			require.True(t, r.state.mu.TryLock(), "preparation must release the lock on pending")
+			r.state.mu.Unlock()
+		})
+	}
+}
+
+func TestPrepareWatchRequestsKeepsRequiredKindsOnInventoryFailure(t *testing.T) {
+	r, _ := simpleRuntime(t, nil)
+	r.state.config.RequiredKinds = []schema.GroupVersionKind{deploymentKind}
+	inventoryError := errors.New("inventory unavailable")
+	r.state.deps.Inventory = &observedInventory{err: inventoryError}
+	requests, err := r.state.prepareWatchRequests()
+	require.Same(t, inventoryError, err)
+	require.ElementsMatch(t, []discovery.WatchRequest{{GVK: podGVK}, {GVK: deploymentKind}}, requests)
+	require.True(t, r.state.mu.TryLock(), "watch startup must run outside the preparation lock")
+	r.state.mu.Unlock()
+}
+
+func TestRecordWatchStartHealth(t *testing.T) {
+	initialEvents := true
+	badRequest := apierrors.NewBadRequest("watch-list unsupported")
+	for _, tc := range []struct {
+		name     string
+		options  metav1.ListOptions
+		err      error
+		canceled bool
+		keepOld  bool
+	}{
+		{name: "connected"},
+		{name: "watch-list fallback", options: metav1.ListOptions{SendInitialEvents: &initialEvents}, err: badRequest, keepOld: true},
+		{name: "ordinary bad request", err: badRequest},
+		{name: "canceled request", err: badRequest, canceled: true, keepOld: true},
+		{name: "connected after cancellation", canceled: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r, _ := simpleRuntime(t, nil)
+			w := seedSource(t, r, podGVK, true)
+			previousError := errors.New("previous failure")
+			r.state.setWatchHealth(w, previousError)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tc.canceled {
+				cancel()
+			}
+			r.state.recordWatchStart(ctx, w, tc.options, tc.err)
+			want := tc.err
+			if tc.keepOld {
+				want = previousError
+			}
+			require.Equal(t, want, w.err)
+		})
+	}
+}

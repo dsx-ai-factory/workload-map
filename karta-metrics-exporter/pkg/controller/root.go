@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -19,7 +18,6 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/discovery"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelresolver"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/store"
-	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/instructions"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 )
 
@@ -179,49 +177,6 @@ func evaluateWorkloadStatus(ctx context.Context, factory *resource.ComponentFact
 		return fmt.Errorf("%w: %w", discovery.ErrEvaluation, statusErr)
 	}
 	return statusErr
-}
-
-func evaluatePodComponent(ctx context.Context, factory *resource.ComponentFactory, summary *instructions.StructureSummary, pod *corev1.Pod) (string, string, string, error) {
-	query := resource.NewPodQuerier(pod)
-	componentName, err := instructions.InferPodComponent(ctx, query, summary)
-	if err != nil {
-		return "", "", "", err
-	}
-	component, err := factory.GetComponent(componentName)
-	if err != nil {
-		return "", "", "", err
-	}
-	instanceID, err := instructions.InferPodComponentInstance(ctx, query, componentName, factory)
-	if err != nil {
-		return "", "", "", err
-	}
-	instance := ""
-	if instanceID != nil {
-		instance = *instanceID
-	}
-	if component.Definition().InstanceIdPath != nil && instance == "" {
-		return "", "", "", errors.New("required component instance is missing")
-	}
-	group := ""
-	for {
-		selector := component.GetPodSelector()
-		if selector != nil && selector.ReplicaSelector != nil && selector.ReplicaSelector.KeyPath != "" {
-			group, _, err = query.ExtractReplicaKey(ctx, selector.ReplicaSelector)
-			if err != nil {
-				return "", "", "", err
-			}
-			break
-		}
-		ownerComponentName := component.Definition().OwnerRef
-		if ownerComponentName == nil {
-			break
-		}
-		component, err = factory.GetComponent(*ownerComponentName)
-		if err != nil {
-			return "", "", "", err
-		}
-	}
-	return componentName, instance, group, nil
 }
 
 func ValidateResourceRules(rules []ResourceRule) error {

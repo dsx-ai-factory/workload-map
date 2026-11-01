@@ -18,6 +18,7 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/discovery"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelresolver"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/store"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/instructions"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 )
 
@@ -115,31 +116,82 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 		Workload:        storedRef(rootRef),
 		OwnerResolution: store.OwnerResolution(workload.Resolution),
 	}
+	labelFailed, err := r.evaluatePodRecord(ctx, selection, podObject, rootObject, &record)
+	if err != nil {
+		return r.state.failPodEvaluation(key, workload.Path, fmt.Errorf("%w: %w", discovery.ErrEvaluation, err), rootRef, selection)
+	}
+	sources := r.state.sourcesFor(workload.Path)
+	if !slices.Contains(sources, rootSource) {
+		sources = append(sources, rootSource)
+	}
+	podResult := store.PodResult{Record: record, Input: storedRef(ref), HasValue: true, Sources: sources}
+	return r.state.publishPod(workload.Path, rootRef, selection, podResult, labelFailed)
+}
+
+func (r *Runtime) evaluatePodRecord(ctx context.Context, selection selectedDefinition, podObject, rootObject *unstructured.Unstructured, record *store.PodRecord) (labelFailed bool, err error) {
 	if selection.Definition != nil {
 		pod := &corev1.Pod{}
 		if err := kruntime.DefaultUnstructuredConverter.FromUnstructured(podObject.Object, pod); err != nil {
-			return r.state.failPodEvaluation(key, workload.Path, fmt.Errorf("%w: %w", discovery.ErrEvaluation, err), rootRef, selection)
+			return false, err
 		}
 		record.Karta = selection.Origin.Name
 		record.KartaSource = string(selection.Origin.Source)
 		factory := resource.NewComponentFactoryFromObject(selection.Definition, rootObject)
 		record.Component, record.Instance, record.Group, err = evaluatePodComponent(ctx, factory, selection.summary, pod)
 		if err != nil {
-			return r.state.failPodEvaluation(key, workload.Path, fmt.Errorf("%w: %w", discovery.ErrEvaluation, err), rootRef, selection)
+			return false, err
 		}
 	}
 	labelResults, err := r.state.deps.Labels.Resolve(ctx, labelresolver.Input{Metrics: []string{labelresolver.MetricPodWorkloadInfo}, Workload: rootObject, PodObject: podObject})
 	if err != nil {
-		return r.state.failPodEvaluation(key, workload.Path, fmt.Errorf("%w: %w", discovery.ErrEvaluation, err), rootRef, selection)
+		return false, err
 	}
 	labelResult := labelResults[0]
 	record.Labels = labelResult.Labels
-	sources := r.state.sourcesFor(workload.Path)
-	if !slices.Contains(sources, rootSource) {
-		sources = append(sources, rootSource)
+	return len(labelResult.Errors) > 0, nil
+}
+
+func evaluatePodComponent(ctx context.Context, factory *resource.ComponentFactory, summary *instructions.StructureSummary, pod *corev1.Pod) (string, string, string, error) {
+	query := resource.NewPodQuerier(pod)
+	componentName, err := instructions.InferPodComponent(ctx, query, summary)
+	if err != nil {
+		return "", "", "", err
 	}
-	podResult := store.PodResult{Record: record, Input: storedRef(ref), HasValue: true, Sources: sources}
-	return r.state.publishPod(workload.Path, rootRef, selection, podResult, len(labelResult.Errors) > 0)
+	component, err := factory.GetComponent(componentName)
+	if err != nil {
+		return "", "", "", err
+	}
+	instanceID, err := instructions.InferPodComponentInstance(ctx, query, componentName, factory)
+	if err != nil {
+		return "", "", "", err
+	}
+	instance := ""
+	if instanceID != nil {
+		instance = *instanceID
+	}
+	if component.Definition().InstanceIdPath != nil && instance == "" {
+		return "", "", "", errors.New("required component instance is missing")
+	}
+	group := ""
+	for {
+		selector := component.GetPodSelector()
+		if selector != nil && selector.ReplicaSelector != nil && selector.ReplicaSelector.KeyPath != "" {
+			group, _, err = query.ExtractReplicaKey(ctx, selector.ReplicaSelector)
+			if err != nil {
+				return "", "", "", err
+			}
+			break
+		}
+		ownerComponentName := component.Definition().OwnerRef
+		if ownerComponentName == nil {
+			break
+		}
+		component, err = factory.GetComponent(*ownerComponentName)
+		if err != nil {
+			return "", "", "", err
+		}
+	}
+	return componentName, instance, group, nil
 }
 
 func labelsFor(object *unstructured.Unstructured) labels.Set { return labels.Set(object.GetLabels()) }

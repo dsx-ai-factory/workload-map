@@ -35,12 +35,11 @@ var (
 	_ controller.Runner        = (*controller.MockRuntime)(nil)
 )
 
-// New is the temporary composition root. Replace the factories here as components land.
-// The caller runs the definition inventory, which needs a Kubernetes client.
-func New(labelConfig labelresolver.Config, definitions inventory.Reader) app.Components {
+// New is the temporary composition root. Replace the mock factories here as components land.
+// The caller builds the label resolver and runs the definition inventory.
+func New(labels labelresolver.Resolver, definitions inventory.Reader) app.Components {
 	reader := newObjectReader()
 	ownership := newDiscovery(discovery.Dependencies{Reader: reader, Inventory: definitions})
-	labels := newLabelResolver(labelConfig, labelresolver.Dependencies{Compiler: newCompiler()})
 	publications := newStore(store.Options{})
 	runtime := newRuntime(controller.Dependencies{
 		Discovery:    ownership,
@@ -61,20 +60,6 @@ func newObjectReader() discovery.ObjectReader {
 func newDiscovery(_ discovery.Dependencies) discovery.Discoverer {
 	m := &discovery.MockDiscovery{}
 	m.EXPECT().Get(mock.Anything, mock.Anything).Return(discovery.Result{}, ErrNotImplemented)
-	return m
-}
-
-func newCompiler() labelevaluator.Compiler {
-	compiler := &labelevaluator.MockLabelCompiler{}
-	m := &labelevaluator.MockLabelEvaluator{}
-	m.EXPECT().Evaluate(mock.Anything, mock.Anything).Return("", ErrNotImplemented)
-	compiler.EXPECT().Compile(mock.Anything).Return(m, nil)
-	return compiler
-}
-
-func newLabelResolver(_ labelresolver.Config, _ labelresolver.Dependencies) labelresolver.Resolver {
-	m := &labelresolver.MockLabelResolver{}
-	m.EXPECT().Resolve(mock.Anything, mock.Anything).Return(nil, ErrNotImplemented)
 	return m
 }
 

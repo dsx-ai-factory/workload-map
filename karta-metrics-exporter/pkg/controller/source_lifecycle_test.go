@@ -75,17 +75,17 @@ func TestSourcePromotionWaitsForFullSnapshotAndRetiresMetadata(t *testing.T) {
 		close(release)
 		t.Fatal("standby LIST did not start")
 	}
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	require.Same(t, old, r.state.watches[key])
 	require.NotNil(t, r.state.replacements[key])
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	require.False(t, values.Capture().Sources[key].Synced)
 	_, _, err = r.state.reader.read(refOf(root), true)
 	require.ErrorIs(t, err, discovery.ErrPending)
 	close(release)
 	require.Eventually(t, func() bool {
-		r.state.mu.Lock()
-		defer r.state.mu.Unlock()
+		r.state.stateMu.Lock()
+		defer r.state.stateMu.Unlock()
 		return r.state.watches[key] != old && r.state.watches[key].ready && r.state.replacements[key] == nil
 	}, 2*time.Second, time.Millisecond)
 	full, _, err := r.state.reader.read(refOf(root), true)
@@ -97,10 +97,10 @@ func TestSourcePromotionWaitsForFullSnapshotAndRetiresMetadata(t *testing.T) {
 	full, _, err = r.state.reader.read(refOf(root), true)
 	require.NoError(t, err)
 	require.NotNil(t, full)
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	require.Len(t, r.state.watches, 2)
 	require.Empty(t, r.state.replacements)
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 }
 
 type recordingMapper struct {
@@ -293,9 +293,9 @@ func TestReadinessUsesInitialSynchronizationAndRequiredSourceErrors(t *testing.T
 	pods := seedSource(t, r, podGVK, true)
 	supplemental := seedSource(t, r, deploymentKind, true)
 	require.True(t, r.Ready())
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	r.state.setWatchHealthLocked(supplemental, errors.New("unavailable"))
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	require.True(t, r.Ready())
 	r.state.config.RequiredKinds = []schema.GroupVersionKind{deploymentKind}
 	require.False(t, r.Ready())
@@ -760,8 +760,8 @@ func TestPrepareWatchRequestsWaitsForHealthyNamespaces(t *testing.T) {
 			require.Nil(t, requests)
 			require.Equal(t, map[string]bool{"previous": true}, r.state.scopes)
 			require.Same(t, inventoryError, r.state.definitionInventoryErr)
-			require.True(t, r.state.mu.TryLock(), "preparation must release the lock on pending")
-			r.state.mu.Unlock()
+			require.True(t, r.state.stateMu.TryLock(), "preparation must release the lock on pending")
+			r.state.stateMu.Unlock()
 		})
 	}
 }
@@ -774,8 +774,8 @@ func TestPrepareWatchRequestsKeepsRequiredKindsOnInventoryFailure(t *testing.T) 
 	requests, err := r.state.prepareWatchRequests()
 	require.Same(t, inventoryError, err)
 	require.ElementsMatch(t, []discovery.WatchRequest{{GVK: podGVK}, {GVK: deploymentKind}}, requests)
-	require.True(t, r.state.mu.TryLock(), "watch startup must run outside the preparation lock")
-	r.state.mu.Unlock()
+	require.True(t, r.state.stateMu.TryLock(), "watch startup must run outside the preparation lock")
+	r.state.stateMu.Unlock()
 }
 
 func TestRecordWatchStartHealth(t *testing.T) {

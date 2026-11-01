@@ -72,14 +72,14 @@ func simpleRuntime(t *testing.T, resolver labelresolver.Resolver) (*Runtime, sto
 		r.state.podQueue.ShutDown()
 		r.state.workloadQueue.ShutDown()
 		r.state.watchSyncQueue.ShutDown()
-		r.state.mu.Lock()
+		r.state.stateMu.Lock()
 		for _, w := range r.state.watches {
 			w.cancel()
 		}
 		for _, w := range r.state.replacements {
 			w.cancel()
 		}
-		r.state.mu.Unlock()
+		r.state.stateMu.Unlock()
 		r.state.wg.Wait()
 	})
 	return r, values
@@ -116,9 +116,9 @@ func selectCatalog(t *testing.T, r *Runtime, names ...string) {
 	var err error
 	r.state.deps.Inventory, err = inventory.New(nil, inventory.Config{Catalog: inventory.SourceConfig{Enabled: true, Include: names}})
 	require.NoError(t, err)
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	err = r.state.refreshDefinitionsLocked()
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	require.NoError(t, err)
 }
 func emptyQueue[T comparable](queue workqueue.TypedRateLimitingInterface[T]) {
@@ -292,9 +292,9 @@ func TestCandidateAdmissionFailuresPreserveCause(t *testing.T) {
 			r.state.deps.Discovery = discoverer
 			ctx := context.Background()
 			if tc.readErr != nil {
-				r.state.mu.Lock()
+				r.state.stateMu.Lock()
 				r.state.setWatchHealthLocked(source, tc.readErr)
-				r.state.mu.Unlock()
+				r.state.stateMu.Unlock()
 			} else {
 				discoverer.EXPECT().Get(ctx, refOf(child)).Return(discovery.Result{}, tc.discoveryErr).Once()
 			}
@@ -312,27 +312,27 @@ func TestSourceFailureRetainsLastGoodAndRecoveryDoesNotClearEvaluationError(t *t
 	root, pod, roots, _ := seedPair(t, r)
 	before := values.Pod(pod.GetUID())
 	denied := apierrors.NewForbidden(roots.key.Resource.GroupResource(), "", errors.New("denied"))
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	r.state.setWatchHealthLocked(roots, denied)
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	valid, reason := values.Capture().Valid(before.Sources, before.Error)
 	require.False(t, valid)
 	require.Equal(t, store.ReasonPermissionDenied, reason)
 	require.Error(t, r.reconcilePod(context.Background(), objectJobFor(refOf(pod))))
 	require.Equal(t, before.Record, values.Pod(pod.GetUID()).Record)
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	r.state.setWatchHealthLocked(roots, nil)
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	resolver.mu.Lock()
 	resolver.fail = true
 	resolver.mu.Unlock()
 	require.NoError(t, r.reconcilePod(context.Background(), objectJobFor(refOf(pod))))
 	require.Equal(t, store.ReasonEvaluationFailed, values.Pod(pod.GetUID()).Error)
 	require.NoError(t, r.reconcileWorkload(context.Background(), root.GetUID()))
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	r.state.setWatchHealthLocked(roots, denied)
 	r.state.setWatchHealthLocked(roots, nil)
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	require.Equal(t, store.ReasonEvaluationFailed, values.Pod(pod.GetUID()).Error)
 	resolver.mu.Lock()
 	resolver.fail = false
@@ -357,9 +357,9 @@ func TestRetiredCallbacksCannotRepopulateCache(t *testing.T) {
 	r, _ := simpleRuntime(t, nil)
 	pod := simpleObject(podGVK, "pod")
 	old := seedSource(t, r, podGVK, true, pod)
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	r.state.retireWatchLocked(old)
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	current := seedSource(t, r, podGVK, true)
 	require.NoError(t, r.state.applyWatchEvent(old, pod, false))
 	require.NoError(t, (&reflectorStore{controller: r.state, watch: old}).Replace([]any{pod}, "2"))

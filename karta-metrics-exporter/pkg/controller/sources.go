@@ -59,8 +59,8 @@ func (r *controllerState) syncWatches(ctx context.Context) error {
 
 // Prepare source changes under the state lock. REST mapping and watch startup run after it is released.
 func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	definitionErr := r.refreshDefinitionsLocked()
 	if r.config.NamespaceSelector != nil {
 		namespaceWatchReady := false
@@ -131,8 +131,8 @@ func (r *controllerState) ensureWatch(ctx context.Context, gvk schema.GroupVersi
 		namespace = ""
 	}
 	key := watchKey{Resource: mapping.Resource, Namespace: namespace}
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	delete(r.watchFailures, request)
 	r.deps.Publications.RemoveDiscoveryFailure(failureRef.UID)
 	if namespace != "" && !r.scopes[namespace] {
@@ -316,8 +316,8 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 }
 
 func (r *controllerState) recordWatchStart(ctx context.Context, w *resourceWatch, options metav1.ListOptions, err error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	isWatchListFallback := options.SendInitialEvents != nil && *options.SendInitialEvents && apierrors.IsBadRequest(err)
 	if err == nil {
 		r.setWatchHealthLocked(w, nil)
@@ -378,8 +378,8 @@ func (s *reflectorStore) Replace(values []any, _ string) error {
 		objects[key] = object
 	}
 	r, w := s.controller, s.watch
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	if !r.isTrackedWatchLocked(w) {
 		return nil
 	}
@@ -418,8 +418,8 @@ func (r *controllerState) applyWatchEvent(w *resourceWatch, value any, deleted b
 	if object.GetUID() == "" || object.GetName() == "" {
 		return r.rejectWatchObject(w, errors.New("watch object has no identity"))
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	if r.watches[w.key] != w {
 		return nil
 	}
@@ -496,14 +496,14 @@ func (r *controllerState) rejectWatchObject(w *resourceWatch, err error) error {
 }
 
 func (r *controllerState) setWatchHealth(w *resourceWatch, err error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	r.setWatchHealthLocked(w, err)
 }
 
 func (r *controllerState) recordWatchFailure(request discovery.WatchRequest, ref store.ObjectRef, err error) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	if r.config.NamespaceSelector != nil && request.Namespace != "" && !r.scopes[request.Namespace] {
 		return discovery.ErrPending
 	}

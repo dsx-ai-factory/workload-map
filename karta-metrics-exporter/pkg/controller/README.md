@@ -149,9 +149,19 @@ selector is queued to remove its previous result.
 
 ## State and publication checks
 
-The shared state lock protects cache acceptance, ownership membership and
-publication. Discovery and expression evaluation run outside that lock. Accepted
-objects are immutable, and state methods return values or owned snapshots.
+`Reader` and `controllerState` share one `objectCache` and its `stateMu`.
+This mutex protects cache acceptance, ownership membership and publication.
+Discovery and expression evaluation run outside it. Accepted objects are
+immutable, and state methods return values or owned snapshots.
+
+A method that acquires `stateMu` immediately defers its release. Helpers ending
+in `Locked` reuse the caller's lock; they do not acquire another lock. For example,
+`publishPod` holds the write lock while `isPathCurrentLocked`, `isRootLocked` and
+`isDefinitionCurrentLocked` check its inputs, then publishes before releasing it.
+Splitting those checks into separate locking calls would allow a source event
+between validation and publication. `Reader.read` instead holds the read lock
+while `lookupObjectLocked` checks the accepted object and source health.
+`Reader.mapperMu` is independent and only serializes REST mapper resets.
 
 Before publishing, the controller checks that the input path still has the same
 UIDs and resource versions, the root is still a root, and the selected definition

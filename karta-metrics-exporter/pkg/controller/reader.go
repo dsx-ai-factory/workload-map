@@ -94,9 +94,9 @@ func (r *Reader) GetMetadata(ctx context.Context, ref discovery.ObjectRef) (*met
 }
 
 func (r *Reader) read(ref discovery.ObjectRef, requireFullObject bool) (*unstructured.Unstructured, watchKey, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return r.readLocked(ref, requireFullObject)
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
+	return r.lookupObjectLocked(ref, requireFullObject)
 }
 
 func (r *Reader) restMapping(ctx context.Context, gvk schema.GroupVersionKind) (*meta.RESTMapping, error) {

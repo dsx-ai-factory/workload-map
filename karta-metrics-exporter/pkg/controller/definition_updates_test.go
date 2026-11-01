@@ -45,9 +45,9 @@ func enableClusterDefinitions(t *testing.T, r *Runtime) {
 }
 func refreshSelection(t *testing.T, r *Runtime) {
 	t.Helper()
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	err := r.state.refreshDefinitionsLocked()
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	require.NoError(t, err)
 }
 func definedPair(t *testing.T, r *Runtime) (*unstructured.Unstructured, *unstructured.Unstructured) {
@@ -71,10 +71,10 @@ func TestDefinitionReadFailurePreservesSelectionAndCreation(t *testing.T) {
 	beforePod, beforeRoot := values.Pod(pod.GetUID()), values.Workload(root.GetUID())
 	require.Equal(t, "cluster-job", beforePod.Record.Karta)
 	require.Equal(t, "cluster-job", beforeRoot.Record.Karta)
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	definitions.setError(inventory.ErrUnavailable)
 	err := r.state.refreshDefinitionsLocked()
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	require.Error(t, err)
 	require.Error(t, r.reconcilePod(context.Background(), objectJobFor(refOf(pod))))
 	require.NoError(t, r.resolveSelectedObjectRoot(context.Background(), objectJobFor(refOf(root))))
@@ -86,9 +86,9 @@ func TestDefinitionReadFailurePreservesSelectionAndCreation(t *testing.T) {
 	valid, _ := values.Capture().Valid(after.CreationSources, after.Error)
 	require.True(t, valid)
 	require.Equal(t, beforePod.Record, values.Pod(pod.GetUID()).Record)
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	definitions.setError(nil)
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	refreshSelection(t, r)
 	settle(t, r)
 	require.Empty(t, values.Workload(root.GetUID()).StatusError)
@@ -195,10 +195,10 @@ func TestInitialDefinitionFailureStillPublishesConfirmedRootCreation(t *testing.
 			if invalid {
 				refreshSelection(t, r)
 			} else {
-				r.state.mu.Lock()
+				r.state.stateMu.Lock()
 				definitions.setError(inventory.ErrPermissionDenied)
 				require.Error(t, r.state.refreshDefinitionsLocked())
-				r.state.mu.Unlock()
+				r.state.stateMu.Unlock()
 			}
 			root, pod := simpleObject(jobKind, "root"), simpleObject(podGVK, "pod")
 			simpleOwner(pod, root)
@@ -306,9 +306,9 @@ func TestSelectedVersionHandoverWaitsForReplacementAndUsesItsBoundary(t *testing
 	oldOwned.SetResourceVersion("2")
 	simpleOwner(oldOwned, simpleObject(jobKind, "missing"))
 	require.NoError(t, r.state.applyWatchEvent(old, oldOwned, false))
-	r.state.mu.Lock()
+	r.state.stateMu.Lock()
 	r.state.setWatchHealthLocked(old, errors.New("version retired"))
-	r.state.mu.Unlock()
+	r.state.stateMu.Unlock()
 	replacement := root.DeepCopy()
 	replacement.SetGroupVersionKind(v2)
 	require.NoError(t, (&reflectorStore{controller: r.state, watch: next}).Replace([]any{replacement}, "3"))
@@ -367,14 +367,14 @@ func TestGenericCanonicalVersionRecoversAfterElectionRemoval(t *testing.T) {
 			definitions.replace(t)
 			refreshSelection(t, r)
 			require.NoError(t, r.resolveSelectedObjectRoot(context.Background(), objectJobFor(refOf(second))))
-			r.state.mu.Lock()
+			r.state.stateMu.Lock()
 			switch condition {
 			case "failed":
 				r.state.setWatchHealthLocked(alternate, errors.New("old API version unavailable"))
 			case "retired":
 				r.state.retireWatchLocked(alternate)
 			}
-			r.state.mu.Unlock()
+			r.state.stateMu.Unlock()
 			emptyQueue(r.state.workloadQueue)
 			require.NoError(t, r.reconcilePod(context.Background(), objectJobFor(refOf(pod))))
 			expected := jobKind

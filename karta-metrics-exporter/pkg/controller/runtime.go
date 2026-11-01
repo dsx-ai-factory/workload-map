@@ -167,8 +167,8 @@ func (r *Runtime) Ready() bool {
 }
 
 func (r *controllerState) ready() bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
 	if !r.started || (r.ctx != nil && r.ctx.Err() != nil) || r.definitionInventoryErr != nil || len(r.watches) == 0 {
 		return false
 	}
@@ -286,8 +286,8 @@ func (key objectJobKey) ref() discovery.ObjectRef {
 }
 
 func (r *controllerState) sourcesFor(path []discovery.ObjectRef) []store.SourceKey {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
 	var sources []store.SourceKey
 	for _, ref := range path {
 		if entry, ok := r.objects[keyOf(ref)]; ok && !slices.Contains(sources, entry.source) {

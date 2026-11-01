@@ -145,21 +145,7 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 		record.Karta = selection.Origin.Name
 		record.KartaSource = string(selection.Origin.Source)
 		factory := resource.NewComponentFactoryFromObject(selection.Definition, workloadObject)
-		component, componentErr := factory.GetRootComponent()
-		statusErr = componentErr
-		if statusErr == nil {
-			status, evaluationErr := component.GetStatus(ctx)
-			statusErr = evaluationErr
-			if status != nil {
-				record.HasStatus = true
-				for _, phase := range status.MatchedStatuses {
-					record.Phases = append(record.Phases, string(phase))
-				}
-			}
-		}
-		if statusErr != nil && !errors.Is(statusErr, discovery.ErrInvalidDefinition) {
-			statusErr = fmt.Errorf("%w: %w", discovery.ErrEvaluation, statusErr)
-		}
+		statusErr = evaluateWorkloadStatus(ctx, factory, &record)
 	}
 	labelResults, labelErr := r.state.deps.Labels.Resolve(ctx, labelresolver.Input{Metrics: []string{labelresolver.MetricWorkloadStatus}, Workload: workloadObject})
 	if labelErr != nil {
@@ -175,6 +161,24 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 	})
 	workloadResult := store.WorkloadResult{Record: record, HasValue: true, Error: failureReason(snapshot.err), StatusError: failureReason(statusErr), Sources: sources, CreationSources: creationSources}
 	return r.state.publishWorkload(uid, snapshot.generation, ref, selection, workloadResult)
+}
+
+func evaluateWorkloadStatus(ctx context.Context, factory *resource.ComponentFactory, record *store.WorkloadRecord) error {
+	component, statusErr := factory.GetRootComponent()
+	if statusErr == nil {
+		status, evaluationErr := component.GetStatus(ctx)
+		statusErr = evaluationErr
+		if status != nil {
+			record.HasStatus = true
+			for _, phase := range status.MatchedStatuses {
+				record.Phases = append(record.Phases, string(phase))
+			}
+		}
+	}
+	if statusErr != nil && !errors.Is(statusErr, discovery.ErrInvalidDefinition) {
+		return fmt.Errorf("%w: %w", discovery.ErrEvaluation, statusErr)
+	}
+	return statusErr
 }
 
 func evaluatePodComponent(ctx context.Context, factory *resource.ComponentFactory, summary *instructions.StructureSummary, pod *corev1.Pod) (string, string, string, error) {

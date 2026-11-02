@@ -110,7 +110,7 @@ func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, erro
 	for request := range r.watchFailures {
 		if request.Namespace != "" && !r.scopes[request.Namespace] {
 			delete(r.watchFailures, request)
-			r.deps.Publications.RemoveDiscoveryFailure(types.UID("source:" + request.GVK.String() + "/" + request.Namespace))
+			r.deps.Publications.RemoveDiscoveryFailure(sourceFailureUID(request.GVK, request.Namespace))
 		}
 	}
 	requests := make([]discovery.WatchRequest, 0, len(kinds)*len(scopes))
@@ -124,7 +124,7 @@ func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, erro
 
 func (r *controllerState) ensureWatch(ctx context.Context, gvk schema.GroupVersionKind, namespace string, metadataOnly bool) (watchKey, error) {
 	request := discovery.WatchRequest{GVK: gvk, Namespace: namespace}
-	failureRef := store.ObjectRef{GVK: gvk, Namespace: namespace, UID: types.UID("source:" + gvk.String() + "/" + namespace)}
+	failureRef := store.ObjectRef{GVK: gvk, Namespace: namespace, UID: sourceFailureUID(gvk, namespace)}
 	mapping, err := r.reader.restMapping(ctx, gvk)
 	if err != nil {
 		return watchKey{}, r.recordWatchFailure(request, failureRef, err)
@@ -138,7 +138,7 @@ func (r *controllerState) ensureWatch(ctx context.Context, gvk schema.GroupVersi
 	for failed := range r.watchFailures {
 		if failed.GVK == gvk && (namespace == "" || failed.Namespace == namespace) {
 			delete(r.watchFailures, failed)
-			r.deps.Publications.RemoveDiscoveryFailure(types.UID("source:" + failed.GVK.String() + "/" + failed.Namespace))
+			r.deps.Publications.RemoveDiscoveryFailure(sourceFailureUID(failed.GVK, failed.Namespace))
 		}
 	}
 	if namespace != "" && !r.scopes[namespace] {
@@ -187,6 +187,10 @@ func (r *controllerState) ensureWatch(ctx context.Context, gvk schema.GroupVersi
 		reflector.RunWithContext(watchCtx)
 	}()
 	return key, nil
+}
+
+func sourceFailureUID(gvk schema.GroupVersionKind, namespace string) types.UID {
+	return types.UID("source:" + gvk.String() + "/" + namespace)
 }
 
 // isTrackedWatch requires the caller to hold stateMu in read or write mode.

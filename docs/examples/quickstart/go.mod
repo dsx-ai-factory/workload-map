@@ -7,8 +7,8 @@ go 1.27.3
 
 require (
 	github.com/dsx-ai-factory/workload-map/karta/sdk v0.0.0
-	k8s.io/api v0.37.1
-	k8s.io/apimachinery v0.37.1
+	k8s.io/api v0.37.2
+	k8s.io/apimachinery v0.37.2
 	sigs.k8s.io/yaml v1.6.0
 )
 

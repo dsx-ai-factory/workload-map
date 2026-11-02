@@ -17,8 +17,16 @@ exporter:
     # When empty, falls back to .Chart.AppVersion.
     tag: ""
     pullPolicy: IfNotPresent
+  # Skip Kubernetes system namespaces. Set matchExpressions: [] to include them.
+  namespaceSelector:
+    matchExpressions:
+      - key: kubernetes.io/metadata.name
+        operator: NotIn
+        values:
+          - kube-system
+          - kube-public
+          - kube-node-lease
   # Select which objects the publication controller observes.
-  namespaceSelector: {}
   objectSelector: {}
   podSelector: {}
   resourceRules: []
@@ -33,34 +41,11 @@ exporter:
   apiQPS: 20
   apiBurst: 40
   rbac:
-    # Read workload and ancestor kinds. Add rules for additional custom owners.
+    # LIST/WATCH all resource types, including custom owners and Secrets.
+    # Replace with explicit API groups and resources to limit access.
     workloadRules:
-      - apiGroups: [""]
-        resources: ["replicationcontrollers"]
-      - apiGroups: ["batch"]
-        resources: ["jobs", "cronjobs"]
-      - apiGroups: ["apps"]
-        resources: ["deployments", "statefulsets", "replicasets", "daemonsets"]
-      - apiGroups: ["jobset.x-k8s.io"]
-        resources: ["jobsets"]
-      - apiGroups: ["kubeflow.org"]
-        resources: ["pytorchjobs", "mpijobs"]
-      - apiGroups: ["ray.io"]
-        resources: ["rayclusters", "rayjobs", "rayservices"]
-      - apiGroups: ["leaderworkerset.x-k8s.io"]
-        resources: ["leaderworkersets"]
-      - apiGroups: ["serving.knative.dev"]
-        resources: ["services", "configurations", "revisions"]
-      - apiGroups: ["serving.kserve.io"]
-        resources: ["inferenceservices"]
-      - apiGroups: ["milvus.io"]
-        resources: ["milvuses"]
-      - apiGroups: ["apps.nvidia.com"]
-        resources: ["nimservices", "nimcaches"]
-      - apiGroups: ["nvidia.com"]
-        resources: ["dynamographdeployments", "dynamocomponentdeployments"]
-      - apiGroups: ["grove.io", "scheduler.grove.io"]
-        resources: ["podcliquesets", "podcliques", "podcliquescalinggroups", "podgangs"]
+      - apiGroups: ["*"]
+        resources: ["*"]
   # Extra labels for Pod info and workload status. Expressions read object.
   # See karta-metrics-exporter/pkg/labelevaluator/README.md.
   labelRules: []
@@ -85,8 +70,7 @@ exporter:
       enabled: false
       include: []
       exclude: []
-    # Karta objects in the cluster, named by metadata.name. Grants read
-    # access to Kartas.
+    # Watch Karta objects in the cluster, named by metadata.name.
     cluster:
       enabled: true
       include: []

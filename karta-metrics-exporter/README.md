@@ -82,7 +82,7 @@ The runtime settings below use the same names under Helm's `exporter:` key.
 
 | Setting | Default | Behavior |
 | --- | --- | --- |
-| `namespaceSelector` | Empty | Observe all namespaces; otherwise watch matching namespaces |
+| `namespaceSelector` | Helm excludes system namespaces; otherwise empty | Observe matching namespaces; an empty selector observes all namespaces |
 | `podSelector` | Empty | Publish matching Pods; other Pods remain available for owner traversal |
 | `objectSelector` | Empty | Select workload objects by labels |
 | `resourceRules`, `excludeResourceRules` | Empty | Select workload API groups, versions and resources; exclusions win |
@@ -102,10 +102,17 @@ Worker counts, request timeout and API limits also have kebab-case flags and
 the environment, which overrides the YAML file. Selectors, resource rules,
 kinds and definition sources are configured in YAML only.
 
-The chart grants LIST/WATCH access to Pods, Namespaces and the workload and
-ancestor resources listed in `exporter.rbac.workloadRules`. Cluster Karta access
-is conditional on the cluster definition source. Extend the workload rules for
-custom owners. No wildcard resource or write permissions are granted by default.
+The chart excludes `kube-system`, `kube-public` and `kube-node-lease` by default.
+Set `exporter.namespaceSelector.matchExpressions: []` to observe all namespaces.
+Other infrastructure namespaces must be excluded explicitly. Namespace selection
+uses separate watches per included namespace and does not restrict cluster-scoped
+resources or RBAC permissions.
+
+When enabled, the chart grants LIST/WATCH access to all API groups and resources
+through `exporter.rbac.workloadRules`. This supports custom workload owners without
+chart changes. It also permits reading Secrets across all namespaces. Replace the
+wildcard rule with explicit API groups and resources to limit access. No write
+permissions are granted.
 
 ## Controller flow
 

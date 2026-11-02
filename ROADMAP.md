@@ -63,8 +63,8 @@ of the roadmap is itself public and reviewable.
 Theme: broader coverage.
 
 - **Broader, tested workload coverage.** Keep pace with upstream APIs of the
-  workloads Karta describes and grow the tested catalog, including
-  **Kubeflow Trainer v2**.
+  workloads Karta describes and grow the tested catalog.
+- **Kubeflow Trainer v2.** Add a tested Karta definition for Kubeflow Trainer v2.
 
 ## Later
 

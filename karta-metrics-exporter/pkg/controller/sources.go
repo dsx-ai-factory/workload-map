@@ -57,11 +57,13 @@ func (r *controllerState) syncWatches(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// Prepare source changes under the state lock. REST mapping and watch startup run after it is released.
+// Prepare definitions before locking state, then commit source changes together.
+// REST mapping and watch startup run after the lock is released.
 func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, error) {
+	definitions, sourceErr := r.prepareDefinitions()
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	definitionErr := r.refreshDefinitions()
+	definitionErr := r.refreshDefinitions(definitions, sourceErr)
 	if r.config.NamespaceSelector != nil {
 		namespaceWatchReady := false
 		admittedNamespaces := map[string]bool{}

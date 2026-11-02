@@ -42,13 +42,14 @@ type Components struct {
 const shutdownTimeout = 10 * time.Second
 
 var (
-	errAlreadyStarted          = errors.New("exporter application can only be served once")
-	ErrMetricsListenerRequired = errors.New("metrics listener is required")
+	errAlreadyStarted               = errors.New("exporter application can only be served once")
+	ErrMetricsListenerRequired      = errors.New("metrics listener is required")
+	ErrIncompleteExporterComponents = errors.New("incomplete exporter components")
 )
 
 func New(components Components) (*Application, error) {
 	if components.Runtime == nil || components.Store == nil {
-		return nil, errors.New("incomplete exporter components")
+		return nil, ErrIncompleteExporterComponents
 	}
 	registry := prometheus.NewRegistry()
 	reader, err := otelprom.New(otelprom.WithRegisterer(registry), otelprom.WithTranslationStrategy(otlptranslator.NoTranslation), otelprom.WithoutScopeInfo(), otelprom.WithoutTargetInfo())

@@ -21,6 +21,8 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 )
 
+// handleWorkloadInput dispatches selected-object discovery or root reconciliation.
+// Callers must not hold stateMu; state operations acquire their own locks.
 func (r *Runtime) handleWorkloadInput(ctx context.Context, key workloadJobKey) error {
 	if key.SelectedObject.UID != "" {
 		return r.resolveSelectedObjectRoot(ctx, key.SelectedObject)
@@ -28,6 +30,8 @@ func (r *Runtime) handleWorkloadInput(ctx context.Context, key workloadJobKey) e
 	return r.reconcileWorkload(ctx, key.RootUID)
 }
 
+// resolveSelectedObjectRoot discovers and registers a selected object's root.
+// Callers must not hold stateMu; discovery runs unlocked and state operations lock internally.
 func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKey) error {
 	if !r.state.namespaceAdmitted(key.Object.Namespace) {
 		r.state.unregisterSelectedObject(key)

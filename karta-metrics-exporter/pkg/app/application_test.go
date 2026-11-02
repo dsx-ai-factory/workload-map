@@ -65,7 +65,7 @@ type blockedCaptureStore struct {
 
 func TestNewRejectsIncompleteComponents(t *testing.T) {
 	for _, components := range []Components{{Store: store.New()}, {Runtime: runtimeFunc(func(context.Context) error { return nil })}} {
-		if _, err := New(components); err == nil || !strings.Contains(err.Error(), "incomplete") {
+		if _, err := New(components); !errors.Is(err, ErrIncompleteExporterComponents) {
 			t.Fatalf("got %v, want incomplete components error", err)
 		}
 	}

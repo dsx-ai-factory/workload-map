@@ -72,6 +72,10 @@ type selectedDefinition struct {
 	version uint64
 }
 
+const defaultAmountOfWorkers = 2
+
+var ErrMissingDependencies = errors.New("runtime dependencies are required")
+
 var podGVK = schema.GroupVersionKind{Version: "v1", Kind: "Pod"}
 var kartaGVK = schema.GroupVersionKind{Group: "run.ai", Version: "v1alpha1", Kind: "Karta"}
 var definitionSource = store.SourceKey{Resource: kartaGVK.GroupVersion().WithResource("kartas")}
@@ -79,13 +83,13 @@ var namespaceGVK = schema.GroupVersionKind{Version: "v1", Kind: "Namespace"}
 
 func New(config Config, deps Dependencies, reader *Reader) (*Runtime, error) {
 	if deps.Discovery == nil || deps.Inventory == nil || deps.Labels == nil || deps.Publications == nil || reader == nil {
-		return nil, errors.New("runtime dependencies are required")
+		return nil, ErrMissingDependencies
 	}
 	if err := ValidateResourceRules(slices.Concat(config.ResourceRules, config.ExcludeResourceRules)); err != nil {
 		return nil, err
 	}
 	if config.Workers == 0 {
-		config.Workers = 2
+		config.Workers = defaultAmountOfWorkers
 	}
 	if config.LeafWorkers == 0 {
 		config.LeafWorkers = config.Workers
@@ -245,23 +249,32 @@ func (r *controllerState) requiredWatch(gvk schema.GroupVersionKind) bool {
 	return gvk == podGVK || (gvk == namespaceGVK && r.config.NamespaceSelector != nil) || slices.Contains(r.config.RequiredKinds, gvk)
 }
 
-// refreshDefinitions runs inside prepareWatchRequests while stateMu is held.
-func (r *controllerState) refreshDefinitions() error {
-	results, sourceErr := r.deps.Inventory.List()
-	next := r.selectedDefinitions
-	if sourceErr == nil {
-		next = make(map[schema.GroupKind]selectedDefinition, len(results))
-		for _, result := range results {
-			selected := selectedDefinition{Selection: result.Selection, err: result.Err}
-			if selected.err == nil && selected.Definition != nil {
-				var err error
-				selected.summary, err = instructions.NewStructureSummary(selected.Definition)
-				if err != nil {
-					selected.err = fmt.Errorf("%w: %w", discovery.ErrInvalidDefinition, err)
-				}
+// prepareDefinitions reads and builds the next snapshot without holding stateMu.
+// The single source worker serializes definition refreshes.
+func (r *controllerState) prepareDefinitions() (map[schema.GroupKind]selectedDefinition, error) {
+	results, err := r.deps.Inventory.List()
+	if err != nil {
+		return nil, err
+	}
+	next := make(map[schema.GroupKind]selectedDefinition, len(results))
+	for _, result := range results {
+		selected := selectedDefinition{Selection: result.Selection, err: result.Err}
+		if selected.err == nil && selected.Definition != nil {
+			selected.summary, err = instructions.NewStructureSummary(selected.Definition)
+			if err != nil {
+				selected.err = fmt.Errorf("%w: %w", discovery.ErrInvalidDefinition, err)
 			}
-			next[result.GVK.GroupKind()] = selected
 		}
+		next[result.GVK.GroupKind()] = selected
+	}
+	return next, nil
+}
+
+// refreshDefinitions commits the prepared snapshot and requeues affected work.
+// The caller must hold stateMu in write mode.
+func (r *controllerState) refreshDefinitions(next map[schema.GroupKind]selectedDefinition, sourceErr error) error {
+	if sourceErr != nil {
+		next = r.selectedDefinitions
 	}
 	healthChanged := failureReason(r.definitionInventoryErr) != failureReason(sourceErr)
 	changedKinds := map[schema.GroupKind]bool{}

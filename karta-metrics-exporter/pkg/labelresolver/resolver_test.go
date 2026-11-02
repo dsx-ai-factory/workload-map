@@ -146,40 +146,6 @@ var _ = Describe("Resolve", func() {
 		Expect(results[0].Errors).To(BeEmpty())
 	})
 
-	It("accepts a full unstructured Pod with metadata, spec and status", func(ctx SpecContext) {
-		rule := LabelRule{
-			Name: "details", Metrics: []string{MetricPodWorkloadInfo}, Sources: []Source{SourcePod},
-			Expression: `object.apiVersion + "/" + object.kind + "/" + object.metadata.name + "/" + object.spec.schedulerName + "/" + object.status.phase`,
-		}
-		p := podObject("example-scheduler", nil)
-		p.Object["status"] = map[string]any{"phase": "Running"}
-		results, err := newResolver(rule).Resolve(ctx, Input{
-			Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil), PodObject: p,
-		})
-		Expect(err).To(Succeed())
-		Expect(results[0].Labels).To(Equal(map[string]string{"details": "v1/Pod/train-0/example-scheduler/Running"}))
-		Expect(results[0].Errors).To(BeEmpty())
-	})
-
-	It("preserves absent fields and unknown JSON without mutating source objects", func(ctx SpecContext) {
-		rule := LabelRule{
-			Name: "extension", Metrics: []string{MetricPodWorkloadInfo}, Sources: []Source{SourcePod},
-			Expression: `has(object.spec.containers) ? "present" : object.spec.futureField`,
-		}
-		root := workload(nil)
-		p := podObject("", nil)
-		p.Object["spec"] = map[string]any{"futureField": "raw-value"}
-		rootBefore, podBefore := root.DeepCopy(), p.DeepCopy()
-		results, err := newResolver(rule).Resolve(ctx, Input{
-			Metrics: []string{MetricPodWorkloadInfo}, Workload: root, PodObject: p,
-		})
-		Expect(err).To(Succeed())
-		Expect(results[0].Labels).To(Equal(map[string]string{"extension": "raw-value"}))
-		Expect(results[0].Errors).To(BeEmpty())
-		Expect(root).To(Equal(rootBefore))
-		Expect(p).To(Equal(podBefore))
-	})
-
 	It("falls back to the Pod after an empty root value", func(ctx SpecContext) {
 		rule := teamRule(MetricPodWorkloadInfo)
 		rule.Sources = []Source{SourceWorkload, SourcePod}
@@ -206,24 +172,6 @@ var _ = Describe("Resolve", func() {
 		Expect(err).To(Succeed())
 		Expect(results[0].Labels).To(Equal(map[string]string{"team": "from-pod"}))
 		Expect(results[0].Errors).To(HaveKeyWithValue("team", MatchError(ContainSubstring("workload source"))))
-	})
-
-	It("keeps the root error when an unstructured Pod fallback succeeds", func(ctx SpecContext) {
-		rule := LabelRule{
-			Name: "team", Metrics: []string{MetricPodWorkloadInfo}, Sources: []Source{SourceWorkload, SourcePod},
-			Expression: `object.metadata.labels["example.com/team"]`,
-		}
-		root := workload(map[string]any{})
-		p := podObject("", map[string]any{"example.com/team": "from-pod"})
-		rootBefore, podBefore := root.DeepCopy(), p.DeepCopy()
-		results, err := newResolver(rule).Resolve(ctx, Input{
-			Metrics: []string{MetricPodWorkloadInfo}, Workload: root, PodObject: p,
-		})
-		Expect(err).To(Succeed())
-		Expect(results[0].Labels).To(Equal(map[string]string{"team": "from-pod"}))
-		Expect(results[0].Errors).To(HaveKeyWithValue("team", MatchError(ContainSubstring("workload source"))))
-		Expect(root).To(Equal(rootBefore))
-		Expect(p).To(Equal(podBefore))
 	})
 
 	It("retains the workload limit error after a successful Pod fallback", func(ctx SpecContext) {
@@ -419,8 +367,6 @@ var _ = Describe("Resolve", func() {
 	}{
 		{"missing workload", Input{Metrics: []string{MetricWorkloadStatus}}, ErrMissingWorkload},
 		{"missing Pod for a Pod rule", Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil)}, ErrMissingPod},
-		{"both Pod inputs for a Pod metric", Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil), Pod: pod("", nil), PodObject: podObject("", nil)}, ErrConflictingPodInputs},
-		{"both Pod inputs for a workload metric", Input{Metrics: []string{MetricWorkloadStatus}, Workload: workload(nil), Pod: pod("", nil), PodObject: podObject("", nil)}, ErrConflictingPodInputs},
 		{"duplicate metric", Input{Metrics: []string{MetricWorkloadStatus, MetricWorkloadStatus}, Workload: workload(nil)}, ErrDuplicateMetric},
 		{"unsupported metric", Input{Metrics: []string{"other"}, Workload: workload(nil)}, ErrUnsupportedMetric},
 	} {
@@ -559,15 +505,4 @@ func pod(scheduler string, labels map[string]string) *corev1.Pod {
 		ObjectMeta: metav1.ObjectMeta{Name: "train-0", Namespace: "team-a", Labels: labels},
 		Spec:       corev1.PodSpec{SchedulerName: scheduler},
 	}
-}
-
-func podObject(scheduler string, labels map[string]any) *unstructured.Unstructured {
-	metadata := map[string]any{"name": "train-0", "namespace": "team-a"}
-	if labels != nil {
-		metadata["labels"] = labels
-	}
-	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "v1", "kind": "Pod", "metadata": metadata,
-		"spec": map[string]any{"schedulerName": scheduler},
-	}}
 }

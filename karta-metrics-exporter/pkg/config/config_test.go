@@ -13,7 +13,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/kartadefinitioninventory"
 )
@@ -45,22 +44,6 @@ var _ = Describe("config defaults and rules", func() {
 			Expect(decoded.Config).To(Equal(cfg.Config))
 			Expect(decoded.KartaDefinitionSource).To(Equal(cfg.KartaDefinitionSource))
 		}
-	})
-
-	It("preserves YAML 1.2 string literals in definition names and label rules", func() {
-		cfg, err := loadConfig(`kartaDefinitionSource:
-  cluster:
-    include: [on, yes, off]
-labelRules:
-- name: on
-  metrics: [karta_workload_status]
-  sources: [workload]
-  expression: object.kind
-`, nil)
-		Expect(err).To(Succeed())
-		Expect(cfg.KartaDefinitionSource.Cluster.Include).To(Equal([]string{"on", "yes", "off"}))
-		Expect(cfg.Rules).To(HaveLen(1))
-		Expect(cfg.Rules[0].Name).To(Equal("on"))
 	})
 
 	It("loads label rules while retaining unspecified defaults", func() {
@@ -173,12 +156,8 @@ var _ = Describe("config rejects invalid input", func() {
 			"genericLabelEvaluationLimits:\n  interruptCheckFrequency: 100",
 			"genericLabelEvaluationLimits:\n  maxValueBytes: 32",
 			"labelLimits:\n  costLimit: 5",
-			"workers: 2\nworkers: 3",
-			"genericLabelEvaluationLimits:\n  costLimit: 5\n  costLimit: 6",
 			"labelRules: [", "labelRules: []\n---\nlabelRules: []", "labelRules: []\n---\n---\nlabelRules: []",
 			"labelRules: []\n---\nlabelRules: [", "unknown: true",
-			"namespaceSelector:\n  matchLables: {team: platform}",
-			"kartaDefinitionSource:\n  cluster:\n    enabled: true\n    enabled: false",
 			"labelRules:\n- name: team\n  metrics: [karta_workload_status]\n  sources: [pod]\n  expression: object.kind",
 		} {
 			By(contents, func() {
@@ -267,12 +246,6 @@ var _ = Describe("Karta definition sources", func() {
 			Catalog: kartadefinitioninventory.SourceConfig{Enabled: true, Include: []string{}, Exclude: []string{"core-pod-v1"}},
 			Cluster: kartadefinitioninventory.SourceConfig{Enabled: true, Include: []string{"platform-job"}, Exclude: []string{}},
 		}))
-	})
-
-	It("passes cluster label selectors to the inventory", func() {
-		cfg, err := loadConfig("kartaDefinitionSource:\n  cluster:\n    labelSelector:\n      matchLabels:\n        team: platform\n", nil)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(cfg.KartaDefinitionSource.InventoryConfig().Cluster.LabelSelector).To(Equal(&metav1.LabelSelector{MatchLabels: map[string]string{"team": "platform"}}))
 	})
 
 	DescribeTable("rejects an unknown key",

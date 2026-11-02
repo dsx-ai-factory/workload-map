@@ -5,7 +5,8 @@
 
 The controller turns Kubernetes changes into Pod mappings and workload results.
 For example, `Pod api-1 -> ReplicaSet api-rs -> Deployment api` produces a Pod
-record pointing to `api` and a workload record with the Deployment's status.
+record pointing to `api` and a workload record. A selected Karta definition
+supplies the Deployment's status when it defines status mapping.
 The collector reads these saved results when Prometheus scrapes `/metrics`.
 
 ![How the controller watches, queues and publishes](images/controller-flow.png)

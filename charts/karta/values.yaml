@@ -9,6 +9,7 @@ global:
 operator:
   enabled: true
 
+# Standalone metrics exporter with /metrics, /healthz and /readyz on port 8080.
 exporter:
   enabled: false
   image:

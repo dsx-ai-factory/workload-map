@@ -8,9 +8,7 @@ import (
 	"errors"
 
 	"github.com/stretchr/testify/mock"
-	"go.opentelemetry.io/otel/metric"
 
-	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/adapters/otel"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/app"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/controller"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/discovery"
@@ -25,7 +23,6 @@ var ErrNotImplemented = errors.New("exporter component is not implemented")
 // Keep generated mocks checked against their contracts even before implementations exist.
 var (
 	_ labelevaluator.Compiler  = (*labelevaluator.MockLabelCompiler)(nil)
-	_ otel.Collector           = (*otel.MockCollector)(nil)
 	_ inventory.Reader         = (*inventory.MockInventory)(nil)
 	_ discovery.Discoverer     = (*discovery.MockDiscovery)(nil)
 	_ discovery.ObjectReader   = (*discovery.MockObjectReader)(nil)
@@ -46,7 +43,7 @@ func New(labels labelresolver.Resolver, definitions inventory.Reader) app.Compon
 		Labels:       labels,
 		Publications: publications,
 	})
-	return app.Components{Runtime: runtime, Store: publications, Collector: newCollector()}
+	return app.Components{Runtime: runtime, Store: publications}
 }
 
 func newObjectReader() discovery.ObjectReader {
@@ -68,14 +65,5 @@ func newRuntime(_ controller.Dependencies) controller.Runner {
 		<-ctx.Done()
 		return nil
 	})
-	return m
-}
-
-func newCollector() otel.Collector {
-	m := &otel.MockCollector{}
-	m.EXPECT().Register(mock.Anything, mock.Anything).RunAndReturn(
-		func(meter metric.Meter, _ otel.Capturer) (metric.Registration, error) {
-			return meter.RegisterCallback(func(context.Context, metric.Observer) error { return nil })
-		})
 	return m
 }

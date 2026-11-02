@@ -46,9 +46,3 @@ packages:
         config:
           structname: MockRuntime
           filename: runtime_mock.go
-  github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/adapters/otel:
-    interfaces:
-      Collector:
-        config:
-          structname: MockCollector
-          filename: collector_mock.go

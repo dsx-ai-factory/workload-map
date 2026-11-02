@@ -60,6 +60,7 @@ var _ = Describe("command help", func() {
 		defer cancel()
 		output, err := runExporterCommand(ctx, "--help")
 		Expect(err).To(Succeed(), string(output))
+		Expect(string(output)).To(ContainSubstring("metrics-bind-address"))
 		for _, name := range []string{
 			"generic-label-eval-cost-limit", "generic-label-eval-max-expression-bytes", "generic-label-eval-max-result-bytes",
 			"KARTA_EXPORTER_GENERIC_LABEL_EVAL_COST_LIMIT", "KARTA_EXPORTER_GENERIC_LABEL_EVAL_MAX_EXPRESSION_BYTES", "KARTA_EXPORTER_GENERIC_LABEL_EVAL_MAX_RESULT_BYTES",

@@ -39,45 +39,32 @@ of the roadmap is itself public and reviewable.
 
 ## Now
 
-**Theme: make Karta a standalone, shippable project with first-class visibility tooling.**
+**Theme: complete workload visibility and land the metrics exporter.**
 
-- **Validated, non-rotting examples.** Automated tests that check the bundled
-  Karta definitions against the upstream CRDs they target, so the
-  [`docs/catalog/`](docs/catalog/) set stays correct as upstream APIs evolve.
-  Tracked by [#79](https://github.com/dsx-ai-factory/workload-map/issues/79).
-- **Workload visibility.** Tooling to render and explore the structure of any
-  Karta-described workload — the most approachable on-ramp to the project. This
-  rests on a first-class workload tree: traversal of a workload's full resource
-  tree, from the root component down through child components to the pods, so
-  consumers can reason about and render the whole structure rather than individual
-  fields. Tracked by [#32](https://github.com/dsx-ai-factory/workload-map/issues/32).
-  - CLI. A command-line tool for read-only visibility into any Karta-described
-    workload: list workloads, inspect component structure, and drill into the
-    workload tree from the terminal without writing per-CRD kubectl commands.
-  - Headlamp plugin. Browser-based workload visibility built on the CNCF
-    [Headlamp](https://github.com/kubernetes-sigs/headlamp) project: shows the
-    Karta workload tree, component status, and pod attribution.
-- **Karta as a registry.** A discoverable catalog of Karta definitions, so the
-  community can publish, find, and reuse descriptions for common workload types
-  instead of every consumer re-bundling its own copies. Turns the bundled
-  `docs/catalog/` set into a shared, versioned source the ecosystem can pull from.
-  Tracked by [#86](https://github.com/dsx-ai-factory/workload-map/issues/86).
-- Cross-resource expressions. Let a Karta reference values from related
+- **Workload visibility.** The CLI (`kli`) and the Headlamp plugin shipped in
+  v0.3.0. What remains is the first-class workload tree: traversal of a
+  workload's full resource tree, from the root component down through child
+  components to the pods, so consumers can reason about and render the whole
+  structure rather than individual fields. Tracked by
+  [#32](https://github.com/dsx-ai-factory/workload-map/issues/32).
+- **Metrics exporter.** An exporter that publishes workload state and
+  pod-to-workload attribution derived from Karta descriptions, making any
+  cluster's existing metrics addressable at workload and role scope, without
+  hand-authored queries per workload type. The design is merged as
+  [KEP-0001](docs/keps/0001-metrics-exporter/); implementation is tracked by
+  [#336](https://github.com/dsx-ai-factory/workload-map/issues/336) and its
+  sub-issues.
+- **Cross-resource expressions.** Let a Karta reference values from related
   resources in its path expressions
   ([#80](https://github.com/dsx-ai-factory/workload-map/issues/80)).
 
 ## Next
 
-Theme: broader coverage and operational observability.
+Theme: broader coverage.
 
-- **Broader, tested workload coverage.** Expand the pre-built, tested example set
-  and keep pace with upstream APIs of the workloads Karta describes — including
-  **Kubeflow Trainer v2** and Dynamo `v1beta1`
-  ([#78](https://github.com/dsx-ai-factory/workload-map/issues/78)).
-- Metrics exporter. An exporter that publishes workload state and pod-to-workload
-  attribution derived from Karta descriptions, making any cluster's existing
-  metrics addressable at workload and role scope — without hand-authored queries
-  per workload type.
+- **Broader, tested workload coverage.** Keep pace with upstream APIs of the
+  workloads Karta describes and grow the tested catalog, including
+  **Kubeflow Trainer v2**.
 
 ## Later
 
@@ -117,6 +104,18 @@ it stay vendor-neutral and broadly adoptable.
 Completed milestones, most recent first. The GitHub issue is the permanent record;
 this section is a quick reference for what has already shipped.
 
+- **v0.3.0 (Oct 2026).** Full toolchain around the CRD and library; see the
+  [v0.3.0 changelog entry](CHANGELOG.md#v030---2026-10-21). Highlights:
+  - `kli` CLI for read-only workload visibility, with a Homebrew cask.
+  - Headlamp plugin workloads page, backed by a WebAssembly build of the
+    engine.
+  - Built-in catalog of 23 workload definitions, with recorded end-to-end
+    conformance flows that replay offline in CI
+    ([#86](https://github.com/dsx-ai-factory/workload-map/issues/86), Jul 2026;
+    [#79](https://github.com/dsx-ai-factory/workload-map/issues/79), Sep 2026).
+  - Admission webhook and FIPS 140-3 runtime support.
+- Dynamo `v1beta1` support in the Dynamo example
+  ([#78](https://github.com/dsx-ai-factory/workload-map/issues/78), Jul 2026).
 - Karta controller / operator: standalone controller that reconciles Karta
   resources and the workloads they describe, turning Karta from a Go library
   into a deployable project

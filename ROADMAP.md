@@ -84,6 +84,10 @@ Theme: broader coverage.
 
   Clear integration patterns will be documented so anyone can build their own
   Karta-aware tool.
+- **Shared Karta registry.** Beyond the built-in catalog, a discoverable,
+  versioned registry where the community can publish, find, and reuse Karta
+  definitions for common workload types, instead of every consumer re-bundling
+  its own copies.
 - **Community engagement with related projects.** Engage the relevant upstream
   communities (workload and scheduling SIGs/TAGs, queueing and gang-scheduling
   projects) to position Karta as complementary infrastructure — *how to read and
@@ -109,19 +113,20 @@ this section is a quick reference for what has already shipped.
   - `kli` CLI for read-only workload visibility, with a Homebrew cask.
   - Headlamp plugin workloads page, backed by a WebAssembly build of the
     engine.
-  - Built-in catalog of 23 workload definitions, with recorded end-to-end
-    conformance flows that replay offline in CI
-    ([#86](https://github.com/dsx-ai-factory/workload-map/issues/86), Jul 2026;
-    [#79](https://github.com/dsx-ai-factory/workload-map/issues/79), Sep 2026).
+  - Built-in catalog of 23 workload definitions and a resolver API
+    ([#86](https://github.com/dsx-ai-factory/workload-map/issues/86), Jul 2026).
+  - Automated tests that validate the bundled definitions against upstream
+    CRDs, plus recorded end-to-end flows that replay offline in CI
+    ([#79](https://github.com/dsx-ai-factory/workload-map/issues/79), Sep 2026).
   - Admission webhook and FIPS 140-3 runtime support.
-- Dynamo `v1beta1` support in the Dynamo example
-  ([#78](https://github.com/dsx-ai-factory/workload-map/issues/78), Jul 2026).
 - Karta controller / operator: standalone controller that reconciles Karta
   resources and the workloads they describe, turning Karta from a Go library
   into a deployable project
   ([#34](https://github.com/dsx-ai-factory/workload-map/issues/34), Aug 2026).
 - Helm chart / CRD upgrade hook: Helm chart hardening and CRD upgrader hook
   shipped ([#43](https://github.com/dsx-ai-factory/workload-map/issues/43), Aug 2026).
+- Dynamo `v1beta1` support in the Dynamo example
+  ([#78](https://github.com/dsx-ai-factory/workload-map/issues/78), Jul 2026).
 
 ---
 

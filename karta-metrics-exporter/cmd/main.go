@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -71,6 +70,10 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("construct exporter: %w", err)
 	}
+	application, err := app.New(components)
+	if err != nil {
+		return fmt.Errorf("construct exporter application: %w", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -81,11 +84,7 @@ func run() error {
 			"version", version.String(), "address", *address, "labelRules", len(cfg.Rules),
 			"catalogDefinitions", cfg.KartaDefinitionSource.Catalog.Enabled, "clusterDefinitions", cfg.KartaDefinitionSource.Cluster.Enabled)
 	}
-	listener, err := net.Listen("tcp", *address)
-	if err != nil {
-		return fmt.Errorf("listen for metrics: %w", err)
-	}
-	err = app.Serve(ctx, components, listener)
+	err = application.Serve(ctx, *address)
 	if err != nil {
 		return err
 	}

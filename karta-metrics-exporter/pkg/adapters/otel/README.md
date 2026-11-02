@@ -21,11 +21,10 @@ workload identities are not merged into an overflow row. Translation, scope
 labels and target-info metrics are disabled to preserve the KEP names and labels.
 
 The command serves `/metrics`, `/healthz` and `/readyz` on `:8080` by default.
-Use `--metrics-bind-address` to choose another address. Readiness requires the
-runtime to implement `Ready() bool` and report that its Kubernetes sources are
-initialized. The runtime scaffold remains mocked and unready. The definition
-inventory, label resolver, Store and metrics/HTTP path are real; object reading,
-ownership discovery and runtime workers remain mocked.
+Use `--metrics-bind-address` to choose another address. Readiness requires healthy
+definition inventory and synchronized required Kubernetes watches. The
+[controller](../../controller/README.md) resolves ownership, evaluates workloads
+and writes the results that the collector reads from Store.
 
 One scrape runs at a time. Overlapping `/metrics` requests return 503 while
 health endpoints remain available.

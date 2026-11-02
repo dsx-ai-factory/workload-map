@@ -391,6 +391,8 @@ func TestHTTPShutdownDrainsCollection(t *testing.T) {
 
 func (f runtimeFunc) Run(ctx context.Context) error { return f(ctx) }
 
+func (runtimeFunc) Ready() bool { return false }
+
 func (l failingListener) Accept() (net.Conn, error) { return nil, l.err }
 
 func lifecycleApplication(t *testing.T, runtime controller.Runner) *Application {

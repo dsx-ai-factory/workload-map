@@ -32,21 +32,19 @@ type Application struct {
 	running    atomic.Bool
 }
 
-// Components supplies the runtime and its shared publication store.
+// Components supplies the runtime, definition inventory and shared publication store.
 type Components struct {
-	Runtime controller.Runner
-	Store   store.PublicationStore
-}
-
-// readier is implemented by runtimes that track initial Kubernetes synchronization.
-// The startup scaffold has no readiness signal and must remain unready.
-type readier interface {
-	Ready() bool
+	Runtime     controller.Runner
+	Store       store.PublicationStore
+	Definitions DefinitionRunner
 }
 
 const shutdownTimeout = 10 * time.Second
 
-var errAlreadyStarted = errors.New("exporter application can only be served once")
+var (
+	errAlreadyStarted          = errors.New("exporter application can only be served once")
+	ErrMetricsListenerRequired = errors.New("metrics listener is required")
+)
 
 func New(components Components) (*Application, error) {
 	if components.Runtime == nil || components.Store == nil {
@@ -65,8 +63,7 @@ func New(components Components) (*Application, error) {
 	mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{MaxRequestsInFlight: 1}))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		runtime, ok := components.Runtime.(readier)
-		if !application.running.Load() || r.Context().Err() != nil || !ok || !runtime.Ready() {
+		if !application.running.Load() || r.Context().Err() != nil || !components.Runtime.Ready() {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
@@ -102,7 +99,7 @@ func (a *Application) ServeListener(ctx context.Context, listener net.Listener) 
 	}
 	defer func() { err = errors.Join(err, a.shutdown()) }()
 	if listener == nil {
-		return errors.New("metrics listener is required")
+		return ErrMetricsListenerRequired
 	}
 	return a.serveListener(ctx, listener)
 }
@@ -129,7 +126,11 @@ func (a *Application) serveListener(ctx context.Context, listener net.Listener) 
 	a.running.Store(true)
 	go func() {
 		defer close(runtimeDone)
-		runtimeErr = a.components.Runtime.Run(child)
+		if a.components.Definitions != nil {
+			runtimeErr = RunController(child, a.components)
+		} else {
+			runtimeErr = a.components.Runtime.Run(child)
+		}
 		if runtimeErr == nil && child.Err() == nil {
 			runtimeErr = errors.New("exporter runtime stopped unexpectedly")
 		} else if runtimeErr == child.Err() {

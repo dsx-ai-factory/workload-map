@@ -451,6 +451,11 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v1.12.1
 - License: MIT
 
+### go.opentelemetry.io/otel
+- Name: go.opentelemetry.io/otel
+- Version: v1.47.0
+- License: Apache-2.0
+
 ### go.opentelemetry.io/otel/exporters/prometheus
 - Name: go.opentelemetry.io/otel/exporters/prometheus
 - Version: v0.66.0
@@ -509,11 +514,6 @@ For complete license texts, please refer to the source repositories or the LICEN
 ### go.opentelemetry.io/auto/sdk
 - Name: go.opentelemetry.io/auto/sdk
 - Version: v1.2.1
-- License: Apache-2.0
-
-### go.opentelemetry.io/otel
-- Name: go.opentelemetry.io/otel
-- Version: v1.47.0
 - License: Apache-2.0
 
 ### go.opentelemetry.io/otel/log

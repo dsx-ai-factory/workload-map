@@ -126,9 +126,10 @@ cleanup. The definition inventory owns its Karta watch. The controller observes
 inventory changes and owns workload watches. Pod and workload workers evaluate
 the latest cached objects and write independent records to the upstream store.
 
-`bootstrap.New` constructs these real components. `app.RunController` owns their
-lifecycle without a collector. `app.Run` retains the collector registration
-contract and also starts the inventory when it is supplied.
+`bootstrap.New` constructs these components. `app.New` creates the HTTP and
+metrics application. Its `Serve` method starts `app.RunController`, which waits
+for the inventory's initial load before starting workers and joins both on
+shutdown. The application owns the listener and collector registration.
 
 This change keeps the merged discovery, store, evaluator and catalog behavior.
 Operator-specific mapping corrections remain separate, including Dynamo replica

@@ -91,13 +91,15 @@ var _ = Describe("Controller publication lifecycle", func() {
 		}
 		components, err := bootstrap.New(cfg, kubeConfig)
 		Expect(err).NotTo(HaveOccurred())
+		application, err := app.New(components)
+		Expect(err).NotTo(HaveOccurred())
 		Expect(components.Runtime.Ready()).To(BeFalse())
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		Expect(err).NotTo(HaveOccurred())
 		runCtx, cancel := context.WithCancel(context.Background())
 		done := make(chan error, 1)
 		var duplicateDone chan error
-		go func() { done <- app.Serve(runCtx, components, listener) }()
+		go func() { done <- application.ServeListener(runCtx, listener) }()
 		DeferCleanup(func() {
 			cancel()
 			Eventually(done, 10*time.Second).Should(Receive(Succeed()))

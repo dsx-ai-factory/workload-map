@@ -23,20 +23,19 @@ func (k *Kinds) UnmarshalJSON(data []byte) error {
 	seen := map[schema.GroupVersionKind]bool{}
 	for _, value := range values {
 		value = strings.TrimSpace(value)
-		parts := strings.Split(value, "/")
-		if len(parts) < 2 || len(parts) > 3 {
+		separator := strings.LastIndexByte(value, '/')
+		if separator < 0 {
 			return fmt.Errorf("invalid kind %q: expected group/version/Kind or version/Kind", value)
 		}
-		for _, part := range parts {
-			if part == "" || strings.ContainsAny(part, " \t\r\n*") {
-				return fmt.Errorf("invalid kind %q: every segment must be nonempty and exact", value)
-			}
-		}
-		gv, err := schema.ParseGroupVersion(strings.Join(parts[:len(parts)-1], "/"))
+		gv, err := schema.ParseGroupVersion(value[:separator])
 		if err != nil {
-			return fmt.Errorf("invalid kind %q: %w", value, err)
+			return fmt.Errorf("invalid kind %q: expected group/version/Kind or version/Kind", value)
 		}
-		gvk := gv.WithKind(parts[len(parts)-1])
+		kind := value[separator+1:]
+		if gv.Version == "" || kind == "" || value[0] == '/' || strings.ContainsAny(value, " \t\r\n*") {
+			return fmt.Errorf("invalid kind %q: every segment must be nonempty and exact", value)
+		}
+		gvk := gv.WithKind(kind)
 		if !seen[gvk] {
 			parsed = append(parsed, gvk)
 			seen[gvk] = true

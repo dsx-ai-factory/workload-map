@@ -51,7 +51,8 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 			return err
 		}
 		selectedObject, _, err := r.state.reader.read(selectedRef, true)
-		if err != nil && !apierrors.IsNotFound(err) {
+		isUnexpectedReadError := err != nil && !apierrors.IsNotFound(err)
+		if isUnexpectedReadError {
 			return err
 		}
 		return r.state.replaceSelectedObjectTracking(key, selectedObject, selection)
@@ -66,7 +67,8 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 		return err
 	}
 	discoveryResult, err := r.state.deps.Discovery.Get(ctx, refOf(selectedObject))
-	if err == nil && discoveryResult.Workload == nil {
+	isOwnerUnresolved := err == nil && discoveryResult.Workload == nil
+	if isOwnerUnresolved {
 		err = discovery.ErrUnresolvedOwner
 	}
 	if err != nil {
@@ -79,12 +81,12 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 	if rootSelection.Definition != nil {
 		selectedGVK = rootSelection.GVK
 	}
-	allowed, scopeErr := r.state.isResourceSelected(ctx, selectedGVK)
+	isResourceSelected, scopeErr := r.state.isResourceSelected(ctx, selectedGVK)
 	if scopeErr != nil {
 		r.state.failSelectedObjectDiscovery(key, scopeErr)
 		return scopeErr
 	}
-	if !allowed {
+	if !isResourceSelected {
 		if err := errors.Join(selectionErr, rootSelectionErr); err != nil {
 			r.state.failSelectedObjectDiscovery(key, err)
 			return err
@@ -120,8 +122,8 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 		return r.state.failWorkload(uid, ref, err)
 	}
 	ref = refOf(workloadObject)
-	owner, valid := discovery.ControllerOwner(workloadObject)
-	if !valid {
+	owner, isOwnerValid := discovery.ControllerOwner(workloadObject)
+	if !isOwnerValid {
 		return r.state.failWorkload(uid, ref, discovery.ErrUnresolvedOwner)
 	}
 	hasNonIgnoredOwner := owner.UID != "" && !slices.Contains(r.state.config.IgnoredOwnerKinds, owner.GVK)
@@ -132,12 +134,13 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 	if !r.state.isRoot(ref) {
 		return r.state.failWorkload(uid, ref, discovery.ErrUnresolvedOwner)
 	}
-	selected, err := r.state.isRootSelected(ctx, workloadObject)
+	isRootSelected, err := r.state.isRootSelected(ctx, workloadObject)
 	if err != nil {
 		return r.state.failWorkload(uid, ref, err)
 	}
 	isPodWithoutDefinition := ref.GVK == podGVK && selection.Definition == nil && selectionErr == nil
-	if !selected || isPodWithoutDefinition {
+	shouldRemoveWorkload := !isRootSelected || isPodWithoutDefinition
+	if shouldRemoveWorkload {
 		r.state.deps.Publications.RemoveWorkload(uid)
 		return nil
 	}
@@ -148,7 +151,8 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 		CreatedTimestamp: workloadObject.GetCreationTimestamp().Unix(),
 	}
 	statusErr := selectionErr
-	if selection.Definition != nil && statusErr == nil {
+	shouldEvaluateStatus := selection.Definition != nil && statusErr == nil
+	if shouldEvaluateStatus {
 		record.Karta = selection.Origin.Name
 		record.KartaSource = string(selection.Origin.Source)
 		factory := resource.NewComponentFactoryFromObject(selection.Definition, workloadObject)
@@ -184,7 +188,8 @@ func evaluateWorkloadStatus(ctx context.Context, factory *resource.ComponentFact
 			}
 		}
 	}
-	if statusErr != nil && !errors.Is(statusErr, discovery.ErrInvalidDefinition) {
+	shouldWrapEvaluationError := statusErr != nil && !errors.Is(statusErr, discovery.ErrInvalidDefinition)
+	if shouldWrapEvaluationError {
 		return fmt.Errorf("%w: %w", discovery.ErrEvaluation, statusErr)
 	}
 	return statusErr
@@ -208,16 +213,19 @@ func (r *Runtime) evaluateWorkloadStatusLabels(ctx context.Context, object *unst
 
 func ValidateResourceRules(rules []ResourceRule) error {
 	for index, rule := range rules {
-		if len(rule.APIGroups) == 0 || len(rule.APIVersions) == 0 || len(rule.Resources) == 0 {
+		hasMissingFields := len(rule.APIGroups) == 0 || len(rule.APIVersions) == 0 || len(rule.Resources) == 0
+		if hasMissingFields {
 			return fmt.Errorf("resource rule %d requires apiGroups, apiVersions and resources", index)
 		}
 		for _, version := range rule.APIVersions {
-			if version == "" || strings.ContainsAny(version, "/ \t\n") {
+			isInvalidVersion := version == "" || strings.ContainsAny(version, "/ \t\n")
+			if isInvalidVersion {
 				return errors.New("resource rule API versions must name a version or *")
 			}
 		}
 		for _, resource := range rule.Resources {
-			if resource == "" || strings.ContainsAny(resource, "/ \t\n") {
+			isInvalidResource := resource == "" || strings.ContainsAny(resource, "/ \t\n")
+			if isInvalidResource {
 				return errors.New("resource rules must name whole resources or *")
 			}
 		}
@@ -233,7 +241,8 @@ func (r *controllerState) isRootSelected(ctx context.Context, object *unstructur
 }
 
 func (r *controllerState) isResourceSelected(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
-	if len(r.config.ResourceRules) == 0 && len(r.config.ExcludeResourceRules) == 0 {
+	hasResourceFilters := len(r.config.ResourceRules) > 0 || len(r.config.ExcludeResourceRules) > 0
+	if !hasResourceFilters {
 		return true, nil
 	}
 	mapping, err := r.reader.restMapping(ctx, gvk)
@@ -257,7 +266,14 @@ func (r *controllerState) isResourceSelected(ctx context.Context, gvk schema.Gro
 }
 
 func matchesResourceRule(rule ResourceRule, gvr schema.GroupVersionResource) bool {
-	return (slices.Contains(rule.APIGroups, "*") || slices.Contains(rule.APIGroups, gvr.Group)) &&
-		(slices.Contains(rule.APIVersions, "*") || slices.Contains(rule.APIVersions, gvr.Version)) &&
-		(slices.Contains(rule.Resources, "*") || slices.Contains(rule.Resources, gvr.Resource))
+	hasMatchingGroup := slices.Contains(rule.APIGroups, "*") || slices.Contains(rule.APIGroups, gvr.Group)
+	if !hasMatchingGroup {
+		return false
+	}
+	hasMatchingVersion := slices.Contains(rule.APIVersions, "*") || slices.Contains(rule.APIVersions, gvr.Version)
+	if !hasMatchingVersion {
+		return false
+	}
+	hasMatchingResource := slices.Contains(rule.Resources, "*") || slices.Contains(rule.Resources, gvr.Resource)
+	return hasMatchingResource
 }

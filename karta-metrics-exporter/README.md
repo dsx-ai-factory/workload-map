@@ -29,16 +29,16 @@ make build-exporter
 ```
 
 The command uses the current kubeconfig, or the in-cluster service account.
-It starts the definition inventory and controller together, then runs until
-Ctrl-C (`SIGINT`) or `SIGTERM`. `/healthz` reports process health. `/readyz`
-requires healthy inventory and synchronized required watches. Shutdown stops
+It starts the definition inventory, waits for the initial load, then starts
+the controller. It runs until Ctrl-C (`SIGINT`) or `SIGTERM`.
+`/healthz` reports process health. `/readyz` requires healthy inventory and
+synchronized required watches. Shutdown stops
 HTTP serving, joins the inventory and workers, then closes metric collection.
 Use `--metrics-bind-address` to change the default `:8080` listener.
 
-If the initial Karta LIST fails, discovery can still resolve ownership and
-publish workload creation information. Pod results record the definition error
-without claiming a complete mapping. Status and component mapping remain
-unavailable and readiness stays false until the definition source recovers.
+If the initial Karta LIST fails, the inventory retries. The controller waits
+and readiness stays false until loading succeeds. Later inventory failures
+still make definition-dependent results unavailable until the source recovers.
 
 To configure labels, create a YAML file using the
 [label configuration example](pkg/labelevaluator/README.md#configuration).

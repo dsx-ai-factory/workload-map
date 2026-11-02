@@ -63,10 +63,9 @@ type KartaDefinitionSourceConfig struct {
 }
 
 type DefinitionSourceConfig struct {
-	Enabled       bool                  `yaml:"enabled" json:"enabled"`
-	Include       []string              `yaml:"include,omitempty" json:"include,omitempty"`
-	Exclude       []string              `yaml:"exclude,omitempty" json:"exclude,omitempty"`
-	LabelSelector *metav1.LabelSelector `yaml:"labelSelector,omitempty" json:"labelSelector,omitempty"`
+	Enabled bool     `yaml:"enabled" json:"enabled"`
+	Include []string `yaml:"include,omitempty" json:"include,omitempty"`
+	Exclude []string `yaml:"exclude,omitempty" json:"exclude,omitempty"`
 }
 
 // setting is one configuration value with its flag and environment variable.
@@ -262,7 +261,7 @@ func (cfg Config) Validate() error {
 	if err := labelresolver.ValidateConfig(cfg.Config); err != nil {
 		return err
 	}
-	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.ObjectSelector, cfg.PodSelector, cfg.KartaDefinitionSource.Cluster.LabelSelector} {
+	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.ObjectSelector, cfg.PodSelector} {
 		if selector != nil {
 			if _, err := metav1.LabelSelectorAsSelector(selector); err != nil {
 				return err
@@ -303,7 +302,7 @@ func (cfg Config) Validate() error {
 // InventoryConfig converts the file settings; the inventory validates them.
 func (c KartaDefinitionSourceConfig) InventoryConfig() inventory.Config {
 	convert := func(s DefinitionSourceConfig) inventory.SourceConfig {
-		return inventory.SourceConfig{Enabled: s.Enabled, Include: s.Include, Exclude: s.Exclude, LabelSelector: s.LabelSelector}
+		return inventory.SourceConfig{Enabled: s.Enabled, Include: s.Include, Exclude: s.Exclude}
 	}
 	return inventory.Config{Catalog: convert(c.Catalog), Cluster: convert(c.Cluster)}
 }

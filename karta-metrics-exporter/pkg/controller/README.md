@@ -12,9 +12,14 @@ status mapping, when one exists. Both results go to Store.
 
 ## Start and watch
 
-`Runtime.Run` starts three queues and their workers. It queues `"sources"`
+The app waits for the inventory's initial load before calling `Runtime.Run`.
+`Runtime.Run` starts workers for three queues. It queues `"sources"`
 once at startup and again when inventory reports a change. Inventory owns its
 Karta watch; the sources worker reads its latest snapshot.
+
+`sync.Once` allows one run per runtime. A concurrent second call waits for that
+run to finish, then returns. Calls after shutdown return without restarting.
+Only the first call's context controls the run. Restarting requires a new runtime.
 
 The sources worker refreshes Karta selections and namespace scopes, then ensures
 watches for Pods, selected Karta kinds and configured required kinds. Each

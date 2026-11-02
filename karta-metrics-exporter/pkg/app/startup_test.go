@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 NVIDIA Corporation
+
+package app_test
+
+import (
+	"context"
+	"errors"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
+
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/app"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/controller"
+	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/store"
+)
+
+type definitionRunner struct {
+	run        func(context.Context) error
+	waitLoaded func(context.Context) error
+}
+
+func (d definitionRunner) Run(ctx context.Context) error {
+	return d.run(ctx)
+}
+
+func (d definitionRunner) WaitLoaded(ctx context.Context) error {
+	return d.waitLoaded(ctx)
+}
+
+var _ = Describe("Controller startup", func() {
+	It("waits for the initial definition load before starting runtime workers", func(specCtx SpecContext) {
+		ctx, cancel := context.WithCancel(specCtx)
+		DeferCleanup(cancel)
+		inventoryStarted := make(chan struct{})
+		waiting := make(chan struct{})
+		loaded := make(chan struct{})
+		runtimeStarted := make(chan struct{})
+		definitions := definitionRunner{
+			run: func(ctx context.Context) error {
+				close(inventoryStarted)
+				<-ctx.Done()
+				return nil
+			},
+			waitLoaded: func(ctx context.Context) error {
+				close(waiting)
+				select {
+				case <-loaded:
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			},
+		}
+		runtime := controller.NewMockRuntime(GinkgoT())
+		runtime.EXPECT().Run(mock.Anything).RunAndReturn(func(ctx context.Context) error {
+			close(runtimeStarted)
+			<-ctx.Done()
+			return nil
+		}).Once()
+
+		result := runControllerAsync(ctx, runtime, definitions)
+		Eventually(inventoryStarted).Should(BeClosed())
+		Eventually(waiting).Should(BeClosed())
+		Consistently(runtimeStarted, "100ms").ShouldNot(BeClosed())
+		close(loaded)
+		Eventually(runtimeStarted).Should(BeClosed())
+		cancel()
+		Eventually(result).Should(Receive(Succeed()))
+	})
+
+	It("does not start the runtime when loading fails and joins the inventory", func(specCtx SpecContext) {
+		loadFailure := errors.New("definition load failed")
+		inventoryStopped := make(chan struct{})
+		definitions := definitionRunner{
+			run: func(ctx context.Context) error {
+				<-ctx.Done()
+				close(inventoryStopped)
+				return nil
+			},
+			waitLoaded: func(context.Context) error { return loadFailure },
+		}
+		runtime := controller.NewMockRuntime(GinkgoT())
+
+		result := runControllerAsync(specCtx, runtime, definitions)
+		Eventually(result).Should(Receive(MatchError(loadFailure)))
+		Expect(inventoryStopped).To(BeClosed())
+	})
+
+	It("joins the inventory when canceled while waiting for the initial load", func(specCtx SpecContext) {
+		ctx, cancel := context.WithCancel(specCtx)
+		DeferCleanup(cancel)
+		waiting := make(chan struct{})
+		inventoryCanceled := make(chan struct{})
+		releaseInventory := make(chan struct{}, 1)
+		defer close(releaseInventory)
+		definitions := definitionRunner{
+			run: func(ctx context.Context) error {
+				<-ctx.Done()
+				close(inventoryCanceled)
+				<-releaseInventory
+				return nil
+			},
+			waitLoaded: func(ctx context.Context) error {
+				close(waiting)
+				<-ctx.Done()
+				return ctx.Err()
+			},
+		}
+		runtime := controller.NewMockRuntime(GinkgoT())
+
+		result := runControllerAsync(ctx, runtime, definitions)
+		Eventually(waiting).Should(BeClosed())
+		cancel()
+		Eventually(inventoryCanceled).Should(BeClosed())
+		Consistently(result, "100ms").ShouldNot(Receive())
+		releaseInventory <- struct{}{}
+		Eventually(result).Should(Receive(Succeed()))
+	})
+
+	DescribeTable("preserves independent failures when startup is canceled",
+		func(specCtx SpecContext, loadError, inventoryError error, expected string) {
+			ctx, cancel := context.WithCancel(specCtx)
+			cancel()
+			definitions := definitionRunner{
+				run:        func(context.Context) error { return inventoryError },
+				waitLoaded: func(context.Context) error { return loadError },
+			}
+			runtime := controller.NewMockRuntime(GinkgoT())
+
+			result := runControllerAsync(ctx, runtime, definitions)
+			Eventually(result).Should(Receive(MatchError(expected)))
+		},
+		Entry("load failure", errors.New("load failed"), nil, "load failed"),
+		Entry("inventory failure", context.Canceled, errors.New("watch failed"), "karta definition inventory: watch failed"),
+	)
+
+	DescribeTable("propagates an inventory stop before the initial load",
+		func(specCtx SpecContext, inventoryError error, message string) {
+			waiting := make(chan struct{})
+			definitions := definitionRunner{
+				run: func(context.Context) error {
+					<-waiting
+					return inventoryError
+				},
+				waitLoaded: func(ctx context.Context) error {
+					close(waiting)
+					<-ctx.Done()
+					return ctx.Err()
+				},
+			}
+			runtime := controller.NewMockRuntime(GinkgoT())
+
+			result := runControllerAsync(specCtx, runtime, definitions)
+			Eventually(result).Should(Receive(MatchError(ContainSubstring(message))))
+		},
+		Entry("unexpected clean stop", nil, "definition inventory stopped before cancellation"),
+		Entry("watch failure", errors.New("watch failed"), "karta definition inventory: watch failed"),
+	)
+
+	It("joins runtime and inventory shutdown after loading succeeds", func(specCtx SpecContext) {
+		ctx, cancel := context.WithCancel(specCtx)
+		DeferCleanup(cancel)
+		runtimeStarted := make(chan struct{})
+		runtimeCanceled := make(chan struct{})
+		inventoryCanceled := make(chan struct{})
+		releaseRuntime := make(chan struct{}, 1)
+		defer close(releaseRuntime)
+		releaseInventory := make(chan struct{}, 1)
+		defer close(releaseInventory)
+		definitions := definitionRunner{
+			run: func(ctx context.Context) error {
+				<-ctx.Done()
+				close(inventoryCanceled)
+				<-releaseInventory
+				return nil
+			},
+			waitLoaded: func(context.Context) error { return nil },
+		}
+		runtime := controller.NewMockRuntime(GinkgoT())
+		runtime.EXPECT().Run(mock.Anything).RunAndReturn(func(ctx context.Context) error {
+			close(runtimeStarted)
+			<-ctx.Done()
+			close(runtimeCanceled)
+			<-releaseRuntime
+			return nil
+		}).Once()
+
+		result := runControllerAsync(ctx, runtime, definitions)
+		Eventually(runtimeStarted).Should(BeClosed())
+		cancel()
+		Eventually(runtimeCanceled).Should(BeClosed())
+		Eventually(inventoryCanceled).Should(BeClosed())
+		Consistently(result, "100ms").ShouldNot(Receive())
+		releaseRuntime <- struct{}{}
+		Consistently(result, "100ms").ShouldNot(Receive())
+		releaseInventory <- struct{}{}
+		Eventually(result).Should(Receive(Succeed()))
+	})
+})
+
+func runControllerAsync(ctx context.Context, runtime controller.Runner, definitions app.DefinitionRunner) <-chan error {
+	result := make(chan error, 1)
+	go func() {
+		defer GinkgoRecover()
+		result <- app.RunController(ctx, app.Components{Runtime: runtime, Store: store.New(), Definitions: definitions})
+	}()
+	return result
+}

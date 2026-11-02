@@ -26,6 +26,7 @@ type Components struct {
 // DefinitionRunner owns the definition watch.
 type DefinitionRunner interface {
 	Run(context.Context) error
+	WaitLoaded(context.Context) error
 }
 
 // Run registers collection before starting workers, then unregisters on shutdown.
@@ -64,9 +65,12 @@ func RunController(ctx context.Context, components Components) error {
 		inventoryDone <- err
 		cancel()
 	}()
-	// Runtime tracks inventory health itself. Pod ownership can still be
-	// discovered while the initial definition LIST is unavailable.
-	err := components.Runtime.Run(runCtx)
+	err := components.Definitions.WaitLoaded(runCtx)
+	if err == nil {
+		err = components.Runtime.Run(runCtx)
+	} else if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
+		err = nil
+	}
 	cancel()
 	if inventoryErr := <-inventoryDone; inventoryErr != nil {
 		err = errors.Join(err, fmt.Errorf("karta definition inventory: %w", inventoryErr))

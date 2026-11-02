@@ -254,6 +254,8 @@ var _ = Describe("Karta definition sources", func() {
 			Expect(err).To(MatchError(ContainSubstring("unknown field")))
 		},
 		Entry("a mistyped one in a source", "kartaDefinitionSource:\n  cluster:\n    exlude: [a]\n"),
+		Entry("labelSelector in the catalog source", "kartaDefinitionSource:\n  catalog:\n    labelSelector: {}\n"),
+		Entry("labelSelector in the cluster source", "kartaDefinitionSource:\n  cluster:\n    labelSelector: {}\n"),
 	)
 })
 

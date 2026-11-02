@@ -57,23 +57,27 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 	}
 	workload := discoveryResult.Workload
 	selection, selectionErr := r.state.lookupDefinition(workload.Root.GVK)
-	if workload.Root.GVK == podGVK && selectionErr != nil {
-		return r.state.failPod(key, workload.Path, selectionErr)
-	}
-	if workload.Root.GVK == podGVK && selection.Definition == nil {
-		r.state.unregisterPod(key)
-		return nil
+
+	// Publishing a Pod as its own workload requires a Pod Karta.
+	if isPodRoot := workload.Root.GVK == podGVK; isPodRoot {
+		if selectionErr != nil {
+			return r.state.failPod(key, workload.Path, selectionErr)
+		}
+		if selection.Definition == nil {
+			r.state.unregisterPod(key)
+			return nil
+		}
 	}
 
 	rootRef := workload.Root
 	if selection.Definition != nil {
 		rootRef.GVK = selection.GVK
 	}
-	allowed, scopeErr := r.state.isResourceSelected(ctx, rootRef.GVK)
+	isResourceSelected, scopeErr := r.state.isResourceSelected(ctx, rootRef.GVK)
 	if scopeErr != nil {
 		return r.state.failPod(key, workload.Path, scopeErr, rootRef)
 	}
-	if !allowed {
+	if !isResourceSelected {
 		r.state.unregisterPod(key)
 		return nil
 	}
@@ -85,8 +89,9 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 	}
 	rootRef.ResourceVersion = ""
 	rootObject, rootSource, err := r.state.reader.read(rootRef, true)
-	watchFailed := r.state.watchFailed(rootRef)
-	if err != nil || watchFailed {
+	hasWatchFailure := r.state.watchFailed(rootRef)
+	shouldRefreshRootWatch := err != nil || hasWatchFailure
+	if shouldRefreshRootWatch {
 		if _, err = r.state.ensureWatch(ctx, rootRef.GVK, rootRef.Namespace, false); err != nil {
 			return r.state.failPod(key, workload.Path, err, workload.Root)
 		}
@@ -95,11 +100,11 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 	if err != nil {
 		return r.state.failPod(key, workload.Path, err, workload.Root)
 	}
-	selected, err := r.state.isRootSelected(ctx, rootObject)
+	isRootSelected, err := r.state.isRootSelected(ctx, rootObject)
 	if err != nil {
 		return r.state.failPod(key, workload.Path, err, workload.Root)
 	}
-	if !selected {
+	if !isRootSelected {
 		r.state.unregisterPod(key)
 		return nil
 	}
@@ -116,7 +121,7 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 		Workload:        storedRef(rootRef),
 		OwnerResolution: store.OwnerResolution(workload.Resolution),
 	}
-	labelFailed, err := r.evaluatePodRecord(ctx, selection, podObject, rootObject, &record)
+	hasLabelErrors, err := r.evaluatePodRecord(ctx, selection, podObject, rootObject, &record)
 	if err != nil {
 		return r.state.failPodEvaluation(key, workload.Path, fmt.Errorf("%w: %w", discovery.ErrEvaluation, err), rootRef, selection)
 	}
@@ -125,10 +130,10 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 		sources = append(sources, rootSource)
 	}
 	podResult := store.PodResult{Record: record, Input: storedRef(ref), HasValue: true, Sources: sources}
-	return r.state.publishPod(workload.Path, rootRef, selection, podResult, labelFailed)
+	return r.state.publishPod(workload.Path, rootRef, selection, podResult, hasLabelErrors)
 }
 
-func (r *Runtime) evaluatePodRecord(ctx context.Context, selection selectedDefinition, podObject, rootObject *unstructured.Unstructured, record *store.PodRecord) (labelFailed bool, err error) {
+func (r *Runtime) evaluatePodRecord(ctx context.Context, selection selectedDefinition, podObject, rootObject *unstructured.Unstructured, record *store.PodRecord) (hasLabelErrors bool, err error) {
 	if selection.Definition != nil {
 		pod := &corev1.Pod{}
 		if err := kruntime.DefaultUnstructuredConverter.FromUnstructured(podObject.Object, pod); err != nil {
@@ -169,13 +174,16 @@ func evaluatePodComponent(ctx context.Context, factory *resource.ComponentFactor
 	if instanceID != nil {
 		instance = *instanceID
 	}
-	if component.Definition().InstanceIdPath != nil && instance == "" {
+	isRequiredInstanceMissing := component.Definition().InstanceIdPath != nil && instance == ""
+	if isRequiredInstanceMissing {
 		return "", "", "", errors.New("required component instance is missing")
 	}
 	group := ""
+	// A component can inherit the replica selector from an owner component.
 	for {
 		selector := component.GetPodSelector()
-		if selector != nil && selector.ReplicaSelector != nil && selector.ReplicaSelector.KeyPath != "" {
+		hasReplicaKeyPath := selector != nil && selector.ReplicaSelector != nil && selector.ReplicaSelector.KeyPath != ""
+		if hasReplicaKeyPath {
 			group, _, err = query.ExtractReplicaKey(ctx, selector.ReplicaSelector)
 			if err != nil {
 				return "", "", "", err

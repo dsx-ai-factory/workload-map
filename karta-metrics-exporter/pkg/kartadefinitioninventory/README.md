@@ -16,9 +16,6 @@ selection. Deleting it selects the next cluster candidate or the catalog.
 `Config` is constructor input. Catalog and cluster sources each have an enable
 flag and definition-name include/exclude lists. Empty includes mean all;
 exclusions win. Selected cluster definitions take precedence over catalog ones.
-The cluster source also accepts `LabelSelector`. A definition must match both
-its name filters and the label selector. Losing a label match removes its cached
-entry. Catalog label selectors are rejected.
 `RequestTimeout` bounds each LIST page. Zero uses the caller's context without
 adding a deadline. Negative values are rejected. Watches use the caller's context
 and remain open independently of the LIST timeout.

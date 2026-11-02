@@ -55,9 +55,8 @@ type controllerState struct {
 	objectSelector         labels.Selector
 	podSelector            labels.Selector
 
-	ctx     context.Context
-	started bool
-	wg      sync.WaitGroup
+	ctx context.Context
+	wg  sync.WaitGroup
 }
 
 type selectedObjectOutcome struct {
@@ -408,15 +407,10 @@ func (r *controllerState) publishWorkload(uid types.UID, ref discovery.ObjectRef
 	return nil
 }
 
-func (r *controllerState) start(ctx context.Context) error {
+func (r *controllerState) start(ctx context.Context) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if r.started {
-		return errors.New("runtime already started")
-	}
-	r.started = true
 	r.ctx = ctx
-	return nil
 }
 
 func (r *controllerState) stopWatches() {

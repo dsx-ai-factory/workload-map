@@ -75,7 +75,6 @@ exporter:
       enabled: true
       include: []
       exclude: []
-      labelSelector: {}
 
 # Overrides for resource names. Rarely needed.
 fullnameOverride: ""

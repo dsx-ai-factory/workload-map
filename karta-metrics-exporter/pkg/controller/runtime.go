@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"sync"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +50,8 @@ type ResourceRule struct {
 }
 
 type Runtime struct {
-	state *controllerState
+	state   *controllerState
+	runOnce sync.Once
 }
 
 type objectJobKey struct {
@@ -128,38 +130,38 @@ func New(config Config, deps Dependencies, reader *Reader) (*Runtime, error) {
 	return &Runtime{state: r}, nil
 }
 func (r *Runtime) Run(ctx context.Context) error {
-	if err := r.state.start(ctx); err != nil {
-		return err
-	}
-	for i := 0; i < r.state.config.LeafWorkers; i++ {
-		r.state.wg.Go(func() { runWorker(ctx, r.state.podQueue, r.handlePodInput) })
-	}
-	for i := 0; i < r.state.config.RootWorkers; i++ {
-		r.state.wg.Go(func() { runWorker(ctx, r.state.workloadQueue, r.handleWorkloadInput) })
-	}
-	r.state.wg.Go(func() {
-		runWorker(ctx, r.state.watchSyncQueue, func(ctx context.Context, _ string) error { return r.state.syncWatches(ctx) })
-	})
-	r.state.watchSyncQueue.Add("sources")
-	changes := r.state.deps.Inventory.Changes()
-running:
-	for {
-		select {
-		case <-ctx.Done():
-			break running
-		case _, open := <-changes:
-			if !open {
-				changes = nil
-				continue
-			}
-			r.state.watchSyncQueue.Add("sources")
+	r.runOnce.Do(func() {
+		r.state.start(ctx)
+		for i := 0; i < r.state.config.LeafWorkers; i++ {
+			r.state.wg.Go(func() { runWorker(ctx, r.state.podQueue, r.handlePodInput) })
 		}
-	}
-	r.state.podQueue.ShutDown()
-	r.state.workloadQueue.ShutDown()
-	r.state.watchSyncQueue.ShutDown()
-	r.state.stopWatches()
-	r.state.wg.Wait()
+		for i := 0; i < r.state.config.RootWorkers; i++ {
+			r.state.wg.Go(func() { runWorker(ctx, r.state.workloadQueue, r.handleWorkloadInput) })
+		}
+		r.state.wg.Go(func() {
+			runWorker(ctx, r.state.watchSyncQueue, func(ctx context.Context, _ string) error { return r.state.syncWatches(ctx) })
+		})
+		r.state.watchSyncQueue.Add("sources")
+		changes := r.state.deps.Inventory.Changes()
+	running:
+		for {
+			select {
+			case <-ctx.Done():
+				break running
+			case _, open := <-changes:
+				if !open {
+					changes = nil
+					continue
+				}
+				r.state.watchSyncQueue.Add("sources")
+			}
+		}
+		r.state.podQueue.ShutDown()
+		r.state.workloadQueue.ShutDown()
+		r.state.watchSyncQueue.ShutDown()
+		r.state.stopWatches()
+		r.state.wg.Wait()
+	})
 	return nil
 }
 func (r *Runtime) Ready() bool {
@@ -169,7 +171,7 @@ func (r *Runtime) Ready() bool {
 func (r *controllerState) ready() bool {
 	r.stateMu.RLock()
 	defer r.stateMu.RUnlock()
-	isRunning := r.started && (r.ctx == nil || r.ctx.Err() == nil)
+	isRunning := r.ctx != nil && r.ctx.Err() == nil
 	if !isRunning || r.definitionInventoryErr != nil || len(r.watches) == 0 {
 		return false
 	}

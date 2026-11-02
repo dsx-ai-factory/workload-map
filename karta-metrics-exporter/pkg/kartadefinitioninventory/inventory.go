@@ -19,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -81,12 +80,11 @@ type Config struct {
 }
 
 // SourceConfig selects a definition when its name is in Include; an empty
-// list allows all, and Exclude wins. Cluster definitions must also match LabelSelector.
+// list allows all, and Exclude wins.
 type SourceConfig struct {
-	Enabled       bool
-	Include       []string
-	Exclude       []string
-	LabelSelector *metav1.LabelSelector
+	Enabled bool
+	Include []string
+	Exclude []string
 }
 
 var (
@@ -135,10 +133,9 @@ type definitionEntry struct {
 }
 
 type sourceFilter struct {
-	enabled  bool
-	include  sets.Set[string]
-	exclude  sets.Set[string]
-	selector labels.Selector
+	enabled bool
+	include sets.Set[string]
+	exclude sets.Set[string]
 }
 
 type reflectorStore struct {
@@ -248,6 +245,9 @@ func (i *Inventory) WaitLoaded(ctx context.Context) error {
 	case <-i.loaded:
 		return nil
 	case <-i.done:
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		// Both channels may be closed by now.
 		select {
 		case <-i.loaded:
@@ -461,15 +461,15 @@ func (i *Inventory) fail(err error) {
 	i.notify()
 }
 
-// Add skips a Karta the source filter rejects, so it is never decoded or validated.
+// Add skips a Karta the name filter rejects, so it is never decoded or validated.
 func (s reflectorStore) Add(obj any) error {
 	u, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unexpected Karta object %T", obj)
 	}
 	i := s.inventory
-	if !i.clusterFilter.matchesObject(u) {
-		return s.Delete(obj)
+	if !i.clusterFilter.matches(u.GetName()) {
+		return nil
 	}
 	entry := decodeKarta(u)
 	i.mu.Lock()
@@ -507,7 +507,7 @@ func (s reflectorStore) Replace(list []any, _ string) error {
 		if !ok {
 			return fmt.Errorf("unexpected Karta object %T", obj)
 		}
-		if i.clusterFilter.matchesObject(u) {
+		if i.clusterFilter.matches(u.GetName()) {
 			cluster[u.GetName()] = decodeKarta(u)
 		}
 	}
@@ -662,10 +662,6 @@ func (f sourceFilter) matches(name string) bool {
 	return f.enabled && (f.include.Len() == 0 || f.include.Has(name)) && !f.exclude.Has(name)
 }
 
-func (f sourceFilter) matchesObject(u *unstructured.Unstructured) bool {
-	return f.matches(u.GetName()) && f.selector.Matches(labels.Set(u.GetLabels()))
-}
-
 // compileSource skips the name check when known is nil.
 func compileSource(source Source, config SourceConfig, known sets.Set[string]) (sourceFilter, []error) {
 	var errs []error
@@ -689,18 +685,6 @@ func compileSource(source Source, config SourceConfig, known sets.Set[string]) (
 		return set
 	}
 
-	selector := labels.Everything()
-	if config.LabelSelector != nil {
-		if source == SourceCatalog {
-			errs = append(errs, fmt.Errorf("%w: catalog.labelSelector is not supported", ErrInvalidConfig))
-		} else {
-			var err error
-			selector, err = metav1.LabelSelectorAsSelector(config.LabelSelector)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("%w: cluster.labelSelector: %w", ErrInvalidConfig, err))
-			}
-		}
-	}
-	f := sourceFilter{enabled: config.Enabled, include: compileNames("include", config.Include), exclude: compileNames("exclude", config.Exclude), selector: selector}
+	f := sourceFilter{enabled: config.Enabled, include: compileNames("include", config.Include), exclude: compileNames("exclude", config.Exclude)}
 	return f, errs
 }

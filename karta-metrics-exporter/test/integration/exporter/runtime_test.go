@@ -83,7 +83,7 @@ var _ = Describe("Controller publication lifecycle", func() {
 		cfg.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
 		cfg.KartaDefinitionSource.Catalog.Enabled = false
 		cfg.KartaDefinitionSource.Cluster.Enabled = true
-		cfg.KartaDefinitionSource.Cluster.LabelSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"test": ns.Name}}
+		cfg.KartaDefinitionSource.Cluster.Include = []string{"integration-" + ns.Name}
 		cfg.RequestTimeout = "1s"
 		cfg.Rules = []labelresolver.LabelRule{
 			{Name: "team", Metrics: []string{labelresolver.MetricPodWorkloadInfo, labelresolver.MetricWorkloadStatus}, Sources: []labelresolver.Source{labelresolver.SourceWorkload}, Expression: `object.metadata.labels["example.com/team"]`},
@@ -91,14 +91,25 @@ var _ = Describe("Controller publication lifecycle", func() {
 		}
 		components, err := bootstrap.New(cfg, kubeConfig)
 		Expect(err).NotTo(HaveOccurred())
+		Expect(components.Runtime.Ready()).To(BeFalse())
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		Expect(err).NotTo(HaveOccurred())
 		runCtx, cancel := context.WithCancel(context.Background())
 		done := make(chan error, 1)
+		var duplicateDone chan error
 		go func() { done <- app.Serve(runCtx, components, listener) }()
 		DeferCleanup(func() {
 			cancel()
 			Eventually(done, 10*time.Second).Should(Receive(Succeed()))
+			if duplicateDone != nil {
+				Eventually(duplicateDone, time.Second).Should(Receive(Succeed()))
+			}
+			Expect(components.Runtime.Ready()).To(BeFalse())
+			stoppedCtx, stop := context.WithCancel(context.Background())
+			defer stop()
+			stoppedRun := make(chan error, 1)
+			go func() { stoppedRun <- components.Runtime.Run(stoppedCtx) }()
+			Eventually(stoppedRun, time.Second).Should(Receive(Succeed()))
 			Expect(components.Runtime.Ready()).To(BeFalse())
 		})
 		httpClient := &http.Client{Timeout: time.Second}
@@ -132,7 +143,7 @@ var _ = Describe("Controller publication lifecycle", func() {
 		By("interpreting an existing ownership chain after a Karta is added")
 		definition, err := catalog.Get(deployGVK)
 		Expect(err).NotTo(HaveOccurred())
-		definition.Name, definition.Labels = "integration-"+ns.Name, map[string]string{"test": ns.Name}
+		definition.Name = "integration-" + ns.Name
 		Expect(api.Create(ctx, definition)).To(Succeed())
 		Eventually(func(g Gomega) {
 			view := components.Store.Capture()
@@ -150,6 +161,17 @@ var _ = Describe("Controller publication lifecycle", func() {
 			get(g, "/readyz")
 			checkMetrics(g)
 		}).Should(Succeed())
+
+		By("keeping the first run active when a duplicate caller cancels")
+		duplicateCtx, cancelDuplicate := context.WithCancel(context.Background())
+		cancelDuplicate()
+		duplicateDone = make(chan error, 1)
+		go func() { duplicateDone <- components.Runtime.Run(duplicateCtx) }()
+		Consistently(func(g Gomega) {
+			g.Expect(duplicateDone).To(BeEmpty())
+			g.Expect(done).To(BeEmpty())
+			g.Expect(components.Runtime.Ready()).To(BeTrue())
+		}, 200*time.Millisecond).Should(Succeed())
 
 		By("discovering a selected workload without any Pods")
 		idle := deployment(ctx, ns.Name, "idle")

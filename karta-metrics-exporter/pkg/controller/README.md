@@ -3,73 +3,95 @@
 
 # Controller
 
-The controller turns Kubernetes changes into Pod mappings and workload results.
-For example, `Pod api-1 -> ReplicaSet api-rs -> Deployment api` produces a Pod
-record pointing to `api` and a workload record. A selected Karta definition
-supplies the Deployment's status when it defines status mapping.
-The collector reads these saved results when Prometheus scrapes `/metrics`.
+The controller turns Kubernetes events into saved Pod and workload results.
+For `Pod api-1 -> ReplicaSet api-rs -> Deployment api`, it saves the Pod's
+mapping to `api`. A separate workload job evaluates `api` using its Karta
+status mapping, when one exists. Both results go to Store.
 
-![How the controller watches, queues and publishes](images/controller-flow.png)
+![Controller watches, queue dispatch, workers and Store](../../../docs/design/metrics-exporter/controller-flow.png)
 
-[Diagram source](images/controller-flow.excalidraw)
+## Start and watch
 
-## Follow one event
+`Runtime.Run` starts three queues and their workers. It queues `"sources"`
+once at startup and again when inventory reports a change. Inventory owns its
+Karta watch; the sources worker reads its latest snapshot.
 
-1. `Runtime.Run` starts the Pod, workload and sources queues. The application
-   runs the Karta inventory alongside it. Inventory owns its Karta watch.
-2. A client-go Reflector performs LIST/WATCH for each resource and namespace scope.
-   `sources.go` accepts object changes into the cache and queues their identities.
-3. A Pod worker reads the full Pod. Discovery follows its controller owner
-   references through `Reader` until it finds a root or an ignored owner kind.
-4. The worker registers the Pod under that root. It reads the full root, uses its
-   Karta definition for component mapping, and evaluates labels with the full
-   Pod and root as inputs. A root-UID job separately evaluates workload status.
-5. `state.go` checks that the objects, ownership and definition are still current
-   before saving a result. Changed inputs cause a retry instead of a stale write.
+The sources worker refreshes Karta selections and namespace scopes, then ensures
+watches for Pods, selected Karta kinds and configured required kinds. Each
+client-go Reflector runs LIST/WATCH in its own goroutine. Its callbacks accept
+objects into the cache and enqueue keys independently of the sources worker.
 
-Objects matching a selected Karta kind also enter the workload queue without
-Pods. These jobs discover a root and register membership; root-UID jobs publish
-or remove the workload result.
+## Which worker handles what?
 
-## Where to look
+Queues hold identities, not object snapshots. Workers read current cached data.
 
-| File | Responsibility |
+| Queue | Job | Handler and result |
+| --- | --- | --- |
+| Sources, one worker | `"sources"` | Refresh definitions/scopes, ensure watches and requeue affected work |
+| Pods, two workers by default | Pod identity and UID | Discover root, register membership, evaluate component/labels and save Pod result |
+| Pods, same worker pool | Namespace rescan | Expand cached objects into ordinary Pod and workload jobs |
+| Workloads, two workers by default | Selected-object identity and UID | Discover root, update membership and queue its root UID; works without Pods |
+| Workloads, same worker pool | Root UID | Read full root, evaluate status/labels and save or remove workload result |
+
+An object job and a root-UID job share the workload queue, but do different work.
+Only the root-UID job publishes a workload result. Registering a Pod under a root
+also queues that root UID.
+
+Worker counts are configurable. Repeated identical keys are combined. One key
+runs on one worker at a time; an update during processing schedules another pass.
+Different keys can run concurrently.
+
+## What causes another pass?
+
+| Change | Work queued |
 | --- | --- |
-| [runtime.go](runtime.go) | Start workers, receive definition changes, report readiness and stop |
-| [sources.go](sources.go) | Maintain Reflectors, accept snapshots/events and route queue keys |
-| [reader.go](reader.go) | Resolve resource mappings and read accepted cached objects |
-| [leaf.go](leaf.go) | Discover a Pod's root and evaluate its mapping and labels |
-| [root.go](root.go) | Discover selected objects and evaluate root status and labels |
-| [state.go](state.go) | Keep membership and publish only results with current inputs |
+| Pod create, update or delete | That Pod's identity |
+| Tracked root update | Root UID and its Pods |
+| Karta create, update or delete | Sources refresh, then affected objects and Pods |
+| Namespace labels change (with namespace selection configured) | Sources refresh to recompute watched namespaces |
+| Intermediate owner references or root-selector membership change | Namespace rescan |
 
-## Cache, queues and changes
+Selector configuration is fixed at startup. Changes to object labels still
+change which objects match. Discovery can request watches for newly encountered
+ancestor kinds, so watch setup also happens while workers resolve ownership.
 
-Pods and evaluated roots are cached in full. Other ancestors need only metadata.
-If an ancestor becomes a root, its metadata watch stays active until a full-object
-replacement has synchronized. Discovery waits for that cache; it does not GET
-every owner from the API server.
+## Cache and Store are different
 
-There is one sources worker. Pod and workload queues each default to two workers.
-A queue serializes a key, but callbacks and different keys still share state.
-One state mutex protects cache acceptance, membership and publication checks.
-Discovery and expression evaluation run outside it. A separate reader mutex
-protects REST-mapper resets.
+The cache holds Kubernetes objects. Pods, selected/required kinds and evaluated
+roots use full objects. Other ancestors start with metadata. `Reader` reads the
+cache; discovery does not GET every owner. A full-object replacement watch must
+accept its initial snapshot before replacing a metadata watch.
 
-Karta changes requeue affected objects and Pods. Root changes requeue that root
-and its members. Intermediate owner changes rescan the relevant cached scope.
-Selector settings are fixed at startup; changes to object or Namespace labels
-still affect which objects are selected.
+Store holds evaluated results, source health and discovery errors. Before saving
+an evaluated result, shared controller state checks the object versions, UIDs,
+ownership and selected definitions. Changed inputs trigger another pass instead
+of a stale write. Watch health and discovery failures are also written directly
+to Store.
+
+One state mutex protects cache, membership and publication checks. Discovery
+and expression evaluation run outside it. A separate mutex protects REST-mapper
+resets. Queues serialize keys; they do not protect this shared state.
 
 ## Failures and shutdown
 
-Failed watches retain the last accepted objects and record unhealthy sources.
-Failed evaluations retain any previous value with an error. Confirmed Pod
+Watch failures retain the last accepted objects and mark their source unhealthy.
+Evaluation failures retain any previous saved value and record an error. Pod
 deletion removes its result. Root deletion removes the workload result and
-requeues its Pods; a live Pod may keep its last mapping with an owner error.
-UID checks prevent a recreated object from satisfying an old owner reference.
+requeues its Pods; a live Pod can retain its last mapping with an owner error.
+UID checks distinguish deleted objects from replacements with the same name.
 
-Readiness requires healthy inventory and synchronized required watches. On
-cancellation, the application stops HTTP serving, cancels inventory and watches,
-joins workers, unregisters collection and shuts down the metrics provider.
+Readiness requires healthy inventory and synchronized required watches.
+Cancellation shuts down queues, cancels watches and waits for workers to exit.
+
+## Files
+
+| File | Responsibility |
+| --- | --- |
+| [runtime.go](runtime.go) | Start workers, receive inventory notifications, report readiness and stop |
+| [sources.go](sources.go) | Manage Reflectors, accept events and route queue keys |
+| [reader.go](reader.go) | Resolve resource mappings and read cached objects |
+| [leaf.go](leaf.go) | Dispatch Pod/rescan jobs and evaluate Pod results |
+| [root.go](root.go) | Dispatch selected-object/root-UID jobs and evaluate workloads |
+| [state.go](state.go) | Track membership, requeue related work and validate publications |
 
 Run `make check-exporter` from the repository root.

@@ -13,8 +13,9 @@ For example, a Pod in JobSet `train` can belong to component `replicatedjob`,
 instance `worker` and group `0`. The [query guide](../docs/karta-metrics-exporter/README.md)
 shows how to group measurements by that identity.
 
-The command validates label configuration. Kubernetes watches and metric
-delivery are not implemented yet.
+The command loads definition sources and validates label configuration. A real
+collector serves saved Store results at `/metrics`. Kubernetes runtime workers
+remain mocked, so the command does not yet populate workload or Pod results.
 
 ## Run
 
@@ -28,6 +29,9 @@ make build-exporter
 ```
 
 The process waits until Ctrl-C (`SIGINT`) or `SIGTERM` stops it.
+Metrics and health endpoints listen on `:8080`; use `--metrics-bind-address` to
+change the address. `/healthz` checks process health. `/readyz` stays unavailable
+until a runtime reports initialized Kubernetes data; the runtime mock never does.
 
 To configure labels, create a YAML file using the
 [label configuration example](pkg/labelevaluator/README.md#configuration).

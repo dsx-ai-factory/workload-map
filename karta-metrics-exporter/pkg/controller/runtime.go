@@ -335,6 +335,7 @@ func (key objectJobKey) ref() discovery.ObjectRef {
 	return discovery.ObjectRef{GVK: key.Object.GVK, Namespace: key.Object.Namespace, Name: key.Object.Name, UID: key.UID}
 }
 
+// sourcesFor takes its own read lock. Callers must not hold stateMu.
 func (r *controllerState) sourcesFor(path []discovery.ObjectRef) []store.SourceKey {
 	r.stateMu.RLock()
 	defer r.stateMu.RUnlock()

@@ -85,7 +85,8 @@ The runtime settings below use the same names under Helm's `exporter:` key.
 | `namespaceSelector` | Helm excludes system namespaces; otherwise empty | Observe matching namespaces; an empty selector observes all namespaces |
 | `podSelector` | Empty | Publish matching Pods; other Pods remain available for owner traversal |
 | `objectSelector` | Empty | Select workload objects by labels |
-| `resourceRules`, `excludeResourceRules` | Empty | Select workload API groups, versions and resources; exclusions win |
+| `resourceRules` | Empty | Select workload root API groups, versions and resources |
+| `excludeResourceRules` | Helm excludes core ConfigMaps and Secrets; binary defaults to empty | Exclude workload roots; exclusions win |
 | `ignoredOwnerKinds` | Empty | Stop discovery immediately before these owner kinds |
 | `requiredKinds` | Empty | Require these resource sources to synchronize before readiness |
 | `workers` | `2` | Default worker count for each Pod and workload queue |
@@ -95,7 +96,10 @@ The runtime settings below use the same names under Helm's `exporter:` key.
 
 Kinds use slash strings, such as `apps/v1/Deployment` or `v1/Node`. Each resource
 rule contains `apiGroups`, `apiVersions` and `resources` lists. An empty inclusion
-list permits every resource. These filters select work; they do not grant RBAC.
+list permits every resource. Resource rules select workload roots. They do not
+block reads used for owner traversal or change RBAC permissions. Set
+`exporter.excludeResourceRules: []` to allow ConfigMaps and Secrets as workload
+roots when using Helm.
 
 Worker counts, request timeout and API limits also have kebab-case flags and
 `KARTA_EXPORTER_*` environment variables, shown by `--help`. A flag overrides

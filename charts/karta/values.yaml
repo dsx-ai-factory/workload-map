@@ -30,7 +30,12 @@ exporter:
   objectSelector: {}
   podSelector: {}
   resourceRules: []
-  excludeResourceRules: []
+  # Skip ConfigMaps and Secrets as workload roots. RBAC is unchanged.
+  # Set [] to allow them as workload roots.
+  excludeResourceRules:
+    - apiGroups: [""]
+      apiVersions: ["*"]
+      resources: ["configmaps", "secrets"]
   ignoredOwnerKinds: []
   requiredKinds: []
   workers: 2

@@ -29,6 +29,11 @@ type DefinitionRunner interface {
 	WaitLoaded(context.Context) error
 }
 
+var (
+	ErrIncompleteControllerComponents = errors.New("incomplete controller components")
+	ErrDefinitionInventoryStopped     = errors.New("definition inventory stopped before cancellation")
+)
+
 // Run registers collection before starting workers, then unregisters on shutdown.
 func Run(ctx context.Context, components Components, meter metric.Meter) (err error) {
 	if components.Runtime == nil || components.Store == nil || components.Collector == nil || meter == nil {
@@ -52,7 +57,7 @@ func Run(ctx context.Context, components Components, meter metric.Meter) (err er
 // It maintains publication records without registering a metrics collector.
 func RunController(ctx context.Context, components Components) error {
 	if components.Runtime == nil || components.Store == nil || components.Definitions == nil {
-		return errors.New("incomplete controller components")
+		return ErrIncompleteControllerComponents
 	}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -60,7 +65,7 @@ func RunController(ctx context.Context, components Components) error {
 	go func() {
 		err := components.Definitions.Run(runCtx)
 		if err == nil && runCtx.Err() == nil {
-			err = errors.New("definition inventory stopped before cancellation")
+			err = ErrDefinitionInventoryStopped
 		}
 		inventoryDone <- err
 		cancel()

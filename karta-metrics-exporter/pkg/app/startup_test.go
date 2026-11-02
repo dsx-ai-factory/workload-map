@@ -30,6 +30,16 @@ func (d definitionRunner) WaitLoaded(ctx context.Context) error {
 }
 
 var _ = Describe("Controller startup", func() {
+	It("returns a sentinel when controller components are incomplete", func(ctx SpecContext) {
+		err := app.RunController(ctx, app.Components{})
+		Expect(errors.Is(err, app.ErrIncompleteControllerComponents)).To(BeTrue())
+	})
+
+	It("returns a sentinel when the metrics listener is missing", func(ctx SpecContext) {
+		err := app.Serve(ctx, app.Components{}, nil)
+		Expect(errors.Is(err, app.ErrMetricsListenerRequired)).To(BeTrue())
+	})
+
 	It("waits for the initial definition load before starting runtime workers", func(specCtx SpecContext) {
 		ctx, cancel := context.WithCancel(specCtx)
 		DeferCleanup(cancel)
@@ -137,7 +147,7 @@ var _ = Describe("Controller startup", func() {
 	)
 
 	DescribeTable("propagates an inventory stop before the initial load",
-		func(specCtx SpecContext, inventoryError error, message string) {
+		func(specCtx SpecContext, inventoryError error) {
 			waiting := make(chan struct{})
 			definitions := definitionRunner{
 				run: func(context.Context) error {
@@ -153,10 +163,16 @@ var _ = Describe("Controller startup", func() {
 			runtime := controller.NewMockRuntime(GinkgoT())
 
 			result := runControllerAsync(specCtx, runtime, definitions)
-			Eventually(result).Should(Receive(MatchError(ContainSubstring(message))))
+			var err error
+			Eventually(result).Should(Receive(&err))
+			expected := inventoryError
+			if expected == nil {
+				expected = app.ErrDefinitionInventoryStopped
+			}
+			Expect(errors.Is(err, expected)).To(BeTrue())
 		},
-		Entry("unexpected clean stop", nil, "definition inventory stopped before cancellation"),
-		Entry("watch failure", errors.New("watch failed"), "karta definition inventory: watch failed"),
+		Entry("unexpected clean stop", nil),
+		Entry("watch failure", errors.New("watch failed")),
 	)
 
 	It("joins runtime and inventory shutdown after loading succeeds", func(specCtx SpecContext) {

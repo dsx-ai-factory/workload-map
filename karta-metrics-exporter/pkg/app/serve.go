@@ -20,10 +20,12 @@ import (
 	collector "github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/adapters/otel"
 )
 
+var ErrMetricsListenerRequired = errors.New("metrics listener is required")
+
 // Serve owns the listener, runs the controller and serves metrics until cancellation.
 func Serve(ctx context.Context, components Components, listener net.Listener) (err error) {
 	if listener == nil {
-		return errors.New("metrics listener is required")
+		return ErrMetricsListenerRequired
 	}
 	defer func() { _ = listener.Close() }()
 	if components.Runtime == nil || components.Store == nil || components.Definitions == nil {

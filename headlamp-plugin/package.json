@@ -37,9 +37,9 @@
   },
   "overrides": {
     "typescript": "5.9.3",
-    "webpack-dev-middleware": "^8.5.0",
+    "webpack-dev-middleware": "^8.6.0",
     "vitest": "^4.1.12",
-    "@vitest/mocker": "^4.1.11",
+    "@vitest/mocker": "^4.1.12",
     "@vitest/coverage-istanbul": "^4.1.12",
     "yargs": "^17.7.3"
   },

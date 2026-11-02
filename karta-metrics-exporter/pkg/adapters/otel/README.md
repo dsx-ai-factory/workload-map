@@ -35,12 +35,4 @@ unregisters collection, then shuts down the provider. Graceful HTTP and provider
 shutdown each use a ten-second context. Runtime cancellation and callback
 completion must cooperate; these contexts cannot interrupt a blocked callback.
 
-`BenchmarkCollectIndependentResults` measures one real SDK collection for many
-workloads and for one workload with 100,000 Pods. Identity and overflow checks
-run outside the timed loop. Run it with:
-
-```sh
-go test -run '^$' -bench '^BenchmarkCollectIndependentResults$' -benchmem ./pkg/adapters/otel
-```
-
 Phase selection and PromQL join tests remain separate work.

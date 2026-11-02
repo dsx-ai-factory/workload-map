@@ -9,7 +9,6 @@ global:
 operator:
   enabled: true
 
-# Metrics serving is implemented; Kubernetes runtime workers remain scaffolded.
 exporter:
   enabled: false
   image:

@@ -8,7 +8,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/itchyny/gojq
 - Name: github.com/itchyny/gojq
-- Version: v0.12.19
+- Version: v0.12.20
 - License: MIT
 
 ### github.com/onsi/ginkgo/v2
@@ -88,7 +88,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/itchyny/timefmt-go
 - Name: github.com/itchyny/timefmt-go
-- Version: v0.1.8
+- Version: v0.1.9
 - License: MIT
 
 ### github.com/json-iterator/go

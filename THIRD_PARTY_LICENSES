@@ -431,6 +431,21 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v1.24.0
 - License: Apache-2.0
 
+### github.com/prometheus/client_model
+- Name: github.com/prometheus/client_model
+- Version: v0.6.2
+- License: Apache-2.0
+
+### github.com/prometheus/common
+- Name: github.com/prometheus/common
+- Version: v0.70.0
+- License: Apache-2.0
+
+### github.com/prometheus/otlptranslator
+- Name: github.com/prometheus/otlptranslator
+- Version: v1.0.0
+- License: Apache-2.0
+
 ### github.com/stretchr/testify
 - Name: github.com/stretchr/testify
 - Version: v1.12.1
@@ -485,21 +500,6 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Name: github.com/pmezard/go-difflib
 - Version: v1.0.1-0.20181226105442-5d4384ee4fb2
 - License: BSD-3-Clause
-
-### github.com/prometheus/client_model
-- Name: github.com/prometheus/client_model
-- Version: v0.6.2
-- License: Apache-2.0
-
-### github.com/prometheus/common
-- Name: github.com/prometheus/common
-- Version: v0.70.0
-- License: Apache-2.0
-
-### github.com/prometheus/otlptranslator
-- Name: github.com/prometheus/otlptranslator
-- Version: v1.0.0
-- License: Apache-2.0
 
 ### github.com/prometheus/procfs
 - Name: github.com/prometheus/procfs

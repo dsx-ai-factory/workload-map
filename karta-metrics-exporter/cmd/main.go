@@ -14,7 +14,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"go.opentelemetry.io/otel/metric/noop"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -37,6 +36,7 @@ func main() {
 // run keeps the signal handler's deferred cleanup out of main, since os.Exit skips defers.
 func run() error {
 	fs := flag.NewFlagSet("karta-metrics-exporter", flag.ContinueOnError)
+	address := fs.String("metrics-bind-address", ":8080", "Listen address for metrics and health probes.")
 	showVersion := fs.Bool("version", false, "Print the exporter version and exit.")
 	loader := config.NewLoader(fs, os.LookupEnv)
 	switch err := fs.Parse(os.Args[1:]); {
@@ -89,12 +89,18 @@ func run() error {
 		return fmt.Errorf("initial Karta definition load: %w", errors.Join(err, <-inventoryDone))
 	}
 	components := bootstrap.New(labels, inventory)
+	application, err := app.New(components)
+	if err != nil {
+		stop()
+		return errors.Join(err, <-inventoryDone)
+	}
 	if ctx.Err() == nil {
-		slog.Info("Karta metrics exporter started; metrics collection is not implemented",
+		slog.Info("Starting Karta metrics exporter",
+			"address", *address,
 			"version", version.String(), "labelRules", len(cfg.Rules),
 			"catalogDefinitions", definitions.Catalog.Enabled, "clusterDefinitions", definitions.Cluster.Enabled)
 	}
-	err = app.Run(ctx, components, noop.NewMeterProvider().Meter("karta-metrics-exporter"))
+	err = application.Serve(ctx, *address)
 	stop()
 	if inventoryErr := <-inventoryDone; inventoryErr != nil {
 		err = errors.Join(err, fmt.Errorf("karta definition inventory: %w", inventoryErr))

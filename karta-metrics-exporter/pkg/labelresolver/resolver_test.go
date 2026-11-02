@@ -11,8 +11,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelevaluator"
@@ -133,13 +131,12 @@ var _ = Describe("Resolve", func() {
 		Expect(results[0].Labels).To(Equal(map[string]string{"team": "research"}))
 	})
 
-	It("exposes the Pod apiVersion and kind when the typed Pod has no TypeMeta", func(ctx SpecContext) {
+	It("reads the Pod apiVersion and kind as supplied", func(ctx SpecContext) {
 		rule := LabelRule{
 			Name: "kind", Metrics: []string{MetricPodWorkloadInfo}, Sources: []Source{SourcePod},
 			Expression: `object.apiVersion + "/" + object.kind`,
 		}
 		p := pod("", nil)
-		Expect(p.TypeMeta).To(BeZero())
 		results, err := newResolver(rule).Resolve(ctx, Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil), Pod: p})
 		Expect(err).To(Succeed())
 		Expect(results[0].Labels).To(Equal(map[string]string{"kind": "v1/Pod"}))
@@ -500,9 +497,12 @@ func workload(labels map[string]any) *unstructured.Unstructured {
 	}}
 }
 
-func pod(scheduler string, labels map[string]string) *corev1.Pod {
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "train-0", Namespace: "team-a", Labels: labels},
-		Spec:       corev1.PodSpec{SchedulerName: scheduler},
-	}
+func pod(scheduler string, labels map[string]string) *unstructured.Unstructured {
+	p := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1", "kind": "Pod",
+		"metadata": map[string]any{"name": "train-0", "namespace": "team-a"},
+		"spec":     map[string]any{"schedulerName": scheduler},
+	}}
+	p.SetLabels(labels)
+	return p
 }

@@ -10,9 +10,7 @@ import (
 	"maps"
 	"slices"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelevaluator"
 )
@@ -43,14 +41,13 @@ type ruleResult struct {
 	err   error
 }
 
-// Input supplies full read-only source objects. A rule that reads the Pod needs
-// either Pod or PodObject. Callers must not mutate the objects during Resolve.
+// Input supplies full source objects as received, preserving field presence.
+// Pod is required only when a requested rule reads it. Callers must not mutate
+// either object during Resolve.
 type Input struct {
 	Metrics  []string
 	Workload *unstructured.Unstructured
-	Pod      *corev1.Pod
-	// PodObject is used as supplied, preserving field presence. Do not also set Pod.
-	PodObject *unstructured.Unstructured
+	Pod      *unstructured.Unstructured
 }
 
 // ResolvedMetricLabels holds values and evaluation errors keyed by label name.
@@ -94,12 +91,11 @@ var supportedMetrics = map[string]bool{
 }
 
 var (
-	ErrMissingCompiler      = errors.New("label resolver requires a compiler")
-	ErrDuplicateMetric      = errors.New("duplicate metric")
-	ErrUnsupportedMetric    = errors.New("unsupported metric")
-	ErrMissingWorkload      = errors.New("label input workload is nil")
-	ErrMissingPod           = errors.New("label input Pod is nil")
-	ErrConflictingPodInputs = errors.New("label input must not set both Pod and PodObject")
+	ErrMissingCompiler   = errors.New("label resolver requires a compiler")
+	ErrDuplicateMetric   = errors.New("duplicate metric")
+	ErrUnsupportedMetric = errors.New("unsupported metric")
+	ErrMissingWorkload   = errors.New("label input workload is nil")
+	ErrMissingPod        = errors.New("label input Pod is nil")
 )
 
 type Dependencies struct {
@@ -141,16 +137,13 @@ func New(cfg Config, deps Dependencies) (Resolver, error) {
 }
 
 // Resolve returns one result per requested metric, in request order. The error
-// reports invalid input, a Pod conversion failure or cancellation.
+// reports invalid input or cancellation.
 func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabels, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	if in.Workload == nil {
 		return nil, ErrMissingWorkload
-	}
-	if in.Pod != nil && in.PodObject != nil {
-		return nil, ErrConflictingPodInputs
 	}
 	requested := make(map[string]bool, len(in.Metrics))
 	readsPod := false
@@ -165,12 +158,11 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 		readsPod = readsPod || r.podMetrics[metric]
 	}
 
-	if readsPod && in.Pod == nil && in.PodObject == nil {
+	if readsPod && in.Pod == nil {
 		return nil, ErrMissingPod
 	}
 
-	// A typed Pod is converted only when a rule reaches it.
-	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload, SourcePod: in.PodObject}
+	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload, SourcePod: in.Pod}
 
 	evaluated := make(map[int]ruleResult)
 	results := make([]ResolvedMetricLabels, 0, len(in.Metrics))
@@ -180,7 +172,7 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 			outcome, ok := evaluated[i]
 			if !ok {
 				var err error
-				if outcome, err = r.rules[i].evaluate(ctx, objects, in.Pod); err != nil {
+				if outcome, err = r.rules[i].evaluate(ctx, objects); err != nil {
 					return nil, err
 				}
 				evaluated[i] = outcome
@@ -198,20 +190,10 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 }
 
 // evaluate returns the first nonempty source value and the errors of earlier sources.
-// The error result reports cancellation or a Pod conversion failure.
-func (rule compiledRule) evaluate(ctx context.Context, objects map[Source]*unstructured.Unstructured, inputPod *corev1.Pod) (ruleResult, error) {
+// The error result reports cancellation.
+func (rule compiledRule) evaluate(ctx context.Context, objects map[Source]*unstructured.Unstructured) (ruleResult, error) {
 	var errs []error
 	for _, source := range rule.sources {
-		if source == SourcePod && objects[SourcePod] == nil {
-			content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(inputPod)
-			if err != nil {
-				return ruleResult{}, fmt.Errorf("converting Pod %s/%s: %w", inputPod.Namespace, inputPod.Name, err)
-			}
-			pod := &unstructured.Unstructured{Object: content}
-			// Cached typed Pods have no TypeMeta; CEL must still see apiVersion and kind.
-			pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
-			objects[SourcePod] = pod
-		}
 		value, err := rule.evaluator.Evaluate(ctx, objects[source])
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ruleResult{}, ctxErr

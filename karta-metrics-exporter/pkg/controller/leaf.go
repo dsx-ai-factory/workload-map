@@ -142,7 +142,7 @@ func (r *Runtime) evaluatePodRecord(ctx context.Context, selection selectedDefin
 			return false, err
 		}
 	}
-	labelResults, err := r.state.deps.Labels.Resolve(ctx, labelresolver.Input{Metrics: []string{labelresolver.MetricPodWorkloadInfo}, Workload: rootObject, PodObject: podObject})
+	labelResults, err := r.state.deps.Labels.Resolve(ctx, labelresolver.Input{Metrics: []string{labelresolver.MetricPodWorkloadInfo}, Workload: rootObject, Pod: podObject})
 	if err != nil {
 		return false, err
 	}

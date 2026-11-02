@@ -13,9 +13,9 @@ For example, a Pod in JobSet `train` can belong to component `replicatedjob`,
 instance `worker` and group `0`. The [query guide](../docs/karta-metrics-exporter/README.md)
 shows how to group measurements by that identity.
 
-The command watches Kubernetes objects and maintains Pod and workload records
-in the publication store. Metric delivery is not implemented yet. The collector
-contract remains available for the separate metrics integration.
+The command watches Kubernetes objects, maintains Pod and workload records,
+and serves the collector's Prometheus metrics at `/metrics` on port 8080.
+Scraping reads the publication store without querying Kubernetes.
 
 ## Run
 
@@ -30,8 +30,10 @@ make build-exporter
 
 The command uses the current kubeconfig, or the in-cluster service account.
 It starts the definition inventory and controller together, then runs until
-Ctrl-C (`SIGINT`) or `SIGTERM`. Shutdown joins the inventory,
-resource watches and queue workers.
+Ctrl-C (`SIGINT`) or `SIGTERM`. `/healthz` reports process health. `/readyz`
+requires healthy inventory and synchronized required watches. Shutdown stops
+HTTP serving, joins the inventory and workers, then closes metric collection.
+Use `--metrics-bind-address` to change the default `:8080` listener.
 
 If the initial Karta LIST fails, discovery can still resolve ownership and
 publish workload creation information. Pod results record the definition error
@@ -55,8 +57,8 @@ variables, defaults and precedence.
 Build a container image with `make exporter-image IMAGE_TAG=dev`. The Helm chart
 keeps the exporter disabled by default. The
 [configuration reference](../docs/karta-metrics-exporter/configuration.md)
-describes the overall deployment and metric contract. This branch implements
-observation and publication, without an HTTP metrics endpoint or Service.
+describes the overall deployment and metric contract. Enabling the exporter
+creates its Deployment and a Service on port 8080, with health and readiness probes.
 
 ## Runtime configuration
 

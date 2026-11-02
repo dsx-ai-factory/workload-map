@@ -39,6 +39,17 @@ spec:
         - name: karta-metrics-exporter
           image: "{{ required "exporter.image.repository is required" .Values.exporter.image.repository }}:{{ .Values.exporter.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.exporter.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: metrics
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
           args:
             - --config=/etc/karta-metrics-exporter/config.yaml
           {{- if ne $fipsMode "off" }}

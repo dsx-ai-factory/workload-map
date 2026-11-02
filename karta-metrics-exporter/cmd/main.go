@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -34,6 +35,7 @@ func main() {
 // run keeps the signal handler's deferred cleanup out of main, since os.Exit skips defers.
 func run() error {
 	fs := flag.NewFlagSet("karta-metrics-exporter", flag.ContinueOnError)
+	address := fs.String("metrics-bind-address", ":8080", "Listen address for metrics and health probes.")
 	showVersion := fs.Bool("version", false, "Print the exporter version and exit.")
 	loader := config.NewLoader(fs, os.LookupEnv)
 	switch err := fs.Parse(os.Args[1:]); {
@@ -75,11 +77,15 @@ func run() error {
 	// Once shutdown begins, a second signal ends the process.
 	context.AfterFunc(ctx, stop)
 	if ctx.Err() == nil {
-		slog.Info("Karta publication controller starting; metrics collection is not implemented",
-			"version", version.String(), "labelRules", len(cfg.Rules),
+		slog.Info("Karta metrics exporter starting",
+			"version", version.String(), "address", *address, "labelRules", len(cfg.Rules),
 			"catalogDefinitions", cfg.KartaDefinitionSource.Catalog.Enabled, "clusterDefinitions", cfg.KartaDefinitionSource.Cluster.Enabled)
 	}
-	err = app.RunController(ctx, components)
+	listener, err := net.Listen("tcp", *address)
+	if err != nil {
+		return fmt.Errorf("listen for metrics: %w", err)
+	}
+	err = app.Serve(ctx, components, listener)
 	if err != nil {
 		return err
 	}

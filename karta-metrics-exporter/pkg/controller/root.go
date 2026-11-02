@@ -54,7 +54,7 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
-		return r.state.replaceSelectedObjectTracking(key, selectedObject)
+		return r.state.replaceSelectedObjectTracking(key, selectedObject, selection)
 	}
 	selectedObject, _, err := r.state.reader.read(key.ref(), true)
 	if apierrors.IsNotFound(err) {
@@ -74,7 +74,7 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 		return err
 	}
 	workload := discoveryResult.Workload
-	rootSelection, _ := r.state.lookupDefinition(workload.Root.GVK)
+	rootSelection, rootSelectionErr := r.state.lookupDefinition(workload.Root.GVK)
 	selectedGVK := workload.Root.GVK
 	if rootSelection.Definition != nil {
 		selectedGVK = rootSelection.GVK
@@ -85,8 +85,11 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 		return scopeErr
 	}
 	if !allowed {
-		r.state.unregisterSelectedObject(key)
-		return nil
+		if err := errors.Join(selectionErr, rootSelectionErr); err != nil {
+			r.state.failSelectedObjectDiscovery(key, err)
+			return err
+		}
+		return r.state.excludeSelectedObject(key, workload, selection, rootSelection)
 	}
 	sources := r.state.sourcesFor(workload.Path)
 	return r.state.registerSelectedObjectRoot(key, workload, selection, rootSelection, sources)

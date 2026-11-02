@@ -45,8 +45,8 @@ type controllerState struct {
 	podRoots     map[types.UID]types.UID
 	ancestorPods map[types.UID]bool
 	// Objects with a selected Karta definition can discover themselves or an ancestor as root.
-	// An empty UID keeps the object tracked until discovery succeeds.
-	selectedObjectRoots map[objectJobKey]types.UID
+	// A zero outcome keeps the object tracked until discovery succeeds.
+	selectedObjectRoots map[objectJobKey]selectedObjectOutcome
 
 	selectedDefinitions    map[schema.GroupKind]selectedDefinition
 	definitionInventoryErr error
@@ -58,6 +58,18 @@ type controllerState struct {
 	ctx     context.Context
 	started bool
 	wg      sync.WaitGroup
+}
+
+type selectedObjectOutcome struct {
+	rootUID   types.UID
+	exclusion *selectedObjectExclusion
+}
+
+type selectedObjectExclusion struct {
+	path          []discovery.ObjectRef
+	root          discovery.ObjectRef
+	selection     selectedDefinition
+	rootSelection selectedDefinition
 }
 
 // stateMu guards both these cache maps and controllerState membership, source
@@ -96,7 +108,7 @@ func newControllerState(objects *objectCache) *controllerState {
 		roots:               map[types.UID]*rootState{},
 		podRoots:            map[types.UID]types.UID{},
 		ancestorPods:        map[types.UID]bool{},
-		selectedObjectRoots: map[objectJobKey]types.UID{},
+		selectedObjectRoots: map[objectJobKey]selectedObjectOutcome{},
 		selectedDefinitions: map[schema.GroupKind]selectedDefinition{},
 		scopes:              map[string]bool{},
 	}
@@ -156,7 +168,7 @@ func (r *controllerState) failPodEvaluation(key objectJobKey, path []discovery.O
 func (r *controllerState) failSelectedObjectDiscovery(key objectJobKey, err error) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if root := r.roots[r.selectedObjectRoots[key]]; root != nil {
+	if root := r.roots[r.selectedObjectRoots[key].rootUID]; root != nil {
 		selectedObject := root.selectedObjects[key]
 		selectedObject.err = err
 		root.selectedObjects[key] = selectedObject
@@ -261,19 +273,30 @@ func (r *controllerState) requeueScope(namespace string) error {
 func (r *controllerState) trackSelectedObject(key objectJobKey) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if _, known := r.selectedObjectRoots[key]; !known {
-		r.selectedObjectRoots[key] = ""
-	}
+	outcome := r.selectedObjectRoots[key]
+	outcome.exclusion = nil
+	r.selectedObjectRoots[key] = outcome
 }
 
-func (r *controllerState) replaceSelectedObjectTracking(key objectJobKey, object *unstructured.Unstructured) error {
+func (r *controllerState) replaceSelectedObjectTracking(key objectJobKey, object *unstructured.Unstructured, selection selectedDefinition) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
+	if !r.isDefinitionCurrent(key.ref(), selection) {
+		return discovery.ErrStale
+	}
 	if object != nil {
 		replacement := objectJobFor(refOf(object))
 		r.workloadQueue.Add(workloadJobKey{SelectedObject: replacement})
-		if r.selectedObjectRoots[replacement] == "" {
-			return discovery.ErrPending
+		outcome := r.selectedObjectRoots[replacement]
+		if outcome.rootUID == "" {
+			if outcome.exclusion == nil {
+				return discovery.ErrPending
+			}
+			exclusion := outcome.exclusion
+			// A queued reevaluation does not make the previous exclusion current.
+			if !r.isPathCurrent(exclusion.path) || !r.isDefinitionCurrent(replacement.ref(), exclusion.selection) || !r.isDefinitionCurrent(exclusion.root, exclusion.rootSelection) {
+				return discovery.ErrStale
+			}
 		}
 	}
 	r.removeSelectedObjectMembership(key)
@@ -286,7 +309,7 @@ func (r *controllerState) registerSelectedObjectRoot(key objectJobKey, workload 
 	if !r.isPathCurrent(workload.Path) || !r.isDefinitionCurrent(key.ref(), selection) || !r.isDefinitionCurrent(workload.Root, rootSelection) {
 		return discovery.ErrStale
 	}
-	previous := r.selectedObjectRoots[key]
+	previous := r.selectedObjectRoots[key].rootUID
 	root := r.ensureRoot(workload)
 	if previous != root.ref.UID {
 		if old := r.roots[previous]; old != nil {
@@ -294,10 +317,26 @@ func (r *controllerState) registerSelectedObjectRoot(key objectJobKey, workload 
 			r.workloadQueue.Add(workloadJobKey{RootUID: previous})
 		}
 	}
-	r.selectedObjectRoots[key] = root.ref.UID
+	r.selectedObjectRoots[key] = selectedObjectOutcome{rootUID: root.ref.UID}
 	root.selectedObjects[key] = selectedObjectState{sources: slices.Clone(sources)}
 	r.workloadQueue.Add(workloadJobKey{RootUID: root.ref.UID})
 	r.deps.Publications.RemoveDiscoveryFailure(key.UID)
+	return nil
+}
+
+func (r *controllerState) excludeSelectedObject(key objectJobKey, workload *discovery.GenericWorkload, selection, rootSelection selectedDefinition) error {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	if !r.isPathCurrent(workload.Path) || !r.isDefinitionCurrent(key.ref(), selection) || !r.isDefinitionCurrent(workload.Root, rootSelection) {
+		return discovery.ErrStale
+	}
+	r.removeSelectedObjectMembership(key)
+	r.selectedObjectRoots[key] = selectedObjectOutcome{exclusion: &selectedObjectExclusion{
+		path:          slices.Clone(workload.Path),
+		root:          workload.Root,
+		selection:     selection,
+		rootSelection: rootSelection,
+	}}
 	return nil
 }
 
@@ -469,7 +508,7 @@ func (r *controllerState) ensureRoot(workload *discovery.GenericWorkload) *rootS
 }
 
 func (r *controllerState) removeSelectedObjectMembership(key objectJobKey) {
-	if root := r.roots[r.selectedObjectRoots[key]]; root != nil {
+	if root := r.roots[r.selectedObjectRoots[key].rootUID]; root != nil {
 		delete(root.selectedObjects, key)
 		r.workloadQueue.Add(workloadJobKey{RootUID: root.ref.UID})
 	}
@@ -531,12 +570,12 @@ func (r *controllerState) hasRootOwnership(ref discovery.ObjectRef) bool {
 			return valid && (owner.UID == "" || slices.Contains(r.config.IgnoredOwnerKinds, owner.GVK))
 		}
 	}
-	for _, source := range r.sources {
+	for sourceKey, source := range r.sources {
 		if !source.synced || source.err != nil || source.gvk.GroupKind() != ref.GVK.GroupKind() {
 			continue
 		}
 		entry := r.objects[objectKey{GVK: source.gvk, Namespace: ref.Namespace, Name: ref.Name}]
-		if entry.object == nil || entry.object.GetUID() != ref.UID {
+		if entry.object == nil || entry.source != sourceKey || entry.object.GetUID() != ref.UID {
 			continue
 		}
 		owner, valid := discovery.ControllerOwner(entry.object)

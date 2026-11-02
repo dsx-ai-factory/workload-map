@@ -178,9 +178,39 @@ func (r *controllerState) ready() bool {
 			return false
 		}
 	}
+	hasNamespaceWatch := false
 	for _, w := range r.watches {
 		isUnavailable := !w.ready || w.err != nil || r.replacements[w.key] != nil
 		if r.requiredWatch(w.gvk) && isUnavailable {
+			return false
+		}
+		if w.gvk == namespaceGVK && r.config.NamespaceSelector != nil {
+			hasNamespaceWatch = true
+			for key := range w.objects {
+				object := r.objects[key].object
+				if r.namespaceSelector.Matches(labelsFor(object)) && !r.hasRequiredWatches(object.GetName()) {
+					return false
+				}
+			}
+		}
+	}
+	if r.config.NamespaceSelector != nil {
+		return hasNamespaceWatch
+	}
+	return r.hasRequiredWatches("")
+}
+
+// hasRequiredWatches requires the caller to hold stateMu in read or write mode.
+func (r *controllerState) hasRequiredWatches(namespace string) bool {
+	for _, gvk := range slices.Concat([]schema.GroupVersionKind{podGVK}, r.config.RequiredKinds) {
+		found := false
+		for key, w := range r.watches {
+			if w.gvk == gvk && (key.Namespace == "" || key.Namespace == namespace) {
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}

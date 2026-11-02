@@ -133,8 +133,12 @@ func (r *controllerState) ensureWatch(ctx context.Context, gvk schema.GroupVersi
 	key := watchKey{Resource: mapping.Resource, Namespace: namespace}
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	delete(r.watchFailures, request)
-	r.deps.Publications.RemoveDiscoveryFailure(failureRef.UID)
+	for failed := range r.watchFailures {
+		if failed.GVK == gvk && (namespace == "" || failed.Namespace == namespace) {
+			delete(r.watchFailures, failed)
+			r.deps.Publications.RemoveDiscoveryFailure(types.UID("source:" + failed.GVK.String() + "/" + failed.Namespace))
+		}
+	}
 	if namespace != "" && !r.scopes[namespace] {
 		return key, discovery.ErrPending
 	}

@@ -10,6 +10,8 @@ metadata:
   labels:
     {{- include "karta.exporter.labels" . | nindent 4 }}
 spec:
+  # Keep diagnostic metrics reachable while required watches are unhealthy.
+  publishNotReadyAddresses: true
   selector:
     {{- include "karta.exporter.selectorLabels" . | nindent 4 }}
   ports:

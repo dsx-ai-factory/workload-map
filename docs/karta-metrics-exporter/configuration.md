@@ -356,6 +356,12 @@ and the Prometheus selector must match it. The Prometheus Operator turns it into
 scrape configuration. Without the Operator, Prometheus uses its own scrape configuration.
 See [ServiceMonitor discovery](https://prometheus-operator.dev/docs/developer/getting-started/#using-servicemonitors).
 
+The metrics Service includes unready exporter Pods, including during startup, so
+diagnostic metrics remain reachable when required watches fail. `/readyz` still
+reports whether the exporter is ready. Use `observation_valid` and
+`karta_exporter_observation_valid` to check observation validity and collection
+health; a successful scrape does not establish either.
+
 Prometheus discovers and scrapes each exporter endpoint separately. A single
 load-balanced Service address can hide conflicting observations during a rollout.
 Target identity remains available until query aggregation. The HTTP endpoint has

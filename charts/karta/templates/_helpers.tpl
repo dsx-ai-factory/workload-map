@@ -92,12 +92,16 @@ install) and crd-upgrader-job.yaml reads fipsMode independently of that flag.
 {{- end -}}
 
 {{- define "karta.exporter.fullname" -}}
-{{ printf "%s-metrics-exporter" (.Values.fullnameOverride | default .Chart.Name | trunc 46 | trimSuffix "-") }}
+{{- if .Values.fullnameOverride -}}
+{{ printf "%s-dsx-workload-exporter" (.Values.fullnameOverride | trunc 41 | trimSuffix "-") }}
+{{- else -}}
+dsx-workload-exporter
+{{- end -}}
 {{- end -}}
 
 {{/* Exporter labels use a distinct name to avoid matching operator selectors. */}}
 {{- define "karta.exporter.selectorLabels" -}}
-app.kubernetes.io/name: {{ printf "%s-metrics-exporter" .Chart.Name | trunc 63 | trimSuffix "-" }}
+app.kubernetes.io/name: dsx-workload-exporter
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 

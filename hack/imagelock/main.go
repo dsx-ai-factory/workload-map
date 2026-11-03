@@ -46,17 +46,17 @@ const defaultStabilityReads = 10
 // lock. Classification is fail-closed: a repository missing here stops the
 // release, so every new image must be added on purpose before it can ship.
 var knownImages = map[string]string{
-	"ghcr.io/dsx-ai-factory/workload-map/karta-operator":         "operator",
-	"ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter": "metrics-exporter",
-	"registry.k8s.io/kubectl":                                    "crd-upgrader",
+	"ghcr.io/dsx-ai-factory/workload-map/karta-operator":        "operator",
+	"ghcr.io/dsx-ai-factory/workload-map/dsx-workload-exporter": "metrics-exporter",
+	"registry.k8s.io/kubectl":                                   "crd-upgrader",
 }
 
 // selfImages classifies the project's own images by basename so a fork can
 // publish them under its own registry namespace. Third-party images stay
 // exact-match only.
 var selfImages = map[string]string{
-	"karta-operator":         "operator",
-	"karta-metrics-exporter": "metrics-exporter",
+	"karta-operator":        "operator",
+	"dsx-workload-exporter": "metrics-exporter",
 }
 
 var sha256Digest = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)

@@ -27,7 +27,7 @@ COMPONENTS := lib cli operator exporter karta-wasm release-helper
 # Every Go module in the repo. The tidy target fans out over this rather than
 # COMPONENTS because an untidy manifest in a module that ships no
 # binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
-GO_MODULES := karta/sdk cli karta-wasm operator karta-metrics-exporter karta-metrics-exporter/test/integration test/e2e hack/imagelock \
+GO_MODULES := karta/sdk cli karta-wasm operator dsx-workload-exporter dsx-workload-exporter/test/integration test/e2e hack/imagelock \
 	docs/examples/quickstart docs/examples/controller-runtime \
 	hack/e2e/operators/nim/image
 
@@ -128,7 +128,7 @@ clean: ## Remove build outputs, coverage profiles, and release and plugin artifa
 		echo "refusing to clean $$dir: not a directory inside $(PROJECT_DIR)" >&2; \
 		exit 1; \
 	done
-	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64" "$(LOCALBIN)/karta-metrics-exporter"
+	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64" "$(LOCALBIN)/dsx-workload-exporter"
 	rm -fv "$(LOCALBIN)"/*-tidy.mod "$(LOCALBIN)"/*-tidy.sum "$(LOCALBIN)"/*-license.mod "$(LOCALBIN)"/*-license.sum "$(LOCALBIN)"/*deps.json
 	rm -fv operator/cover-unit.out operator/cover-integration.out
 	rm -fv karta-wasm/karta.wasm karta-wasm/wasm_exec.js
@@ -422,38 +422,38 @@ operator-image-buildx-push: ## Build and push a multi-arch operator image via Bu
 
 # The envtest suite is its own module, so envtest's dependencies stay out of
 # the exporter's go.mod and license inventory.
-EXPORTER_ENVTEST_DIR := karta-metrics-exporter/test/integration
+EXPORTER_ENVTEST_DIR := dsx-workload-exporter/test/integration
 
 .PHONY: fmt-exporter
 fmt-exporter: ## Format the exporter and its envtest modules
-	cd karta-metrics-exporter && go fmt ./...
+	cd dsx-workload-exporter && go fmt ./...
 	cd $(EXPORTER_ENVTEST_DIR) && go fmt ./...
 
 .PHONY: fmt-check-exporter
 fmt-check-exporter: ## Check exporter formatting without modifying files
 	@set -e; \
-	dirs="$$(go -C karta-metrics-exporter list -f '{{.Dir}}' ./...) $$(go -C $(EXPORTER_ENVTEST_DIR) list -f '{{.Dir}}' ./...)"; \
+	dirs="$$(go -C dsx-workload-exporter list -f '{{.Dir}}' ./...) $$(go -C $(EXPORTER_ENVTEST_DIR) list -f '{{.Dir}}' ./...)"; \
 	unformatted="$$(gofmt -l $$dirs)"; \
 	test -z "$$unformatted" || { echo "go fmt required:"; echo "$$unformatted"; exit 1; }
 
 .PHONY: vet-exporter
 vet-exporter: ## go vet the exporter and its envtest modules
-	cd karta-metrics-exporter && go vet ./...
+	cd dsx-workload-exporter && go vet ./...
 	cd $(EXPORTER_ENVTEST_DIR) && go vet ./...
 
 .PHONY: lint-exporter
 lint-exporter: golangci-lint ## Lint the exporter and its envtest modules
-	cd karta-metrics-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 	cd $(EXPORTER_ENVTEST_DIR) && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
 .PHONY: modules-check-exporter
 modules-check-exporter: ## Verify the exporter and envtest module requirements are tidy
-	cd karta-metrics-exporter && go mod tidy -diff
+	cd dsx-workload-exporter && go mod tidy -diff
 	cd $(EXPORTER_ENVTEST_DIR) && go mod tidy -diff
 
 .PHONY: test-exporter-unit
 test-exporter-unit: ## Run the exporter unit tests with the race detector (no envtest binaries required)
-	cd karta-metrics-exporter && go test -race ./cmd/... ./pkg/...
+	cd dsx-workload-exporter && go test -race ./cmd/... ./pkg/...
 
 .PHONY: test-exporter-integration
 test-exporter-integration: envtest ## Run the exporter envtest suite (downloads control-plane binaries)
@@ -462,19 +462,19 @@ test-exporter-integration: envtest ## Run the exporter envtest suite (downloads 
 
 .PHONY: exporter-generate-mocks
 exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mockery
-	cd karta-metrics-exporter && go run github.com/vektra/mockery/v3@v3.8.1 --config .mockery.yaml
+	cd dsx-workload-exporter && go run github.com/vektra/mockery/v3@v3.8.1 --config .mockery.yaml
 
 .PHONY: test-exporter
 test-exporter: test-exporter-unit test-exporter-integration ## Run the exporter unit and envtest suites
 
 .PHONY: build-exporter
-build-exporter: $(LOCALBIN) ## Build the karta-metrics-exporter binary for the host OS/arch
-	cd karta-metrics-exporter && go build -trimpath $(LDFLAGS) -o $(LOCALBIN)/karta-metrics-exporter ./cmd
+build-exporter: $(LOCALBIN) ## Build the dsx-workload-exporter binary for the host OS/arch
+	cd dsx-workload-exporter && go build -trimpath $(LDFLAGS) -o $(LOCALBIN)/dsx-workload-exporter ./cmd
 
 .PHONY: exporter-version-smoke
 exporter-version-smoke: build-exporter ## Verify the exporter reports the stamped version
 	@set -e; \
-	out="$$($(LOCALBIN)/karta-metrics-exporter --version)"; \
+	out="$$($(LOCALBIN)/dsx-workload-exporter --version)"; \
 	echo "$$out"; \
 	[ "$$out" = "$(VERSION)" ] || { \
 		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
@@ -482,8 +482,8 @@ exporter-version-smoke: build-exporter ## Verify the exporter reports the stampe
 .PHONY: check-exporter
 check-exporter: fmt-check-exporter vet-exporter lint-exporter modules-check-exporter test-exporter exporter-version-smoke ## Full exporter presubmit
 
-EXPORTER_GO_VERSION := $(shell awk '/^go /{print $$2; exit}' karta-metrics-exporter/go.mod)
-EXPORTER_IMAGE_REPOSITORY ?= $(IMAGE_REGISTRY)/karta-metrics-exporter
+EXPORTER_GO_VERSION := $(shell awk '/^go /{print $$2; exit}' dsx-workload-exporter/go.mod)
+EXPORTER_IMAGE_REPOSITORY ?= $(IMAGE_REGISTRY)/dsx-workload-exporter
 
 .PHONY: exporter-image
 exporter-image: ## Build the exporter image for the host arch
@@ -492,7 +492,7 @@ exporter-image: ## Build the exporter image for the host arch
 		--build-arg GO_VERSION=$(EXPORTER_GO_VERSION) \
 		--build-arg GO_LDFLAGS="$(GO_LDFLAGS)" \
 		--tag $(EXPORTER_IMAGE_REPOSITORY):$(IMAGE_TAG) \
-		-f karta-metrics-exporter/Dockerfile \
+		-f dsx-workload-exporter/Dockerfile \
 		.
 
 ##@ Release
@@ -574,7 +574,7 @@ generate-licenses: tidy go-licence-detector ## Regenerate NOTICE and THIRD_PARTY
 	(cd karta/sdk && go mod download -json) > $(LOCALBIN)/karta-deps.json; \
 	(cd cli && go mod download -json) > $(LOCALBIN)/cli-deps.json; \
 	(cd karta-wasm && go mod download -json) > $(LOCALBIN)/karta-wasm-deps.json; \
-	(cd karta-metrics-exporter && go mod download -json) > $(LOCALBIN)/exporter-deps.json; \
+	(cd dsx-workload-exporter && go mod download -json) > $(LOCALBIN)/exporter-deps.json; \
 	python3 hack/merge-go-deps.py $(LOCALBIN)/karta-deps.json $(LOCALBIN)/cli-deps.json $(LOCALBIN)/karta-wasm-deps.json $(LOCALBIN)/exporter-deps.json > $(LOCALBIN)/deps.json; \
 	$(GO_LICENCE_DETECTOR) -in $(LOCALBIN)/deps.json \
 		-noticeTemplate=hack/licenses/notice.tpl \

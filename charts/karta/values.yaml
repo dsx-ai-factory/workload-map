@@ -9,11 +9,29 @@ global:
 operator:
   enabled: true
 
-# Standalone metrics exporter with /metrics, /healthz and /readyz on port 8080.
+# Standalone metrics exporter with /metrics, /healthz and /readyz.
 exporter:
   enabled: false
+  # Shared listener, container and Service port for metrics and health endpoints.
+  metricsPort: 8080
+  # Tune for watched object count, object size and scrape frequency.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Selector labels and checksum/config are reserved and cannot be overridden.
+  podLabels: {}
+  podAnnotations: {}
+  service:
+    annotations: {}
   image:
-    repository: ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter
+    repository: ghcr.io/dsx-ai-factory/workload-map/dsx-workload-exporter
     # When empty, falls back to .Chart.AppVersion.
     tag: ""
     pullPolicy: IfNotPresent
@@ -52,7 +70,7 @@ exporter:
       - apiGroups: ["*"]
         resources: ["*"]
   # Extra labels for Pod info and workload status. Expressions read object.
-  # See karta-metrics-exporter/pkg/labelevaluator/README.md.
+  # See dsx-workload-exporter/pkg/labelevaluator/README.md.
   labelRules: []
   # Shared generic label evaluation limits. Zero selects the default.
   genericLabelEvaluationLimits:

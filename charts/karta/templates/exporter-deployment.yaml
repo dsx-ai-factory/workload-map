@@ -36,7 +36,7 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: karta-metrics-exporter
+        - name: dsx-workload-exporter
           image: "{{ required "exporter.image.repository is required" .Values.exporter.image.repository }}:{{ .Values.exporter.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.exporter.image.pullPolicy }}
           ports:
@@ -51,7 +51,7 @@ spec:
               path: /healthz
               port: metrics
           args:
-            - --config=/etc/karta-metrics-exporter/config.yaml
+            - --config=/etc/dsx-workload-exporter/config.yaml
           {{- if ne $fipsMode "off" }}
           env:
             - name: GODEBUG
@@ -59,7 +59,7 @@ spec:
           {{- end }}
           volumeMounts:
             - name: config
-              mountPath: /etc/karta-metrics-exporter
+              mountPath: /etc/dsx-workload-exporter
               readOnly: true
           securityContext:
             allowPrivilegeEscalation: false

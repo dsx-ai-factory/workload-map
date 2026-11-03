@@ -1,12 +1,12 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright (c) 2026 NVIDIA Corporation -->
 
-# Karta metrics exporter: implementation design
+# DSX workload exporter: implementation design
 
 [KEP-0001](../../keps/0001-metrics-exporter/README.md) defines the metrics.
 This design shows how the exporter builds them for namespaced workloads.
 The Go examples define the proposed component contracts. For the current
-interfaces and implemented behavior, see the [exporter packages](../../../karta-metrics-exporter/README.md).
+interfaces and implemented behavior, see the [exporter packages](../../../dsx-workload-exporter/README.md).
 
 ## From one Pod to workload metrics
 
@@ -70,8 +70,8 @@ It evaluates the paths under `podSelector` against the Pod:
 The resulting samples include these labels:
 
 ```prometheus
-karta_pod_workload_info{workload_name="train",pod_name="train-workers-1-0",component="replicatedjob",component_instance="workers",replica_group_id="1"} 1
-karta_workload_status{workload_name="train",phase="Completed"} 1
+dsx_workload_pod_info{workload_name="train",pod_name="train-workers-1-0",component="replicatedjob",component_instance="workers",replica_group_id="1"} 1
+dsx_workload_status{workload_name="train",phase="Completed"} 1
 ```
 
 ## Components
@@ -117,7 +117,7 @@ link. A Job may still be present in another watch because Jobs were selected as
 workloads. Discovery can reuse that observation. Dynamic root watches require
 LIST/WATCH permission for that resource. A denial reports `permission_denied`;
 it does not silently fall back to GET-only root observation. See
-[workload RBAC](../../karta-metrics-exporter/configuration.md#deployment-and-permissions).
+[workload RBAC](../../dsx-workload-exporter/configuration.md#deployment-and-permissions).
 
 ![A Pod event triggers root discovery. Discovery reads the intermediate Job, returns its root JobSet, and Runtime saves the evaluated workload result.](./root-watch-sequence.png)
 
@@ -310,7 +310,7 @@ type Origin struct {
 The inventory watches cluster Kartas and loads the SDK's catalog. Lookup reads
 its cache. Selected cluster definitions win over catalog ones for the same
 group/kind. A failed source is an error, not permission to fall back. Confirmed
-absence returns a selection with no definition. [Configuration](../../karta-metrics-exporter/configuration.md#definition-sources-and-owner-boundaries)
+absence returns a selection with no definition. [Configuration](../../dsx-workload-exporter/configuration.md#definition-sources-and-owner-boundaries)
 defines inclusion, exclusion and tie-breaking.
 
 Non-Pod root watches hold full objects. If the selected Karta uses another API
@@ -408,7 +408,7 @@ changes. This includes a value obtained from the Pod fallback.
 
 The cache key includes the metric, subject UID and label name. Deletion, scope
 exit, changed workload association or changed configuration clears it. Restart
-rebuilds it. The [configuration example](../../karta-metrics-exporter/configuration.md#configured-labels)
+rebuilds it. The [configuration example](../../dsx-workload-exporter/configuration.md#configured-labels)
 shows the current rule format, source restrictions and evaluation limits.
 
 ## Reconcile and publish

@@ -48,13 +48,13 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: karta-metrics-exporter
+  name: dsx-workload-exporter
 spec:
   template:
     spec:
       containers:
         - name: exporter
-          image: ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter:1.2.3
+          image: ghcr.io/dsx-ai-factory/workload-map/dsx-workload-exporter:1.2.3
 `
 
 func TestImageRefs(t *testing.T) {
@@ -63,7 +63,7 @@ func TestImageRefs(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
-		"ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter:1.2.3",
+		"ghcr.io/dsx-ai-factory/workload-map/dsx-workload-exporter:1.2.3",
 		"ghcr.io/dsx-ai-factory/workload-map/karta-operator:1.2.3",
 		"registry.k8s.io/kubectl:v1.34.0",
 	}
@@ -129,7 +129,7 @@ func TestImagesFromManifestClassifiesKnown(t *testing.T) {
 }
 
 func TestImagesFromManifestExporterCustomRegistry(t *testing.T) {
-	const repo = "registry.example.com:5000/mirror/karta-metrics-exporter"
+	const repo = "registry.example.com:5000/mirror/dsx-workload-exporter"
 	got, err := imagesFromManifest([]byte("kind: Pod\nspec:\n  containers:\n    - image: " + repo + ":1.2.3\n"))
 	if err != nil {
 		t.Fatal(err)
@@ -146,8 +146,8 @@ func TestRenderChartIncludesExporterAtReleaseVersion(t *testing.T) {
 		t.Skip("helm is required to render the chart")
 	}
 	for _, repo := range []string{
-		"ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter",
-		"registry.example.com:5000/mirror/karta-metrics-exporter",
+		"ghcr.io/dsx-ai-factory/workload-map/dsx-workload-exporter",
+		"registry.example.com:5000/mirror/dsx-workload-exporter",
 	} {
 		t.Run(repo, func(t *testing.T) {
 			manifest, err := renderChart(options{

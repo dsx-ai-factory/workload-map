@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright (c) 2026 NVIDIA Corporation -->
 
-# KEP-0001: Karta metrics exporter
+# KEP-0001: DSX workload exporter
 
 - Status: provisional
 - Authors: @AviadHayumi
@@ -11,7 +11,7 @@
 
 ## Summary
 
-The Karta metrics exporter has two main goals:
+The DSX workload exporter has two main goals:
 
 1. Show the status of selected workloads, such as `Running`, `Failed`, `Degraded`, `Completed` or `Suspended`.
 2. Show where each Pod belongs: its workload, component, named instance and repeated group. For example, a Pod in JobSet `train` can belong to component `replicatedjob`, instance `worker` and group `0`.
@@ -32,8 +32,8 @@ Examples:
 - LWS: find a quiet worker group hidden by the workload average.
 - Workload state: see Running, Failed or Degraded workloads and their observed history.
 
-See [queries](../../karta-metrics-exporter/README.md) for CPU, memory and GPU
-joins, and [configuration](../../karta-metrics-exporter/configuration.md) for
+See [queries](../../dsx-workload-exporter/README.md) for CPU, memory and GPU
+joins, and [configuration](../../dsx-workload-exporter/configuration.md) for
 Helm, selection and metric delivery.
 See the [implementation design](../../design/metrics-exporter/README.md) for
 runtime ownership and verification.
@@ -42,10 +42,10 @@ runtime ownership and verification.
 
 | Metric                                 | Prometheus type | Value                                           | Why it is needed                                                                 |
 | -------------------------------------- | --------------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
-| `karta_pod_workload_info`            | Gauge           | Always `1`                                    | Attach workload, component and group identity to measurements from a Pod.        |
-| `karta_workload_status`              | Gauge           | `1` for a matching phase, otherwise `0`     | Distinguish running, completed or failed work, including workloads with no Pods. |
-| `karta_workload_created_timestamp_seconds` | Gauge | Root `metadata.creationTimestamp` in Unix seconds. | Calculate workload age. |
-| `karta_exporter_observation_valid` | Gauge | Resource-type collection: `1` or `0`. Workload failures: `0` only. | Report collection health and failure reasons. Healthy workloads have no separate health row. |
+| `dsx_workload_pod_info`            | Gauge           | Always `1`                                    | Attach workload, component and group identity to measurements from a Pod.        |
+| `dsx_workload_status`              | Gauge           | `1` for a matching phase, otherwise `0`     | Distinguish running, completed or failed work, including workloads with no Pods. |
+| `dsx_workload_created_timestamp_seconds` | Gauge | Root `metadata.creationTimestamp` in Unix seconds. | Calculate workload age. |
+| `dsx_exporter_observation_valid` | Gauge | Resource-type collection: `1` or `0`. Workload failures: `0` only. | Report collection health and failure reasons. Healthy workloads have no separate health row. |
 
 Without a selected Karta definition, a verified root still supplies Pod identity,
 creation time and all nine status phase gauges with value `0`. The status labels
@@ -63,20 +63,20 @@ verified creation metadata.
 These examples use one Dynamo workload. Values are illustrative.
 
 ```prometheus
-karta_pod_workload_info{namespace="team-a",workload_name="dynamo",workload_group="nvidia.com",workload_version="v1alpha1",workload_kind="DynamoGraphDeployment",workload_uid="cea29a7c-8a8b-4dad-aa48-ef0f7c888a73",owner_resolution="resolved",pod_name="prefill-0",pod_uid="f6610f41-62d8-4111-92a7-05aa776ff926",component="service",component_instance="prefill",replica_group_id="",observation_valid="true"} 1
-karta_workload_status{namespace="team-a",workload_name="dynamo",workload_group="nvidia.com",workload_version="v1alpha1",workload_kind="DynamoGraphDeployment",workload_uid="cea29a7c-8a8b-4dad-aa48-ef0f7c888a73",phase="Running",owner_resolution="resolved",karta="nvidia-com-dynamographdeployment-v1alpha1",karta_source="catalog",observation_valid="true"} 1
-karta_workload_created_timestamp_seconds{namespace="team-a",workload_name="dynamo",workload_uid="cea29a7c-8a8b-4dad-aa48-ef0f7c888a73"} 1792324800
-karta_exporter_observation_valid{scope="resource_type",namespace="team-a",resource_group="nvidia.com",resource_version="v1alpha1",resource_kind="DynamoGraphDeployment",workload_name="",workload_uid="",reason="none"} 1
+dsx_workload_pod_info{namespace="team-a",workload_name="dynamo",workload_group="nvidia.com",workload_version="v1alpha1",workload_kind="DynamoGraphDeployment",workload_uid="cea29a7c-8a8b-4dad-aa48-ef0f7c888a73",owner_resolution="resolved",pod_name="prefill-0",pod_uid="f6610f41-62d8-4111-92a7-05aa776ff926",component="service",component_instance="prefill",replica_group_id="",observation_valid="true"} 1
+dsx_workload_status{namespace="team-a",workload_name="dynamo",workload_group="nvidia.com",workload_version="v1alpha1",workload_kind="DynamoGraphDeployment",workload_uid="cea29a7c-8a8b-4dad-aa48-ef0f7c888a73",phase="Running",owner_resolution="resolved",karta="nvidia-com-dynamographdeployment-v1alpha1",karta_source="catalog",observation_valid="true"} 1
+dsx_workload_created_timestamp_seconds{namespace="team-a",workload_name="dynamo",workload_uid="cea29a7c-8a8b-4dad-aa48-ef0f7c888a73"} 1792324800
+dsx_exporter_observation_valid{scope="resource_type",namespace="team-a",resource_group="nvidia.com",resource_version="v1alpha1",resource_kind="DynamoGraphDeployment",workload_name="",workload_uid="",reason="none"} 1
 ```
 
 ### Labels
 
 | Metric | Built-in labels |
 | --- | --- |
-| `karta_pod_workload_info` | `namespace`, `workload_name`, `workload_group`, `workload_version`, `workload_kind`, `workload_uid`, `owner_resolution`, `pod_name`, `pod_uid`, `component`, `component_instance`, `replica_group_id`, `observation_valid` |
-| `karta_workload_status` | `namespace`, `workload_name`, `workload_group`, `workload_version`, `workload_kind`, `workload_uid`, `phase`, `owner_resolution`, `karta`, `karta_source`, `observation_valid` |
-| `karta_workload_created_timestamp_seconds` | `namespace`, `workload_name`, `workload_uid` |
-| `karta_exporter_observation_valid` | `scope`, `namespace`, `resource_group`, `resource_version`, `resource_kind`, `workload_name`, `workload_uid`, `reason` |
+| `dsx_workload_pod_info` | `namespace`, `workload_name`, `workload_group`, `workload_version`, `workload_kind`, `workload_uid`, `owner_resolution`, `pod_name`, `pod_uid`, `component`, `component_instance`, `replica_group_id`, `observation_valid` |
+| `dsx_workload_status` | `namespace`, `workload_name`, `workload_group`, `workload_version`, `workload_kind`, `workload_uid`, `phase`, `owner_resolution`, `karta`, `karta_source`, `observation_valid` |
+| `dsx_workload_created_timestamp_seconds` | `namespace`, `workload_name`, `workload_uid` |
+| `dsx_exporter_observation_valid` | `scope`, `namespace`, `resource_group`, `resource_version`, `resource_kind`, `workload_name`, `workload_uid`, `reason` |
 
 | Label | Metrics | Meaning | Example |
 | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ receives the root workload or the specific Pod as `object`.
 exporter:
   labelRules:
     - name: team
-      metrics: [karta_pod_workload_info, karta_workload_status]
+      metrics: [dsx_workload_pod_info, dsx_workload_status]
       sources: [workload]
       expression: |
         has(object.metadata.labels) && "example.com/team" in object.metadata.labels
@@ -157,7 +157,7 @@ visible without dropping the base metric. Built-in labels cannot be overwritten.
 
 Runtime saves evaluated labels in Store. Collector reads those saved values.
 The exporter does not capture caller identity or mutate Kubernetes objects.
-See [label configuration](../../karta-metrics-exporter/configuration.md#configured-labels).
+See [label configuration](../../dsx-workload-exporter/configuration.md#configured-labels).
 
 ## Who submitted the workload
 

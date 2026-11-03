@@ -47,7 +47,7 @@ const defaultStabilityReads = 10
 // release, so every new image must be added on purpose before it can ship.
 var knownImages = map[string]string{
 	"ghcr.io/dsx-ai-factory/workload-map/karta-operator":         "operator",
-	"ghcr.io/dsx-ai-factory/workload-map/karta-metrics-exporter": "metrics-exporter",
+	"ghcr.io/dsx-ai-factory/workload-map/dsx-workload-exporter": "metrics-exporter",
 	"registry.k8s.io/kubectl":                                    "crd-upgrader",
 }
 
@@ -56,7 +56,7 @@ var knownImages = map[string]string{
 // exact-match only.
 var selfImages = map[string]string{
 	"karta-operator":         "operator",
-	"karta-metrics-exporter": "metrics-exporter",
+	"dsx-workload-exporter": "metrics-exporter",
 }
 
 var sha256Digest = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)

@@ -108,7 +108,7 @@ falls back to the captured annotation when the platform key is absent:
 exporter:
   labelRules:
     - name: submitted_by
-      metrics: [karta_pod_workload_info, karta_workload_status]
+      metrics: [dsx_workload_pod_info, dsx_workload_status]
       sources: [workload]
       expression: |
         !has(object.metadata.annotations) ? "" :

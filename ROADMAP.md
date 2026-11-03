@@ -41,20 +41,20 @@ of the roadmap is itself public and reviewable.
 
 **Theme: complete workload visibility and land the metrics exporter.**
 
-- **Workload visibility.** The CLI (`kli`) and the Headlamp plugin shipped in
+- Workload visibility: The CLI (`kli`) and the Headlamp plugin shipped in
   v0.3.0. What remains is the first-class workload tree: traversal of a
   workload's full resource tree, from the root component down through child
   components to the pods, so consumers can reason about and render the whole
   structure rather than individual fields. Tracked by
   [#32](https://github.com/dsx-ai-factory/workload-map/issues/32).
-- **Metrics exporter.** An exporter that publishes workload state and
+- Metrics exporter: An exporter that publishes workload state and
   pod-to-workload attribution derived from Karta descriptions, making any
   cluster's existing metrics addressable at workload and role scope, without
   hand-authored queries per workload type. The design is merged as
   [KEP-0001](docs/keps/0001-metrics-exporter/); implementation is tracked by
   [#336](https://github.com/dsx-ai-factory/workload-map/issues/336) and its
   sub-issues.
-- **Cross-resource expressions.** Let a Karta reference values from related
+- Cross-resource expressions: Let a Karta reference values from related
   resources in its path expressions
   ([#80](https://github.com/dsx-ai-factory/workload-map/issues/80)).
 
@@ -62,9 +62,9 @@ of the roadmap is itself public and reviewable.
 
 Theme: broader coverage.
 
-- **Broader, tested workload coverage.** Keep pace with upstream APIs of the
+- Broader, tested workload coverage: Keep pace with upstream APIs of the
   workloads Karta describes and grow the tested catalog.
-- **Kubeflow Trainer v2.** Add a tested Karta definition for Kubeflow Trainer v2.
+- Kubeflow Trainer v2: Add a tested Karta definition for Kubeflow Trainer v2.
 
 ## Later
 
@@ -72,7 +72,7 @@ Theme: broader coverage.
 
 *Later items are directional, not commitments — order and shape will change with community input.*
 
-- **Karta-aware tooling ecosystem.** Karta is most valuable when many tools read
+- Karta-aware tooling ecosystem: Karta is most valuable when many tools read
   and act on the same description. Karta itself stays a thin, neutral contract;
   richer behavior lives in separate projects across the Karta ecosystem. Examples
   of such ecosystem projects that read and act on the contract:
@@ -84,11 +84,11 @@ Theme: broader coverage.
 
   Clear integration patterns will be documented so anyone can build their own
   Karta-aware tool.
-- **Shared Karta registry.** Beyond the built-in catalog, a discoverable,
+- Shared Karta registry: Beyond the built-in catalog, a discoverable,
   versioned registry where the community can publish, find, and reuse Karta
   definitions for common workload types, instead of every consumer re-bundling
   its own copies.
-- **Community engagement with related projects.** Engage the relevant upstream
+- Community engagement with related projects: Engage the relevant upstream
   communities (workload and scheduling SIGs/TAGs, queueing and gang-scheduling
   projects) to position Karta as complementary infrastructure — *how to read and
   modify the structure of a workload* — rather than as a competing scheduler or
@@ -108,7 +108,7 @@ it stay vendor-neutral and broadly adoptable.
 Completed milestones, most recent first. The GitHub issue is the permanent record;
 this section is a quick reference for what has already shipped.
 
-- **v0.3.0 (Oct 2026).** Full toolchain around the CRD and library; see the
+- v0.3.0 (Oct 2026): Full toolchain around the CRD and library; see the
   [v0.3.0 changelog entry](CHANGELOG.md#v030---2026-10-21). Highlights:
   - `kli` CLI for read-only workload visibility, with a Homebrew cask.
   - Headlamp plugin workloads page, backed by a WebAssembly build of the

@@ -188,8 +188,8 @@ var _ = ginkgo.Describe("chart runtime configuration", func() {
   podSelector: {matchLabels: {scrape: "true"}}
   resourceRules: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]
   excludeResourceRules: [{apiGroups: [apps], apiVersions: [v1], resources: [deployments]}]
-  ignoredOwnerKinds: [apps/ReplicaSet]
-  requiredKinds: [batch/Job]
+  ignoredOwnerKinds: [apps/v1/ReplicaSet]
+  requiredKinds: [batch/v1/Job]
   workers: 7
   leafWorkers: 3
   rootWorkers: 2

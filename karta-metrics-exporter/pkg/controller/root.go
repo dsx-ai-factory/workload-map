@@ -149,15 +149,17 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 		CreatedTimestamp: workloadObject.GetCreationTimestamp().Unix(),
 	}
 	statusErr := selectionErr
-	shouldEvaluateStatus := selection.Definition != nil && statusErr == nil
-	if shouldEvaluateStatus {
-		record.Karta = selection.Origin.Name
-		record.KartaSource = string(selection.Origin.Source)
-		factory := resource.NewComponentFactoryFromObject(selection.Definition, workloadObject)
-		statusErr = evaluateWorkloadStatus(ctx, factory, &record)
-		if labelErr := r.evaluateWorkloadStatusLabels(ctx, workloadObject, &record); labelErr != nil {
-			statusErr = labelErr
+	if statusErr == nil {
+		if selection.Definition == nil {
+			// A healthy lookup with no Karta publishes every phase as zero.
+			record.HasStatus = true
+		} else {
+			record.Karta = selection.Origin.Name
+			record.KartaSource = string(selection.Origin.Source)
+			factory := resource.NewComponentFactoryFromObject(selection.Definition, workloadObject)
+			statusErr = evaluateWorkloadStatus(ctx, factory, &record)
 		}
+		statusErr = errors.Join(statusErr, r.evaluateWorkloadStatusLabels(ctx, workloadObject, &record))
 	}
 	sources := appendSources(r.state.sourcesFor([]discovery.ObjectRef{ref}), snapshot.sources)
 	creationSources := slices.DeleteFunc(slices.Clone(sources), func(key store.SourceKey) bool {

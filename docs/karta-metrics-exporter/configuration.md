@@ -176,9 +176,10 @@ selected catalog definition for the same group/kind. Disabled sources contribute
 none. Ties use oldest creation time, then name.
 
 A bare Pod is its own workload root. Without a selected Pod Karta, including
-after its definition is removed, it still publishes Pod attribution and creation
-time. Component and instance are `<unknown>`, group is empty and no mapped
-status is published. Resource rules and `objectSelector` can exclude these roots.
+after its definition is removed, it still publishes Pod attribution, creation
+time and all nine status phase gauges as `0`. The `karta` and `karta_source`
+labels are empty. Component and instance are `<unknown>` and group is empty.
+Resource rules and `objectSelector` can exclude these roots.
 `podSelector` filters their attribution rows.
 
 `ignoredOwnerKinds` stops the owner walk before an exact GVK. The last verified

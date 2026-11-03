@@ -58,6 +58,13 @@ type metricSample struct {
 	value  float64
 }
 
+type blockedResponseWriter struct {
+	http.ResponseWriter
+	once    sync.Once
+	entered chan struct{}
+	release chan struct{}
+}
+
 type blockedCaptureStore struct {
 	store.PublicationStore
 	once    sync.Once
@@ -289,7 +296,7 @@ func TestHTTPMetricsPublicationRemovalAndReadiness(t *testing.T) {
 			"scope": "resource_type", "namespace": "ns", "resource_group": "batch", "resource_version": "v1", "resource_kind": "Job", "workload_name": "", "workload_uid": "", "reason": "none",
 		}, value: 1}},
 	}
-	h := startHTTPApplication(t, publications)
+	h := startHTTPApplication(t, publications, nil)
 	h.status(t, "/healthz", http.StatusOK)
 	h.status(t, "/readyz", http.StatusServiceUnavailable)
 	checkHTTPMetrics(t, h.scrape(t), expected)
@@ -325,7 +332,7 @@ func TestHTTPMetricsRetainsAllPodIdentities(t *testing.T) {
 	for i := 0; i < pods; i++ {
 		publications.UpsertPod(&store.PodResult{Record: store.PodRecord{UID: types.UID(fmt.Sprintf("pod-%d", i)), Namespace: "ns", Name: fmt.Sprintf("worker-%d", i), Workload: root}, HasValue: true})
 	}
-	h := startHTTPApplication(t, publications)
+	h := startHTTPApplication(t, publications, nil)
 	families := h.scrape(t)
 	family := families[collector.MetricPodWorkloadInfo]
 	if len(families) != 1 || family == nil || len(family.Metric) != pods {
@@ -354,9 +361,92 @@ func TestHTTPMetricsRetainsAllPodIdentities(t *testing.T) {
 	}
 }
 
+func TestHTTPOverlappingScrapesKeepIndependentSnapshots(t *testing.T) {
+	publications := store.New()
+	root := store.ObjectRef{UID: "root", Namespace: "ns", Name: "training", GVK: schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"}}
+	publish := func(revision string) map[string][]metricSample {
+		var expected []metricSample
+		for i := 1; i <= 2; i++ {
+			uid, name := fmt.Sprintf("pod-%d", i), fmt.Sprintf("worker-%d", i)
+			publications.UpsertPod(&store.PodResult{
+				Record: store.PodRecord{UID: types.UID(uid), Namespace: "ns", Name: name, Workload: root,
+					OwnerResolution: store.Resolved, Labels: map[string]string{"revision": revision}},
+				HasValue: true,
+			})
+			expected = append(expected, metricSample{labels: map[string]string{
+				"namespace": "ns", "workload_name": "training", "workload_group": "batch", "workload_version": "v1", "workload_kind": "Job", "workload_uid": "root",
+				"owner_resolution": "resolved", "pod_name": name, "pod_uid": uid, "component": "", "component_instance": "", "replica_group_id": "", "observation_valid": "true", "revision": revision,
+			}, value: 1})
+		}
+		return map[string][]metricSample{collector.MetricPodWorkloadInfo: expected}
+	}
+	oldSnapshot := publish("old")
+	entered, release := make(chan struct{}), make(chan struct{})
+	var firstRequest atomic.Bool
+	h := startHTTPApplication(t, publications, func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+			if request.URL.Path == "/metrics" && !firstRequest.Swap(true) {
+				w = &blockedResponseWriter{ResponseWriter: w, entered: entered, release: release}
+			}
+			next.ServeHTTP(w, request)
+		})
+	})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(unblock)
+	type scrapeResponse struct {
+		status int
+		body   string
+		err    error
+	}
+	firstDone := make(chan scrapeResponse, 1)
+	go func() {
+		response, err := h.client.Get("http://" + h.address + "/metrics")
+		if err != nil {
+			firstDone <- scrapeResponse{err: err}
+			return
+		}
+		body, readErr := io.ReadAll(response.Body)
+		firstDone <- scrapeResponse{status: response.StatusCode, body: string(body), err: errors.Join(readErr, response.Body.Close())}
+	}()
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("first scrape did not reach response writing")
+	}
+	// Collection has finished, but the HTTP request is still in flight.
+	newSnapshot := publish("new")
+	checkHTTPMetrics(t, h.scrape(t), newSnapshot)
+	h.status(t, "/healthz", http.StatusOK)
+	h.cancel()
+	select {
+	case <-h.runtime.stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("runtime did not receive cancellation")
+	}
+	select {
+	case <-h.done:
+		t.Fatal("application stopped before the first scrape finished writing")
+	case <-time.After(50 * time.Millisecond):
+	}
+	unblock()
+	select {
+	case response := <-firstDone:
+		require.NoError(t, response.err)
+		require.Equal(t, http.StatusOK, response.status)
+		parser := expfmt.NewTextParser(model.UTF8Validation)
+		families, err := parser.TextToMetricFamilies(strings.NewReader(response.body))
+		require.NoError(t, err)
+		checkHTTPMetrics(t, families, oldSnapshot)
+	case <-time.After(5 * time.Second):
+		t.Fatal("first scrape did not finish")
+	}
+	h.stop(t)
+}
+
 func TestHTTPShutdownDrainsCollection(t *testing.T) {
 	publications := &blockedCaptureStore{PublicationStore: store.New(), entered: make(chan struct{}), release: make(chan struct{})}
-	h := startHTTPApplication(t, publications)
+	h := startHTTPApplication(t, publications, nil)
 	var release sync.Once
 	unblock := func() { release.Do(func() { close(publications.release) }) }
 	t.Cleanup(unblock)
@@ -373,7 +463,6 @@ func TestHTTPShutdownDrainsCollection(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("collection did not start")
 	}
-	h.status(t, "/metrics", http.StatusServiceUnavailable)
 	h.status(t, "/healthz", http.StatusOK)
 	h.cancel()
 	select {
@@ -446,18 +535,29 @@ func (r *httpTestRuntime) Run(ctx context.Context) error {
 
 func (r *httpTestRuntime) Ready() bool { return r.ready.Load() }
 
+func (w *blockedResponseWriter) Write(data []byte) (int, error) {
+	w.once.Do(func() {
+		close(w.entered)
+		<-w.release
+	})
+	return w.ResponseWriter.Write(data)
+}
+
 func (s *blockedCaptureStore) Capture() store.CapturedView {
 	s.once.Do(func() { close(s.entered) })
 	<-s.release
 	return s.PublicationStore.Capture()
 }
 
-func startHTTPApplication(t *testing.T, publications store.PublicationStore) *httpApplication {
+func startHTTPApplication(t *testing.T, publications store.PublicationStore, wrapHandler func(http.Handler) http.Handler) *httpApplication {
 	t.Helper()
 	runtime := &httpTestRuntime{started: make(chan struct{}), stopped: make(chan struct{})}
 	application, err := New(Components{Runtime: runtime, Store: publications, Definitions: definitionRunner{}})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if wrapHandler != nil {
+		application.Handler = wrapHandler(application.Handler)
 	}
 	listener := lifecycleListener(t)
 	ctx, cancel := context.WithCancel(t.Context())

@@ -70,8 +70,10 @@ func TestWatchedWorkloadsWithoutKartaOrPods(t *testing.T) {
 		result := r.state.deps.Publications.Workload(object.GetUID())
 		require.NotNil(t, result)
 		require.True(t, result.HasValue)
-		require.False(t, result.Record.HasStatus)
+		require.True(t, result.Record.HasStatus)
+		require.Empty(t, result.Record.Phases)
 		require.Empty(t, result.Record.Karta)
+		require.Empty(t, result.Record.KartaSource)
 		require.Equal(t, int64(100), result.Record.CreatedTimestamp)
 	}
 	for _, gvk := range []schema.GroupVersionKind{namespaceGVK, kartaGVK} {
@@ -104,8 +106,10 @@ func TestZeroPodRootKeepsGenericValueAfterDefinitionRemoval(t *testing.T) {
 	result := r.state.deps.Publications.Workload(root.GetUID())
 	require.NotNil(t, result)
 	require.True(t, result.HasValue)
-	require.False(t, result.Record.HasStatus)
+	require.True(t, result.Record.HasStatus)
+	require.Empty(t, result.Record.Phases)
 	require.Empty(t, result.Record.Karta)
+	require.Empty(t, result.Record.KartaSource)
 	require.Empty(t, result.StatusError)
 	require.Equal(t, int64(100), result.Record.CreatedTimestamp)
 	require.Contains(t, r.state.watches, w.key)

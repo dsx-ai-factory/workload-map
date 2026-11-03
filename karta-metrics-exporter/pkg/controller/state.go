@@ -393,8 +393,11 @@ func (r *controllerState) publishWorkload(uid types.UID, ref discovery.ObjectRef
 	}
 	if next.StatusError != "" {
 		if previous := r.deps.Publications.Workload(uid); previous != nil && previous.HasValue {
-			next.Record = previous.Record
-			next.Sources = appendSources(previous.Sources, next.Sources)
+			isDefinitionRemoved := selection.Definition == nil && next.Record.HasStatus && previous.Record.Karta != ""
+			if !isDefinitionRemoved {
+				next.Record = previous.Record
+				next.Sources = appendSources(previous.Sources, next.Sources)
+			}
 		}
 	}
 	root.ref = ref

@@ -114,11 +114,20 @@ var _ = Describe("Controller publication lifecycle", func() {
 			g.Expect(result.Record.Component).To(Equal("<unknown>"))
 			g.Expect(result.Record.Instance).To(Equal("<unknown>"))
 			g.Expect(result.Record.Group).To(BeEmpty())
-			workload := expectWorkload(g, view, p)
+			workload := workloadResult(view, p.UID)
+			g.Expect(workload).NotTo(BeNil())
+			g.Expect(workload.HasValue).To(BeTrue())
 			g.Expect(workload.Record.Karta).To(BeEmpty())
-			g.Expect(workload.Record.HasStatus).To(BeFalse())
+			g.Expect(workload.Record.KartaSource).To(BeEmpty())
+			g.Expect(workload.Record.HasStatus).To(BeTrue())
 			g.Expect(workload.Record.Phases).To(BeEmpty())
-			valid, reason := view.Valid(workload.CreationSources, workload.Error)
+			g.Expect(workload.StatusError).To(Equal(expectedPodError))
+			if expectedPodError == "" {
+				g.Expect(workload.Record.StatusLabels).To(HaveKeyWithValue("team", "alpha"))
+			}
+			valid, reason := view.Valid(workload.Sources, workload.StatusError)
+			g.Expect(valid).To(Equal(expectedPodError == ""), reason)
+			valid, reason = view.Valid(workload.CreationSources, workload.Error)
 			g.Expect(valid).To(BeTrue(), reason)
 		}
 		Eventually(checkGeneric).Should(Succeed())
@@ -197,7 +206,9 @@ var _ = Describe("Controller publication lifecycle", func() {
 			Eventually(done, 10*time.Second).Should(Receive(Succeed()))
 		})
 		Eventually(func(g Gomega) {
-			g.Expect(expectWorkload(g, components.Store.Capture(), listed).Record.HasStatus).To(BeFalse())
+			workload := expectWorkload(g, components.Store.Capture(), listed)
+			g.Expect(workload.Record.HasStatus).To(BeTrue())
+			g.Expect(workload.Record.Phases).To(BeEmpty())
 		}).Should(Succeed())
 		added := deployment(ctx, ns.Name, "added")
 		Eventually(func(g Gomega) {
@@ -205,7 +216,9 @@ var _ = Describe("Controller publication lifecycle", func() {
 			for _, root := range []*appsv1.Deployment{listed, added} {
 				workload := expectWorkload(g, view, root)
 				g.Expect(workload.Record.Karta).To(BeEmpty())
-				g.Expect(workload.Record.HasStatus).To(BeFalse())
+				g.Expect(workload.Record.KartaSource).To(BeEmpty())
+				g.Expect(workload.Record.HasStatus).To(BeTrue())
+				g.Expect(workload.Record.Phases).To(BeEmpty())
 			}
 			g.Expect(view.Pods).To(BeEmpty())
 		}).Should(Succeed())
@@ -278,6 +291,7 @@ var _ = Describe("Controller publication lifecycle", func() {
 		Eventually(func(g Gomega) {
 			result := expectPod(g, components.Store.Capture(), p, root)
 			g.Expect(result.Record.Component).To(Equal("<unknown>"))
+			expectZeroStatusMetrics(g, checkMetrics(g), root)
 		}).Should(Succeed())
 
 		By("interpreting an existing ownership chain after a Karta is added")
@@ -402,10 +416,15 @@ var _ = Describe("Controller publication lifecycle", func() {
 		Eventually(func(g Gomega) {
 			view := components.Store.Capture()
 			g.Expect(expectPod(g, view, p, root).Record.Component).To(Equal("<unknown>"))
-			g.Expect(expectWorkload(g, view, root).Record.HasStatus).To(BeFalse())
-			idleWorkload := expectWorkload(g, view, idle)
-			g.Expect(idleWorkload.Record.HasStatus).To(BeFalse())
-			g.Expect(idleWorkload.Record.Karta).To(BeEmpty())
+			body := checkMetrics(g)
+			for _, workload := range []*appsv1.Deployment{root, idle} {
+				result := expectWorkload(g, view, workload)
+				g.Expect(result.Record.HasStatus).To(BeTrue())
+				g.Expect(result.Record.Phases).To(BeEmpty())
+				g.Expect(result.Record.Karta).To(BeEmpty())
+				g.Expect(result.Record.KartaSource).To(BeEmpty())
+				expectZeroStatusMetrics(g, body, workload)
+			}
 		}).Should(Succeed())
 
 		By("retaining the live root after its final Pod is deleted")
@@ -518,4 +537,21 @@ func expectWorkload(g Gomega, view store.CapturedView, root client.Object) *stor
 	valid, reason := view.Valid(result.Sources, result.Error)
 	g.Expect(valid).To(BeTrue(), reason)
 	return result
+}
+
+func expectZeroStatusMetrics(g Gomega, body string, root client.Object) {
+	var samples []string
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "karta_workload_status{") && strings.Contains(line, `workload_uid="`+string(root.GetUID())+`"`) {
+			samples = append(samples, line)
+		}
+	}
+	g.Expect(samples).To(HaveLen(9))
+	for _, phase := range []string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Suspending", "Resuming", "Undefined"} {
+		g.Expect(samples).To(ContainElement(SatisfyAll(
+			HaveSuffix(" 0"), ContainSubstring(`phase="`+phase+`"`),
+			ContainSubstring(`karta=""`), ContainSubstring(`karta_source=""`),
+			ContainSubstring(`observation_valid="true"`), ContainSubstring(`team="alpha"`),
+		)))
+	}
 }

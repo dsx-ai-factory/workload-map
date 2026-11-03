@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build-and-push:
-    name: Build & Push Helm Chart and Operator Image
+    name: Build & Push Helm Chart, Operator Image, and Exporter Image
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,6 +34,8 @@ jobs:
           cache-dependency-path: |
             karta/sdk/go.sum
             operator/go.sum
+            dsx-workload-exporter/go.sum
+            dsx-workload-exporter/test/integration/go.sum
             cli/go.sum
             hack/release/go.sum
 
@@ -58,7 +60,7 @@ jobs:
             echo "Push to main: dev build keyed off the commit sha"
             PACKAGE_VERSION=0.0.0-main-$(git rev-parse --short HEAD)
           fi
-          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
           echo "PACKAGE_VERSION=$PACKAGE_VERSION"
 
       - name: Set registry namespace
@@ -67,8 +69,8 @@ jobs:
           # namespace. ghcr requires lowercase, and an owner can be mixed case.
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           REGISTRY_NAMESPACE="ghcr.io/${OWNER}/workload-map"
-          echo "REGISTRY_NAMESPACE=$REGISTRY_NAMESPACE" >> $GITHUB_ENV
-          echo "HELM_REGISTRY=$REGISTRY_NAMESPACE" >> $GITHUB_ENV
+          echo "REGISTRY_NAMESPACE=$REGISTRY_NAMESPACE" >> "$GITHUB_ENV"
+          echo "HELM_REGISTRY=$REGISTRY_NAMESPACE" >> "$GITHUB_ENV"
           echo "Publishing artifacts to $REGISTRY_NAMESPACE"
 
       # Before the publication check: helm reads the Docker credential store, and
@@ -149,10 +151,22 @@ jobs:
         run: |
           make operator-image-buildx-push VERSION="$PACKAGE_VERSION" IMAGE_REGISTRY="$REGISTRY_NAMESPACE"
 
+      - name: Build and push exporter image
+        if: steps.publication.outputs.published != 'true'
+        run: |
+          make exporter-image-buildx-push VERSION="$PACKAGE_VERSION" IMAGE_REGISTRY="$REGISTRY_NAMESPACE"
+
       - name: Build helm chart
         if: steps.publication.outputs.published != 'true'
         run: |
-          helm package ./charts/karta -d ./charts \
+          chart_stage=$(mktemp -d)
+          trap 'rm -rf "$chart_stage"' EXIT
+          cp -R ./charts/karta "$chart_stage/karta"
+          sed \
+            -e "s|ghcr[.]io/dsx-ai-factory/workload-map/karta-operator|$REGISTRY_NAMESPACE/karta-operator|" \
+            -e "s|ghcr[.]io/dsx-ai-factory/workload-map/dsx-workload-exporter|$REGISTRY_NAMESPACE/dsx-workload-exporter|" \
+            ./charts/karta/values.yaml > "$chart_stage/karta/values.yaml"
+          helm package "$chart_stage/karta" -d ./charts \
             --version "$PACKAGE_VERSION" \
             --app-version "$PACKAGE_VERSION"
 
@@ -169,7 +183,7 @@ jobs:
       - name: Push Helm Chart
         if: steps.publication.outputs.published != 'true'
         run: |
-          helm push ./charts/karta-$PACKAGE_VERSION.tgz oci://${{ env.HELM_REGISTRY }}
+          helm push "./charts/karta-$PACKAGE_VERSION.tgz" oci://${{ env.HELM_REGISTRY }}
 
       # GoReleaser finds the published release by its tag and uploads to it,
       # keeping the notes written for it (release.mode in .goreleaser.yaml).
@@ -184,7 +198,7 @@ jobs:
         run: |
           # Run after GoReleaser because `release --clean` recreates dist/.
           make image-lock VERSION="$PACKAGE_VERSION" \
-            IMAGE_LOCK_SET="image.repository=$REGISTRY_NAMESPACE/karta-operator"
+            IMAGE_LOCK_SET="image.repository=$REGISTRY_NAMESPACE/karta-operator exporter.image.repository=$REGISTRY_NAMESPACE/dsx-workload-exporter"
 
       - name: Attach chart and image locks to the release
         if: github.event_name == 'release'

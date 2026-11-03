@@ -1,12 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright (c) 2026 NVIDIA Corporation -->
 
-# Karta metrics exporter queries
+# DSX workload exporter queries
 
-These examples use the metric contract in the
-[Karta metrics exporter proposal](../keps/0001-metrics-exporter/README.md).
-They show Pod attribution, workload age, component resource usage and low observed
-GPU activity. Low activity alone does not prove idleness.
+These examples join DSX workload identity with resource measurements. See the
+[metric reference](../keps/0001-metrics-exporter/README.md#metrics) and [configuration](configuration.md) for inputs.
 
 ## Current observations and workload age
 
@@ -14,35 +12,35 @@ Filter Pod attribution and status by `observation_valid="true"` for verified
 observations. A workload can have verified status even when its phase is Failed.
 
 ```promql
-karta_workload_status{phase="Running",observation_valid="true"} == 1
+dsx_workload_status{phase="Running",observation_valid="true"} == 1
 ```
 
 ```promql
-karta_pod_workload_info{observation_valid="true"}
+dsx_workload_pod_info{observation_valid="true"}
 ```
 
 No health join is needed for these queries. Use
-`karta_exporter_observation_valid` for collection health and workload failure
+`dsx_exporter_observation_valid` for collection health and workload failure
 reasons. Scrape freshness remains a separate requirement.
 
 Workload age in seconds comes from the root's creation timestamp:
 
 ```promql
 time() - max by (namespace, workload_name, workload_uid) (
-  karta_workload_created_timestamp_seconds
+  dsx_workload_created_timestamp_seconds
 )
 ```
 
 This metric has only `namespace`, `workload_name` and `workload_uid` as exporter
 defined labels. It has no `observation_valid` label. Missing timestamps or failed
-or expired root verification omit the sample. Status evaluation failure alone does
+root verification omit the sample. Status evaluation failure alone does
 not invalidate verified creation metadata. The aggregation merges replicas that
 report the same creation time; it does not detect disagreement between replicas.
 
 ## Inputs and identity
 
 DCGM and cAdvisor supply the resource measurements. Their Pod-name label remains
-`pod`; Karta uses `pod_name`.
+`pod`; DSX uses `pod_name`.
 
 ```prometheus
 DCGM_FI_DEV_GPU_UTIL{namespace="team-a",pod="prefill-0",UUID="GPU-a",gpu="0"} 90
@@ -57,7 +55,7 @@ bytes). CPU is cumulative seconds: `rate()` gives cores. cAdvisor working set is
 bytes. Occupied memory is not activity. A CPU-only frontend can have no GPU series.
 
 On every input, `namespace` must identify the workload namespace. External `pod`
-and Karta `pod_name` must identify the measured Pod, not the exporter Pod. If scrape
+and DSX `pod_name` must identify the measured Pod, not the exporter Pod. If scrape
 label collisions produce `exported_namespace` or `exported_pod`, normalize them
 before using these examples. Keep exporter target labels until deduplication.
 
@@ -67,7 +65,7 @@ The original `pod` label stays intact. GPU examples use `pod_uid` on both sides
 instead; a name-only join can match a replacement Pod to its predecessor.
 
 The examples assume one cluster and one measurement series per container or GPU
-entity after external-source deduplication. The Karta rule below only deduplicates
+entity after external-source deduplication. The DSX rule below only deduplicates
 attribution; duplicate cAdvisor scrapes would still inflate a CPU sum. Preserve
 container and device identity when deduplicating those sources.
 
@@ -78,7 +76,7 @@ or add static labels; it does not fetch arbitrary workload metadata.
 
 ### Several clusters in one backend
 
-Add a `cluster` label to Karta, DCGM and cAdvisor metrics through the monitoring
+Add a `cluster` label to DSX, DCGM and cAdvisor metrics through the monitoring
 configuration. With Prometheus Operator, configure each source's ServiceMonitor
 endpoint:
 
@@ -95,46 +93,54 @@ below, including workload age. An OTel Collector can supply the same label.
 
 ## 1. Deduplicate Pod attribution
 
-Merge identical mappings and reject differences in identity or
+Merge identical mappings and reject differences in identity, configured labels or
 observation validity. Check conflicts before filtering for valid mappings so that
 one valid replica cannot hide a failing replica.
 
+Here, `team` is the custom label from the
+[label rule example](configuration.md#configured-labels).
+That rule reads the workload root's `metadata.labels["example.com/team"]`.
+For `example.com/team: research`, the expected metric label is `team="research"`.
+
 ```yaml
 groups:
-  - name: karta-attribution
+  - name: dsx-attribution
     interval: 30s
     rules:
-      - record: karta:pod_attribution:unique
+      - record: dsx:pod_attribution:unique
         expr: |
           max by (namespace, pod_name, pod_uid, workload_name, workload_group, workload_version,
                   workload_kind, workload_uid, owner_resolution, component, component_instance,
-                  replica_group_id, observation_valid) (
-            karta_pod_workload_info
+                  replica_group_id, observation_valid, team) (
+            dsx_workload_pod_info
           )
           and on (namespace, pod_name)
           (count by (namespace, pod_name) (
             group by (namespace, pod_name, pod_uid, workload_name, workload_group, workload_version,
                       workload_kind, workload_uid, owner_resolution, component, component_instance,
-                      replica_group_id, observation_valid) (
-              karta_pod_workload_info
+                      replica_group_id, observation_valid, team) (
+              dsx_workload_pod_info
             )
           ) == 1)
 ```
 
-This rule preserves the built-in attribution labels. If custom metric labels
-are enabled, include the ones needed by the query in its grouping and joins.
-The following examples use the built-in labels. The rule also rejects conflicting
-Pod UIDs for the same name while both are visible.
+For other `labelRules`, add those label names to both lists above and to the
+`group_left` and `sum by` lists in the following queries. Otherwise aggregation
+drops them and the conflict check cannot detect disagreements in those values.
+
+An absent `team` label also works. The rule rejects conflicting Pod UIDs for the
+same name while both are visible. The following queries use this rule; its
+expression can also be inlined.
 
 ## 2. CPU and memory by component instance and group
 
 Convert CPU seconds into average cores over five minutes, exclude sandbox rows,
-attach verified Karta mappings, then sum by workload and component identity.
+attach verified DSX mappings, then sum by workload and component identity.
 Multiplying by an attribution value of `1` preserves the measurement.
 
 ```promql
 sum by (namespace, workload_group, workload_version, workload_kind, workload_name, workload_uid,
-        owner_resolution, component, component_instance, replica_group_id) (
+        owner_resolution, component, component_instance, replica_group_id, team) (
   label_replace(
     rate(container_cpu_usage_seconds_total{
       namespace!="", pod!="", container!="", container!="POD"
@@ -143,8 +149,8 @@ sum by (namespace, workload_group, workload_version, workload_kind, workload_nam
   )
   * on (namespace, pod_name)
     group_left (workload_group, workload_version, workload_kind, workload_name, workload_uid,
-                owner_resolution, component, component_instance, replica_group_id)
-    karta:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>"}
+                owner_resolution, component, component_instance, replica_group_id, team)
+    dsx:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>"}
 )
 ```
 
@@ -168,8 +174,8 @@ require it and exclude measurements without a UID.
 DCGM_FI_DEV_GPU_UTIL{namespace!="",pod_uid!=""}
 * on (namespace, pod_uid)
   group_left (workload_group, workload_version, workload_kind, workload_name, workload_uid,
-              owner_resolution, component, component_instance, replica_group_id)
-  karta:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>"}
+              owner_resolution, component, component_instance, replica_group_id, team)
+  dsx:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>"}
 ```
 
 The join retains external Pod and device labels. For average GPU utilization,
@@ -192,22 +198,22 @@ Filtering Pods also limits how much of the workload the query observes.
 ```promql
 (
   max by (namespace, workload_group, workload_version, workload_kind, workload_name, workload_uid,
-          owner_resolution, component, component_instance, replica_group_id) (
+          owner_resolution, component, component_instance, replica_group_id, team) (
     max_over_time(DCGM_FI_DEV_GPU_UTIL{namespace!="",pod_uid!=""}[5m])
     * on (namespace, pod_uid)
       group_left (workload_group, workload_version, workload_kind, workload_name, workload_uid,
-                  owner_resolution, component, component_instance, replica_group_id)
-      karta:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>"}
+                  owner_resolution, component, component_instance, replica_group_id, team)
+      dsx:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>"}
   ) < 5
 )
 and on (namespace, workload_uid)
   (min by (namespace, workload_uid) (
-    karta_workload_status{phase="Running",observation_valid="true"}
+    dsx_workload_status{phase="Running",observation_valid="true"}
   ) == 1)
 unless on (namespace, workload_uid)
-  karta_workload_status{observation_valid="false"}
+  dsx_workload_status{observation_valid="false"}
 unless on (namespace, workload_uid)
-  (min_over_time(karta_exporter_observation_valid{scope="workload"}[5m]) == 0)
+  (min_over_time(dsx_exporter_observation_valid{scope="workload"}[5m]) == 0)
 ```
 
 Results keep the observed maximum. `5%` and `5m` are examples. The UID join prevents
@@ -222,7 +228,7 @@ If a workload has a busy GPU and a quiet GPU, losing the busy GPU's measurements
 can make the whole workload appear idle. Before acting, check:
 
 1. Every expected Pod and GPU is reporting. Missing measurements do not mean zero usage.
-2. Measurements and Karta samples are recent and cover the full window. Require verified mappings and status throughout it; absence of workload failure rows alone does not establish coverage.
+2. Measurements and DSX samples are recent and cover the full window. Require verified mappings and status throughout it; absence of workload failure rows alone does not establish coverage.
 3. The same Pods and groups were present for the full window. After a Pod replacement, attribution change or verification recovery, start a new window.
 4. Each device is counted once. For shared or partitioned GPUs, confirm whose usage each measurement represents.
 5. The application has no queued requests or jobs waiting to run. GPU metrics alone cannot tell you that.

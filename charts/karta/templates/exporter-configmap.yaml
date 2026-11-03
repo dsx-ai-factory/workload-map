@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+{{- if and .Values.exporter .Values.exporter.enabled }}
+{{- /* A null would drop the Karta RBAC while the exporter defaults the cluster source on. */}}
+{{- if not (kindIs "bool" .Values.exporter.kartaDefinitionSource.cluster.enabled) }}
+{{- fail "exporter.kartaDefinitionSource.cluster.enabled must be true or false" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "karta.exporter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karta.exporter.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- dict "labelRules" .Values.exporter.labelRules "genericLabelEvaluationLimits" .Values.exporter.genericLabelEvaluationLimits "kartaDefinitionSource" .Values.exporter.kartaDefinitionSource "resourceRules" .Values.exporter.resourceRules "excludeResourceRules" .Values.exporter.excludeResourceRules "namespaceSelector" .Values.exporter.namespaceSelector "objectSelector" .Values.exporter.objectSelector "podSelector" .Values.exporter.podSelector "ignoredOwnerKinds" .Values.exporter.ignoredOwnerKinds "requiredKinds" .Values.exporter.requiredKinds "workers" .Values.exporter.workers "leafWorkers" .Values.exporter.leafWorkers "rootWorkers" .Values.exporter.rootWorkers "requestTimeout" .Values.exporter.requestTimeout "apiQPS" .Values.exporter.apiQPS "apiBurst" .Values.exporter.apiBurst | toYaml | nindent 4 }}
+{{- end }}

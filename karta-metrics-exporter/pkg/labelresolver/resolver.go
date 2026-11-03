@@ -10,9 +10,7 @@ import (
 	"maps"
 	"slices"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelevaluator"
 )
@@ -43,12 +41,13 @@ type ruleResult struct {
 	err   error
 }
 
-// Input supplies the root workload and, when a rule for a requested metric
-// reads the Pod, the individual Pod.
+// Input supplies full source objects as received, preserving field presence.
+// Pod is required only when a requested rule reads it. Callers must not mutate
+// either object during Resolve.
 type Input struct {
 	Metrics  []string
 	Workload *unstructured.Unstructured
-	Pod      *corev1.Pod
+	Pod      *unstructured.Unstructured
 }
 
 // ResolvedMetricLabels holds values and evaluation errors keyed by label name.
@@ -138,7 +137,7 @@ func New(cfg Config, deps Dependencies) (Resolver, error) {
 }
 
 // Resolve returns one result per requested metric, in request order. The error
-// reports invalid input, a Pod conversion failure or cancellation.
+// reports invalid input or cancellation.
 func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabels, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -163,8 +162,7 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 		return nil, ErrMissingPod
 	}
 
-	// The Pod is added only when a rule reaches it, so a workload value avoids the conversion.
-	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload}
+	objects := map[Source]*unstructured.Unstructured{SourceWorkload: in.Workload, SourcePod: in.Pod}
 
 	evaluated := make(map[int]ruleResult)
 	results := make([]ResolvedMetricLabels, 0, len(in.Metrics))
@@ -174,7 +172,7 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 			outcome, ok := evaluated[i]
 			if !ok {
 				var err error
-				if outcome, err = r.rules[i].evaluate(ctx, objects, in.Pod); err != nil {
+				if outcome, err = r.rules[i].evaluate(ctx, objects); err != nil {
 					return nil, err
 				}
 				evaluated[i] = outcome
@@ -192,20 +190,10 @@ func (r *resolver) Resolve(ctx context.Context, in Input) ([]ResolvedMetricLabel
 }
 
 // evaluate returns the first nonempty source value and the errors of earlier sources.
-// The error result reports cancellation or a Pod conversion failure.
-func (rule compiledRule) evaluate(ctx context.Context, objects map[Source]*unstructured.Unstructured, inputPod *corev1.Pod) (ruleResult, error) {
+// The error result reports cancellation.
+func (rule compiledRule) evaluate(ctx context.Context, objects map[Source]*unstructured.Unstructured) (ruleResult, error) {
 	var errs []error
 	for _, source := range rule.sources {
-		if source == SourcePod && objects[SourcePod] == nil {
-			content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(inputPod)
-			if err != nil {
-				return ruleResult{}, fmt.Errorf("converting Pod %s/%s: %w", inputPod.Namespace, inputPod.Name, err)
-			}
-			pod := &unstructured.Unstructured{Object: content}
-			// Cached typed Pods have no TypeMeta; CEL must still see apiVersion and kind.
-			pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
-			objects[SourcePod] = pod
-		}
 		value, err := rule.evaluator.Evaluate(ctx, objects[source])
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ruleResult{}, ctxErr

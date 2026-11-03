@@ -1,4 +1,7 @@
-{{- if and .Values.exporter.enabled .Values.exporter.kartaDefinitionSource.cluster.enabled }}
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+{{- if .Values.exporter.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -6,8 +9,19 @@ metadata:
   labels:
     {{- include "karta.exporter.labels" . | nindent 4 }}
 rules:
+  {{- if .Values.exporter.kartaDefinitionSource.cluster.enabled }}
   # Read the cluster's Karta definitions; the inventory only lists and watches.
   - apiGroups: ["run.ai"]
     resources: ["kartas"]
     verbs: ["list", "watch"]
+  {{- end }}
+  # Pods supply ownership and labels. Namespace labels select observation scope.
+  - apiGroups: [""]
+    resources: ["pods", "namespaces"]
+    verbs: ["list", "watch"]
+  {{- range .Values.exporter.rbac.workloadRules }}
+  - apiGroups: {{ .apiGroups | toJson }}
+    resources: {{ .resources | toJson }}
+    verbs: ["list", "watch"]
+  {{- end }}
 {{- end }}

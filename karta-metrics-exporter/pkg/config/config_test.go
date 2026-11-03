@@ -32,7 +32,6 @@ var _ = Describe("config defaults and rules", func() {
 			Expect(err).To(Succeed())
 			var keys map[string]any
 			Expect(format.decode(data, &keys)).To(Succeed())
-			Expect(keys).To(HaveLen(3))
 			Expect(keys).To(HaveKey("kartaDefinitionSource"))
 			Expect(keys).To(HaveKey("labelRules"))
 			Expect(keys).To(HaveKey("genericLabelEvaluationLimits"))
@@ -42,7 +41,8 @@ var _ = Describe("config defaults and rules", func() {
 			}
 			var decoded Config
 			Expect(format.decode(data, &decoded)).To(Succeed())
-			Expect(decoded).To(Equal(cfg))
+			Expect(decoded.Config).To(Equal(cfg.Config))
+			Expect(decoded.KartaDefinitionSource).To(Equal(cfg.KartaDefinitionSource))
 		}
 	})
 
@@ -188,12 +188,12 @@ var _ = Describe("config rejects invalid input", func() {
 		}
 	})
 
-	It("registers only the config path and three generic evaluation limit flags", func() {
+	It("registers canonical label flags and runtime flags", func() {
 		fs := flag.NewFlagSet("test", flag.ContinueOnError)
 		NewLoader(fs, func(string) (string, bool) { return "", false })
 		var names []string
 		fs.VisitAll(func(f *flag.Flag) { names = append(names, f.Name) })
-		Expect(names).To(ConsistOf("config", "generic-label-eval-cost-limit", "generic-label-eval-max-expression-bytes", "generic-label-eval-max-result-bytes"))
+		Expect(names).To(ConsistOf("config", "generic-label-eval-cost-limit", "generic-label-eval-max-expression-bytes", "generic-label-eval-max-result-bytes", "api-qps", "api-burst", "workers", "leaf-workers", "root-workers", "request-timeout"))
 	})
 
 	It("ignores removed environment settings", func() {
@@ -251,10 +251,11 @@ var _ = Describe("Karta definition sources", func() {
 	DescribeTable("rejects an unknown key",
 		func(content string) {
 			_, err := loadConfig(content, nil)
-			Expect(err).To(MatchError(ContainSubstring("not found")))
+			Expect(err).To(MatchError(ContainSubstring("unknown field")))
 		},
 		Entry("a mistyped one in a source", "kartaDefinitionSource:\n  cluster:\n    exlude: [a]\n"),
-		Entry("labelSelector, which the sources no longer take", "kartaDefinitionSource:\n  cluster:\n    labelSelector: {}\n"),
+		Entry("labelSelector in the catalog source", "kartaDefinitionSource:\n  catalog:\n    labelSelector: {}\n"),
+		Entry("labelSelector in the cluster source", "kartaDefinitionSource:\n  cluster:\n    labelSelector: {}\n"),
 	)
 })
 

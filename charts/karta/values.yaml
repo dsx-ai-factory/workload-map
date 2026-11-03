@@ -9,6 +9,7 @@ global:
 operator:
   enabled: true
 
+# Standalone metrics exporter with /metrics, /healthz and /readyz on port 8080.
 exporter:
   enabled: false
   image:
@@ -16,6 +17,40 @@ exporter:
     # When empty, falls back to .Chart.AppVersion.
     tag: ""
     pullPolicy: IfNotPresent
+  # Skip Kubernetes system namespaces. Set matchExpressions: [] to include them.
+  namespaceSelector:
+    matchExpressions:
+      - key: kubernetes.io/metadata.name
+        operator: NotIn
+        values:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+  # Select which objects the publication controller observes.
+  objectSelector: {}
+  podSelector: {}
+  resourceRules: []
+  # Skip ConfigMaps and Secrets as workload roots. RBAC is unchanged.
+  # Set [] to allow them as workload roots.
+  excludeResourceRules:
+    - apiGroups: [""]
+      apiVersions: ["*"]
+      resources: ["configmaps", "secrets"]
+  ignoredOwnerKinds: []
+  requiredKinds: []
+  workers: 4
+  # Zero inherits workers.
+  leafWorkers: 0
+  rootWorkers: 0
+  requestTimeout: 30s
+  apiQPS: 20
+  apiBurst: 40
+  rbac:
+    # LIST/WATCH all resource types, including custom owners and Secrets.
+    # Replace with explicit API groups and resources to limit access.
+    workloadRules:
+      - apiGroups: ["*"]
+        resources: ["*"]
   # Extra labels for Pod info and workload status. Expressions read object.
   # See karta-metrics-exporter/pkg/labelevaluator/README.md.
   labelRules: []
@@ -40,8 +75,7 @@ exporter:
       enabled: false
       include: []
       exclude: []
-    # Karta objects in the cluster, named by metadata.name. Grants read
-    # access to Kartas.
+    # Watch Karta objects in the cluster, named by metadata.name.
     cluster:
       enabled: true
       include: []

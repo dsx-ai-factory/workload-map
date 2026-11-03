@@ -42,7 +42,7 @@ exporter:
     catalog:
       enabled: true # Built-in definitions; default false.
       include: []
-      exclude: [] # Default empty; add core-pod-v1 to skip bare Pods.
+      exclude: []
     cluster:
       enabled: true # Cluster-installed Karta definitions; default true.
       include: []
@@ -175,9 +175,12 @@ Source filters apply before precedence. A selected cluster Karta overrides a
 selected catalog definition for the same group/kind. Disabled sources contribute
 none. Ties use oldest creation time, then name.
 
-An enabled catalog includes `core-pod-v1`, so a bare Pod is a workload of its own,
-as it is with a selected cluster Pod Karta. Exclude `core-pod-v1` to skip bare Pods.
-`objectSelector` also applies to those roots.
+A bare Pod is its own workload root. Without a selected Pod Karta, including
+after its definition is removed, it still publishes Pod attribution, creation
+time and all nine status phase gauges as `0`. The `karta` and `karta_source`
+labels are empty. Component and instance are `<unknown>` and group is empty.
+Resource rules and `objectSelector` can exclude these roots.
+`podSelector` filters their attribution rows.
 
 `ignoredOwnerKinds` stops the owner walk before an exact GVK. The last verified
 object below it becomes the root; missing owners below that boundary still fail.
@@ -352,6 +355,12 @@ from other exporters; the [query guide](README.md) shows how to join them.
 and the Prometheus selector must match it. The Prometheus Operator turns it into
 scrape configuration. Without the Operator, Prometheus uses its own scrape configuration.
 See [ServiceMonitor discovery](https://prometheus-operator.dev/docs/developer/getting-started/#using-servicemonitors).
+
+The metrics Service includes unready exporter Pods, including during startup, so
+diagnostic metrics remain reachable when required watches fail. `/readyz` still
+reports whether the exporter is ready. Use `observation_valid` and
+`karta_exporter_observation_valid` to check observation validity and collection
+health; a successful scrape does not establish either.
 
 Prometheus discovers and scrapes each exporter endpoint separately. A single
 load-balanced Service address can hide conflicting observations during a rollout.

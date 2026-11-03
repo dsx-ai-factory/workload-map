@@ -14,13 +14,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/app"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/bootstrap"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/config"
-	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/kartadefinitioninventory"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/karta-metrics-exporter/pkg/labelresolver"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/version"
@@ -57,7 +55,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
-	labels, err := labelresolver.New(cfg.Config, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
+	_, err = labelresolver.New(cfg.Config, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
@@ -68,43 +66,25 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("kubernetes client configuration: %w", err)
 	}
-	client, err := dynamic.NewForConfig(restConfig)
+	components, err := bootstrap.New(cfg, restConfig)
 	if err != nil {
-		return fmt.Errorf("kubernetes client: %w", err)
+		return fmt.Errorf("construct exporter: %w", err)
 	}
-	definitions := cfg.KartaDefinitionSource.InventoryConfig()
-	inventory, err := kartadefinitioninventory.New(client, definitions)
+	application, err := app.New(components)
 	if err != nil {
-		return fmt.Errorf("invalid Karta definition sources: %w", err)
+		return fmt.Errorf("construct exporter application: %w", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	// Once shutdown begins, a second signal ends the process.
 	context.AfterFunc(ctx, stop)
-	inventoryDone := make(chan error, 1)
-	go func() { inventoryDone <- inventory.Run(ctx) }()
-	if err := inventory.WaitLoaded(ctx); err != nil && ctx.Err() == nil {
-		stop()
-		return fmt.Errorf("initial Karta definition load: %w", errors.Join(err, <-inventoryDone))
-	}
-	components := bootstrap.New(labels, inventory)
-	application, err := app.New(components)
-	if err != nil {
-		stop()
-		return errors.Join(err, <-inventoryDone)
-	}
 	if ctx.Err() == nil {
-		slog.Info("Starting Karta metrics exporter",
-			"address", *address,
-			"version", version.String(), "labelRules", len(cfg.Rules),
-			"catalogDefinitions", definitions.Catalog.Enabled, "clusterDefinitions", definitions.Cluster.Enabled)
+		slog.Info("Karta metrics exporter starting",
+			"version", version.String(), "address", *address, "labelRules", len(cfg.Rules),
+			"catalogDefinitions", cfg.KartaDefinitionSource.Catalog.Enabled, "clusterDefinitions", cfg.KartaDefinitionSource.Cluster.Enabled)
 	}
 	err = application.Serve(ctx, *address)
-	stop()
-	if inventoryErr := <-inventoryDone; inventoryErr != nil {
-		err = errors.Join(err, fmt.Errorf("karta definition inventory: %w", inventoryErr))
-	}
 	if err != nil {
 		return err
 	}

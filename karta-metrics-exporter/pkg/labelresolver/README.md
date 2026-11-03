@@ -29,6 +29,11 @@ For a workload labeled `example.com/team=research`, both metrics get
 `team="research"`. The Pod metric also gets `owner` from the workload. If the
 workload has no owner label, it gets `owner` from the Pod.
 
+`Resolve` receives full unstructured workload and Pod objects. The Pod is needed
+only when a requested rule reads it. Objects are evaluated as supplied, preserving
+field presence and fields unknown to the Kubernetes Go types. Callers must not
+mutate either object during evaluation.
+
 ## Behavior
 
 - A rule adds a label. If a built-in label has the same name, the rule value

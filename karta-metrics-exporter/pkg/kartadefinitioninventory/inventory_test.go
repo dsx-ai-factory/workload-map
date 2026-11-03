@@ -932,6 +932,31 @@ var _ = Describe("WaitLoaded", func() {
 		Eventually(other, eventuallyTimeout).Should(Receive(BeNil()))
 	})
 
+	It("returns context cancellation when Run and the initial load share a context", func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		client := newFakeClient()
+		listStarted := make(chan struct{})
+		client.PrependReactor("list", "kartas", func(ktesting.Action) (bool, runtime.Object, error) {
+			close(listStarted)
+			<-ctx.Done()
+			return true, nil, ctx.Err()
+		})
+		inventory, err := New(client, clusterOnly)
+		Expect(err).NotTo(HaveOccurred())
+		runDone := make(chan error, 1)
+		go func() { runDone <- inventory.Run(ctx) }()
+		Eventually(listStarted, eventuallyTimeout).Should(BeClosed())
+		loaded := make(chan error, 1)
+		go func() { loaded <- inventory.WaitLoaded(ctx) }()
+		Consistently(loaded, 100*time.Millisecond).ShouldNot(Receive())
+
+		cancel()
+
+		Eventually(loaded, eventuallyTimeout).Should(Receive(MatchError(context.Canceled)))
+		Eventually(runDone, eventuallyTimeout).Should(Receive(BeNil()))
+	})
+
 	It("returns immediately for catalog-only inventories before Run", func() {
 		inventory, err := New(nil, Config{Catalog: SourceConfig{Enabled: true}})
 		Expect(err).NotTo(HaveOccurred())

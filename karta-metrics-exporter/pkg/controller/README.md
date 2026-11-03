@@ -17,10 +17,6 @@ The app waits for the inventory's initial load before calling `Runtime.Run`.
 once at startup and again when inventory reports a change. Inventory owns its
 Karta watch; the sources worker reads its latest snapshot.
 
-`sync.Once` allows one run per runtime. A concurrent second call waits for that
-run to finish, then returns. Calls after shutdown return without restarting.
-Only the first call's context controls the run. Restarting requires a new runtime.
-
 The sources worker refreshes Karta selections and namespace scopes, then ensures
 watches for Pods, selected Karta kinds and configured required kinds. Each
 client-go Reflector runs LIST/WATCH in its own goroutine. Its callbacks accept
@@ -56,9 +52,8 @@ Different keys can run concurrently.
 | Namespace labels change (with namespace selection configured) | Sources refresh to recompute watched namespaces |
 | Intermediate owner references or root-selector membership change | Namespace rescan |
 
-Selector configuration is fixed at startup. Changes to object labels still
-change which objects match. Discovery can request watches for newly encountered
-ancestor kinds, so watch setup also happens while workers resolve ownership.
+Discovery requests watches for newly encountered ancestor kinds while resolving
+ownership.
 
 ## Cache and Store are different
 

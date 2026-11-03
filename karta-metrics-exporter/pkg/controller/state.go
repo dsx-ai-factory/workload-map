@@ -244,8 +244,11 @@ func (r *controllerState) publishPod(path []discovery.ObjectRef, rootRef discove
 	if labelFailed {
 		next.Error = store.ReasonEvaluationFailed
 		if previous := r.deps.Publications.Pod(next.Record.UID); previous != nil && previous.HasValue {
-			next.Record = previous.Record
-			next.Sources = appendSources(previous.Sources, next.Sources)
+			isDefinitionRemoved := selection.Definition == nil && previous.Record.Karta != ""
+			if !isDefinitionRemoved {
+				next.Record = previous.Record
+				next.Sources = appendSources(previous.Sources, next.Sources)
+			}
 		}
 	}
 	r.deps.Publications.UpsertPod(&next)

@@ -22,13 +22,18 @@ var (
 
 // RunController runs the inventory and workers and joins both on shutdown.
 // It maintains publication records without registering a metrics collector.
-func RunController(ctx context.Context, components Components) error {
+func RunController(ctx context.Context, components Components) (err error) {
 	if components.Runtime == nil || components.Store == nil || components.Definitions == nil {
 		return ErrIncompleteControllerComponents
 	}
 	runCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	inventoryDone := make(chan error, 1)
+	defer func() {
+		cancel()
+		if inventoryErr := <-inventoryDone; inventoryErr != nil {
+			err = errors.Join(err, fmt.Errorf("karta definition inventory: %w", inventoryErr))
+		}
+	}()
 	go func() {
 		err := components.Definitions.Run(runCtx)
 		if err == nil && runCtx.Err() == nil {
@@ -37,18 +42,17 @@ func RunController(ctx context.Context, components Components) error {
 		inventoryDone <- err
 		cancel()
 	}()
-	err := components.Definitions.WaitLoaded(runCtx)
-	if err == nil {
-		err = components.Runtime.Run(runCtx)
-		if err == runCtx.Err() {
-			err = nil
+	err = components.Definitions.WaitLoaded(runCtx)
+	if err != nil {
+		if err == ctx.Err() {
+			return nil
 		}
-	} else if err == ctx.Err() {
-		err = nil
+		return err
 	}
-	cancel()
-	if inventoryErr := <-inventoryDone; inventoryErr != nil {
-		err = errors.Join(err, fmt.Errorf("karta definition inventory: %w", inventoryErr))
+
+	err = components.Runtime.Run(runCtx)
+	if err == runCtx.Err() {
+		return nil
 	}
 	return err
 }

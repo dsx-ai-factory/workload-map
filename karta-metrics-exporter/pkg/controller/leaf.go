@@ -22,6 +22,8 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 )
 
+var ErrMissingComponentInstance = errors.New("required component instance is missing")
+
 func (r *Runtime) handlePodInput(ctx context.Context, key objectJobKey) error {
 	if !key.Rescan {
 		return r.reconcilePod(ctx, key)
@@ -49,25 +51,15 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 	}
 	ref = refOf(podObject)
 	discoveryResult, err := r.state.deps.Discovery.Get(ctx, ref)
+	isOwnerUnresolved := err == nil && discoveryResult.Workload == nil
+	if isOwnerUnresolved {
+		err = discovery.ErrUnresolvedOwner
+	}
 	if err != nil {
 		return r.state.failPod(key, []discovery.ObjectRef{ref}, err)
 	}
-	if discoveryResult.Workload == nil {
-		return r.state.failPod(key, []discovery.ObjectRef{ref}, discovery.ErrUnresolvedOwner)
-	}
 	workload := discoveryResult.Workload
 	selection, selectionErr := r.state.lookupDefinition(workload.Root.GVK)
-
-	// Publishing a Pod as its own workload requires a Pod Karta.
-	if isPodRoot := workload.Root.GVK == podGVK; isPodRoot {
-		if selectionErr != nil {
-			return r.state.failPod(key, workload.Path, selectionErr)
-		}
-		if selection.Definition == nil {
-			r.state.unregisterPod(key)
-			return nil
-		}
-	}
 
 	rootRef := workload.Root
 	if selection.Definition != nil {
@@ -176,7 +168,7 @@ func evaluatePodComponent(ctx context.Context, factory *resource.ComponentFactor
 	}
 	isRequiredInstanceMissing := component.Definition().InstanceIdPath != nil && instance == ""
 	if isRequiredInstanceMissing {
-		return "", "", "", errors.New("required component instance is missing")
+		return "", "", "", ErrMissingComponentInstance
 	}
 	group := ""
 	// A component can inherit the replica selector from an owner component.

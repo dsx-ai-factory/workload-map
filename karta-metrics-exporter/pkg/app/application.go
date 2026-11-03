@@ -115,12 +115,12 @@ func (a *Application) serveListener(ctx context.Context, listener net.Listener) 
 	}
 	// This defer completes before the outer Serve/ServeListener shuts down the provider.
 	defer func() { err = errors.Join(err, registration.Unregister()) }()
-	child, cancel := context.WithCancel(ctx)
+	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	server := &http.Server{
 		Handler:           a.Handler,
 		ReadHeaderTimeout: 10 * time.Second,
-		BaseContext:       func(net.Listener) context.Context { return child },
+		BaseContext:       func(net.Listener) context.Context { return runCtx },
 	}
 	runtimeDone := make(chan struct{})
 	var runtimeErr error
@@ -128,13 +128,13 @@ func (a *Application) serveListener(ctx context.Context, listener net.Listener) 
 	go func() {
 		defer close(runtimeDone)
 		if a.components.Definitions != nil {
-			runtimeErr = RunController(child, a.components)
+			runtimeErr = RunController(runCtx, a.components)
 		} else {
-			runtimeErr = a.components.Runtime.Run(child)
+			runtimeErr = a.components.Runtime.Run(runCtx)
 		}
-		if runtimeErr == nil && child.Err() == nil {
+		if runtimeErr == nil && runCtx.Err() == nil {
 			runtimeErr = errors.New("exporter runtime stopped unexpectedly")
-		} else if runtimeErr == child.Err() {
+		} else if runtimeErr == runCtx.Err() {
 			runtimeErr = nil
 		}
 	}()

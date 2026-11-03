@@ -142,9 +142,7 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 	if err != nil {
 		return r.state.failWorkload(uid, ref, err)
 	}
-	isPodWithoutDefinition := ref.GVK == podGVK && selection.Definition == nil && selectionErr == nil
-	shouldRemoveWorkload := !isRootSelected || isPodWithoutDefinition
-	if shouldRemoveWorkload {
+	if !isRootSelected {
 		r.state.deps.Publications.RemoveWorkload(uid)
 		return nil
 	}
@@ -161,9 +159,9 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 		record.KartaSource = string(selection.Origin.Source)
 		factory := resource.NewComponentFactoryFromObject(selection.Definition, workloadObject)
 		statusErr = evaluateWorkloadStatus(ctx, factory, &record)
-	}
-	if labelErr := r.evaluateWorkloadStatusLabels(ctx, workloadObject, &record); labelErr != nil {
-		statusErr = labelErr
+		if labelErr := r.evaluateWorkloadStatusLabels(ctx, workloadObject, &record); labelErr != nil {
+			statusErr = labelErr
+		}
 	}
 	sources := appendSources(r.state.sourcesFor([]discovery.ObjectRef{ref}), snapshot.sources)
 	creationSources := slices.DeleteFunc(slices.Clone(sources), func(key store.SourceKey) bool {

@@ -73,6 +73,111 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Controller publication lifecycle", func() {
+	It("keeps standalone Pods visible across Pod definition changes", func(ctx SpecContext) {
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "exporter-pod-"}}
+		Expect(api.Create(ctx, ns)).To(Succeed())
+		p := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "standalone", Namespace: ns.Name, Labels: map[string]string{"example.com/team": "alpha"}},
+			Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "main", Image: "example.test/image:v1"}}},
+		}
+		Expect(api.Create(ctx, p)).To(Succeed())
+		p.Status.Phase = corev1.PodRunning
+		Expect(api.Status().Update(ctx, p)).To(Succeed())
+		cfg := config.DefaultConfig()
+		cfg.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
+		cfg.KartaDefinitionSource.Catalog.Enabled = false
+		cfg.KartaDefinitionSource.Cluster.Enabled = true
+		cfg.KartaDefinitionSource.Cluster.Include = []string{"integration-" + ns.Name}
+		cfg.Rules = []labelresolver.LabelRule{
+			{Name: "team", Metrics: []string{labelresolver.MetricPodWorkloadInfo, labelresolver.MetricWorkloadStatus}, Sources: []labelresolver.Source{labelresolver.SourceWorkload}, Expression: `object.metadata.labels["example.com/team"]`},
+		}
+		components, err := bootstrap.New(cfg, kubeConfig)
+		Expect(err).NotTo(HaveOccurred())
+		runCtx, cancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() { done <- app.RunController(runCtx, components) }()
+		DeferCleanup(func() {
+			cancel()
+			Eventually(done, 10*time.Second).Should(Receive(Succeed()))
+		})
+		podGVK := corev1.SchemeGroupVersion.WithKind("Pod")
+		expectedPodError := ""
+		checkGeneric := func(g Gomega) {
+			view := components.Store.Capture()
+			result := podResult(view, p.UID)
+			g.Expect(result).NotTo(BeNil())
+			g.Expect(result.HasValue).To(BeTrue())
+			g.Expect(result.Error).To(Equal(expectedPodError))
+			g.Expect(result.Record.Workload.UID).To(Equal(p.UID))
+			g.Expect(result.Record.Workload.GVK).To(Equal(podGVK))
+			g.Expect(result.Record.Karta).To(BeEmpty())
+			g.Expect(result.Record.Component).To(Equal("<unknown>"))
+			g.Expect(result.Record.Instance).To(Equal("<unknown>"))
+			g.Expect(result.Record.Group).To(BeEmpty())
+			workload := expectWorkload(g, view, p)
+			g.Expect(workload.Record.Karta).To(BeEmpty())
+			g.Expect(workload.Record.HasStatus).To(BeFalse())
+			g.Expect(workload.Record.Phases).To(BeEmpty())
+			valid, reason := view.Valid(workload.CreationSources, workload.Error)
+			g.Expect(valid).To(BeTrue(), reason)
+		}
+		Eventually(checkGeneric).Should(Succeed())
+
+		for range 2 {
+			By("adding a Pod definition to the existing standalone Pod")
+			definition, err := catalog.Get(podGVK)
+			Expect(err).NotTo(HaveOccurred())
+			definition.Name = cfg.KartaDefinitionSource.Cluster.Include[0]
+			Expect(api.Create(ctx, definition)).To(Succeed())
+			Eventually(func(g Gomega) {
+				view := components.Store.Capture()
+				result := expectPod(g, view, p, p)
+				g.Expect(result.Record.Karta).To(Equal(definition.Name))
+				g.Expect(result.Record.Component).To(Equal("pod"))
+				workload := expectWorkload(g, view, p)
+				g.Expect(workload.Record.Karta).To(Equal(definition.Name))
+				g.Expect(workload.Record.HasStatus).To(BeTrue())
+				g.Expect(workload.Record.Phases).To(ContainElement("Running"))
+			}).Should(Succeed())
+
+			By("retaining mapped results while a configured label fails")
+			p.Labels = nil
+			Expect(api.Update(ctx, p)).To(Succeed())
+			Eventually(func(g Gomega) {
+				view := components.Store.Capture()
+				result := podResult(view, p.UID)
+				g.Expect(result).NotTo(BeNil())
+				g.Expect(result.Error).To(Equal(store.ReasonEvaluationFailed))
+				g.Expect(result.Record.Karta).To(Equal(definition.Name))
+				g.Expect(result.Record.Component).To(Equal("pod"))
+				workload := workloadResult(view, p.UID)
+				g.Expect(workload).NotTo(BeNil())
+				g.Expect(workload.StatusError).To(Equal(store.ReasonEvaluationFailed))
+				g.Expect(workload.Record.Karta).To(Equal(definition.Name))
+				g.Expect(workload.Record.HasStatus).To(BeTrue())
+			}).Should(Succeed())
+
+			By("clearing definition-derived fields despite the label failure")
+			deleteObjects(ctx, definition)
+			expectedPodError = store.ReasonEvaluationFailed
+			Eventually(checkGeneric).Should(Succeed())
+
+			By("recovering Pod labels without restoring a definition")
+			p.Labels = map[string]string{"example.com/team": "alpha"}
+			Expect(api.Update(ctx, p)).To(Succeed())
+			expectedPodError = ""
+			Eventually(checkGeneric).Should(Succeed())
+		}
+
+		By("removing both records when the standalone Pod is deleted")
+		deleteObjects(ctx, p)
+		Eventually(func(g Gomega) {
+			view := components.Store.Capture()
+			g.Expect(podResult(view, p.UID)).To(BeNil())
+			g.Expect(workloadResult(view, p.UID)).To(BeNil())
+		}).Should(Succeed())
+	})
+
 	It("updates live ownership, definitions and records and joins workers on cancellation", func(ctx SpecContext) {
 		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "exporter-"}}
 		Expect(api.Create(ctx, ns)).To(Succeed())
@@ -336,26 +441,26 @@ func workloadResult(view store.CapturedView, uid types.UID) *store.WorkloadResul
 	return nil
 }
 
-func expectPod(g Gomega, view store.CapturedView, p *corev1.Pod, root *appsv1.Deployment) *store.PodResult {
+func expectPod(g Gomega, view store.CapturedView, p *corev1.Pod, root client.Object) *store.PodResult {
 	result := podResult(view, p.UID)
 	g.Expect(result).NotTo(BeNil())
 	g.Expect(result.HasValue).To(BeTrue())
 	g.Expect(result.Record.Name).To(Equal(p.Name))
 	g.Expect(result.Record.Namespace).To(Equal(p.Namespace))
-	g.Expect(result.Record.Workload.UID).To(Equal(root.UID))
+	g.Expect(result.Record.Workload.UID).To(Equal(root.GetUID()))
 	g.Expect(result.Record.OwnerResolution).To(Equal(store.Resolved))
 	valid, reason := view.Valid(result.Sources, result.Error)
 	g.Expect(valid).To(BeTrue(), reason)
 	return result
 }
 
-func expectWorkload(g Gomega, view store.CapturedView, root *appsv1.Deployment) *store.WorkloadResult {
-	result := workloadResult(view, root.UID)
+func expectWorkload(g Gomega, view store.CapturedView, root client.Object) *store.WorkloadResult {
+	result := workloadResult(view, root.GetUID())
 	g.Expect(result).NotTo(BeNil())
 	g.Expect(result.HasValue).To(BeTrue())
-	g.Expect(result.Record.Ref.Name).To(Equal(root.Name))
-	g.Expect(result.Record.Ref.Namespace).To(Equal(root.Namespace))
-	g.Expect(result.Record.CreatedTimestamp).To(Equal(root.CreationTimestamp.Unix()))
+	g.Expect(result.Record.Ref.Name).To(Equal(root.GetName()))
+	g.Expect(result.Record.Ref.Namespace).To(Equal(root.GetNamespace()))
+	g.Expect(result.Record.CreatedTimestamp).To(Equal(root.GetCreationTimestamp().Unix()))
 	g.Expect(result.StatusError).To(BeEmpty())
 	valid, reason := view.Valid(result.Sources, result.Error)
 	g.Expect(valid).To(BeTrue(), reason)

@@ -354,8 +354,8 @@ Pod. The first match chooses the component; no match fails mapping.
 
 A root without a Karta still supplies generic Pod identity and creation time.
 Component and instance are `<unknown>` and group is empty. It has no status.
-A selection error does not use this fallback. Bare-Pod output follows the explicit
-Pod-definition opt-in in the configuration guide.
+This also applies to bare Pods, whose workload root is the Pod itself.
+A selection error does not use this fallback.
 
 ## Evaluate extra metric labels
 

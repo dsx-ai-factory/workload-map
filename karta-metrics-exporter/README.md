@@ -3,161 +3,81 @@
 
 # Karta metrics exporter
 
-Karta metrics exporter is a standalone component for connecting Kubernetes
-workloads to resource-usage metrics. Its [metric contract](../docs/keps/0001-metrics-exporter/README.md#metrics)
-describes workload status and the workload, component and group that each Pod
-belongs to. Prometheus can join this identity with CPU and memory measurements
-from cAdvisor and GPU measurements from DCGM.
+The exporter reports workload status and maps Pods to their workload, component,
+instance and group. Prometheus can join these labels with CPU, memory and GPU
+measurements. See the [metric definitions](../docs/keps/0001-metrics-exporter/README.md#metrics)
+and [query examples](../docs/karta-metrics-exporter/README.md).
 
-For example, a Pod in JobSet `train` can belong to component `replicatedjob`,
-instance `worker` and group `0`. The [query guide](../docs/karta-metrics-exporter/README.md)
-shows how to group measurements by that identity.
-
-The command watches Kubernetes objects, maintains Pod and workload records,
-and serves the collector's Prometheus metrics at `/metrics` on port 8080.
-Scraping reads the publication store without querying Kubernetes.
+Metrics are served at `/metrics` on port 8080. Scrapes read saved results without
+calling Kubernetes.
 
 ## Run
 
-Run these commands from the repository root:
+From the repository root:
 
 ```sh
 make build-exporter
-./bin/karta-metrics-exporter --version
-./bin/karta-metrics-exporter --help
 ./bin/karta-metrics-exporter
 ```
 
-The command uses the current kubeconfig, or the in-cluster service account.
-It starts the definition inventory, waits for the initial load, then starts
-the controller. It runs until Ctrl-C (`SIGINT`) or `SIGTERM`.
-`/healthz` reports process health. `/readyz` requires healthy inventory and
-synchronized required watches. Shutdown stops
-HTTP serving, joins the inventory and workers, then closes metric collection.
+- Uses kubeconfig or the in-cluster service account.
+- Loads Karta definitions, then starts the controller.
+- `/healthz` checks process health.
+- `/readyz` requires healthy inventory and synchronized required watches.
+- Stops cleanly on `Ctrl-C` or `SIGTERM`.
+
 Use `--metrics-bind-address` to change the default `:8080` listener.
-
-If the initial Karta LIST fails, the inventory retries. The controller waits
-and readiness stays false until loading succeeds. Later inventory failures
-still make definition-dependent results unavailable until the source recovers.
-
-To configure labels, create a YAML file using the
-[label configuration example](pkg/labelevaluator/README.md#configuration).
-Omit the `exporter:` wrapper when running outside Helm, then pass the file:
-
-```sh
-./bin/karta-metrics-exporter --config exporter.yaml
-```
-
-The label evaluator uses Common Expression Language (CEL) and is implemented.
-The command validates `labelRules` and `genericLabelEvaluationLimits` and compiles
-expressions at startup. Invalid rules or expressions stop startup with an error.
-The label configuration reference lists the supported flags, environment
-variables, defaults and precedence.
-
-Build a container image with `make exporter-image IMAGE_TAG=dev`. The Helm chart
-keeps the exporter disabled by default. The
-[configuration reference](../docs/karta-metrics-exporter/configuration.md)
-describes the overall deployment and metric contract. Enabling the exporter
-creates its Deployment and a Service on port 8080, with health and readiness probes.
 
 ## Runtime configuration
 
-For example, this file observes Pods in namespaces labeled `team: platform` and
-uses the built-in Deployment definition:
+For Helm, set `exporter.enabled: true`. Settings and defaults are under `exporter:`
+in [charts/karta/values.yaml](../charts/karta/values.yaml).
 
-```yaml
-kartaDefinitionSource:
-  catalog:
-    enabled: true
-    include: [apps-deployment-v1]
-  cluster:
-    enabled: false
-namespaceSelector:
-  matchLabels:
-    team: platform
-workers: 2
+For the standalone binary, put runtime settings at the YAML root, without the
+`exporter:` wrapper. Omit chart-only settings such as `enabled`, `image` and `rbac`.
+
+```sh
+./bin/karta-metrics-exporter --config exporter.yaml
+./bin/karta-metrics-exporter --help
 ```
 
-The runtime settings below use the same names under Helm's `exporter:` key.
+Selectors, resource rules, kinds and definition sources use YAML. Worker counts,
+request timeout and API limits also have flags and environment variables listed by
+`--help`. For those settings, flags override environment variables, which override
+YAML. See the [label configuration example](pkg/labelevaluator/README.md#configuration)
+for custom labels and expression limits.
 
-| Setting | Default | Behavior |
-| --- | --- | --- |
-| `namespaceSelector` | Helm excludes system namespaces; otherwise empty | Observe matching namespaces; an empty selector observes all namespaces |
-| `podSelector` | Empty | Publish matching Pods; other Pods remain available for owner traversal |
-| `objectSelector` | Empty | Select workload objects by labels |
-| `resourceRules` | Empty | Select workload root API groups, versions and resources |
-| `excludeResourceRules` | Helm excludes core ConfigMaps and Secrets; binary defaults to empty | Exclude workload roots; exclusions win |
-| `ignoredOwnerKinds` | Empty | Stop discovery immediately before these owner kinds |
-| `requiredKinds` | Empty | Require these resource sources to synchronize before readiness |
-| `workers` | `2` | Default worker count for each Pod and workload queue |
-| `leafWorkers`, `rootWorkers` | `0` | Override each queue's count; zero inherits `workers` |
-| `requestTimeout` | `30s` | Bound resource discovery and each LIST page, not the lifetime of a watch |
-| `apiQPS`, `apiBurst` | `20`, `40` | Share one Kubernetes client request limiter |
-
-Kinds use slash strings, such as `apps/v1/Deployment` or `v1/Node`. Each resource
-rule contains `apiGroups`, `apiVersions` and `resources` lists. An empty inclusion
-list permits every resource. Resource rules select workload roots. They do not
-block reads used for owner traversal or change RBAC permissions. Set
-`exporter.excludeResourceRules: []` to allow ConfigMaps and Secrets as workload
-roots when using Helm.
-
-Worker counts, request timeout and API limits also have kebab-case flags and
-`KARTA_EXPORTER_*` environment variables, shown by `--help`. A flag overrides
-the environment, which overrides the YAML file. Selectors, resource rules,
-kinds and definition sources are configured in YAML only.
-
-The chart excludes `kube-system`, `kube-public` and `kube-node-lease` by default.
-Set `exporter.namespaceSelector.matchExpressions: []` to observe all namespaces.
-Other infrastructure namespaces must be excluded explicitly. Namespace selection
-uses separate watches per included namespace and does not restrict cluster-scoped
-resources or RBAC permissions.
-
-When enabled, the chart grants LIST/WATCH access to all API groups and resources
-through `exporter.rbac.workloadRules`. This supports custom workload owners without
-chart changes. It also permits reading Secrets across all namespaces. Replace the
-wildcard rule with explicit API groups and resources to limit access. No write
-permissions are granted.
+Namespace selection does not restrict cluster-scoped resources or RBAC.
+The chart's default `exporter.rbac.workloadRules` grants LIST/WATCH access to all
+resources, including Secrets. Replace it with explicit resources to limit access.
 
 ## Controller flow
 
-The [controller guide](pkg/controller/README.md) explains each of its six files,
-the three queues, full-object and metadata watches, publication checks, and
-cleanup. The definition inventory owns its Karta watch. The controller observes
-inventory changes and owns workload watches. Pod and workload workers evaluate
-the latest cached objects and write independent records to the upstream store.
+The [controller guide](pkg/controller/README.md) explains watches, queues, workers,
+publication and cleanup.
 
-`bootstrap.New` constructs these components. `app.New` creates the HTTP and
-metrics application. Its `Serve` method starts `app.RunController`, which waits
-for the inventory's initial load before starting workers and joins both on
-shutdown. The application owns the listener and collector registration.
-
-This change keeps the merged discovery, store, evaluator and catalog behavior.
-Operator-specific mapping corrections remain separate, including Dynamo replica
-keys, Grove instance names, JobSet group identity, RayJob submitter Pods and
-KServe status. Controller tests do not establish complete operator coverage.
+| Package | Responsibility |
+| --- | --- |
+| [kartadefinitioninventory](pkg/kartadefinitioninventory/) | Load and select Karta definitions |
+| [discovery](pkg/discovery/) | Follow object owners to a workload root |
+| [labelevaluator](pkg/labelevaluator/) | Evaluate a label expression against one object |
+| [labelresolver](pkg/labelresolver/) | Resolve metric labels from a workload and optional Pod |
+| [controller](pkg/controller/) | Watch objects, process queued work and save results |
+| [store](pkg/store/) | Hold results, source health and errors |
+| [adapters/otel](pkg/adapters/otel/) | Convert saved results into metrics |
 
 ## Development
-
-Component contracts live under `pkg/`. Each package documents its inputs,
-outputs and implementation status.
-
-| Package | Input and result |
-| --- | --- |
-| [kartadefinitioninventory](pkg/kartadefinitioninventory/) | Root GVK -> selected Karta and its source |
-| [discovery](pkg/discovery/) | Object reference -> workload root and missing root coverage |
-| [labelevaluator](pkg/labelevaluator/) | One object -> one configured label value |
-| [labelresolver](pkg/labelresolver/) | Root, optional Pod and metric names -> labels for each metric |
-| [controller](pkg/controller/) | Watches and queued work -> publications |
-| [store](pkg/store/) | Publications -> consistent captured view |
-| [adapters/otel](pkg/adapters/otel/) | Captured view -> OpenTelemetry observations |
-
-Generated Mockery mocks live beside the interfaces they implement.
 
 ```sh
 make exporter-generate-mocks
 make check-exporter
+make exporter-image IMAGE_TAG=dev
 ```
 
-The controller integration tests use a real Kubernetes API server through
-envtest. They inspect store records and readiness. They do not install operators
-or test a metrics collector.
+Regenerate mocks after changing interfaces. Controller integration tests use
+an envtest Kubernetes API server and check store records and readiness. They do
+not install operators or test the metrics collector.
+
+Operator mapping gaps remain for Dynamo replica keys, Grove instance names,
+JobSet group identity, RayJob submitter Pods and KServe status. Controller tests
+do not establish complete operator coverage.

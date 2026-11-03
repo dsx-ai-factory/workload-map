@@ -4,7 +4,7 @@
 name: Upload artifacts to GitHub Container Registry
 on:
   push:
-    branches: [ main ]
+    branches: [ main, karta-metrics-exporter-impl ]
   # Fires for a published full release or a prerelease promoted to one; drafts
   # and prereleases fire nothing.
   release:
@@ -55,10 +55,10 @@ jobs:
             echo "Release: using its tag as the version (strip the leading 'v')"
             PACKAGE_VERSION=${RELEASE_TAG#v}
           else
-            echo "Push to main: dev build keyed off the commit sha"
-            PACKAGE_VERSION=0.0.0-main-$(git rev-parse --short HEAD)
+            echo "Push to $GITHUB_REF_NAME: dev build keyed off the branch and commit sha"
+            PACKAGE_VERSION=0.0.0-${GITHUB_REF_NAME}-$(git rev-parse --short HEAD)
           fi
-          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
           echo "PACKAGE_VERSION=$PACKAGE_VERSION"
 
       - name: Set registry namespace
@@ -67,8 +67,8 @@ jobs:
           # namespace. ghcr requires lowercase, and an owner can be mixed case.
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           REGISTRY_NAMESPACE="ghcr.io/${OWNER}/workload-map"
-          echo "REGISTRY_NAMESPACE=$REGISTRY_NAMESPACE" >> $GITHUB_ENV
-          echo "HELM_REGISTRY=$REGISTRY_NAMESPACE" >> $GITHUB_ENV
+          echo "REGISTRY_NAMESPACE=$REGISTRY_NAMESPACE" >> "$GITHUB_ENV"
+          echo "HELM_REGISTRY=$REGISTRY_NAMESPACE" >> "$GITHUB_ENV"
           echo "Publishing artifacts to $REGISTRY_NAMESPACE"
 
       # Before the publication check: helm reads the Docker credential store, and
@@ -169,7 +169,7 @@ jobs:
       - name: Push Helm Chart
         if: steps.publication.outputs.published != 'true'
         run: |
-          helm push ./charts/karta-$PACKAGE_VERSION.tgz oci://${{ env.HELM_REGISTRY }}
+          helm push "./charts/karta-$PACKAGE_VERSION.tgz" oci://${{ env.HELM_REGISTRY }}
 
       # GoReleaser finds the published release by its tag and uploads to it,
       # keeping the notes written for it (release.mode in .goreleaser.yaml).

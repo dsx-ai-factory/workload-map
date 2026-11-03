@@ -48,9 +48,9 @@ source is allowed only for Pod info. Sources run in listed order until a nonempt
 value is found. The resolver retains per-source evaluation errors, including
 when a fallback succeeds. A rule can replace a built-in label of the same name.
 
-The evaluator, startup rule validation and the [label resolver](../labelresolver/README.md)
-work today. The collector serves saved results at `/metrics`; runtime workers
-that evaluate Kubernetes workloads remain mocked.
+Runtime workers use the [label resolver](../labelresolver/README.md) to evaluate
+configured rules against cached Pods and workloads. The collector serves the
+saved results at `/metrics`.
 
 Helm mounts these two sections as a config file. Outside Helm, use the same file
 without the `exporter:` wrapper and pass `--config path.yaml`.

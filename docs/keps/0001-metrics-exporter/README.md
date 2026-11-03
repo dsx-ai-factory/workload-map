@@ -47,9 +47,12 @@ runtime ownership and verification.
 | `karta_workload_created_timestamp_seconds` | Gauge | Root `metadata.creationTimestamp` in Unix seconds. | Calculate workload age. |
 | `karta_exporter_observation_valid` | Gauge | Resource-type collection: `1` or `0`. Workload failures: `0` only. | Report collection health and failure reasons. Healthy workloads have no separate health row. |
 
-Without a selected Karta definition, a verified root still supplies Pod identity
-and creation time, but no status. Component and instance are `<unknown>`; group
-is empty. Missing a definition alone is not a verification failure.
+Without a selected Karta definition, a verified root still supplies Pod identity,
+creation time and all nine status phase gauges with value `0`. The status labels
+`karta` and `karta_source` are empty. Zero means no phase matched; it does not
+assert an evaluated application state. Workload label rules still apply.
+Component and instance are `<unknown>`; group is empty. Missing a definition
+alone is not a verification failure.
 
 Creation time comes from the root object. Missing timestamps or failed/expired
 root verification omit the sample. Status evaluation alone does not invalidate
@@ -91,8 +94,8 @@ karta_exporter_observation_valid{scope="resource_type",namespace="team-a",resour
 | `phase` | Status | Evaluated workload phase; its series value is `1` when matched and `0` otherwise. | `Running` |
 | `owner_resolution` | Pod info, Status | `resolved` after verifying the chain; `ignored_owner` at an intentional boundary; `unknown` when owner resolution fails, including denied reads. Failure reasons are reported by Health. | `unknown` after a denied owner read. |
 | `observation_valid` | Pod info, Status | `"true"` while the verification required for this observation is valid; `"false"` for a retained cached observation after failure or expiry. | `true` |
-| `karta` | Status | Name of the selected Karta definition. | `jobset-x-k8s-io-jobset-v1alpha2` |
-| `karta_source` | Status | Origin of that definition: `catalog` for a built-in definition or `cluster` for a Karta custom resource. | `catalog` |
+| `karta` | Status | Name of the selected Karta definition, or empty when none is selected. | `jobset-x-k8s-io-jobset-v1alpha2` |
+| `karta_source` | Status | Origin of that definition: `catalog`, `cluster`, or empty when none is selected. | `catalog` |
 | `scope` | Health | `resource_type` reports collection health per namespace + GVK, including before object names are known; it does not certify each workload evaluation. `workload` reports failures affecting a known workload; no healthy workload row is emitted. | `workload` |
 | `resource_group` | Health | API group being verified. For workload scope, identifies the affected root workload, even when a dependency failed. Empty for the core API. | `jobset.x-k8s.io` |
 | `resource_version` | Health | API version being verified, not Kubernetes `metadata.resourceVersion`, using the same scope as `resource_group`. | `v1alpha2` |

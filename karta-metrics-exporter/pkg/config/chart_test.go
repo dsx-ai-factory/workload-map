@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os/exec"
 	"path/filepath"
@@ -100,4 +101,60 @@ var _ = Describe("chart definition source configuration", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(string(out)).To(ContainSubstring("exporter.kartaDefinitionSource.cluster.enabled must be true or false"))
 	})
+})
+
+var _ = Describe("chart exporter metrics Service", func() {
+	for _, enabled := range []bool{true, false} {
+		It(fmt.Sprintf("keeps diagnostics reachable with exporter.enabled=%t", enabled), func() {
+			helm, err := exec.LookPath("helm")
+			if err != nil {
+				Skip("helm is needed for chart rendering")
+			}
+			chart := filepath.Join("..", "..", "..", "charts", "karta")
+			out, err := exec.Command(helm, "template", "metrics", chart,
+				"--set", fmt.Sprintf("exporter.enabled=%t", enabled),
+			).CombinedOutput()
+			Expect(err).To(Succeed(), string(out))
+			decoder := yaml.NewDecoder(bytes.NewReader(out))
+			found := false
+			for {
+				var doc struct {
+					Kind     string `yaml:"kind"`
+					Metadata struct {
+						Name string `yaml:"name"`
+					} `yaml:"metadata"`
+					Spec yaml.Node `yaml:"spec"`
+				}
+				err = decoder.Decode(&doc)
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				Expect(err).To(Succeed())
+				if doc.Kind != "Service" || doc.Metadata.Name != "karta-metrics-exporter" {
+					continue
+				}
+				found = true
+				var spec struct {
+					PublishNotReadyAddresses bool              `yaml:"publishNotReadyAddresses"`
+					Selector                 map[string]string `yaml:"selector"`
+					Ports                    []struct {
+						Name       string `yaml:"name"`
+						Port       int    `yaml:"port"`
+						TargetPort string `yaml:"targetPort"`
+					} `yaml:"ports"`
+				}
+				Expect(doc.Spec.Decode(&spec)).To(Succeed())
+				Expect(spec.PublishNotReadyAddresses).To(BeTrue(), "diagnostic metrics must remain reachable when the exporter is unready")
+				Expect(spec.Selector).To(Equal(map[string]string{
+					"app.kubernetes.io/name":     "karta-metrics-exporter",
+					"app.kubernetes.io/instance": "metrics",
+				}))
+				Expect(spec.Ports).To(HaveLen(1))
+				Expect(spec.Ports[0].Name).To(Equal("metrics"))
+				Expect(spec.Ports[0].Port).To(Equal(8080))
+				Expect(spec.Ports[0].TargetPort).To(Equal("metrics"))
+			}
+			Expect(found).To(Equal(enabled), "exporter Service must only be rendered when enabled")
+		})
+	}
 })

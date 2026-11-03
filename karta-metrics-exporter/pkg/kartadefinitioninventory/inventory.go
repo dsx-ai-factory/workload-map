@@ -37,6 +37,18 @@ type Reader interface {
 	Lookup(schema.GroupVersionKind) (Selection, error)
 }
 
+// Observer reads current selections and follows changes without owning their watch.
+type Observer interface {
+	List() ([]SelectionResult, error)
+	Changes() <-chan struct{}
+}
+
+// SelectionResult retains an elected definition even when its validation fails.
+type SelectionResult struct {
+	Selection
+	Err error
+}
+
 // Selection pairs a definition with the source it came from.
 type Selection struct {
 	Definition *v1alpha1.Karta
@@ -63,6 +75,8 @@ const (
 type Config struct {
 	Catalog SourceConfig
 	Cluster SourceConfig
+	// RequestTimeout bounds each LIST page. Zero leaves its lifetime to the caller.
+	RequestTimeout time.Duration `json:"-" yaml:"-"`
 }
 
 // SourceConfig selects a definition when its name is in Include; an empty
@@ -85,7 +99,8 @@ var (
 // Inventory serves definitions from the catalog and the cluster. Reads never
 // call the API server.
 type Inventory struct {
-	client dynamic.Interface
+	client         dynamic.Interface
+	requestTimeout time.Duration
 	// catalog holds the catalog winners, filtered once in New. Only cluster
 	// Kartas keep arriving, so only their filter is kept.
 	catalog       map[schema.GroupKind]definitionEntry
@@ -93,6 +108,7 @@ type Inventory struct {
 	log           *slog.Logger
 	loaded        chan struct{}
 	done          chan struct{}
+	changes       chan struct{}
 	started       atomic.Bool
 
 	mu       sync.RWMutex
@@ -133,11 +149,15 @@ var (
 	errShortWatch = errors.New("watch closed within a second without events; relisting")
 
 	_ Reader               = (*Inventory)(nil)
+	_ Observer             = (*Inventory)(nil)
 	_ cache.ReflectorStore = reflectorStore{}
 )
 
 // New needs a client only when the cluster source is enabled.
 func New(client dynamic.Interface, config Config) (*Inventory, error) {
+	if config.RequestTimeout < 0 {
+		return nil, fmt.Errorf("%w: request timeout must not be negative", ErrInvalidConfig)
+	}
 	catalogDefinitions := catalog.List()
 	known := sets.New[string]()
 	for _, k := range catalogDefinitions {
@@ -152,13 +172,15 @@ func New(client dynamic.Interface, config Config) (*Inventory, error) {
 		return nil, ErrNoClient
 	}
 	i := &Inventory{
-		client:        client,
-		catalog:       make(map[schema.GroupKind]definitionEntry),
-		clusterFilter: clusterFilter,
-		log:           slog.Default(),
-		loaded:        make(chan struct{}),
-		done:          make(chan struct{}),
-		cluster:       make(map[string]definitionEntry),
+		client:         client,
+		requestTimeout: config.RequestTimeout,
+		catalog:        make(map[schema.GroupKind]definitionEntry),
+		clusterFilter:  clusterFilter,
+		log:            slog.Default(),
+		loaded:         make(chan struct{}),
+		done:           make(chan struct{}),
+		changes:        make(chan struct{}, 1),
+		cluster:        make(map[string]definitionEntry),
 	}
 	for _, k := range catalogDefinitions {
 		if !catalogFilter.matches(k.Name) {
@@ -182,6 +204,7 @@ func New(client dynamic.Interface, config Config) (*Inventory, error) {
 		i.synced = true
 		close(i.loaded)
 	}
+	i.notify()
 	return i, nil
 }
 
@@ -196,6 +219,7 @@ func (i *Inventory) Run(ctx context.Context) error {
 		defer i.mu.Unlock()
 		i.stopped = true
 		close(i.done)
+		i.notify()
 	}()
 	if !i.clusterFilter.enabled {
 		<-ctx.Done()
@@ -221,6 +245,9 @@ func (i *Inventory) WaitLoaded(ctx context.Context) error {
 	case <-i.loaded:
 		return nil
 	case <-i.done:
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		// Both channels may be closed by now.
 		select {
 		case <-i.loaded:
@@ -232,6 +259,63 @@ func (i *Inventory) WaitLoaded(ctx context.Context) error {
 		return ctx.Err()
 	}
 }
+
+// Lookup ignores the requested version and never falls back while a source fails.
+// A nil Definition with no error means neither source has a matching definition.
+func (i *Inventory) Lookup(gvk schema.GroupVersionKind) (Selection, error) {
+	winner, source, err := i.elect(gvk)
+	if err != nil {
+		return Selection{}, err
+	}
+	if winner.err != nil {
+		return Selection{}, winner.err
+	}
+	return selection(winner.definition, source), nil
+}
+
+// List returns one elected definition per group and kind in GVK order.
+// Invalid winners retain their identity and validation error. A source error
+// returns no snapshot and must not be treated as confirmed absence.
+func (i *Inventory) List() ([]SelectionResult, error) {
+	results, err := i.listSelectedDefinitions()
+	if err != nil {
+		return nil, err
+	}
+	for n := range results {
+		results[n].Selection = selection(results[n].Definition, results[n].Origin.Source)
+	}
+	slices.SortFunc(results, func(a, b SelectionResult) int { return strings.Compare(a.GVK.String(), b.GVK.String()) })
+	return results, nil
+}
+
+func (i *Inventory) listSelectedDefinitions() ([]SelectionResult, error) {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	if err := i.ready(); err != nil {
+		return nil, err
+	}
+	kinds := sets.New[schema.GroupKind]()
+	for gk := range i.catalog {
+		kinds.Insert(gk)
+	}
+	for _, entry := range i.cluster {
+		gvk := catalog.RootKey(entry.definition)
+		if gvk.Version != "" && gvk.Kind != "" {
+			kinds.Insert(gvk.GroupKind())
+		}
+	}
+	results := make([]SelectionResult, 0, kinds.Len())
+	for gk := range kinds {
+		winner, source := i.electLocked(gk.WithVersion(""))
+		results = append(results, SelectionResult{Selection: Selection{Definition: winner.definition, Origin: Origin{Source: source}}, Err: winner.err})
+	}
+	return results, nil
+}
+
+// Changes is a coalesced signal for a single observer to read List again.
+// Consumers read the initial snapshot themselves and stop on their context.
+// The channel remains open after Run stops so its final health can be read.
+func (i *Inventory) Changes() <-chan struct{} { return i.changes }
 
 // listWatch records every failure; the reflector retries some without reporting them.
 func (i *Inventory) listWatch(resource dynamic.ResourceInterface) *cache.ListWatch {
@@ -246,6 +330,11 @@ func (i *Inventory) listWatch(resource dynamic.ResourceInterface) *cache.ListWat
 }
 
 func (i *Inventory) list(ctx context.Context, resource dynamic.ResourceInterface, options metav1.ListOptions) (runtime.Object, error) {
+	if i.requestTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, i.requestTimeout)
+		defer cancel()
+	}
 	// Later pages continue the same list.
 	if options.Continue == "" {
 		i.beginList()
@@ -369,6 +458,7 @@ func (i *Inventory) failWatch(ctx context.Context, proxy *watch.ProxyWatcher, er
 func (i *Inventory) fail(err error) {
 	i.failure = err
 	i.failures++
+	i.notify()
 }
 
 // Add skips a Karta the name filter rejects, so it is never decoded or validated.
@@ -386,6 +476,7 @@ func (s reflectorStore) Add(obj any) error {
 	defer i.mu.Unlock()
 	i.cluster[u.GetName()] = entry
 	i.report()
+	i.notify()
 	return nil
 }
 
@@ -399,8 +490,12 @@ func (s reflectorStore) Delete(obj any) error {
 	i := s.inventory
 	i.mu.Lock()
 	defer i.mu.Unlock()
+	if _, ok := i.cluster[u.GetName()]; !ok {
+		return nil
+	}
 	delete(i.cluster, u.GetName())
 	i.report()
+	i.notify()
 	return nil
 }
 
@@ -430,6 +525,7 @@ func (s reflectorStore) Replace(list []any, _ string) error {
 		i.log.Info("Karta definition inventory synced", "listed", len(list), "error", i.ready())
 	}
 	i.applied = time.Now()
+	i.notify()
 	return nil
 }
 
@@ -498,25 +594,22 @@ func (i *Inventory) ready() error {
 	return nil
 }
 
-// Lookup ignores the requested version and never falls back while a source fails.
-// A nil Definition with no error means neither source has a matching definition.
-func (i *Inventory) Lookup(gvk schema.GroupVersionKind) (Selection, error) {
-	winner, source, err := i.elect(gvk)
-	if err != nil {
-		return Selection{}, err
+func (i *Inventory) notify() {
+	select {
+	case i.changes <- struct{}{}:
+	default:
 	}
-	if winner.err != nil {
-		return Selection{}, winner.err
-	}
-	k := winner.definition
+}
+
+func selection(k *v1alpha1.Karta, source Source) Selection {
 	if k == nil {
-		return Selection{}, nil
+		return Selection{}
 	}
 	origin := Origin{Source: source, Name: k.Name}
 	if source == SourceCluster {
 		origin.UID, origin.ResourceVersion = k.UID, k.ResourceVersion
 	}
-	return Selection{Definition: k.DeepCopy(), GVK: catalog.RootKey(k), Origin: origin}, nil
+	return Selection{Definition: k.DeepCopy(), GVK: catalog.RootKey(k), Origin: origin}
 }
 
 // elect picks the winner under the read lock. Entries are replaced whole, so
@@ -527,6 +620,12 @@ func (i *Inventory) elect(gvk schema.GroupVersionKind) (definitionEntry, Source,
 	if err := i.ready(); err != nil {
 		return definitionEntry{}, "", err
 	}
+	winner, source := i.electLocked(gvk)
+	return winner, source, nil
+}
+
+// electLocked selects a winner after the caller checks source health.
+func (i *Inventory) electLocked(gvk schema.GroupVersionKind) (definitionEntry, Source) {
 	var winner definitionEntry
 	for _, entry := range i.cluster {
 		k := entry.definition
@@ -541,9 +640,9 @@ func (i *Inventory) elect(gvk schema.GroupVersionKind) (definitionEntry, Source,
 		}
 	}
 	if winner.definition == nil {
-		return i.catalog[gvk.GroupKind()], SourceCatalog, nil
+		return i.catalog[gvk.GroupKind()], SourceCatalog
 	}
-	return winner, SourceCluster, nil
+	return winner, SourceCluster
 }
 
 func validatedEntry(k *v1alpha1.Karta) definitionEntry {

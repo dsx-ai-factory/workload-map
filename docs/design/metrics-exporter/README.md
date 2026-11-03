@@ -352,10 +352,12 @@ an empty group. An unknown instance or failed expression fails that mapping.
 For multiple components, each component's Pod selector is evaluated against the
 Pod. The first match chooses the component; no match fails mapping.
 
-A root without a Karta still supplies generic Pod identity and creation time.
-Component and instance are `<unknown>` and group is empty. It has no status.
-A selection error does not use this fallback. Bare-Pod output follows the explicit
-Pod-definition opt-in in the configuration guide.
+A verified root without a Karta still supplies generic Pod identity, creation
+time and all nine status phase gauges with value `0`. Status labels `karta` and
+`karta_source` are empty, and workload label rules still apply. Component and
+instance are `<unknown>` and group is empty. This also applies to bare Pods,
+whose workload root is the Pod itself.
+A selection error does not use this fallback.
 
 ## Evaluate extra metric labels
 
@@ -569,9 +571,10 @@ row. It briefly takes Runtime's publication mutex, then Store's read lock.
 Formatting runs after both are released.
 
 Store saves the matching phases. Collector uses its configured phase list to
-emit 1 for a match and 0 for every other phase. `HasStatus=false` omits status
-entirely, even when the configured phase list is nonempty. It also emits verified creation
-time. For each Pod,
+emit 1 for a match and 0 for every other phase. A verified root without a selected
+Karta has `HasStatus=true` and an empty phase set, so all phases emit `0`.
+`HasStatus=false` omits unavailable status, including a failed first evaluation
+with no saved result. Collector also emits verified creation time. For each Pod,
 it emits the mapping and saved labels. It applies the KEP's validity rules:
 
 - Invalid retained status or mapping emits `observation_valid="false"`.

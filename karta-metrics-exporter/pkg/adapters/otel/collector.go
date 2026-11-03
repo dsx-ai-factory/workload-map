@@ -46,17 +46,18 @@ type discoveryFailure struct {
 
 // Register registers the KEP gauges. Unregister before shutting down the provider.
 func Register(meter metric.Meter, s store.Capturer) (metric.Registration, error) {
+	workloadIdentityLabels := []string{LabelNamespace, LabelWorkload, LabelWorkloadGroup, LabelWorkloadVersion, LabelWorkloadKind, LabelWorkloadUID}
 	c := &collector{
 		store: s,
 		podInfo: gauge{
 			name:        MetricPodWorkloadInfo,
 			description: "Pod attribution to a confirmed workload root. Value is always 1.",
-			labels:      []string{LabelNamespace, LabelWorkload, LabelWorkloadGroup, LabelWorkloadVersion, LabelWorkloadKind, LabelWorkloadUID, LabelOwnerResolution, LabelPod, LabelPodUID, LabelComponent, LabelComponentInstance, LabelReplicaGroupID, LabelObservationValid},
+			labels:      slices.Concat(workloadIdentityLabels, []string{LabelOwnerResolution, LabelPod, LabelPodUID, LabelComponent, LabelComponentInstance, LabelReplicaGroupID, LabelObservationValid}),
 		},
 		workloadStatus: gauge{
 			name:        MetricWorkloadStatus,
 			description: "Normalized root workload status. Each phase is 0 or 1; several phases can match.",
-			labels:      []string{LabelNamespace, LabelWorkload, LabelWorkloadGroup, LabelWorkloadVersion, LabelWorkloadKind, LabelWorkloadUID, LabelPhase, LabelOwnerResolution, LabelKarta, LabelKartaSource, LabelObservationValid},
+			labels:      slices.Concat(workloadIdentityLabels, []string{LabelPhase, LabelOwnerResolution, LabelKarta, LabelKartaSource, LabelObservationValid}),
 		},
 		workloadCreated: gauge{
 			name:        MetricWorkloadCreatedTimestamp,

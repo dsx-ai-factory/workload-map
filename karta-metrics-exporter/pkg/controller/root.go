@@ -93,18 +93,16 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 		}
 		return r.state.excludeSelectedObject(key, workload, selection, rootSelection)
 	}
-	sources := r.state.sourcesFor(workload.Path)
-	return r.state.registerSelectedObjectRoot(key, workload, selection, rootSelection, sources)
+	return r.state.registerSelectedObjectRoot(key, workload, selection, rootSelection)
 }
 
 // Only canonical UID keys publish workload results. Selected-object keys register
 // or unregister root membership, including watched children that have no Pods.
 func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
-	snapshot, exists := r.state.snapshotRoot(uid)
+	ref, exists := r.state.snapshotRoot(uid)
 	if !exists {
 		return nil
 	}
-	ref := snapshot.ref
 	selection, selectionErr := r.state.lookupDefinition(ref.GVK)
 	if selection.Definition != nil {
 		ref.GVK = selection.GVK
@@ -145,8 +143,11 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 	record := store.WorkloadRecord{
 		UID:              uid,
 		Ref:              storedRef(ref),
-		OwnerResolution:  store.OwnerResolution(snapshot.resolution),
+		OwnerResolution:  store.Resolved,
 		CreatedTimestamp: workloadObject.GetCreationTimestamp().Unix(),
+	}
+	if owner.UID != "" {
+		record.OwnerResolution = store.IgnoredOwner
 	}
 	statusErr := selectionErr
 	if statusErr == nil {
@@ -161,14 +162,13 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 		}
 		statusErr = errors.Join(statusErr, r.evaluateWorkloadStatusLabels(ctx, workloadObject, &record))
 	}
-	sources := appendSources(r.state.sourcesFor([]discovery.ObjectRef{ref}), snapshot.sources)
+	sources := r.state.sourcesFor([]discovery.ObjectRef{ref})
 	creationSources := slices.DeleteFunc(slices.Clone(sources), func(key store.SourceKey) bool {
 		return key.Resource.Group == kartaGVK.Group && key.Resource.Resource == "kartas"
 	})
 	workloadResult := store.WorkloadResult{
 		Record:          record,
 		HasValue:        true,
-		Error:           failureReason(snapshot.err),
 		StatusError:     failureReason(statusErr),
 		Sources:         sources,
 		CreationSources: creationSources,

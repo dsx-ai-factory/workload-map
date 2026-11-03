@@ -81,21 +81,8 @@ type objectCache struct {
 
 type rootState struct {
 	ref             discovery.ObjectRef
-	resolution      discovery.OwnerResolution
 	pods            map[types.UID]objectJobKey
-	selectedObjects map[objectJobKey]selectedObjectState
-}
-
-type selectedObjectState struct {
-	sources []store.SourceKey
-	err     error
-}
-
-type rootSnapshot struct {
-	ref        discovery.ObjectRef
-	resolution discovery.OwnerResolution
-	sources    []store.SourceKey
-	err        error
+	selectedObjects map[objectJobKey]struct{}
 }
 
 func newControllerState(objects *objectCache) *controllerState {
@@ -164,12 +151,6 @@ func (r *controllerState) failPodEvaluation(key objectJobKey, path []discovery.O
 func (r *controllerState) failSelectedObjectDiscovery(key objectJobKey, err error) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if root := r.roots[r.selectedObjectRoots[key].rootUID]; root != nil {
-		selectedObject := root.selectedObjects[key]
-		selectedObject.err = err
-		root.selectedObjects[key] = selectedObject
-		r.workloadQueue.Add(workloadJobKey{RootUID: root.ref.UID})
-	}
 	r.deps.Publications.SetDiscoveryFailure(storedRef(key.ref()), failureReason(err))
 }
 
@@ -302,7 +283,7 @@ func (r *controllerState) replaceSelectedObjectTracking(key objectJobKey, object
 	return nil
 }
 
-func (r *controllerState) registerSelectedObjectRoot(key objectJobKey, workload *discovery.GenericWorkload, selection, rootSelection selectedDefinition, sources []store.SourceKey) error {
+func (r *controllerState) registerSelectedObjectRoot(key objectJobKey, workload *discovery.GenericWorkload, selection, rootSelection selectedDefinition) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	if !r.isNamespaceInScope(key.Object.Namespace) || !r.isNamespaceInScope(workload.Root.Namespace) {
@@ -320,7 +301,7 @@ func (r *controllerState) registerSelectedObjectRoot(key objectJobKey, workload 
 		}
 	}
 	r.selectedObjectRoots[key] = selectedObjectOutcome{rootUID: root.ref.UID}
-	root.selectedObjects[key] = selectedObjectState{sources: slices.Clone(sources)}
+	root.selectedObjects[key] = struct{}{}
 	r.workloadQueue.Add(workloadJobKey{RootUID: root.ref.UID})
 	r.deps.Publications.RemoveDiscoveryFailure(key.UID)
 	return nil
@@ -351,19 +332,14 @@ func (r *controllerState) unregisterSelectedObject(key objectJobKey) {
 
 // snapshotRoot is called only by the root-UID job, which owns its queue key
 // through publication. Root lifetime does not depend on its current members.
-func (r *controllerState) snapshotRoot(uid types.UID) (rootSnapshot, bool) {
+func (r *controllerState) snapshotRoot(uid types.UID) (discovery.ObjectRef, bool) {
 	r.stateMu.RLock()
 	defer r.stateMu.RUnlock()
 	root := r.roots[uid]
 	if root == nil {
-		return rootSnapshot{}, false
+		return discovery.ObjectRef{}, false
 	}
-	snapshot := rootSnapshot{ref: root.ref, resolution: root.resolution}
-	for _, selectedObject := range root.selectedObjects {
-		snapshot.sources = appendSources(snapshot.sources, selectedObject.sources)
-		snapshot.err = errors.Join(snapshot.err, selectedObject.err)
-	}
-	return snapshot, true
+	return root.ref, true
 }
 
 func (r *controllerState) withdrawWorkload(uid types.UID) {
@@ -503,11 +479,10 @@ func (r *controllerState) ensureRoot(workload *discovery.GenericWorkload) *rootS
 		root = &rootState{
 			ref:             workload.Root,
 			pods:            map[types.UID]objectJobKey{},
-			selectedObjects: map[objectJobKey]selectedObjectState{},
+			selectedObjects: map[objectJobKey]struct{}{},
 		}
 		r.roots[workload.Root.UID] = root
 	}
-	root.resolution = workload.Resolution
 	if selection := r.selectedDefinitions[workload.Root.GVK.GroupKind()]; selection.Definition != nil {
 		root.ref.GVK = selection.GVK
 	} else if root.ref.GVK != workload.Root.GVK {

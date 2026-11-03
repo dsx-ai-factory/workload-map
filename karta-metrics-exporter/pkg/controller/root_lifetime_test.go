@@ -251,7 +251,7 @@ func TestRootLifetimeNamespaceExclusionAndReentry(t *testing.T) {
 	require.NotContains(t, r.state.watches, w.key)
 	path := &discovery.GenericWorkload{Root: refOf(root), Path: []discovery.ObjectRef{refOf(root)}, Resolution: discovery.Resolved}
 	require.ErrorIs(t, r.state.registerPodRoot(objectJobFor(refOf(root)), path), discovery.ErrStale)
-	require.ErrorIs(t, r.state.registerSelectedObjectRoot(objectJobFor(refOf(root)), path, selectedDefinition{}, selectedDefinition{}, nil), discovery.ErrStale)
+	require.ErrorIs(t, r.state.registerSelectedObjectRoot(objectJobFor(refOf(root)), path, selectedDefinition{}, selectedDefinition{}), discovery.ErrStale)
 	drainRootLifetimeQueues(t, r)
 	require.NotContains(t, r.state.watches, w.key)
 	namespace.SetResourceVersion("3")

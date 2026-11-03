@@ -154,6 +154,6 @@ func definitionRefreshState(t *testing.T, definition selectedDefinition) (*contr
 	key := objectJobFor(refOf(pod))
 	r.objects[key.Object] = cachedObject{object: pod}
 	r.podRoots[key.UID] = ref.UID
-	r.roots[ref.UID] = &rootState{ref: ref, pods: map[types.UID]objectJobKey{key.UID: key}, selectedObjects: map[objectJobKey]selectedObjectState{}}
+	r.roots[ref.UID] = &rootState{ref: ref, pods: map[types.UID]objectJobKey{key.UID: key}, selectedObjects: map[objectJobKey]struct{}{}}
 	return r, ref
 }

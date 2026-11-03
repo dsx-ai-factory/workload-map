@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 
-{{- if .Values.exporter.enabled }}
+{{- if and .Values.exporter .Values.exporter.enabled }}
 {{- $fipsMode := include "karta.fipsMode" . }}
 apiVersion: apps/v1
 kind: Deployment

@@ -103,6 +103,53 @@ var _ = Describe("chart definition source configuration", func() {
 	})
 })
 
+var _ = Describe("chart exporter resources", func() {
+	for _, tc := range []struct {
+		name  string
+		args  []string
+		kinds []string
+	}{
+		{name: "defaults"},
+		{name: "disabled", args: []string{"--set", "exporter.enabled=false"}},
+		{name: "null", args: []string{"--set-json", "exporter=null"}},
+		{
+			name:  "enabled",
+			args:  []string{"--set", "exporter.enabled=true"},
+			kinds: []string{"ServiceAccount", "ClusterRole", "ClusterRoleBinding", "ConfigMap", "Deployment", "Service"},
+		},
+	} {
+		It("renders the expected resources with "+tc.name, func() {
+			helm, err := exec.LookPath("helm")
+			if err != nil {
+				Skip("helm is needed for chart rendering")
+			}
+			chart := filepath.Join("..", "..", "..", "charts", "karta")
+			args := append([]string{"template", "resources", chart}, tc.args...)
+			out, err := exec.Command(helm, args...).CombinedOutput()
+			Expect(err).To(Succeed(), string(out))
+			decoder := yaml.NewDecoder(bytes.NewReader(out))
+			var kinds []string
+			for {
+				var doc struct {
+					Kind     string `yaml:"kind"`
+					Metadata struct {
+						Labels map[string]string `yaml:"labels"`
+					} `yaml:"metadata"`
+				}
+				err = decoder.Decode(&doc)
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				Expect(err).To(Succeed())
+				if doc.Metadata.Labels["app.kubernetes.io/name"] == "dsx-workload-exporter" {
+					kinds = append(kinds, doc.Kind)
+				}
+			}
+			Expect(kinds).To(ConsistOf(tc.kinds))
+		})
+	}
+})
+
 var _ = Describe("chart exporter metrics Service", func() {
 	for _, enabled := range []bool{true, false} {
 		It(fmt.Sprintf("keeps diagnostics reachable with exporter.enabled=%t", enabled), func() {

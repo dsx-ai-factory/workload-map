@@ -159,7 +159,14 @@ jobs:
       - name: Build helm chart
         if: steps.publication.outputs.published != 'true'
         run: |
-          helm package ./charts/karta -d ./charts \
+          chart_stage=$(mktemp -d)
+          trap 'rm -rf "$chart_stage"' EXIT
+          cp -R ./charts/karta "$chart_stage/karta"
+          sed \
+            -e "s|ghcr[.]io/dsx-ai-factory/workload-map/karta-operator|$REGISTRY_NAMESPACE/karta-operator|" \
+            -e "s|ghcr[.]io/dsx-ai-factory/workload-map/dsx-workload-exporter|$REGISTRY_NAMESPACE/dsx-workload-exporter|" \
+            ./charts/karta/values.yaml > "$chart_stage/karta/values.yaml"
+          helm package "$chart_stage/karta" -d ./charts \
             --version "$PACKAGE_VERSION" \
             --app-version "$PACKAGE_VERSION"
 

@@ -5,7 +5,7 @@
 
 The exporter reports workload status and maps Pods to their workload, component,
 instance and group. Prometheus can join these labels with CPU, memory and GPU
-measurements. See the [metric definitions](../docs/dsx-workload-exporter/metrics.md)
+measurements. See the [metric definitions](../docs/keps/0001-metrics-exporter/README.md#metrics)
 and [query examples](../docs/dsx-workload-exporter/queries.md).
 
 Metrics are served at `/metrics` on port 8080. Scrapes read saved results without

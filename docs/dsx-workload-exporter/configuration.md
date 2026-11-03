@@ -206,7 +206,7 @@ The Service publishes unready addresses so diagnostics remain reachable during
 watch failures. Readiness still requires healthy inventory and synchronized
 required watches. Scrape each exporter endpoint separately rather than a single
 load-balanced address when comparing replicas. Scrape success does not establish
-[observation validity](metrics.md#reading-observation-validity).
+[observation validity](../keps/0001-metrics-exporter/README.md#reading-observation-validity).
 
 ## Deployment and permissions
 

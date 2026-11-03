@@ -4,7 +4,7 @@
 # DSX workload exporter queries
 
 These examples join DSX workload identity with resource measurements. See the
-[metric reference](metrics.md) and [configuration](configuration.md) for inputs.
+[metric reference](../keps/0001-metrics-exporter/README.md#metrics) and [configuration](configuration.md) for inputs.
 
 ## Current observations and workload age
 

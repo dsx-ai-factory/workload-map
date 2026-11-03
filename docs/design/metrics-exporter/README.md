@@ -10,7 +10,7 @@ saves Pod attribution and workload status separately. A scrape formats those
 saved results without calling Kubernetes.
 
 [KEP-0001](../../keps/0001-metrics-exporter/README.md) records the motivation.
-The [metric reference](../../dsx-workload-exporter/metrics.md) defines output.
+The [metric reference](../../keps/0001-metrics-exporter/README.md#metrics) defines output.
 The [configuration reference](../../dsx-workload-exporter/configuration.md)
 owns settings, defaults, label examples and delivery limits.
 

@@ -81,7 +81,7 @@ curl -fsS http://127.0.0.1:8080/metrics | grep '^dsx_'
 
 Expect Pod attribution and status rows for `workload_name="demo"`, plus its
 creation timestamp. Inspect `observation_valid` and diagnostic rows rather than
-using HTTP success alone. See [metric semantics](metrics.md).
+using HTTP success alone. See [metric semantics](../keps/0001-metrics-exporter/README.md#metrics).
 
 ## Cleanup
 

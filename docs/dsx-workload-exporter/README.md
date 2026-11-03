@@ -8,7 +8,7 @@ It reports workload status and creation time. Prometheus can join these identiti
 with CPU, memory and GPU measurements from other exporters.
 
 - [Install with Helm](installation.md).
-- [Metric names, labels and validity](metrics.md).
+- [Metric names, labels and validity](../keps/0001-metrics-exporter/README.md#metrics).
 - [Configuration and defaults](configuration.md).
 - [Build and run the binary](../../dsx-workload-exporter/README.md).
 

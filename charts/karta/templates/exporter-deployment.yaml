@@ -18,8 +18,12 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "karta.exporter.selectorLabels" . | nindent 8 }}
+        {{- $selectorLabels := include "karta.exporter.selectorLabels" . | fromYaml }}
+        {{- mergeOverwrite (deepCopy .Values.exporter.podLabels) $selectorLabels | toYaml | nindent 8 }}
       annotations:
+        {{- with omit .Values.exporter.podAnnotations "checksum/config" }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         # Roll the Pod when the config changes; the file is read once at startup.
         checksum/config: {{ include (print $.Template.BasePath "/exporter-configmap.yaml") . | sha256sum }}
     spec:
@@ -35,13 +39,25 @@ spec:
         runAsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
+      {{- with .Values.exporter.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.exporter.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.exporter.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: dsx-workload-exporter
           image: "{{ required "exporter.image.repository is required" .Values.exporter.image.repository }}:{{ .Values.exporter.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.exporter.image.pullPolicy }}
           ports:
             - name: metrics
-              containerPort: 8080
+              containerPort: {{ .Values.exporter.metricsPort }}
           readinessProbe:
             httpGet:
               path: /readyz
@@ -52,11 +68,14 @@ spec:
               port: metrics
           args:
             - --config=/etc/dsx-workload-exporter/config.yaml
+            - {{ printf "--metrics-bind-address=:%v" .Values.exporter.metricsPort | quote }}
           {{- if ne $fipsMode "off" }}
           env:
             - name: GODEBUG
               value: "fips140={{ $fipsMode }}"
           {{- end }}
+          resources:
+            {{- toYaml .Values.exporter.resources | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: /etc/dsx-workload-exporter

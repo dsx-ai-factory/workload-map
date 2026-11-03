@@ -9,6 +9,10 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karta.exporter.labels" . | nindent 4 }}
+  {{- with .Values.exporter.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   # Keep diagnostic metrics reachable while required watches are unhealthy.
   publishNotReadyAddresses: true
@@ -16,6 +20,6 @@ spec:
     {{- include "karta.exporter.selectorLabels" . | nindent 4 }}
   ports:
     - name: metrics
-      port: 8080
+      port: {{ .Values.exporter.metricsPort }}
       targetPort: metrics
 {{- end }}

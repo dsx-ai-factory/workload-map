@@ -82,7 +82,7 @@ PREFIX         ?= /usr/local
 BINDIR         ?= $(PREFIX)/bin
 RELEASE_HELPER_DIR := $(PROJECT_DIR)/hack/release
 
-# Architectures for build-operator-all and operator-image-buildx-push.
+# Architectures for build-operator-all and multi-arch image publishing.
 PLATFORMS ?= linux/amd64 linux/arm64
 
 empty :=
@@ -493,6 +493,19 @@ exporter-image: ## Build the exporter image for the host arch
 		--build-arg GO_LDFLAGS="$(GO_LDFLAGS)" \
 		--tag $(EXPORTER_IMAGE_REPOSITORY):$(IMAGE_TAG) \
 		-f dsx-workload-exporter/Dockerfile \
+		.
+
+.PHONY: exporter-image-buildx-push
+exporter-image-buildx-push: ## Build and push a multi-arch exporter image via BuildKit (requires Docker)
+	@[ "$(CONTAINER_TOOL)" = "docker" ] || { echo "Error: exporter-image-buildx-push requires CONTAINER_TOOL=docker (got '$(CONTAINER_TOOL)')" >&2; exit 1; }
+	$(CONTAINER_TOOL) buildx build $(BUILD_ARGS) \
+		--platform $(PLATFORMS_CSV) \
+		--build-arg GO_VERSION=$(EXPORTER_GO_VERSION) \
+		--build-arg GO_LDFLAGS="$(GO_LDFLAGS)" \
+		--provenance=false --sbom=false \
+		--tag $(EXPORTER_IMAGE_REPOSITORY):$(IMAGE_TAG) \
+		-f dsx-workload-exporter/Dockerfile \
+		--push \
 		.
 
 ##@ Release

@@ -7,13 +7,11 @@ on:
   push:
     branches:
       - main
-      - karta-metrics-exporter-impl
       - "v[0-9]+.[0-9]+"
       - "release-[0-9]+.[0-9]+"
   pull_request:
     branches:
       - main
-      - karta-metrics-exporter-impl
       - "v[0-9]+.[0-9]+"
       - "release-[0-9]+.[0-9]+"
 
@@ -51,6 +49,8 @@ jobs:
           cache-dependency-path: |
             karta/sdk/go.sum
             operator/go.sum
+            dsx-workload-exporter/go.sum
+            dsx-workload-exporter/test/integration/go.sum
             cli/go.sum
             hack/release/go.sum
 

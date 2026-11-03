@@ -4,7 +4,7 @@
 name: Upload artifacts to GitHub Container Registry
 on:
   push:
-    branches: [ main, karta-metrics-exporter-impl ]
+    branches: [ main ]
   # Fires for a published full release or a prerelease promoted to one; drafts
   # and prereleases fire nothing.
   release:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build-and-push:
-    name: Build & Push Helm Chart and Operator Image
+    name: Build & Push Helm Chart, Operator Image, and Exporter Image
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,6 +34,8 @@ jobs:
           cache-dependency-path: |
             karta/sdk/go.sum
             operator/go.sum
+            dsx-workload-exporter/go.sum
+            dsx-workload-exporter/test/integration/go.sum
             cli/go.sum
             hack/release/go.sum
 
@@ -55,8 +57,8 @@ jobs:
             echo "Release: using its tag as the version (strip the leading 'v')"
             PACKAGE_VERSION=${RELEASE_TAG#v}
           else
-            echo "Push to $GITHUB_REF_NAME: dev build keyed off the branch and commit sha"
-            PACKAGE_VERSION=0.0.0-${GITHUB_REF_NAME}-$(git rev-parse --short HEAD)
+            echo "Push to main: dev build keyed off the commit sha"
+            PACKAGE_VERSION=0.0.0-main-$(git rev-parse --short HEAD)
           fi
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
           echo "PACKAGE_VERSION=$PACKAGE_VERSION"
@@ -149,6 +151,11 @@ jobs:
         run: |
           make operator-image-buildx-push VERSION="$PACKAGE_VERSION" IMAGE_REGISTRY="$REGISTRY_NAMESPACE"
 
+      - name: Build and push exporter image
+        if: steps.publication.outputs.published != 'true'
+        run: |
+          make exporter-image-buildx-push VERSION="$PACKAGE_VERSION" IMAGE_REGISTRY="$REGISTRY_NAMESPACE"
+
       - name: Build helm chart
         if: steps.publication.outputs.published != 'true'
         run: |
@@ -184,7 +191,7 @@ jobs:
         run: |
           # Run after GoReleaser because `release --clean` recreates dist/.
           make image-lock VERSION="$PACKAGE_VERSION" \
-            IMAGE_LOCK_SET="image.repository=$REGISTRY_NAMESPACE/karta-operator"
+            IMAGE_LOCK_SET="image.repository=$REGISTRY_NAMESPACE/karta-operator exporter.image.repository=$REGISTRY_NAMESPACE/dsx-workload-exporter"
 
       - name: Attach chart and image locks to the release
         if: github.event_name == 'release'

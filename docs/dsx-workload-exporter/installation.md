@@ -3,11 +3,11 @@
 
 # Install the DSX workload exporter with Helm
 
-This demo uses the local checkout's chart and bundled definitions. It does not
-install the Karta operator, CRDs or admission policies. Choose a fresh namespace
-and release so an existing exporter installation is not changed.
+The exporter is part of the Karta Helm chart. This example uses bundled
+definitions without installing the Karta operator, CRDs or admission policies.
+Choose a fresh namespace and release so an existing installation is not changed.
 
-Run from the repository root with Helm and kubectl configured for your cluster.
+Helm and kubectl must be configured for your cluster.
 
 ## 1. Configure
 
@@ -15,8 +15,9 @@ See the [configuration reference](configuration.md#helm-values) for all options,
 including images, namespace selection, Karta definitions, labels, workers and
 resources.
 
-Save this as `dsx-demo-values.yaml`. Replace the image repository and tag with
-an exporter image your cluster can pull:
+Save this as `dsx-demo-values.yaml`. Set the image repository and tag to an
+exporter image your cluster can pull. For a release with a matching published
+exporter image, omit `exporter.image` to use the chart defaults:
 
 ```yaml
 operator:
@@ -48,13 +49,24 @@ This scopes observation to `dsx-demo`. The explicit read rules cover Deployment
 roots and their ReplicaSet owners; Pod and Namespace reads are supplied by the
 chart. Runtime scope does not make these grants namespace-scoped.
 
-## 2. Install
+## 2. Install or upgrade
+
+Use a published chart version that includes the DSX workload exporter. Replace
+`CHART_VERSION` with that version:
 
 ```sh
-helm upgrade --install dsx-demo ./charts/karta \
+helm upgrade --install dsx-demo oci://ghcr.io/dsx-ai-factory/workload-map/karta \
+  --version CHART_VERSION \
   --namespace dsx-demo --create-namespace --skip-crds \
   -f dsx-demo-values.yaml \
   --wait --timeout 5m
+```
+
+For an unreleased checkout, run the same command from the repository root with
+`./charts/karta` instead of the OCI URL and omit `--version`. Set
+`exporter.image` to an image built from that checkout.
+
+```sh
 kubectl -n dsx-demo rollout status deployment/dsx-workload-exporter --timeout=120s
 ```
 

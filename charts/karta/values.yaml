@@ -14,7 +14,14 @@ exporter:
   enabled: false
   # Shared listener, container and Service port for metrics and health endpoints.
   metricsPort: 8080
-  resources: {}
+  # Tune for watched object count, object size and scrape frequency.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 4Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}

@@ -9,9 +9,11 @@ chart and binary, not planned delivery modes.
 
 ## Helm values
 
-Runtime settings live under `exporter`. The chart writes them into a ConfigMap
-and mounts it at `/etc/dsx-workload-exporter/config.yaml`. A checksum annotation
-rolls the Pod when that configuration changes. The process reads it at startup.
+The [`exporter` section in values.yaml](../../charts/karta/values.yaml#L13)
+shows the full YAML configuration and its defaults. The chart writes runtime
+settings into a ConfigMap mounted at `/etc/dsx-workload-exporter/config.yaml`.
+A checksum annotation rolls the Pod when that configuration changes. The process
+reads it at startup.
 
 | Value under `exporter` | Default | Effect |
 | --- | --- | --- |
@@ -20,7 +22,7 @@ rolls the Pod when that configuration changes. The process reads it at startup.
 | `image.tag` | `""` | Empty uses chart appVersion; override for an unreleased branch. |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy. |
 | `metricsPort` | `8080` | Shared listener, container, probe and Service port. |
-| `resources` | `{}` | Exporter container requests and limits. |
+| `resources` | Requests: `500m` CPU, `512Mi` memory. Limits: `2` CPU, `4Gi` memory. | For large clusters, increase requests and limits based on measured CPU and memory usage. Watched object count, object size and scrape frequency affect usage. |
 | `nodeSelector`, `affinity` | `{}` | Exporter placement. |
 | `tolerations` | `[]` | Exporter tolerations. |
 | `podLabels`, `podAnnotations` | `{}` | Additional Pod metadata; selector labels and `checksum/config` are reserved. |
@@ -48,7 +50,6 @@ The exporter uses one replica and its own ServiceAccount. Global
 see [FIPS modes](../FIPS.md#setting-the-mode). Operator settings such as `replicaCount`,
 `resources`, `ports`, `serviceAccount`, `extraArgs` and `podAnnotations` do not
 configure the exporter. `fullnameOverride` changes its resource-name prefix.
-See [values.yaml](../../charts/karta/values.yaml) for chart-wide settings.
 
 For an unreleased checkout, set `image.repository` and `image.tag` to an image
 built from that checkout and accessible to cluster nodes. The chart appVersion
@@ -221,25 +222,3 @@ The chart creates a direct ClusterRoleBinding to the exporter's ServiceAccount.
 It does not configure ClusterRole aggregation. Namespace selectors restrict
 observation, not authorization. Adding a narrow RoleBinding does not remove the
 existing cluster-wide grant.
-
-## Naming migration
-
-The component, binary, Go module directory and image name changed from
-`karta-metrics-exporter` to `dsx-workload-exporter`. Environment variables now use
-`DSX_WORKLOAD_EXPORTER_` instead of `KARTA_EXPORTER_`. Update scripts,
-imports, scrape discovery and dashboards; no old-name metric aliases are emitted.
-
-| Old metric | Current metric |
-| --- | --- |
-| `karta_pod_workload_info` | `dsx_workload_pod_info` |
-| `karta_workload_status` | `dsx_workload_status` |
-| `karta_workload_created_timestamp_seconds` | `dsx_workload_created_timestamp_seconds` |
-| `karta_exporter_observation_valid` | `dsx_exporter_observation_valid` |
-
-The default Deployment, Service, ConfigMap and ServiceAccount name is
-`dsx-workload-exporter`; `fullnameOverride` adds a prefix. Cluster-scoped names
-also include the namespace. Helm upgrades replace old named resources rather
-than patching immutable Deployment selectors. Expect an exporter restart and
-new scrape targets. Helm values remain under `exporter`. Karta CRDs,
-API groups, catalog names and admission annotations
-remain Karta concepts. The upstream branch name is unchanged.

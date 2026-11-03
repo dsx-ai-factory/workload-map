@@ -165,8 +165,11 @@ exporter:
 Pod info may read the workload, its Pod, or both in order. Workload status cannot
 use a Pod source because there is no single Pod to choose. The first nonempty
 value wins within a rule. Later successful rules for the same label replace earlier
-values; an empty result does not erase an earlier rule's value. Built-in labels
-win in exported metrics.
+values; an empty result does not erase an earlier rule's value.
+
+Names starting with `__` are rejected. Rules cannot override a metric's built-in
+labels, such as `namespace` and `workload_uid`, `pod_name` on Pod info, or `phase`
+on workload status. See [Labels](#labels) for the full list per metric.
 
 A label error can retain the previous metric result with
 `observation_valid="false"`. With no prior result, that output can be absent.

@@ -50,6 +50,11 @@ see [FIPS modes](../FIPS.md#setting-the-mode). Operator settings such as `replic
 configure the exporter. `fullnameOverride` changes its resource-name prefix.
 See [values.yaml](../../charts/karta/values.yaml) for chart-wide settings.
 
+For an unreleased checkout, set `image.repository` and `image.tag` to an image
+built from that checkout and accessible to cluster nodes. The chart appVersion
+does not guarantee that an exporter image has been published. See
+[development](../../dsx-workload-exporter/README.md#development) for build commands.
+
 ## Standalone binary and precedence
 
 Put runtime keys at the YAML root without `exporter:`. Omit chart-only keys such

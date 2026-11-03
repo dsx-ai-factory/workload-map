@@ -7,44 +7,16 @@ This demo uses the local checkout's chart and bundled definitions. It does not
 install the Karta operator, CRDs or admission policies. Choose a fresh namespace
 and release so an existing exporter installation is not changed.
 
-## 1. Choose an image
+Run from the repository root with Helm and kubectl configured for your cluster.
 
-Run from the repository root with Helm and kubectl installed. Select the intended
-kubectl context before installing:
+## 1. Configure
 
-```sh
-kubectl config use-context YOUR_CONTEXT
-```
+See the [configuration reference](configuration.md#helm-values) for all options,
+including images, namespace selection, Karta definitions, labels, workers and
+resources.
 
-For an unreleased branch, use an image built from this checkout. Do not assume
-the chart appVersion has a published exporter image. Set the repository and tag
-to a registry you can push to and your cluster can pull from:
-
-```sh
-export EXPORTER_IMAGE_REPOSITORY=registry.example.com/team/dsx-workload-exporter
-export EXPORTER_IMAGE_TAG=dev
-```
-
-If you do not already have that image, authenticate to your registry and build
-and push the committed checkout with Docker Buildx. The archive excludes
-ignored and untracked local files. Both architectures allow an ARM laptop to build
-for AMD64 cluster nodes:
-
-```sh
-git archive HEAD | docker buildx build --platform linux/amd64,linux/arm64 \
-  -f dsx-workload-exporter/Dockerfile \
-  --build-arg GO_VERSION="$(awk '/^go /{print $2; exit}' dsx-workload-exporter/go.mod)" \
-  --tag "$EXPORTER_IMAGE_REPOSITORY:$EXPORTER_IMAGE_TAG" --push -
-```
-
-For a local cluster, loading an image instead is sufficient if its repository,
-tag and architecture match the values and nodes. The published image must be
-accessible to cluster nodes. For a private image, configure pull credentials
-through the chart-wide `imagePullSecrets` setting.
-
-## 2. Configure and install
-
-Save this as `dsx-demo-values.yaml`:
+Save this as `dsx-demo-values.yaml`. Replace the image repository and tag with
+an exporter image your cluster can pull:
 
 ```yaml
 operator:
@@ -53,6 +25,9 @@ crdUpgrader:
   enabled: false
 exporter:
   enabled: true
+  image:
+    repository: registry.example.com/team/dsx-workload-exporter
+    tag: YOUR_IMAGE_TAG
   kartaDefinitionSource:
     catalog:
       enabled: true
@@ -73,14 +48,12 @@ This scopes observation to `dsx-demo`. The explicit read rules cover Deployment
 roots and their ReplicaSet owners; Pod and Namespace reads are supplied by the
 chart. Runtime scope does not make these grants namespace-scoped.
 
+## 2. Install
+
 ```sh
-: "${EXPORTER_IMAGE_REPOSITORY:?Set the image repository}"
-: "${EXPORTER_IMAGE_TAG:?Set the image tag}"
 helm upgrade --install dsx-demo ./charts/karta \
   --namespace dsx-demo --create-namespace --skip-crds \
   -f dsx-demo-values.yaml \
-  --set-string exporter.image.repository="$EXPORTER_IMAGE_REPOSITORY" \
-  --set-string exporter.image.tag="$EXPORTER_IMAGE_TAG" \
   --wait --timeout 5m
 kubectl -n dsx-demo rollout status deployment/dsx-workload-exporter --timeout=120s
 ```
@@ -108,8 +81,7 @@ curl -fsS http://127.0.0.1:8080/metrics | grep '^dsx_'
 
 Expect Pod attribution and status rows for `workload_name="demo"`, plus its
 creation timestamp. Inspect `observation_valid` and diagnostic rows rather than
-using HTTP success alone. See [metric semantics](metrics.md) and
-[configuration](configuration.md) to add labels or change scope.
+using HTTP success alone. See [metric semantics](metrics.md).
 
 ## Cleanup
 

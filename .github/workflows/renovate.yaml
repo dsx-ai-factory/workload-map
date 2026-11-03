@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 60
     env:
       # renovate: datasource=npm depName=renovate
-      RENOVATE_VERSION: 44.190.2
+      RENOVATE_VERSION: 44.202.1
     steps:
       - name: Mint GitHub App token
         id: app-token
@@ -68,7 +68,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Select base branches
         id: branches

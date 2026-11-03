@@ -83,6 +83,11 @@ func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, erro
 			return nil, discovery.ErrPending
 		}
 		r.scopes = admittedNamespaces
+		for uid, root := range r.roots {
+			if !r.isNamespaceInScope(root.ref.Namespace) {
+				r.removeRoot(uid)
+			}
+		}
 	}
 	scopes := make([]string, 0, len(r.scopes))
 	for namespace := range r.scopes {
@@ -507,7 +512,7 @@ func (r *controllerState) queueObjectChange(old, current *unstructured.Unstructu
 	if current != nil {
 		key := objectJobFor(refOf(current))
 		_, tracked := r.selectedObjectRoots[key]
-		if (!tracked || ownershipChanged) && r.hasSelectedDefinition(gvk) {
+		if (!tracked || ownershipChanged) && r.shouldDiscoverObject(gvk) {
 			r.workloadQueue.Add(workloadJobKey{SelectedObject: key})
 		}
 		if root := r.roots[current.GetUID()]; root != nil {

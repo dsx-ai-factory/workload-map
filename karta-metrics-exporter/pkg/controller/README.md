@@ -29,14 +29,21 @@ Queues hold identities, not object snapshots. Workers read current cached data.
 | Queue | Job | Handler and result |
 | --- | --- | --- |
 | Sources, one worker | `"sources"` | Refresh definitions/scopes, ensure watches and requeue affected work |
-| Pods, two workers by default | Pod identity and UID | Discover root, register membership, evaluate component/labels and save Pod result |
+| Pods, four workers by default | Pod identity and UID | Discover root, register membership, evaluate component/labels and save Pod result |
 | Pods, same worker pool | Namespace rescan | Expand cached objects into ordinary Pod and workload jobs |
-| Workloads, two workers by default | Selected-object identity and UID | Discover root, update membership and queue its root UID; works without Pods |
+| Workloads, four workers by default | Watched-object identity and UID | Discover root, update membership and queue its root UID; works without Pods |
 | Workloads, same worker pool | Root UID | Read full root, evaluate status/labels and save or remove workload result |
 
 An object job and a root-UID job share the workload queue, but do different work.
 Only the root-UID job publishes a workload result. Registering a Pod under a root
 also queues that root UID.
+
+A discovered workload remains published while its root exists and stays in scope,
+even after its last Pod or Karta disappears. Karta removal drops status mapping;
+generic workload metrics remain. Watches also discover roots without Pods or a
+Karta in kinds already being observed, including `requiredKinds`. Types with no
+watch still need a selected Karta, `requiredKinds`, or discovery through an owner
+chain. Namespace and Karta infrastructure objects are not workload inputs.
 
 Worker counts are configurable. Repeated identical keys are combined. One key
 runs on one worker at a time; an update during processing schedules another pass.
@@ -48,7 +55,7 @@ Different keys can run concurrently.
 | --- | --- |
 | Pod create, update or delete | That Pod's identity |
 | Tracked root update | Root UID and its Pods |
-| Karta create, update or delete | Sources refresh, then affected objects and Pods |
+| Karta create, update or delete | Refresh sources; requeue workloads and Pods when the selected definition, spec or health changes |
 | Namespace labels change (with namespace selection configured) | Sources refresh to recompute watched namespaces |
 | Intermediate owner references or root-selector membership change | Namespace rescan |
 
@@ -91,7 +98,7 @@ Cancellation shuts down queues, cancels watches and waits for workers to exit.
 | [sources.go](sources.go) | Manage Reflectors, accept events and route queue keys |
 | [reader.go](reader.go) | Resolve resource mappings and read cached objects |
 | [leaf.go](leaf.go) | Dispatch Pod/rescan jobs and evaluate Pod results |
-| [root.go](root.go) | Dispatch selected-object/root-UID jobs and evaluate workloads |
+| [root.go](root.go) | Dispatch watched-object/root-UID jobs and evaluate workloads |
 | [state.go](state.go) | Track membership, requeue related work and validate publications |
 
 Run `make check-exporter` from the repository root.

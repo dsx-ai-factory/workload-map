@@ -21,7 +21,7 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 )
 
-// handleWorkloadInput dispatches selected-object discovery or root reconciliation.
+// handleWorkloadInput dispatches watched-object discovery or root reconciliation.
 // Callers must not hold stateMu; state operations acquire their own locks.
 func (r *Runtime) handleWorkloadInput(ctx context.Context, key workloadJobKey) error {
 	if key.SelectedObject.UID != "" {
@@ -30,7 +30,7 @@ func (r *Runtime) handleWorkloadInput(ctx context.Context, key workloadJobKey) e
 	return r.reconcileWorkload(ctx, key.RootUID)
 }
 
-// resolveSelectedObjectRoot discovers and registers a selected object's root.
+// resolveSelectedObjectRoot discovers and registers a watched object's root.
 // Callers must not hold stateMu; discovery runs unlocked and state operations lock internally.
 func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKey) error {
 	if !r.state.namespaceAdmitted(key.Object.Namespace) {
@@ -40,15 +40,11 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 
 	r.state.trackSelectedObject(key)
 	selection, selectionErr := r.state.lookupDefinition(key.Object.GVK)
-	if selection.Definition == nil {
-		if selectionErr != nil {
-			r.state.deps.Publications.SetDiscoveryFailure(storedRef(key.ref()), failureReason(selectionErr))
-			return selectionErr
-		}
-		r.state.unregisterSelectedObject(key)
-		return nil
+	if selection.Definition == nil && selectionErr != nil {
+		r.state.deps.Publications.SetDiscoveryFailure(storedRef(key.ref()), failureReason(selectionErr))
+		return selectionErr
 	}
-	if selection.GVK != key.Object.GVK {
+	if selection.Definition != nil && selection.GVK != key.Object.GVK {
 		selectedRef := key.ref()
 		selectedRef.GVK = selection.GVK
 		if _, err := r.state.ensureWatch(ctx, selectedRef.GVK, selectedRef.Namespace, false); err != nil {
@@ -61,7 +57,7 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 		}
 		return r.state.replaceSelectedObjectTracking(key, selectedObject, selection)
 	}
-	selectedObject, _, err := r.state.reader.read(key.ref(), true)
+	selectedObject, _, err := r.state.reader.read(key.ref(), false)
 	if apierrors.IsNotFound(err) {
 		r.state.unregisterSelectedObject(key)
 		return nil
@@ -102,7 +98,7 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 }
 
 // Only canonical UID keys publish workload results. Selected-object keys register
-// or unregister root membership, including selected children that have no Pods.
+// or unregister root membership, including watched children that have no Pods.
 func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 	snapshot, exists := r.state.snapshotRoot(uid)
 	if !exists {

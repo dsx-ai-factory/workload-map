@@ -54,6 +54,8 @@ type cacheSource struct {
 	err                   error
 }
 
+const mapperResetInterval = 45 * time.Second
+
 func NewReader(clients Clients, options ReaderOptions) (*Reader, error) {
 	if clients.Dynamic == nil || clients.Metadata == nil || clients.Mapper == nil {
 		return nil, errors.New("dynamic client, metadata client and REST mapper are required")
@@ -115,10 +117,12 @@ func (r *Reader) restMapping(ctx context.Context, gvk schema.GroupVersionKind) (
 	return mapping, nil
 }
 
+// Reset cached API discovery so the next lookup can find newly installed CRDs.
+// Limit resets to avoid repeated discovery requests when workers retry unknown kinds.
 func (r *Reader) resetMapperIfNeeded(ctx context.Context) {
 	r.mapperMu.Lock()
 	defer r.mapperMu.Unlock()
-	if time.Since(r.lastMapperReset) < 45*time.Second {
+	if time.Since(r.lastMapperReset) < mapperResetInterval {
 		return
 	}
 	if mapper, ok := r.clients.Mapper.(meta.ResettableRESTMapper); ok {

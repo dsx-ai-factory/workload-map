@@ -144,7 +144,7 @@ var settings = []setting{
 	{
 		flag:  "workers",
 		env:   "KARTA_EXPORTER_WORKERS",
-		usage: "Default workers per Pod and workload queue (default 2).",
+		usage: "Default workers per Pod and workload queue (default 4).",
 		apply: func(c *Config, v string) (err error) {
 			c.Workers, err = strconv.Atoi(v)
 			return err
@@ -250,7 +250,7 @@ func (l *Loader) Load() (Config, error) {
 
 // DefaultConfig selects cluster definitions and bounds API requests and worker concurrency.
 func DefaultConfig() Config {
-	return Config{Config: labelresolver.Config{Limits: defaultLabelEvaluationLimits}, KartaDefinitionSource: KartaDefinitionSourceConfig{Cluster: DefinitionSourceConfig{Enabled: true}}, RequestTimeout: "30s", Workers: 2, APIQPS: 20, APIBurst: 40}
+	return Config{Config: labelresolver.Config{Limits: defaultLabelEvaluationLimits}, KartaDefinitionSource: KartaDefinitionSourceConfig{Cluster: DefinitionSourceConfig{Enabled: true}}, RequestTimeout: "30s", Workers: 4, APIQPS: 20, APIBurst: 40}
 }
 
 // Validate rejects runtime settings before any clients start.

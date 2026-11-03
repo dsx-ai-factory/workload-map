@@ -52,6 +52,7 @@ type ResourceRule struct {
 type Runtime struct {
 	state   *controllerState
 	runOnce sync.Once
+	runErr  error
 }
 
 type objectJobKey struct {
@@ -72,9 +73,12 @@ type selectedDefinition struct {
 	version uint64
 }
 
-const defaultAmountOfWorkers = 2
+const defaultAmountOfWorkers = 4
 
-var ErrMissingDependencies = errors.New("runtime dependencies are required")
+var (
+	ErrMissingDependencies    = errors.New("runtime dependencies are required")
+	errInventoryChangesClosed = errors.New("definition inventory change channel closed before cancellation")
+)
 
 var podGVK = schema.GroupVersionKind{Version: "v1", Kind: "Pod"}
 var kartaGVK = schema.GroupVersionKind{Group: "run.ai", Version: "v1alpha1", Kind: "Karta"}
@@ -114,6 +118,8 @@ func New(config Config, deps Dependencies, reader *Reader) (*Runtime, error) {
 		r.scopes[""] = true
 	}
 	if config.ClusterDefinitions {
+		// The app waits for inventory loading before Run. The source worker then
+		// installs the controller's definition snapshot and clears this error.
 		r.definitionInventoryErr = inventory.ErrNotReady
 		deps.Publications.SetSourceHealth(definitionSource, store.SourceHealth{GVK: kartaGVK})
 	}
@@ -135,6 +141,8 @@ func New(config Config, deps Dependencies, reader *Reader) (*Runtime, error) {
 }
 func (r *Runtime) Run(ctx context.Context) error {
 	r.runOnce.Do(func() {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		r.state.start(ctx)
 		for i := 0; i < r.state.config.LeafWorkers; i++ {
 			r.state.wg.Go(func() { runWorker(ctx, r.state.podQueue, r.handlePodInput) })
@@ -154,19 +162,22 @@ func (r *Runtime) Run(ctx context.Context) error {
 				break running
 			case _, open := <-changes:
 				if !open {
-					changes = nil
-					continue
+					if ctx.Err() == nil {
+						r.runErr = errInventoryChangesClosed
+					}
+					break running
 				}
 				r.state.watchSyncQueue.Add("sources")
 			}
 		}
+		cancel()
 		r.state.podQueue.ShutDown()
 		r.state.workloadQueue.ShutDown()
 		r.state.watchSyncQueue.ShutDown()
 		r.state.stopWatches()
 		r.state.wg.Wait()
 	})
-	return nil
+	return r.runErr
 }
 func (r *Runtime) Ready() bool {
 	return r.state.ready()
@@ -279,9 +290,13 @@ func (r *controllerState) refreshDefinitions(next map[schema.GroupKind]selectedD
 	healthChanged := failureReason(r.definitionInventoryErr) != failureReason(sourceErr)
 	changedKinds := map[schema.GroupKind]bool{}
 	for kind, selected := range next {
-		if !reflect.DeepEqual(r.selectedDefinitions[kind], selected) {
-			changedKinds[kind] = true
+		previous, exists := r.selectedDefinitions[kind]
+		if exists && isSameDefinition(previous, selected) {
+			// Keep the evaluation snapshot stable across metadata-only updates.
+			next[kind] = previous
+			continue
 		}
+		changedKinds[kind] = true
 	}
 	for kind := range r.selectedDefinitions {
 		if _, exists := next[kind]; !exists {
@@ -326,6 +341,21 @@ func (r *controllerState) refreshDefinitions(next map[schema.GroupKind]selectedD
 		}
 	}
 	return sourceErr
+}
+
+// isSameDefinition ignores metadata that does not affect workload evaluation.
+func isSameDefinition(previous, next selectedDefinition) bool {
+	hasSameWinner := previous.Origin.Source == next.Origin.Source && previous.Origin.Name == next.Origin.Name && previous.Origin.UID == next.Origin.UID
+	if previous.GVK != next.GVK || !hasSameWinner {
+		return false
+	}
+	if failureReason(previous.err) != failureReason(next.err) {
+		return false
+	}
+	if previous.Definition == nil || next.Definition == nil {
+		return previous.Definition == nil && next.Definition == nil
+	}
+	return reflect.DeepEqual(previous.Definition.Spec, next.Definition.Spec)
 }
 
 func objectJobFor(ref discovery.ObjectRef) objectJobKey {

@@ -38,7 +38,7 @@ exporter:
       resources: ["configmaps", "secrets"]
   ignoredOwnerKinds: []
   requiredKinds: []
-  workers: 2
+  workers: 4
   # Zero inherits workers.
   leafWorkers: 0
   rootWorkers: 0

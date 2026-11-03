@@ -48,7 +48,7 @@ var (
 )
 
 func New(components Components) (*Application, error) {
-	if components.Runtime == nil || components.Store == nil {
+	if components.Runtime == nil || components.Store == nil || components.Definitions == nil {
 		return nil, ErrIncompleteExporterComponents
 	}
 	registry := prometheus.NewRegistry()
@@ -127,11 +127,7 @@ func (a *Application) serveListener(ctx context.Context, listener net.Listener) 
 	a.running.Store(true)
 	go func() {
 		defer close(runtimeDone)
-		if a.components.Definitions != nil {
-			runtimeErr = RunController(runCtx, a.components)
-		} else {
-			runtimeErr = a.components.Runtime.Run(runCtx)
-		}
+		runtimeErr = RunController(runCtx, a.components)
 		if runtimeErr == nil && runCtx.Err() == nil {
 			runtimeErr = errors.New("exporter runtime stopped unexpectedly")
 		} else if runtimeErr == runCtx.Err() {

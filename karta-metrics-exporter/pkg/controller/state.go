@@ -44,7 +44,7 @@ type controllerState struct {
 	roots        map[types.UID]*rootState
 	podRoots     map[types.UID]types.UID
 	ancestorPods map[types.UID]bool
-	// Objects with a selected Karta definition can discover themselves or an ancestor as root.
+	// Watched workload objects can discover themselves or an ancestor as root.
 	// A zero outcome keeps the object tracked until discovery succeeds.
 	selectedObjectRoots map[objectJobKey]selectedObjectOutcome
 
@@ -125,12 +125,9 @@ func (r *controllerState) lookupDefinition(gvk schema.GroupVersionKind) (selecte
 }
 
 func (r *controllerState) namespaceAdmitted(namespace string) bool {
-	if r.config.NamespaceSelector == nil || namespace == "" {
-		return true
-	}
 	r.stateMu.RLock()
 	defer r.stateMu.RUnlock()
-	return r.scopes[namespace]
+	return r.isNamespaceInScope(namespace)
 }
 
 func (r *controllerState) unregisterPod(key objectJobKey) {
@@ -204,7 +201,7 @@ func (r *controllerState) failWorkload(uid types.UID, ref discovery.ObjectRef, c
 func (r *controllerState) registerPodRoot(key objectJobKey, workload *discovery.GenericWorkload) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if !r.isPathCurrent(workload.Path) {
+	if !r.isNamespaceInScope(key.Object.Namespace) || !r.isNamespaceInScope(workload.Root.Namespace) || !r.isPathCurrent(workload.Path) {
 		return discovery.ErrStale
 	}
 	if !r.hasRootOwnership(workload.Root) {
@@ -263,7 +260,7 @@ func (r *controllerState) requeueScope(namespace string) error {
 			r.enqueueObject(entry.object)
 		}
 	}
-	// Include previous memberships so a removed definition can withdraw its roots.
+	// Include previous memberships so removed inputs can clean up their tracking.
 	for selectedObject := range r.selectedObjectRoots {
 		if namespace == "" || selectedObject.Object.Namespace == namespace {
 			r.workloadQueue.Add(workloadJobKey{SelectedObject: selectedObject})
@@ -308,6 +305,9 @@ func (r *controllerState) replaceSelectedObjectTracking(key objectJobKey, object
 func (r *controllerState) registerSelectedObjectRoot(key objectJobKey, workload *discovery.GenericWorkload, selection, rootSelection selectedDefinition, sources []store.SourceKey) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
+	if !r.isNamespaceInScope(key.Object.Namespace) || !r.isNamespaceInScope(workload.Root.Namespace) {
+		return discovery.ErrStale
+	}
 	if !r.isPathCurrent(workload.Path) || !r.isDefinitionCurrent(key.ref(), selection) || !r.isDefinitionCurrent(workload.Root, rootSelection) {
 		return discovery.ErrStale
 	}
@@ -350,17 +350,12 @@ func (r *controllerState) unregisterSelectedObject(key objectJobKey) {
 }
 
 // snapshotRoot is called only by the root-UID job, which owns its queue key
-// through publication. Only this operation removes empty root entries.
+// through publication. Root lifetime does not depend on its current members.
 func (r *controllerState) snapshotRoot(uid types.UID) (rootSnapshot, bool) {
-	r.stateMu.Lock()
-	defer r.stateMu.Unlock()
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
 	root := r.roots[uid]
 	if root == nil {
-		return rootSnapshot{}, false
-	}
-	if len(root.pods) == 0 && len(root.selectedObjects) == 0 {
-		delete(r.roots, uid)
-		r.deps.Publications.RemoveWorkload(uid)
 		return rootSnapshot{}, false
 	}
 	snapshot := rootSnapshot{ref: root.ref, resolution: root.resolution}
@@ -374,10 +369,7 @@ func (r *controllerState) snapshotRoot(uid types.UID) (rootSnapshot, bool) {
 func (r *controllerState) withdrawWorkload(uid types.UID) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	if root := r.roots[uid]; root != nil {
-		r.enqueueMembers(root)
-	}
-	r.deps.Publications.RemoveWorkload(uid)
+	r.removeRoot(uid)
 }
 
 func (r *controllerState) isRoot(ref discovery.ObjectRef) bool {
@@ -390,7 +382,7 @@ func (r *controllerState) publishWorkload(uid types.UID, ref discovery.ObjectRef
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	root := r.roots[uid]
-	if root == nil {
+	if root == nil || !r.isNamespaceInScope(ref.Namespace) {
 		return discovery.ErrStale
 	}
 	if !r.isPathCurrent([]discovery.ObjectRef{ref}) || !r.hasRootOwnership(ref) {
@@ -429,13 +421,31 @@ func (r *controllerState) stopWatches() {
 
 // State helpers below run inside the caller's stateMu critical section.
 // They keep validation, membership updates and publication in one operation.
+func (r *controllerState) isNamespaceInScope(namespace string) bool {
+	return r.config.NamespaceSelector == nil || namespace == "" || r.scopes[namespace]
+}
+
+func (r *controllerState) removeRoot(uid types.UID) {
+	if root := r.roots[uid]; root != nil {
+		r.enqueueMembers(root)
+		for podUID := range root.pods {
+			delete(r.podRoots, podUID)
+		}
+		for key := range root.selectedObjects {
+			r.selectedObjectRoots[key] = selectedObjectOutcome{}
+		}
+	}
+	delete(r.roots, uid)
+	r.deps.Publications.RemoveWorkload(uid)
+}
+
 func (r *controllerState) enqueueScopeRefresh(namespace string) {
 	r.podQueue.Add(objectJobKey{Object: objectKey{Namespace: namespace}, Rescan: true})
 }
 
 func (r *controllerState) enqueueObject(object *unstructured.Unstructured) {
 	r.enqueuePod(object)
-	if r.hasSelectedDefinition(object.GroupVersionKind()) {
+	if r.shouldDiscoverObject(object.GroupVersionKind()) {
 		r.workloadQueue.Add(workloadJobKey{SelectedObject: objectJobFor(refOf(object))})
 	}
 }
@@ -450,6 +460,10 @@ func (r *controllerState) enqueuePod(object *unstructured.Unstructured) {
 	if r.podSelector.Matches(labelsFor(object)) || member || r.deps.Publications.Pod(uid) != nil {
 		r.podQueue.Add(objectJobFor(refOf(object)))
 	}
+}
+
+func (r *controllerState) shouldDiscoverObject(gvk schema.GroupVersionKind) bool {
+	return gvk != namespaceGVK && gvk != kartaGVK && (gvk != podGVK || r.hasSelectedDefinition(gvk))
 }
 
 func (r *controllerState) hasSelectedDefinition(gvk schema.GroupVersionKind) bool {

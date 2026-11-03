@@ -178,6 +178,39 @@ var _ = Describe("Controller publication lifecycle", func() {
 		}).Should(Succeed())
 	})
 
+	It("discovers required workload kinds without Kartas or Pods", func(ctx SpecContext) {
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "exporter-required-"}}
+		Expect(api.Create(ctx, ns)).To(Succeed())
+		listed := deployment(ctx, ns.Name, "listed")
+		cfg := config.DefaultConfig()
+		cfg.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
+		cfg.KartaDefinitionSource.Catalog.Enabled = false
+		cfg.KartaDefinitionSource.Cluster.Enabled = false
+		cfg.RequiredKinds = []schema.GroupVersionKind{deployGVK}
+		components, err := bootstrap.New(cfg, kubeConfig)
+		Expect(err).NotTo(HaveOccurred())
+		runCtx, cancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() { done <- app.RunController(runCtx, components) }()
+		DeferCleanup(func() {
+			cancel()
+			Eventually(done, 10*time.Second).Should(Receive(Succeed()))
+		})
+		Eventually(func(g Gomega) {
+			g.Expect(expectWorkload(g, components.Store.Capture(), listed).Record.HasStatus).To(BeFalse())
+		}).Should(Succeed())
+		added := deployment(ctx, ns.Name, "added")
+		Eventually(func(g Gomega) {
+			view := components.Store.Capture()
+			for _, root := range []*appsv1.Deployment{listed, added} {
+				workload := expectWorkload(g, view, root)
+				g.Expect(workload.Record.Karta).To(BeEmpty())
+				g.Expect(workload.Record.HasStatus).To(BeFalse())
+			}
+			g.Expect(view.Pods).To(BeEmpty())
+		}).Should(Succeed())
+	})
+
 	It("updates live ownership, definitions and records and joins workers on cancellation", func(ctx SpecContext) {
 		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "exporter-"}}
 		Expect(api.Create(ctx, ns)).To(Succeed())
@@ -370,6 +403,26 @@ var _ = Describe("Controller publication lifecycle", func() {
 			view := components.Store.Capture()
 			g.Expect(expectPod(g, view, p, root).Record.Component).To(Equal("<unknown>"))
 			g.Expect(expectWorkload(g, view, root).Record.HasStatus).To(BeFalse())
+			idleWorkload := expectWorkload(g, view, idle)
+			g.Expect(idleWorkload.Record.HasStatus).To(BeFalse())
+			g.Expect(idleWorkload.Record.Karta).To(BeEmpty())
+		}).Should(Succeed())
+
+		By("retaining the live root after its final Pod is deleted")
+		deleteObjects(ctx, p)
+		Eventually(func(g Gomega) {
+			view := components.Store.Capture()
+			g.Expect(podResult(view, p.UID)).To(BeNil())
+			expectWorkload(g, view, root)
+			expectWorkload(g, view, idle)
+		}).Should(Succeed())
+
+		By("withdrawing the workload when the root itself is deleted")
+		deleteObjects(ctx, root)
+		Eventually(func(g Gomega) {
+			view := components.Store.Capture()
+			g.Expect(workloadResult(view, root.UID)).To(BeNil())
+			expectWorkload(g, view, idle)
 		}).Should(Succeed())
 	})
 })

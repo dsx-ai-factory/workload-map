@@ -31,6 +31,8 @@ import (
 
 type runtimeFunc func(context.Context) error
 
+type definitionRunner struct{}
+
 type failingListener struct {
 	net.Listener
 	err error
@@ -64,10 +66,17 @@ type blockedCaptureStore struct {
 }
 
 func TestNewRejectsIncompleteComponents(t *testing.T) {
-	for _, components := range []Components{{Store: store.New()}, {Runtime: runtimeFunc(func(context.Context) error { return nil })}} {
-		if _, err := New(components); !errors.Is(err, ErrIncompleteExporterComponents) {
-			t.Fatalf("got %v, want incomplete components error", err)
-		}
+	runtime := runtimeFunc(func(context.Context) error { return nil })
+	for name, components := range map[string]Components{
+		"runtime":     {Store: store.New(), Definitions: definitionRunner{}},
+		"store":       {Runtime: runtime, Definitions: definitionRunner{}},
+		"definitions": {Runtime: runtime, Store: store.New()},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := New(components); !errors.Is(err, ErrIncompleteExporterComponents) {
+				t.Fatalf("got %v, want incomplete components error", err)
+			}
+		})
 	}
 }
 
@@ -389,6 +398,13 @@ func TestHTTPShutdownDrainsCollection(t *testing.T) {
 	}
 }
 
+func (definitionRunner) Run(ctx context.Context) error {
+	<-ctx.Done()
+	return nil
+}
+
+func (definitionRunner) WaitLoaded(ctx context.Context) error { return ctx.Err() }
+
 func (f runtimeFunc) Run(ctx context.Context) error { return f(ctx) }
 
 func (runtimeFunc) Ready() bool { return false }
@@ -397,7 +413,7 @@ func (l failingListener) Accept() (net.Conn, error) { return nil, l.err }
 
 func lifecycleApplication(t *testing.T, runtime controller.Runner) *Application {
 	t.Helper()
-	application, err := New(Components{Runtime: runtime, Store: store.New()})
+	application, err := New(Components{Runtime: runtime, Store: store.New(), Definitions: definitionRunner{}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,7 +455,7 @@ func (s *blockedCaptureStore) Capture() store.CapturedView {
 func startHTTPApplication(t *testing.T, publications store.PublicationStore) *httpApplication {
 	t.Helper()
 	runtime := &httpTestRuntime{started: make(chan struct{}), stopped: make(chan struct{})}
-	application, err := New(Components{Runtime: runtime, Store: publications})
+	application, err := New(Components{Runtime: runtime, Store: publications, Definitions: definitionRunner{}})
 	if err != nil {
 		t.Fatal(err)
 	}

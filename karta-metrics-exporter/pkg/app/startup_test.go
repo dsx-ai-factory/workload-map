@@ -37,7 +37,14 @@ var _ = Describe("Controller startup", func() {
 	})
 
 	It("returns a sentinel when the metrics listener is missing", func(ctx SpecContext) {
-		application, err := app.New(app.Components{Runtime: controller.NewMockRuntime(GinkgoT()), Store: store.New()})
+		definitions := definitionRunner{
+			run: func(ctx context.Context) error {
+				<-ctx.Done()
+				return nil
+			},
+			waitLoaded: func(ctx context.Context) error { return ctx.Err() },
+		}
+		application, err := app.New(app.Components{Runtime: controller.NewMockRuntime(GinkgoT()), Store: store.New(), Definitions: definitions})
 		Expect(err).NotTo(HaveOccurred())
 		err = application.ServeListener(ctx, nil)
 		Expect(errors.Is(err, app.ErrMetricsListenerRequired)).To(BeTrue())

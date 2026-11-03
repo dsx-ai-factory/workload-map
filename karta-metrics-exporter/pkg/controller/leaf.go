@@ -51,12 +51,11 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 	}
 	ref = refOf(podObject)
 	discoveryResult, err := r.state.deps.Discovery.Get(ctx, ref)
-	isOwnerUnresolved := err == nil && discoveryResult.Workload == nil
-	if isOwnerUnresolved {
-		err = discovery.ErrUnresolvedOwner
-	}
 	if err != nil {
 		return r.state.failPod(key, []discovery.ObjectRef{ref}, err)
+	}
+	if discoveryResult.Workload == nil {
+		return r.state.failPod(key, []discovery.ObjectRef{ref}, discovery.ErrUnresolvedOwner)
 	}
 	workload := discoveryResult.Workload
 	selection, selectionErr := r.state.lookupDefinition(workload.Root.GVK)

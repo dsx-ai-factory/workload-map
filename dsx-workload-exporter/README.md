@@ -5,8 +5,8 @@
 
 The exporter reports workload status and maps Pods to their workload, component,
 instance and group. Prometheus can join these labels with CPU, memory and GPU
-measurements. See the [metric definitions](../docs/keps/0001-metrics-exporter/README.md#metrics)
-and [query examples](../docs/dsx-workload-exporter/README.md).
+measurements. See the [metric definitions](../docs/dsx-workload-exporter/metrics.md)
+and [query examples](../docs/dsx-workload-exporter/queries.md).
 
 Metrics are served at `/metrics` on port 8080. Scrapes read saved results without
 calling Kubernetes.
@@ -30,26 +30,16 @@ Use `--metrics-bind-address` to change the default `:8080` listener.
 
 ## Runtime configuration
 
-For Helm, set `exporter.enabled: true`. Settings and defaults are under `exporter:`
-in [charts/karta/values.yaml](../charts/karta/values.yaml).
+Use the [Helm installation guide](../docs/dsx-workload-exporter/installation.md)
+for a standalone catalog demo. The [configuration reference](../docs/dsx-workload-exporter/configuration.md)
+lists supported Helm settings, binary flags, environment variables and defaults.
 
-For the standalone binary, put runtime settings at the YAML root, without the
-`exporter:` wrapper. Omit chart-only settings such as `enabled`, `image` and `rbac`.
+For the binary, put runtime settings at the YAML root without `exporter:`:
 
 ```sh
 ./bin/dsx-workload-exporter --config exporter.yaml
 ./bin/dsx-workload-exporter --help
 ```
-
-Selectors, resource rules, kinds and definition sources use YAML. Worker counts,
-request timeout and API limits also have flags and environment variables listed by
-`--help`. For those settings, flags override environment variables, which override
-YAML. See the [label configuration example](pkg/labelevaluator/README.md#configuration)
-for custom labels and expression limits.
-
-Namespace selection does not restrict cluster-scoped resources or RBAC.
-The chart's default `exporter.rbac.workloadRules` grants LIST/WATCH access to all
-resources, including Secrets. Replace it with explicit resources to limit access.
 
 ## Controller flow
 

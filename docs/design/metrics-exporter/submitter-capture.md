@@ -83,15 +83,47 @@ the API server would reject or that would capture too much.
 The annotation key is spliced into CEL string literals, so the key check also
 keeps quotes out of the expressions.
 
-## API version
+## Configuration
 
-MAP is v1 on Kubernetes 1.36+. On 1.34-1.35 it is v1beta1 behind
-`--feature-gates=MutatingAdmissionPolicy=true` and
-`--runtime-config=admissionregistration.k8s.io/v1beta1=true`.
+Settings are under `admissionPolicies.submitter`, not `exporter`. Capture is
+disabled by default. The API server must serve `MutatingAdmissionPolicy`.
 
-With `apiVersion` empty, the chart reads `.Capabilities.APIVersions`. It prefers
-v1, falls back to v1beta1, and fails when neither is served. `helm template` and
-GitOps renderers see no cluster APIs, so they must set `apiVersion`.
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `enabled` | `false` | Render policy and binding. |
+| `annotation` | `karta.run.ai/submitted-by` | Annotation key receiving the caller. |
+| `apiVersion` | `""` | Detect `v1`, then `v1beta1`; fail if neither is served. |
+| `resources` | `[]` | Required capture rules when enabled. |
+| `excludeResources` | `[]` | Excluded resource rules; exclusions win. |
+| `namespaceSelector` | `matchLabels: {karta.run.ai/capture-submitter: "true"}` | Opt-in namespaces. |
+| `objectSelector` | `{}` | Workload label selection. |
+| `matchConditions` | `[]` | Additional CEL request conditions; all must pass. |
+
+```yaml
+admissionPolicies:
+  submitter:
+    enabled: true
+    resources:
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        resources: [deployments]
+```
+
+Label the intended namespace `karta.run.ai/capture-submitter=true` to opt in.
+Each resource rule uses group, version and plural resource lists. The template
+sets CREATE and namespaced scope. Core Pods use group `""` and resource `pods`.
+These selectors do not filter exporter watches.
+
+Helm merges selector maps. To select every namespace, explicitly clear the
+opt-in label with `namespaceSelector.matchLabels: null`; `{}` does not remove it.
+For offline `helm template` or GitOps rendering, set `apiVersion` explicitly.
+When enabling capture on an existing release, use `--reset-then-reuse-values`
+with a Helm version supporting that flag. `--reuse-values` alone can omit new
+selector defaults and widen capture.
+
+When changing `annotation`, update the exporter expression below to read the same
+key. The policy never fetches a platform's human identity or copies annotations
+from a parent. Administrators control namespace labels and policy settings.
 
 ## Platform submissions
 
@@ -120,8 +152,9 @@ exporter:
 ```
 
 For a root with `example.com/workload-owner: alice`, the evaluator returns
-`alice`. The intended metric label is `submitted_by="alice"`. The evaluator is
-implemented; resolving and exporting the label are still scaffold work.
+`alice`. The emitted metric label is `submitted_by="alice"` after successful
+reconciliation. Admission capture, label resolution and Prometheus export are
+implemented; capture is not part of the exporter process.
 
 ## Alternatives not taken
 

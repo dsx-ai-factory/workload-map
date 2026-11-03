@@ -3,8 +3,7 @@
 
 # Output adapters
 
-Adapters will translate published workload observations into an output format.
-They will not discover workloads, evaluate Karta definitions or run label expressions.
-
-The first adapter will use [OpenTelemetry](otel/). Implementation follows in a
-separate change.
+The [OpenTelemetry adapter](otel/README.md) translates saved workload observations
+into four gauges. It does not discover workloads, evaluate Karta definitions or
+run label expressions. The application wires it to a Prometheus reader;
+native OTLP push is not configured by the current runtime.

@@ -28,40 +28,7 @@ input object during evaluation.
 
 ## Configuration
 
-```yaml
-exporter:
-  labelRules:
-    - name: team
-      metrics: [dsx_workload_pod_info, dsx_workload_status]
-      sources: [workload]
-      expression: |
-        has(object.metadata.labels) && "example.com/team" in object.metadata.labels
-          ? object.metadata.labels["example.com/team"] : ""
-  genericLabelEvaluationLimits:
-    costLimit: 10000
-    maxExpressionBytes: 4096
-    maxResultBytes: 1024
-```
-
-`labelRules` defaults to `[]`. Rules target Pod info or workload status. A Pod
-source is allowed only for Pod info. Sources run in listed order until a nonempty
-value is found. The resolver retains per-source evaluation errors, including
-when a fallback succeeds. A rule can replace a built-in label of the same name.
-
-Runtime workers use the [label resolver](../labelresolver/README.md) to evaluate
-configured rules against cached Pods and workloads. The collector serves the
-saved results at `/metrics`.
-
-Helm mounts these two sections as a config file. Outside Helm, use the same file
-without the `exporter:` wrapper and pass `--config path.yaml`.
-
-| Config key | Flag | Environment variable |
-| --- | --- | --- |
-| Config path | `--config` | `DSX_WORKLOAD_EXPORTER_CONFIG` |
-| `genericLabelEvaluationLimits.costLimit` | `--generic-label-eval-cost-limit` | `DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_COST_LIMIT` |
-| `genericLabelEvaluationLimits.maxExpressionBytes` | `--generic-label-eval-max-expression-bytes` | `DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_EXPRESSION_BYTES` |
-| `genericLabelEvaluationLimits.maxResultBytes` | `--generic-label-eval-max-result-bytes` | `DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_RESULT_BYTES` |
-
-Explicit flags override environment variables, then YAML, then defaults. An empty
-numeric override is an error. `--config=""` skips a path set through the environment.
-Zero limits use compiler defaults. Negative limits are rejected. Rules stay in YAML.
+The [configuration reference](../../../docs/dsx-workload-exporter/configuration.md#configured-labels)
+owns the Helm schema, examples, limits and flag/environment precedence.
+Runtime uses the [label resolver](../labelresolver/README.md) to apply rules and
+saves results for collection. The evaluator itself has no publication policy.

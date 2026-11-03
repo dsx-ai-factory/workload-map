@@ -14,7 +14,8 @@ owner's group, version and kind. The last verified object below that owner becom
 the root with an ignored-owner resolution.
 
 Objects are read from Runtime's informer cache when available. On a cache miss,
-the reader fetches metadata. The reader owns metadata refresh and coalescing.
+the reader requests shared metadata watch coverage and reads the accepted cache.
+The reader owns coverage and synchronization.
 Discovery retains no metadata between requests. Returned references include the
 observed resource versions so the caller can verify them before publication.
 The reader resolves API scope; cluster-scoped owners have an empty namespace in
@@ -25,5 +26,6 @@ references, cycles and missing owners fail resolution without returning a partia
 workload. A chain may contain at most 1024 objects.
 
 Discovery handles ownership only. Karta definition selection, expression evaluation
-and watch registration are separate responsibilities. Resolution does not start
-watches or request watch coverage for roots or intermediate owners.
+and watch registration are separate responsibilities. Discovery starts no
+goroutines itself, but its reader requests coverage for missing ancestors.
+Runtime upgrades evaluated roots to full-object coverage.

@@ -181,662 +181,9 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Select an exporter job, namespace and workload. The timeline shows observed phase intervals; the graph shows current attribution and optional resource measurements. Load `recording-rules.yaml` for inventory and attribution. Metric Samples contains raw evidence."
+        "content": "Select an exporter job, namespace and workload. Start with its structure and resource measurements, then inspect status and phase history below. Load `recording-rules.yaml` for inventory and attribution. Metric Samples contains raw evidence."
       },
       "transparent": true
-    },
-    {
-      "id": 2,
-      "title": "Selected workload",
-      "description": "Published identities remain when status or age is unavailable. Age requires agreement across reporting replicas. Published definition describes emitted metadata. Phase summary requires all nine agreed flags and available scrapes. See raw samples for invalid observations and disagreements.",
-      "type": "table",
-      "gridPos": {
-        "x": 0,
-        "y": 2,
-        "w": 15,
-        "h": 5
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unavailable",
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Age"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Published definition"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "No selected definition"
-                      },
-                      "1": {
-                        "text": "Selected"
-                      },
-                      "2": {
-                        "text": "Status unavailable"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Phase summary"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "No matching phase"
-                      },
-                      "1": {
-                        "text": "One or more matches"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 110
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 90
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload UID"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 180
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Age"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 75
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Published definition"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 155
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Phase summary"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 150
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false
-        },
-        "sortBy": []
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "A",
-          "legendFormat": "__auto"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "(time() - (min by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}) == max by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}))) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "B",
-          "legendFormat": "__auto"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "(((group by (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", karta!=\"\"}) or on (job, namespace, workload_name, workload_uid) (0 * group by (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", karta=\"\"}))) unless on (job, namespace, workload_name, workload_uid) (count by (job, namespace, workload_name, workload_uid) (group by (job, namespace, workload_name, workload_uid, karta) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) > 1)) or on (job, namespace, workload_name, workload_uid) (2 * (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"} unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})))) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "C",
-          "legendFormat": "__auto"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "(max by (job, namespace, workload_name, workload_uid) (((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)) and on (job, namespace, workload_name, workload_uid) (count by (job, namespace, workload_name, workload_uid) (((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)) == 9)) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "D",
-          "legendFormat": "__auto"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "job": true,
-              "Value #A": true
-            },
-            "renameByName": {
-              "namespace": "Namespace",
-              "workload_name": "Workload",
-              "workload_uid": "Workload UID",
-              "Value #B": "Age",
-              "Value #C": "Published definition",
-              "Value #D": "Phase summary"
-            },
-            "indexByName": {
-              "namespace": 0,
-              "workload_name": 1,
-              "workload_uid": 2,
-              "Value #B": 3,
-              "Value #C": 4,
-              "Value #D": 5
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "title": "Independent phases",
-      "description": "Each agreed phase remains 0 or 1. Several can match. No values are supplied when scrape collection is unavailable or status replicas disagree.",
-      "type": "stat",
-      "gridPos": {
-        "x": 15,
-        "y": 2,
-        "w": 9,
-        "h": 5
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unavailable",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "text"
-          },
-          "decimals": 0,
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "No",
-                  "color": "text"
-                },
-                "1": {
-                  "text": "Yes",
-                  "color": "green"
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name",
-        "wideLayout": true
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)",
-          "format": "time_series",
-          "instant": true,
-          "range": false,
-          "refId": "A",
-          "legendFormat": "{{phase}}"
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "title": "Phase history | status at each observed time",
-      "description": "Each row is an independent phase flag. Colored intervals name the matching phase; gray intervals mean that phase did not match. Hover an interval for its start and end times. Several phases can match at once. Gaps mean unavailable, invalid or disagreeing samples. Times reflect sampled observations at the query resolution, not exact lifecycle event timestamps.",
-      "type": "state-timeline",
-      "gridPos": {
-        "x": 0,
-        "y": 7,
-        "w": 24,
-        "h": 10
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unavailable",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "blue"
-          },
-          "decimals": 0,
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "Not matching",
-                  "color": "dark-gray"
-                },
-                "1": {
-                  "text": "Matching",
-                  "color": "blue"
-                }
-              }
-            }
-          ],
-          "custom": {
-            "fillOpacity": 75,
-            "lineWidth": 0,
-            "spanNulls": false,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Running"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Not matching",
-                        "color": "dark-gray"
-                      },
-                      "1": {
-                        "text": "Running",
-                        "color": "green"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Initializing"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Not matching",
-                        "color": "dark-gray"
-                      },
-                      "1": {
-                        "text": "Initializing",
-                        "color": "yellow"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Resuming"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Not matching",
-                        "color": "dark-gray"
-                      },
-                      "1": {
-                        "text": "Resuming",
-                        "color": "yellow"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Suspending"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Not matching",
-                        "color": "dark-gray"
-                      },
-                      "1": {
-                        "text": "Suspending",
-                        "color": "yellow"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Failed"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Not matching",
-                        "color": "dark-gray"
-                      },
-                      "1": {
-                        "text": "Failed",
-                        "color": "red"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Degraded"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Not matching",
-                        "color": "dark-gray"
-                      },
-                      "1": {
-                        "text": "Degraded",
-                        "color": "red"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Completed"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Not matching",
-                        "color": "dark-gray"
-                      },
-                      "1": {
-                        "text": "Completed",
-                        "color": "cyan"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Suspended"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Not matching",
-                        "color": "dark-gray"
-                      },
-                      "1": {
-                        "text": "Suspended",
-                        "color": "light-gray"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Undefined"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Not matching",
-                        "color": "dark-gray"
-                      },
-                      "1": {
-                        "text": "Undefined",
-                        "color": "light-gray"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "mergeValues": true,
-        "showValue": "auto",
-        "alignValue": "center",
-        "rowHeight": 0.8,
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)",
-          "format": "time_series",
-          "instant": false,
-          "range": true,
-          "refId": "A",
-          "legendFormat": "{{phase}}"
-        }
-      ]
     },
     {
       "id": 8,
@@ -845,7 +192,7 @@
       "type": "text",
       "gridPos": {
         "x": 0,
-        "y": 17,
+        "y": 2,
         "w": 24,
         "h": 2
       },
@@ -868,7 +215,7 @@
       "type": "nodeGraph",
       "gridPos": {
         "x": 0,
-        "y": 19,
+        "y": 4,
         "w": 24,
         "h": 25
       },
@@ -1267,6 +614,659 @@
               "color": "Object type"
             }
           }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Selected workload",
+      "description": "Published identities remain when status or age is unavailable. Age requires agreement across reporting replicas. Published definition describes emitted metadata. Phase summary requires all nine agreed flags and available scrapes. See raw samples for invalid observations and disagreements.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 15,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Age"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Published definition"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "No selected definition"
+                      },
+                      "1": {
+                        "text": "Selected"
+                      },
+                      "2": {
+                        "text": "Status unavailable"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Phase summary"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "No matching phase"
+                      },
+                      "1": {
+                        "text": "One or more matches"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload UID"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Age"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 75
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Published definition"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 155
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Phase summary"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(time() - (min by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}) == max by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}))) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "B",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(((group by (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", karta!=\"\"}) or on (job, namespace, workload_name, workload_uid) (0 * group by (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", karta=\"\"}))) unless on (job, namespace, workload_name, workload_uid) (count by (job, namespace, workload_name, workload_uid) (group by (job, namespace, workload_name, workload_uid, karta) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) > 1)) or on (job, namespace, workload_name, workload_uid) (2 * (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"} unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})))) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "C",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(max by (job, namespace, workload_name, workload_uid) (((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)) and on (job, namespace, workload_name, workload_uid) (count by (job, namespace, workload_name, workload_uid) (((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)) == 9)) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "D",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "Value #A": true
+            },
+            "renameByName": {
+              "namespace": "Namespace",
+              "workload_name": "Workload",
+              "workload_uid": "Workload UID",
+              "Value #B": "Age",
+              "Value #C": "Published definition",
+              "Value #D": "Phase summary"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "workload_name": 1,
+              "workload_uid": 2,
+              "Value #B": 3,
+              "Value #C": 4,
+              "Value #D": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Independent phases",
+      "description": "Each agreed phase remains 0 or 1. Several can match. No values are supplied when scrape collection is unavailable or status replicas disagree.",
+      "type": "stat",
+      "gridPos": {
+        "x": 15,
+        "y": 29,
+        "w": 9,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "decimals": 0,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "No",
+                  "color": "text"
+                },
+                "1": {
+                  "text": "Yes",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "{{phase}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Phase history | status at each observed time",
+      "description": "Each row is an independent phase flag. Colored intervals name the matching phase; gray intervals mean that phase did not match. Hover an interval for its start and end times. Several phases can match at once. Gaps mean unavailable, invalid or disagreeing samples. Times reflect sampled observations at the query resolution, not exact lifecycle event timestamps.",
+      "type": "state-timeline",
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 24,
+        "h": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "decimals": 0,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Not matching",
+                  "color": "dark-gray"
+                },
+                "1": {
+                  "text": "Matching",
+                  "color": "blue"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "fillOpacity": 75,
+            "lineWidth": 0,
+            "spanNulls": false,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Running"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matching",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Running",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Initializing"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matching",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Initializing",
+                        "color": "yellow"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Resuming"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matching",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Resuming",
+                        "color": "yellow"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Suspending"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matching",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Suspending",
+                        "color": "yellow"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Failed"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matching",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Failed",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Degraded"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matching",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Degraded",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Completed"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matching",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Completed",
+                        "color": "cyan"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Suspended"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matching",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Suspended",
+                        "color": "light-gray"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Undefined"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matching",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Undefined",
+                        "color": "light-gray"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "alignValue": "center",
+        "rowHeight": 0.8,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{phase}}"
         }
       ]
     },

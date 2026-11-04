@@ -9,10 +9,11 @@ editable examples for an existing Grafana and Prometheus installation.
 
 ## All workloads
 
-[Import Workload Overview](workload-overview.json). Browse workload identities,
-phase flags and age, then compare GPU, CPU and memory measurements in separate
-sections. Each resource section pairs current values with history. Select a
-workload name to open its structure with the same datasource and source jobs.
+[Import Workload Overview](workload-overview.json). Start with GPU utilization
+and VRAM trends, then compare current measurements for every workload with
+accepted GPU telemetry. Workload inventory, status, CPU and memory follow below.
+Select a workload name to open its structure with the same datasource and source
+jobs.
 
 ![Workload overview with inventory, status and resource sections](screenshots/workload-overview.png)
 
@@ -23,7 +24,8 @@ Follow its components, instances, groups and Pods in the graph. Nodes show maxim
 measured GPU utilization and GPU memory used. VRAM values are in GiB, as labeled
 in the graph legend and node details. Click a node for CPU, working-set memory
 and identity details. Grafana opens these details on click, not hover.
-The exact attribution table remains available below the graph.
+Status and phase history follow the graph. The exact attribution table remains
+available below them.
 
 ![Workload structure, resource details and phase history](screenshots/workload-structure.png)
 

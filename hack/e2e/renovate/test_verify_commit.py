@@ -4,8 +4,10 @@
 
 import hashlib
 import json
+import shlex
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -214,6 +216,38 @@ class VerifyCommitTest(unittest.TestCase):
         self.write_manifest()
         self.candidate()
         self.verify()
+
+    def test_real_push_requires_manifest_before_creating_remote_branch(self):
+        candidate = self.candidate()
+        remote = self.root / "remote.git"
+        self.git("init", "--quiet", "--bare", str(remote))
+        hooks = self.root / "hooks"
+        hooks.mkdir()
+        command = [
+            sys.executable, str(Path(gate.__file__).resolve()),
+            "--manifest", str(self.manifest), "--base-sha", self.base,
+            "--author", AUTHOR, "--pre-push", "--branch", "renovate/e2e-example",
+        ]
+        hook = hooks / "pre-push"
+        hook.write_text("#!/bin/sh\nexec " + shlex.join(command) + "\n")
+        hook.chmod(0o755)
+        push = [
+            "git", "-c", f"core.hooksPath={hooks}", "push", "--quiet", str(remote),
+            "HEAD:refs/heads/renovate/e2e-example",
+        ]
+        self.manifest.unlink()
+        blocked = subprocess.run(push, cwd=self.repo, capture_output=True, text=True)
+        self.assertNotEqual(blocked.returncode, 0)
+        self.assertIn("manifest must be an absolute path to a regular file", blocked.stderr)
+        self.assertEqual(self.git("--git-dir", str(remote), "for-each-ref", "--format=%(refname)"), "")
+
+        self.write_manifest()
+        allowed = subprocess.run(push, cwd=self.repo, capture_output=True, text=True)
+        self.assertEqual(allowed.returncode, 0, allowed.stdout + allowed.stderr)
+        self.assertEqual(
+            self.git("--git-dir", str(remote), "rev-parse", "refs/heads/renovate/e2e-example").strip(),
+            candidate,
+        )
 
     def test_push_checks_actual_object_instead_of_head(self):
         candidate = self.candidate()

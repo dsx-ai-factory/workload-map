@@ -322,3 +322,62 @@ var _ = Describe("chart exporter metrics Service", func() {
 		})
 	}
 })
+
+var _ = Describe("chart exporter GOMEMLIMIT", func() {
+	for _, tc := range []struct {
+		name    string
+		args    []string
+		want    string
+		failure string
+	}{
+		{name: "auto with the default 4Gi limit", want: "3865470566"},
+		{name: "auto with a binary limit", args: []string{"--set", "exporter.resources.limits.memory=2.5Gi"}, want: "2415919104"},
+		{name: "auto with a decimal limit", args: []string{"--set", "exporter.resources.limits.memory=1500M"}, want: "1350000000"},
+		{name: "auto with a byte limit", args: []string{"--set-json", "exporter.resources.limits.memory=4294967296"}, want: "3865470566"},
+		{name: "auto without a memory limit", args: []string{"--set-json", "exporter.resources.limits=null"}},
+		{name: "an explicit value", args: []string{"--set", "exporter.goMemLimit=3600MiB"}, want: "3600MiB"},
+		{name: "an empty value", args: []string{"--set", "exporter.goMemLimit="}},
+		{name: "an unreadable limit", args: []string{"--set", "exporter.resources.limits.memory=4Gx"},
+			failure: `cannot read exporter.resources.limits.memory "4Gx"`},
+	} {
+		It("renders "+tc.name, func() {
+			helm, err := exec.LookPath("helm")
+			if err != nil {
+				Skip("helm is needed for chart rendering")
+			}
+			chart := filepath.Join("..", "..", "..", "charts", "karta")
+			args := append([]string{"template", "memlimit", chart, "--set", "exporter.enabled=true",
+				"--show-only", "templates/exporter-deployment.yaml"}, tc.args...)
+			out, err := exec.Command(helm, args...).CombinedOutput()
+			if tc.failure != "" {
+				Expect(err).To(HaveOccurred())
+				Expect(string(out)).To(ContainSubstring(tc.failure))
+				return
+			}
+			Expect(err).To(Succeed(), string(out))
+			var deployment struct {
+				Spec struct {
+					Template struct {
+						Spec struct {
+							Containers []struct {
+								Env []struct {
+									Name  string `yaml:"name"`
+									Value string `yaml:"value"`
+								} `yaml:"env"`
+							} `yaml:"containers"`
+						} `yaml:"spec"`
+					} `yaml:"template"`
+				} `yaml:"spec"`
+			}
+			Expect(yaml.Unmarshal(out, &deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
+			got := ""
+			for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+				if env.Name == "GOMEMLIMIT" {
+					got = env.Value
+				}
+			}
+			Expect(got).To(Equal(tc.want))
+		})
+	}
+})

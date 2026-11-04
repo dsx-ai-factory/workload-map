@@ -110,6 +110,33 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{ printf "%s-%s" (include "karta.exporter.fullname" .) .Release.Namespace }}
 {{- end -}}
 
+{{/*
+GOMEMLIMIT for the exporter container. auto: 90% of resources.limits.memory in bytes,
+so the Go GC works harder before the kernel OOM-kills the container; the rest covers
+memory outside the Go runtime. Any other non-empty value passes through. Empty, or
+auto without a memory limit, renders nothing.
+*/}}
+{{- define "karta.exporter.goMemLimit" -}}
+{{- $value := toString (.Values.exporter.goMemLimit | default "") -}}
+{{- if ne $value "auto" -}}
+{{- $value -}}
+{{- else -}}
+{{- $raw := dig "resources" "limits" "memory" "" .Values.exporter -}}
+{{- if or (kindIs "float64" $raw) (kindIs "int64" $raw) (kindIs "int" $raw) -}}
+{{- printf "%.0f" (floor (mulf (float64 $raw) 0.9)) -}}
+{{- else if $raw -}}
+{{- $limit := toString $raw -}}
+{{- $number := regexFind "^[0-9]+(\\.[0-9]+)?" $limit -}}
+{{- $suffix := trimPrefix $number $limit -}}
+{{- $units := dict "" 1 "k" 1000 "M" 1000000 "G" 1000000000 "T" 1000000000000 "Ki" 1024 "Mi" 1048576 "Gi" 1073741824 "Ti" 1099511627776 -}}
+{{- if or (not $number) (not (hasKey $units $suffix)) -}}
+{{- fail (printf "exporter.goMemLimit=auto cannot read exporter.resources.limits.memory %q; set exporter.goMemLimit to a Go value such as 3600MiB" $limit) -}}
+{{- end -}}
+{{- printf "%.0f" (floor (mulf (float64 $number) (float64 (get $units $suffix)) 0.9)) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "karta.exporter.labels" -}}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{ include "karta.exporter.selectorLabels" . }}

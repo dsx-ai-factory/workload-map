@@ -11,7 +11,7 @@ EXPORTER_LOAD_WORKLOADS=1000 EXPORTER_LOAD_DURATION=30s make test-exporter-load
 make test-exporter-load EXPORTER_LOAD_COUNT=10
 ```
 
-The test starts a local Kubernetes API server and etcd through envtest, then runs
+The Ginkgo suite starts a local Kubernetes API server and etcd through envtest, then runs
 the exporter against them. Writers continuously update workload and Pod objects
 while one HTTP client attempts a scrape every 100ms. Slow scrapes reduce the
 actual scrape rate. After writes stop, the test waits for the final identities
@@ -22,7 +22,7 @@ The defaults are 100 workload roots with 200 Pods, four writers and at least
 five seconds of updates. Each writer finishes a complete round, so updates can
 last longer than the requested duration.
 `EXPORTER_LOAD_WORKLOADS`, `EXPORTER_LOAD_WRITERS` and `EXPORTER_LOAD_DURATION`
-change that load. `EXPORTER_LOAD_COUNT` repeats the whole test with a fresh API
+change that load. `EXPORTER_LOAD_COUNT` repeats the suite with a fresh API
 server. `EXPORTER_LOAD_TIMEOUT` defaults to `10m` for all repetitions together;
 increase it for long durations or many repetitions.
 

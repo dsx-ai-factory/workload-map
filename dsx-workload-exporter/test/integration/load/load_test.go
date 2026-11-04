@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,200 +54,170 @@ const loadNamespace = "exporter-load"
 
 var deploymentGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
 
-func TestExporterLoad(t *testing.T) {
-	if os.Getenv("EXPORTER_LOAD") != "1" {
-		t.Skip("set EXPORTER_LOAD=1 to run the real API-server load test")
-	}
-	count := integerSetting(t, "EXPORTER_LOAD_WORKLOADS", 100, 1, 100000)
-	writers := integerSetting(t, "EXPORTER_LOAD_WRITERS", 4, 1, 32)
-	duration := 5 * time.Second
-	if value := os.Getenv("EXPORTER_LOAD_DURATION"); value != "" {
-		var err error
-		duration, err = time.ParseDuration(value)
-		if err != nil || duration < time.Second || duration > 30*time.Minute {
-			t.Fatalf("EXPORTER_LOAD_DURATION must be between 1s and 30m: %q", value)
-		}
-	}
-	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
-		t.Fatal("KUBEBUILDER_ASSETS is required; run make test-exporter-load")
-	}
-	environment := &envtest.Environment{
-		CRDDirectoryPaths:     []string{"../../../../charts/karta/crds"},
-		ErrorIfCRDPathMissing: true,
-		UseExistingCluster:    ptr.To(false),
-	}
-	t.Cleanup(func() {
-		if err := environment.Stop(); err != nil {
-			t.Error(err)
-		}
-	})
-	kube, err := environment.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
-	kube.QPS = 1000
-	kube.Burst = 2000
-	scheme := kruntime.NewScheme()
-	for _, add := range []func(*kruntime.Scheme) error{corev1.AddToScheme, appsv1.AddToScheme, v1alpha1.AddToScheme} {
-		if err := add(scheme); err != nil {
-			t.Fatal(err)
-		}
-	}
-	api, err := client.New(kube, client.Options{Scheme: scheme})
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), duration+5*time.Minute)
-	defer cancel()
-	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: loadNamespace}}
-	if err := api.Create(ctx, ns); err != nil {
-		t.Fatal(err)
-	}
-	definition, err := catalog.Get(deploymentGVK)
-	if err != nil {
-		t.Fatal(err)
-	}
-	definition.Name = "load-deployment"
-	if err := api.Create(ctx, definition); err != nil {
-		t.Fatal(err)
-	}
-	cfg := config.DefaultConfig()
-	cfg.APIQPS = 1000
-	cfg.APIBurst = 2000
-	cfg.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
-	cfg.KartaDefinitionSource.Cluster.Include = []string{definition.Name}
-	cfg.RequiredKinds = config.Kinds{deploymentGVK}
-	cfg.Rules = []labelresolver.LabelRule{
-		{
-			Name:       "root_revision",
-			Metrics:    []string{labelresolver.MetricPodWorkloadInfo, labelresolver.MetricWorkloadStatus},
-			Sources:    []labelresolver.Source{labelresolver.SourceWorkload},
-			Expression: `object.metadata.labels["load-revision"]`,
-		},
-		{
-			Name:       "pod_revision",
-			Metrics:    []string{labelresolver.MetricPodWorkloadInfo},
-			Sources:    []labelresolver.Source{labelresolver.SourcePod},
-			Expression: `object.metadata.labels["load-revision"]`,
-		},
-	}
-	components, err := bootstrap.New(cfg, kube)
-	if err != nil {
-		t.Fatal(err)
-	}
-	application, err := app.New(components)
-	if err != nil {
-		t.Fatal(err)
-	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	runCtx, stop := context.WithCancel(ctx)
-	done := make(chan error, 1)
-	go func() { done <- application.ServeListener(runCtx, listener) }()
-	t.Cleanup(func() {
-		stop()
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Error(err)
-			}
-		case <-time.After(15 * time.Second):
-			t.Error("exporter failed to stop")
-		}
-	})
-	httpClient := &http.Client{Timeout: 10 * time.Second}
-	endpoint := "http://" + listener.Addr().String() + "/metrics"
-	fleet := make([]workload, count)
-	for i := range fleet {
-		fleet[i], err = newWorkload(ctx, api, ns.Name, i)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	waitForFleet(ctx, t, httpClient, endpoint, fleet)
-
-	// Each writer owns disjoint objects. Scrapes overlap updates, while final
-	// checks wait for eventual consistency rather than requiring every event.
-	var mutations atomic.Int64
-	var workers sync.WaitGroup
-	errors := make(chan error, writers)
-	end := time.Now().Add(duration)
-	scrapeCtx, stopScraping := context.WithCancel(ctx)
-	scraped := make(chan scrapeStats, 1)
-	go func() { scraped <- scrapeContinuously(scrapeCtx, httpClient, endpoint) }()
-	var before runtime.MemStats
-	runtime.ReadMemStats(&before)
-	started := time.Now()
-	for worker := range min(writers, len(fleet)) {
-		workers.Add(1)
-		go func() {
-			defer workers.Done()
-			for {
-				for i := worker; i < len(fleet); i += writers {
-					if err := updateWorkload(ctx, api, &fleet[i], &mutations); err != nil {
-						errors <- err
-						return
-					}
-				}
-				if !time.Now().Before(end) {
-					break
-				}
-			}
-		}()
-	}
-	workers.Wait()
-	churnElapsed := time.Since(started)
-	stopScraping()
-	stats := <-scraped
-	close(errors)
-	for err := range errors {
-		t.Error(err)
-	}
-	if stats.err != nil {
-		t.Error(stats.err)
-	}
-	if t.Failed() {
-		t.FailNow()
-	}
-	if mutations.Load() == 0 || stats.count < 2 {
-		t.Fatalf("insufficient activity: mutations=%d scrapes=%d", mutations.Load(), stats.count)
-	}
-	converging := time.Now()
-	waitForFleet(ctx, t, httpClient, endpoint, fleet)
-	convergence := time.Since(converging)
-	var after runtime.MemStats
-	runtime.ReadMemStats(&after)
-	t.Logf("workloads=%d pods=%d writers=%d mutations=%d churn_elapsed=%s mutations/s=%.1f convergence=%s scrapes=%d scrape_max=%s shared_heap_before=%d shared_heap_after=%d", count, count*2, writers, mutations.Load(), churnElapsed, float64(mutations.Load())/churnElapsed.Seconds(), convergence, stats.count, stats.max, before.HeapAlloc, after.HeapAlloc)
-
-	// Every final Pod UID must be current, and removing the whole fleet must
-	// remove its status, creation and Pod series as well.
-	for i := range fleet {
-		for _, pod := range fleet[i].pods {
-			if err := api.Delete(ctx, pod, client.GracePeriodSeconds(0)); err != nil {
-				t.Fatal(err)
-			}
-		}
-		if err := api.Delete(ctx, fleet[i].owner); err != nil {
-			t.Fatal(err)
-		}
-		if err := api.Delete(ctx, fleet[i].root); err != nil {
-			t.Fatal(err)
-		}
-	}
-	waitForFleet(ctx, t, httpClient, endpoint, nil)
+func TestLoad(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "DSX Workload Exporter Load Suite")
 }
 
-func integerSetting(t *testing.T, name string, fallback, minValue, maxValue int) int {
-	t.Helper()
+var _ = Describe("Exporter under continuous API updates", func() {
+	It("publishes current metrics and removes them after deletion", func() {
+		if os.Getenv("EXPORTER_LOAD") != "1" {
+			Skip("set EXPORTER_LOAD=1 to run the real API-server load test")
+		}
+		count := integerSetting("EXPORTER_LOAD_WORKLOADS", 100, 1, 100000)
+		writers := integerSetting("EXPORTER_LOAD_WRITERS", 4, 1, 32)
+		duration := 5 * time.Second
+		if value := os.Getenv("EXPORTER_LOAD_DURATION"); value != "" {
+			var err error
+			duration, err = time.ParseDuration(value)
+			if err != nil || duration < time.Second || duration > 30*time.Minute {
+				Fail(fmt.Sprintf("EXPORTER_LOAD_DURATION must be between 1s and 30m: %q", value))
+			}
+		}
+		if os.Getenv("KUBEBUILDER_ASSETS") == "" {
+			Fail("KUBEBUILDER_ASSETS is required; run make test-exporter-load")
+		}
+		By("starting an isolated API server and etcd")
+		environment := &envtest.Environment{
+			CRDDirectoryPaths:     []string{"../../../../charts/karta/crds"},
+			ErrorIfCRDPathMissing: true,
+			UseExistingCluster:    ptr.To(false),
+		}
+		DeferCleanup(environment.Stop)
+		kube, err := environment.Start()
+		Expect(err).NotTo(HaveOccurred())
+		kube.QPS = 1000
+		kube.Burst = 2000
+		scheme := kruntime.NewScheme()
+		for _, add := range []func(*kruntime.Scheme) error{corev1.AddToScheme, appsv1.AddToScheme, v1alpha1.AddToScheme} {
+			Expect(add(scheme)).To(Succeed())
+		}
+		api, err := client.New(kube, client.Options{Scheme: scheme})
+		Expect(err).NotTo(HaveOccurred())
+		ctx, cancel := context.WithTimeout(context.Background(), duration+5*time.Minute)
+		DeferCleanup(cancel)
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: loadNamespace}}
+		Expect(api.Create(ctx, ns)).To(Succeed())
+		definition, err := catalog.Get(deploymentGVK)
+		Expect(err).NotTo(HaveOccurred())
+		definition.Name = "load-deployment"
+		Expect(api.Create(ctx, definition)).To(Succeed())
+		By("starting the production exporter with revision label rules")
+		cfg := config.DefaultConfig()
+		cfg.APIQPS = 1000
+		cfg.APIBurst = 2000
+		cfg.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
+		cfg.KartaDefinitionSource.Cluster.Include = []string{definition.Name}
+		cfg.RequiredKinds = config.Kinds{deploymentGVK}
+		cfg.Rules = []labelresolver.LabelRule{
+			{
+				Name:       "root_revision",
+				Metrics:    []string{labelresolver.MetricPodWorkloadInfo, labelresolver.MetricWorkloadStatus},
+				Sources:    []labelresolver.Source{labelresolver.SourceWorkload},
+				Expression: `object.metadata.labels["load-revision"]`,
+			},
+			{
+				Name:       "pod_revision",
+				Metrics:    []string{labelresolver.MetricPodWorkloadInfo},
+				Sources:    []labelresolver.Source{labelresolver.SourcePod},
+				Expression: `object.metadata.labels["load-revision"]`,
+			},
+		}
+		components, err := bootstrap.New(cfg, kube)
+		Expect(err).NotTo(HaveOccurred())
+		application, err := app.New(components)
+		Expect(err).NotTo(HaveOccurred())
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		Expect(err).NotTo(HaveOccurred())
+		runCtx, stop := context.WithCancel(ctx)
+		done := make(chan error, 1)
+		go func() { done <- application.ServeListener(runCtx, listener) }()
+		DeferCleanup(func() {
+			stop()
+			Eventually(done, 15*time.Second).Should(Receive(BeNil()), "exporter failed to stop cleanly")
+		})
+		httpClient := &http.Client{Timeout: 10 * time.Second}
+		endpoint := "http://" + listener.Addr().String() + "/metrics"
+		By("creating workloads and waiting for their initial metrics")
+		fleet := make([]workload, count)
+		for i := range fleet {
+			fleet[i], err = newWorkload(ctx, api, ns.Name, i)
+			Expect(err).NotTo(HaveOccurred())
+		}
+		waitForFleet(ctx, httpClient, endpoint, fleet)
+
+		By("updating workloads and replacing Pods while scraping metrics")
+		// Each writer owns disjoint objects. Scrapes overlap updates, while final
+		// checks wait for eventual consistency rather than requiring every event.
+		var mutations atomic.Int64
+		var workers sync.WaitGroup
+		errors := make(chan error, writers)
+		end := time.Now().Add(duration)
+		scrapeCtx, stopScraping := context.WithCancel(ctx)
+		scraped := make(chan scrapeStats, 1)
+		go func() { scraped <- scrapeContinuously(scrapeCtx, httpClient, endpoint) }()
+		var before runtime.MemStats
+		runtime.ReadMemStats(&before)
+		started := time.Now()
+		for worker := range min(writers, len(fleet)) {
+			workers.Add(1)
+			go func() {
+				defer workers.Done()
+				for {
+					for i := worker; i < len(fleet); i += writers {
+						if err := updateWorkload(ctx, api, &fleet[i], &mutations); err != nil {
+							errors <- err
+							return
+						}
+					}
+					if !time.Now().Before(end) {
+						break
+					}
+				}
+			}()
+		}
+		workers.Wait()
+		churnElapsed := time.Since(started)
+		stopScraping()
+		stats := <-scraped
+		close(errors)
+		for err := range errors {
+			Expect(err).NotTo(HaveOccurred())
+		}
+		Expect(stats.err).NotTo(HaveOccurred())
+		Expect(mutations.Load()).To(BeNumerically(">", 0), "no API mutations completed")
+		Expect(stats.count).To(BeNumerically(">=", 2), "insufficient scrapes during load")
+		By("waiting for the final identities, revisions, phases and health")
+		converging := time.Now()
+		waitForFleet(ctx, httpClient, endpoint, fleet)
+		convergence := time.Since(converging)
+		var after runtime.MemStats
+		runtime.ReadMemStats(&after)
+		GinkgoWriter.Printf("workloads=%d pods=%d writers=%d mutations=%d churn_elapsed=%s mutations/s=%.1f convergence=%s scrapes=%d scrape_max=%s shared_heap_before=%d shared_heap_after=%d\n", count, count*2, writers, mutations.Load(), churnElapsed, float64(mutations.Load())/churnElapsed.Seconds(), convergence, stats.count, stats.max, before.HeapAlloc, after.HeapAlloc)
+
+		By("deleting the fleet and checking its metrics disappear")
+		// Every final Pod UID must be current, and removing the whole fleet must
+		// remove its status, creation and Pod series as well.
+		for i := range fleet {
+			for _, pod := range fleet[i].pods {
+				Expect(api.Delete(ctx, pod, client.GracePeriodSeconds(0))).To(Succeed())
+			}
+			Expect(api.Delete(ctx, fleet[i].owner)).To(Succeed())
+			Expect(api.Delete(ctx, fleet[i].root)).To(Succeed())
+		}
+		waitForFleet(ctx, httpClient, endpoint, nil)
+	})
+})
+
+func integerSetting(name string, fallback, minValue, maxValue int) int {
+	GinkgoHelper()
 	raw := os.Getenv(name)
 	if raw == "" {
 		return fallback
 	}
 	value, err := strconv.Atoi(raw)
 	if err != nil || value < minValue || value > maxValue {
-		t.Fatalf("%s must be between %d and %d: %q", name, minValue, maxValue, raw)
+		Fail(fmt.Sprintf("%s must be between %d and %d: %q", name, minValue, maxValue, raw))
 	}
 	return value
 }
@@ -369,28 +341,15 @@ func updateWorkload(ctx context.Context, api client.Client, w *workload, mutatio
 	return nil
 }
 
-func waitForFleet(ctx context.Context, t *testing.T, httpClient *http.Client, endpoint string, fleet []workload) {
-	t.Helper()
-	deadline := time.NewTimer(60 * time.Second)
-	defer deadline.Stop()
-	tick := time.NewTicker(100 * time.Millisecond)
-	defer tick.Stop()
-	for {
+func waitForFleet(ctx context.Context, httpClient *http.Client, endpoint string, fleet []workload) {
+	GinkgoHelper()
+	Eventually(ctx, func(ctx context.Context) error {
 		families, err := scrape(ctx, httpClient, endpoint)
-		if err == nil {
-			err = checkFleet(families, fleet)
+		if err != nil {
+			return err
 		}
-		if err == nil {
-			return
-		}
-		select {
-		case <-deadline.C:
-			t.Fatalf("metrics did not converge: %v", err)
-		case <-ctx.Done():
-			t.Fatalf("metrics wait: %v; last: %v", ctx.Err(), err)
-		case <-tick.C:
-		}
-	}
+		return checkFleet(families, fleet)
+	}, 60*time.Second, 100*time.Millisecond).Should(Succeed(), "metrics did not converge")
 }
 
 func scrapeContinuously(ctx context.Context, httpClient *http.Client, endpoint string) scrapeStats {

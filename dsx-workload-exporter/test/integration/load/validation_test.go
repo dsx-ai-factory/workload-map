@@ -6,9 +6,10 @@ package load_test
 import (
 	"fmt"
 	"strings"
-	"testing"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,7 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestFleetValidation(t *testing.T) {
+var _ = Describe("Fleet validation", func() {
 	fleet := []workload{{root: &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "root", Namespace: loadNamespace, UID: "root-uid", CreationTimestamp: metav1.NewTime(time.Unix(1000, 0))}}, pods: []*corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "pod", UID: "pod-uid"}}}, phase: "Running", revision: 2}}
 	body := `# TYPE dsx_workload_pod_info gauge
  dsx_workload_pod_info{namespace="exporter-load",pod_name="pod",pod_uid="pod-uid",workload_name="root",workload_uid="root-uid",workload_group="apps",workload_version="v1",workload_kind="Deployment",root_revision="2",pod_revision="2",observation_valid="true",owner_resolution="resolved",component="deployment",component_instance="",replica_group_id=""} 1
@@ -89,18 +90,19 @@ func TestFleetValidation(t *testing.T) {
 		{"missing family", strings.ReplaceAll(body, "dsx_workload_pod_info", "missing_pod_info"), false},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if !tt.valid && tt.body == body {
-				t.Fatal("negative case did not change fixture")
+		It(tt.name, func() {
+			if !tt.valid {
+				Expect(tt.body).NotTo(Equal(body), "negative case did not change fixture")
 			}
 			parser := expfmt.NewTextParser(model.UTF8Validation)
 			families, err := parser.TextToMetricFamilies(strings.NewReader(tt.body))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := checkFleet(families, fleet); (err == nil) != tt.valid {
-				t.Fatalf("valid=%t: %v", tt.valid, err)
+			Expect(err).NotTo(HaveOccurred())
+			err = checkFleet(families, fleet)
+			if tt.valid {
+				Expect(err).NotTo(HaveOccurred())
+			} else {
+				Expect(err).To(HaveOccurred())
 			}
 		})
 	}
-}
+})

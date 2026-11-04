@@ -465,8 +465,10 @@ EXPORTER_LOAD_TIMEOUT ?= 10m
 
 .PHONY: test-exporter-load
 test-exporter-load: envtest ## Run repeated exporter churn and scrape checks against a local API server
+	@case "$(EXPORTER_LOAD_COUNT)" in ''|0*|*[!0-9]*) echo "EXPORTER_LOAD_COUNT must be a positive integer without leading zeros"; exit 1;; esac
 	cd $(EXPORTER_ENVTEST_DIR) && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		EXPORTER_LOAD=1 go test -count=$(EXPORTER_LOAD_COUNT) -timeout=$(EXPORTER_LOAD_TIMEOUT) -v ./load
+		EXPORTER_LOAD=1 go run github.com/onsi/ginkgo/v2/ginkgo -v \
+		--repeat=$$(($(EXPORTER_LOAD_COUNT) - 1)) --timeout=$(EXPORTER_LOAD_TIMEOUT) ./load
 
 .PHONY: exporter-generate-mocks
 exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mockery

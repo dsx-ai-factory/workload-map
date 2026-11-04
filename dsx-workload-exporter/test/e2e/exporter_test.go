@@ -286,6 +286,11 @@ spec:
 	t.Run("LeaderWorkerSet groups and scale down", testLeaderWorkerSet)
 
 	t.Run("permission failure and recovery", func(t *testing.T) {
+		// Keep the original namespace authorized if its Job watch reconnects.
+		command(t, "", "create", "role", "healthy-jobs", "-n", namespace, "--verb=get,list,watch", "--resource=jobs.batch")
+		command(t, "", "create", "rolebinding", "healthy-jobs", "-n", namespace, "--role=healthy-jobs", "--serviceaccount=exporter-e2e-a:dsx-workload-exporter")
+		jobUID := strings.TrimSpace(command(t, "", "get", "job", "slow-job", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
+		podUID := strings.TrimSpace(command(t, "", "get", "pods", "-l", "job-name=slow-job", "-n", namespace, "-o", "jsonpath={.items[0].metadata.uid}"))
 		roleName := "dsx-workload-exporter-exporter-e2e-a"
 		original := command(t, "", "get", "clusterrole", roleName, "-o", "json")
 		var role map[string]any
@@ -335,7 +340,12 @@ metadata:
 				want = "permission_denied"
 			}
 			reason, exists := labelValue(rows[0], "reason")
-			return exists && reason == want
+			if !exists || reason != want {
+				return false
+			}
+			pods := matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": podUID, "workload_uid": jobUID, "component": "job", "observation_valid": "true"})
+			return len(pods) == 1 && pods[0].GetGauge().GetValue() == 1 &&
+				hasPhases(fs, map[string]string{"namespace": namespace, "workload_uid": jobUID, "workload_kind": "Job", "observation_valid": "true"}, "Completed")
 		}
 		eventually(t, "forbidden Job collection remains observable while unready", func() bool {
 			_, err := kubectl("", "get", "--raw", "/api/v1/namespaces/exporter-e2e-a/services/dsx-workload-exporter:8080/proxy/readyz")

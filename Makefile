@@ -460,6 +460,14 @@ test-exporter-integration: envtest ## Run the exporter envtest suite (downloads 
 	cd $(EXPORTER_ENVTEST_DIR) && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		go test -race ./...
 
+EXPORTER_LOAD_COUNT ?= 1
+EXPORTER_LOAD_TIMEOUT ?= 10m
+
+.PHONY: test-exporter-load
+test-exporter-load: envtest ## Run repeated exporter churn and scrape checks against a local API server
+	cd $(EXPORTER_ENVTEST_DIR) && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		EXPORTER_LOAD=1 go test -count=$(EXPORTER_LOAD_COUNT) -timeout=$(EXPORTER_LOAD_TIMEOUT) -v ./load
+
 .PHONY: exporter-generate-mocks
 exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mockery
 	cd dsx-workload-exporter && go run github.com/vektra/mockery/v3@v3.8.1 --config .mockery.yaml

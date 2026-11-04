@@ -22,12 +22,23 @@ platform="linux/$(docker version --format '{{.Server.Arch}}')"
 docker pull --platform "$platform" busybox:1.37.0
 docker image save --platform "$platform" busybox:1.37.0 -o "$ARTIFACTS/busybox.tar"
 kind load image-archive "$ARTIFACTS/busybox.tar" --name "$CLUSTER_NAME"
+# Reuse the recorder's pinned installers, without its full operator stack.
+for operator in jobset lws; do
+  bash "$ROOT/hack/e2e/operators/$operator/install.sh"
+done
 for shard in a b; do
+  installed=false
+  if helm status "exporter-e2e-$shard" -n "exporter-e2e-$shard" >/dev/null 2>&1; then
+    installed=true
+  fi
   helm upgrade --install "exporter-e2e-$shard" "$ROOT/charts/karta" \
     --namespace "exporter-e2e-$shard" --create-namespace \
     -f "$ROOT/hack/e2e/dsx-workload-exporter/values.yaml" \
     --set "exporter.namespaceSelector.matchLabels.exporter-e2e-shard=$shard" \
     --wait --timeout 3m
-  kubectl -n "exporter-e2e-$shard" rollout restart deployment/dsx-workload-exporter
-  kubectl -n "exporter-e2e-$shard" rollout status deployment/dsx-workload-exporter --timeout=180s
+  # A reused cluster must pick up the rebuilt image with the same local tag.
+  if "$installed"; then
+    kubectl -n "exporter-e2e-$shard" rollout restart deployment/dsx-workload-exporter
+    kubectl -n "exporter-e2e-$shard" rollout status deployment/dsx-workload-exporter --timeout=180s
+  fi
 done

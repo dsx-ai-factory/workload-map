@@ -13,15 +13,15 @@ mkdir -p "$ARTIFACTS"
 collect() {
   local rc=$?
   for shard in a b; do
-    kubectl -n "exporter-e2e-$shard" logs deploy/dsx-workload-exporter --all-containers \
+    kubectl --request-timeout=10s -n "exporter-e2e-$shard" logs deploy/dsx-workload-exporter --all-containers \
       >"$ARTIFACTS/exporter-$shard.log" 2>&1 || true
   done
-  kubectl get events -A --sort-by=.lastTimestamp >"$ARTIFACTS/events.txt" 2>&1 || true
+  kubectl --request-timeout=10s get events -A --sort-by=.lastTimestamp >"$ARTIFACTS/events.txt" 2>&1 || true
   if (( rc != 0 )); then
-    kubectl get pods,deployments,jobs -A -o yaml >"$ARTIFACTS/workloads.yaml" 2>&1 || true
-    kubectl get kartas -o yaml >"$ARTIFACTS/kartas.yaml" 2>&1 || true
+    kubectl --request-timeout=10s get pods,deployments,statefulsets,jobs,jobsets,leaderworkersets -A -o yaml >"$ARTIFACTS/workloads.yaml" 2>&1 || true
+    kubectl --request-timeout=10s get kartas -o yaml >"$ARTIFACTS/kartas.yaml" 2>&1 || true
     for shard in a b; do
-      kubectl get --raw "/api/v1/namespaces/exporter-e2e-$shard/services/dsx-workload-exporter:8080/proxy/metrics" \
+      kubectl --request-timeout=10s get --raw "/api/v1/namespaces/exporter-e2e-$shard/services/dsx-workload-exporter:8080/proxy/metrics" \
         >"$ARTIFACTS/metrics-$shard.txt" 2>&1 || true
     done
   fi
@@ -29,4 +29,4 @@ collect() {
 }
 trap collect EXIT
 cd "$ROOT/dsx-workload-exporter"
-go test -tags e2e -count=1 -v -timeout 15m ./test/e2e/... 2>&1 | tee "$ARTIFACTS/tests.log"
+go test -tags e2e -count=1 -v -timeout 6m ./test/e2e/... 2>&1 | tee "$ARTIFACTS/tests.log"

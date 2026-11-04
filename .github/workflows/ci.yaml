@@ -186,7 +186,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -229,11 +229,15 @@ jobs:
           version: ${{ env.KIND_VERSION }}
           kubectl_version: ${{ env.KUBECTL_VERSION }}
       - name: Install and test exporter
+        timeout-minutes: 12
         if: steps.changes.outputs.run == 'true'
         run: |
+          started=$SECONDS
           make exporter-e2e-up
           make test-exporter-e2e
+          echo "Exporter setup and tests: $((SECONDS - started)) seconds" >> "$GITHUB_STEP_SUMMARY"
       - name: Collect Kind diagnostics
+        timeout-minutes: 1
         if: failure() && steps.changes.outputs.run == 'true'
         run: kind export logs .artifacts/exporter-e2e/kind --name dsx-exporter-e2e || true
       - name: Upload diagnostics
@@ -249,5 +253,6 @@ jobs:
             .artifacts/exporter-e2e/**/kartas.yaml
           include-hidden-files: true
       - name: Tear down
+        timeout-minutes: 1
         if: always() && steps.changes.outputs.run == 'true'
         run: make exporter-e2e-down

@@ -164,7 +164,7 @@ func TestExporterLoad(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	waitForFleet(t, ctx, httpClient, endpoint, fleet)
+	waitForFleet(ctx, t, httpClient, endpoint, fleet)
 
 	// Each writer owns disjoint objects. Scrapes overlap updates, while final
 	// checks wait for eventual consistency rather than requiring every event.
@@ -213,7 +213,7 @@ func TestExporterLoad(t *testing.T) {
 		t.Fatalf("insufficient activity: mutations=%d scrapes=%d", mutations.Load(), stats.count)
 	}
 	converging := time.Now()
-	waitForFleet(t, ctx, httpClient, endpoint, fleet)
+	waitForFleet(ctx, t, httpClient, endpoint, fleet)
 	convergence := time.Since(converging)
 	var after runtime.MemStats
 	runtime.ReadMemStats(&after)
@@ -234,7 +234,7 @@ func TestExporterLoad(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	waitForFleet(t, ctx, httpClient, endpoint, nil)
+	waitForFleet(ctx, t, httpClient, endpoint, nil)
 }
 
 func integerSetting(t *testing.T, name string, fallback, minValue, maxValue int) int {
@@ -369,7 +369,7 @@ func updateWorkload(ctx context.Context, api client.Client, w *workload, mutatio
 	return nil
 }
 
-func waitForFleet(t *testing.T, ctx context.Context, httpClient *http.Client, endpoint string, fleet []workload) {
+func waitForFleet(ctx context.Context, t *testing.T, httpClient *http.Client, endpoint string, fleet []workload) {
 	t.Helper()
 	deadline := time.NewTimer(60 * time.Second)
 	defer deadline.Stop()

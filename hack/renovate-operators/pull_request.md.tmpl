@@ -1,0 +1,24 @@
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright (c) 2026 NVIDIA Corporation -->
+
+## What does this PR do?
+
+Update the {{.Candidate.Group}} operator group and include the recordings generated in GitHub Actions.
+{{range $name, $pin := .Candidate.Pins}}
+- `{{$name}}`: `{{$pin.Before}}` -> `{{$pin.After}}`
+{{end}}
+CI created a fresh kind cluster, installed and verified the candidate, recorded every selected flow, replayed the recordings, ran `make check`, and deleted the cluster. The bot commit was checked against the exact file hashes produced by that run.
+
+[Recording and validation run]({{.RunURL}}). Artifacts include installed versions, controller images, Kubernetes version, JUnit reports, logs, and file hashes. This proves the selected flows on the pinned Kubernetes version; it does not establish compatibility with every deployment.
+
+## Related issue(s)
+
+Related to {{.Issue}}.
+
+## Checklist
+
+- [x] All commits are signed off with DCO
+- [x] Generated recordings have SPDX license and copyright headers
+- [x] CI evidence is linked above
+- [x] Tests pass: live flows, replay, and make check
+- [x] No proprietary or internal information included

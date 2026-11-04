@@ -59,6 +59,16 @@ jobs:
           ref: ${{ inputs.base-branch || 'main' }}
           persist-credentials: false
 
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: hack/renovate-operators/go.mod
+          cache: false
+
+      - name: Build operator automation
+        run: |
+          make build-renovate-operators LOCALBIN="$RUNNER_TEMP/operator-tools"
+          echo "$RUNNER_TEMP/operator-tools" >> "$GITHUB_PATH"
+
       - name: Select groups and source commit
         id: plan
         env:
@@ -66,7 +76,7 @@ jobs:
           BASE: ${{ inputs.base-branch || 'main' }}
         run: |
           set -euo pipefail
-          groups=$(node hack/e2e/renovate/config.cjs --matrix "$GROUP")
+          groups=$(renovate-operators matrix --operator "$GROUP")
           {
             echo "groups=$groups"
             echo "base=$BASE"
@@ -123,6 +133,11 @@ jobs:
             test/e2e/go.sum
             dsx-workload-exporter/go.sum
 
+      - name: Build operator automation
+        run: |
+          make build-renovate-operators LOCALBIN="$RUNNER_TEMP/operator-tools"
+          echo "$RUNNER_TEMP/operator-tools" >> "$GITHUB_PATH"
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24.11.0"
@@ -155,7 +170,6 @@ jobs:
           tar -xzf "$archive" linux-amd64/helm
           mv linux-amd64/helm helm
           chmod +x kind kubectl helm
-          echo "$tools" >> "$GITHUB_PATH"
 
       - name: Install pinned Renovate
         run: |
@@ -164,9 +178,10 @@ jobs:
 
       - name: Validate operator configuration
         run: |
-          export RENOVATE_PACKAGE_DIR="$RUNNER_TEMP/renovate-cli/node_modules/renovate"
           make test-renovate-operators
-          renovate-config-validator hack/e2e/renovate/config.cjs
+          renovate-operators config --operator "$E2E_UPDATE_GROUP" \
+            --base-branch "$E2E_UPDATE_BASE_BRANCH" --output "$E2E_UPDATE_ARTIFACTS/renovate.json"
+          renovate-config-validator "$E2E_UPDATE_ARTIFACTS/renovate.json"
 
       # Mint after tool setup so the one-hour token covers the recording and push.
       - name: Mint GitHub App token
@@ -201,7 +216,7 @@ jobs:
         env:
           RENOVATE_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           RENOVATE_GIT_AUTHOR: ${{ steps.identity.outputs.author }}
-        run: bash hack/e2e/renovate/run.sh
+        run: renovate-operators run
 
       - name: Ensure the temporary cluster is removed
         if: always()

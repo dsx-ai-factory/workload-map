@@ -22,12 +22,12 @@ GO_LDFLAGS  := -X $(VERSION_PKG).version=$(VERSION)
 LDFLAGS     := -ldflags "$(GO_LDFLAGS)"
 
 # The component inventory every aggregate fans out over.
-COMPONENTS := lib cli operator exporter karta-wasm release-helper operator-updates
+COMPONENTS := lib cli operator exporter karta-wasm release-helper operator-updates renovate-operators
 
 # Every Go module in the repo. The tidy target fans out over this rather than
 # COMPONENTS because an untidy manifest in a module that ships no
 # binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
-GO_MODULES := karta/sdk cli karta-wasm operator dsx-workload-exporter dsx-workload-exporter/test/integration test/e2e hack/imagelock hack/operator-updates \
+GO_MODULES := karta/sdk cli karta-wasm operator dsx-workload-exporter dsx-workload-exporter/test/integration test/e2e hack/imagelock hack/operator-updates hack/renovate-operators \
 	docs/examples/quickstart docs/examples/controller-runtime \
 	hack/e2e/operators/nim/image
 
@@ -128,11 +128,11 @@ clean: ## Remove build outputs, coverage profiles, and release and plugin artifa
 		echo "refusing to clean $$dir: not a directory inside $(PROJECT_DIR)" >&2; \
 		exit 1; \
 	done
-	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64" "$(LOCALBIN)/dsx-workload-exporter" "$(LOCALBIN)/operator-updates"
+	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64" "$(LOCALBIN)/dsx-workload-exporter" "$(LOCALBIN)/operator-updates" "$(LOCALBIN)/renovate-operators"
 	rm -fv "$(LOCALBIN)"/*-tidy.mod "$(LOCALBIN)"/*-tidy.sum "$(LOCALBIN)"/*-license.mod "$(LOCALBIN)"/*-license.sum "$(LOCALBIN)"/*deps.json
 	rm -fv operator/cover-unit.out operator/cover-integration.out
 	rm -fv karta-wasm/karta.wasm karta-wasm/wasm_exec.js
-	rm -fv hack/imagelock/imagelock hack/release/release hack/operator-updates/operator-updates
+	rm -fv hack/imagelock/imagelock hack/release/release hack/operator-updates/operator-updates hack/renovate-operators/renovate-operators
 	rm -fv "$(PROJECT_DIR)"/karta-*.tgz
 	rm -rfv "$(DIST_DIR)" "$(IMAGE_LOCK_OUT_DIR)" headlamp-plugin/dist "$(PROJECT_DIR)/.artifacts"
 
@@ -296,6 +296,40 @@ modules-check-operator-updates: ## Verify operator update checker module metadat
 
 .PHONY: check-operator-updates
 check-operator-updates: fmt-check-operator-updates vet-operator-updates lint-operator-updates modules-check-operator-updates test-operator-updates ## Full operator update checker presubmit
+
+##@ Operator update automation (nested module)
+
+.PHONY: fmt-renovate-operators
+fmt-renovate-operators: ## Format the operator update automation
+	cd hack/renovate-operators && go fmt ./...
+
+.PHONY: fmt-check-renovate-operators
+fmt-check-renovate-operators: ## Check operator update automation formatting
+	@set -e; \
+	cd hack/renovate-operators; \
+	dirs="$$(go list -f '{{.Dir}}' ./...)"; \
+	unformatted="$$(gofmt -l $$dirs)"; \
+	test -z "$$unformatted" || { echo "go fmt required:"; echo "$$unformatted"; exit 1; }
+
+.PHONY: vet-renovate-operators
+vet-renovate-operators: ## Vet the operator update automation
+	cd hack/renovate-operators && go vet ./...
+
+.PHONY: lint-renovate-operators
+lint-renovate-operators: golangci-lint ## Lint the operator update automation
+	cd hack/renovate-operators && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+
+.PHONY: test-renovate-operators
+test-renovate-operators: ## Test operator recording and publication guards offline
+	cd hack/renovate-operators && go test ./...
+
+.PHONY: modules-check-renovate-operators
+modules-check-renovate-operators: ## Verify operator update automation module metadata
+	cd hack/renovate-operators && go mod tidy -diff
+	cd hack/renovate-operators && go mod verify
+
+.PHONY: check-renovate-operators
+check-renovate-operators: fmt-check-renovate-operators vet-renovate-operators lint-renovate-operators modules-check-renovate-operators test-renovate-operators ## Full operator update automation presubmit
 
 ##@ CLI
 
@@ -794,10 +828,9 @@ build-operator-updates: $(LOCALBIN) ## Build the operator update checker into bi
 .PHONY: test-e2e-updates
 test-e2e-updates: test-operator-updates ## Test operator update detection offline (also covered by make check)
 
-.PHONY: test-renovate-operators
-test-renovate-operators: ## Test operator recording and publication guards offline
-	python3 -B -m unittest discover -s hack/e2e/renovate -p "test_*.py"
-	node --test hack/e2e/renovate/*.test.cjs
+.PHONY: build-renovate-operators
+build-renovate-operators: $(LOCALBIN) ## Build the operator update automation into bin/
+	cd hack/renovate-operators && go build -o "$(abspath $(LOCALBIN))/renovate-operators" .
 
 .PHONY: e2e-down
 e2e-down: ## Tear down the e2e cluster (set CLUSTER_NAME for a named one)
@@ -823,7 +856,6 @@ verify-recordings: ## Fail if any recorded fixture ended with succeeded false (r
 # scripts, the shared helpers, and every operator install, verify, and update check.
 E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh hack/e2e/check-updates.sh \
 	hack/e2e/_updates.sh \
-	$(wildcard hack/e2e/renovate/*.sh) \
 	$(wildcard hack/e2e/infra/*/*.sh) \
 	$(wildcard hack/e2e/operators/*/check-updates.sh) \
 	$(wildcard hack/e2e/karta-operator/*.sh) \

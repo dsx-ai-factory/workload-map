@@ -2,7 +2,8 @@
 <!-- Copyright (c) 2026 NVIDIA Corporation -->
 # Exporter E2E
 
-Requires Docker, Kind, kubectl, Helm and Go. From the repository root:
+Requires Docker with at least four CPUs, Kind, kubectl, Helm and Go.
+From the repository root:
 
 ```sh
 make exporter-e2e-up
@@ -12,7 +13,8 @@ make exporter-e2e-down
 
 The harness creates `dsx-exporter-e2e`, builds and loads the exporter image,
 and installs two Helm releases with separate namespace selectors. It also installs
-JobSet and LeaderWorkerSet at the versions pinned in `hack/e2e/global.env`. Its kubeconfig
+JobSet and LeaderWorkerSet at the versions pinned in `hack/e2e/global.env`.
+The test exporters request 100m CPU each to fit alongside both operators. Their kubeconfig
 and failure logs stay in `.artifacts/exporter-e2e/<cluster-name>`; the current kubectl context
 is not changed. Set `EXPORTER_E2E_CLUSTER` to choose another isolated cluster name.
 

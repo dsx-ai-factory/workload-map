@@ -147,6 +147,7 @@ spec:
     metadata:
       labels: {app: empty}
     spec:
+      terminationGracePeriodSeconds: 1
       containers:
         - name: work
           image: busybox:1.37.0
@@ -157,14 +158,8 @@ spec:
 			if fs == nil {
 				return false
 			}
-			rows := matching(fs, "dsx_workload_status", map[string]string{"workload_name": "empty"})
-			if len(rows) != 9 {
+			if !hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": "empty"}) {
 				return false
-			}
-			for _, r := range rows {
-				if r.GetGauge().GetValue() != 0 {
-					return false
-				}
 			}
 			return len(matching(fs, "dsx_workload_created_timestamp_seconds", map[string]string{"workload_name": "empty"})) == 1
 		})
@@ -219,16 +214,7 @@ spec:
 			if len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": namespace, "scope": "workload", "workload_name": "empty"})) != 0 {
 				return false
 			}
-			rows := matching(fs, "dsx_workload_status", map[string]string{"workload_name": "empty"})
-			if len(rows) != 9 {
-				return false
-			}
-			for _, r := range rows {
-				if r.GetGauge().GetValue() != 0 {
-					return false
-				}
-			}
-			return true
+			return hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": "empty"})
 		})
 
 		after := command(t, "", "get", "pods", "-n", "exporter-e2e-a", "-o", "jsonpath={.items[*].metadata.uid}{.items[*].status.containerStatuses[*].restartCount}")
@@ -369,6 +355,7 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      terminationGracePeriodSeconds: 1
       containers:
         - name: work
           image: busybox:1.37.0

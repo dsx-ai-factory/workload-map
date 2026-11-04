@@ -239,7 +239,12 @@ jobs:
       - name: Collect Kind diagnostics
         timeout-minutes: 1
         if: failure() && steps.changes.outputs.run == 'true'
-        run: kind export logs .artifacts/exporter-e2e/kind --name dsx-exporter-e2e || true
+        env:
+          KUBECONFIG: ${{ github.workspace }}/.artifacts/exporter-e2e/dsx-exporter-e2e/kubeconfig
+        run: |
+          kubectl --request-timeout=10s get pods -A -o wide > .artifacts/exporter-e2e/pods.txt || true
+          kubectl --request-timeout=10s get events -A --sort-by=.lastTimestamp > .artifacts/exporter-e2e/events.txt || true
+          kind export logs .artifacts/exporter-e2e/kind --name dsx-exporter-e2e || true
       - name: Upload diagnostics
         if: failure() && steps.changes.outputs.run == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

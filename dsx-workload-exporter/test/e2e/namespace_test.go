@@ -17,6 +17,7 @@ metadata:
   name: shard-probe
   namespace: exporter-workloads-a
 spec:
+  terminationGracePeriodSeconds: 1
   containers:
     - name: work
       image: busybox:1.37.0
@@ -26,10 +27,7 @@ spec:
 	phase(t, "shard-probe", "Running")
 	// A populated namespace must move all result families and its source health.
 	check := func(destination, source string) bool {
-		dst, src := pollMetrics(t, destination), pollMetrics(t, source)
-		if dst == nil || src == nil {
-			return false
-		}
+		dst, src := metrics(t, destination), metrics(t, source)
 		for _, family := range workloadFamilies {
 			if len(matching(src, family, map[string]string{"namespace": namespace})) != 0 {
 				return false

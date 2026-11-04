@@ -19,7 +19,8 @@ docker build --build-arg "GO_VERSION=$GO_VERSION" -f "$ROOT/dsx-workload-exporte
 kind load docker-image dsx-workload-exporter:e2e --name "$CLUSTER_NAME"
 # Export one platform: Docker's containerd store can retain an incomplete index.
 platform="linux/$(docker version --format '{{.Server.Arch}}')"
-docker pull --platform "$platform" busybox:1.37.0
+docker image inspect --platform "$platform" busybox:1.37.0 >/dev/null 2>&1 ||
+  docker pull --platform "$platform" busybox:1.37.0
 docker image save --platform "$platform" busybox:1.37.0 -o "$ARTIFACTS/busybox.tar"
 kind load image-archive "$ARTIFACTS/busybox.tar" --name "$CLUSTER_NAME"
 # Reuse the recorder's pinned installers, without its full operator stack.

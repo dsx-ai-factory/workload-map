@@ -6,6 +6,10 @@ crdUpgrader:
   enabled: false
 exporter:
   enabled: true
+  # Leave CPU capacity for both workload operators on the four-CPU CI runner.
+  resources:
+    requests:
+      cpu: 100m
   image:
     repository: dsx-workload-exporter
     tag: e2e

@@ -348,12 +348,8 @@ metadata:
 			if value == 0 {
 				want = "permission_denied"
 			}
-			for _, l := range rows[0].Label {
-				if l.GetName() == "reason" {
-					return l.GetValue() == want
-				}
-			}
-			return false
+			reason, exists := labelValue(rows[0], "reason")
+			return exists && reason == want
 		}
 		eventually(t, "forbidden Job collection remains observable while unready", func() bool {
 			_, err := kubectl("", "get", "--raw", "/api/v1/namespaces/exporter-e2e-a/services/dsx-workload-exporter:8080/proxy/readyz")

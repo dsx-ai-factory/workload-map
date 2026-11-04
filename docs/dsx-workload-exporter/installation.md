@@ -22,7 +22,6 @@ helm upgrade --install dsx-workload \
   --set operator.enabled=false \
   --set webhook.enabled=false \
   --set exporter.enabled=true \
-  --set exporter.kartaDefinitionSource.catalog.enabled=true \
   --wait --timeout 5m
 ```
 
@@ -31,7 +30,6 @@ except `kube-system`, `kube-public` and `kube-node-lease` by default.
 Both bundled and cluster Karta definitions are enabled. The chart installs the
 Karta CRD and maintains it through its upgrade hook. Built-in workload kinds do
 not require creating Karta objects. Cluster definitions override bundled ones.
-The explicit catalog flag also enables bundled definitions on older exporter charts.
 
 Use a separate namespace and release if Karta is already installed. To leave
 its shared CRD unchanged, add both `--skip-crds` and

@@ -108,7 +108,7 @@ function configuration(env = process.env) {
   const forwarded = [
     'GITHUB_ACTIONS', 'GITHUB_REPOSITORY', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_STEP_SUMMARY',
     'E2E_UPDATE_GROUP', 'E2E_UPDATE_BASE_BRANCH', 'E2E_UPDATE_BASE_SHA', 'E2E_UPDATE_ARTIFACTS', 'E2E_UPDATE_RUN_URL',
-    'GIT_CONFIG_GLOBAL', 'RUNNER_TEMP',
+    'RUNNER_TEMP',
   ];
   return {
     platform: 'github',

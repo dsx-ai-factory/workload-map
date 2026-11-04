@@ -78,6 +78,7 @@ test('operator run is isolated and waits for recording evidence', () => {
   assert.deepEqual(cfg.enabledManagers, ['custom.regex']);
   assert.deepEqual(cfg.gitNoVerify, ['commit']);
   assert.equal(cfg.platformCommit, 'disabled');
+  assert.equal(Object.hasOwn(cfg.customEnvVariables, 'GIT_CONFIG_GLOBAL'), false);
   assert.equal(cfg.prCreation, 'status-success');
   assert.equal(cfg.draftPR, true);
   assert.equal(cfg.group.branchTopic, 'update');

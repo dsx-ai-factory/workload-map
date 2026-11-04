@@ -40,8 +40,6 @@ branch=$(jq -r .branch "${E2E_UPDATE_ARTIFACTS}/plan.json")
 
 # Renovate can continue after a failed post-upgrade task. Install the push guard
 # before it starts, so even failure to launch the recording hook blocks a push.
-export GIT_CONFIG_GLOBAL="${E2E_UPDATE_ARTIFACTS}/gitconfig"
-export E2E_UPDATE_SOURCE_ROOT="${ROOT}"
 mkdir "${E2E_UPDATE_ARTIFACTS}/hooks"
 python3 - "${ROOT}" "${branch}" <<'PY'
 import os
@@ -57,7 +55,12 @@ hook = artifacts / 'hooks/pre-push'
 hook.write_text('#!/bin/sh\nexec ' + shlex.join(command) + '\n')
 hook.chmod(0o755)
 PY
-git config --file "${GIT_CONFIG_GLOBAL}" core.hooksPath "${E2E_UPDATE_ARTIFACTS}/hooks"
+# This workflow uses a fresh hosted runner. Renovate's Git library rejects
+# custom GIT_CONFIG_* paths, so use the runner's normal configuration.
+previous_hooks=$(git config --global --get core.hooksPath || true)
+[ -z "${previous_hooks}" ] || { echo 'Runner already has a global Git hook path' >&2; exit 1; }
+git config --global core.hooksPath "${E2E_UPDATE_ARTIFACTS}/hooks"
+trap 'git config --global --unset core.hooksPath || true' EXIT
 export RENOVATE_CONFIG_FILE="${ROOT}/hack/e2e/renovate/config.cjs"
 export RENOVATE_BASE_DIR="${RUNNER_TEMP}/renovate-${E2E_UPDATE_GROUP}"
 export RENOVATE_EXIT_CODE_FOR_ERRORS=true

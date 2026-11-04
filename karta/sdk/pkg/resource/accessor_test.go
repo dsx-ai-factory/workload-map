@@ -803,17 +803,13 @@ var _ = Describe("Accessor", func() {
 				Expect(result.MatchedStatuses).To(ConsistOf(v1alpha1.RunningStatus))
 			})
 
-			It("should match Initializing status", func() {
+			It("should preserve Initializing from legacy serialized mappings", func() {
 				reactorKarta := types.ReactorKarta()
-				reactorKarta.Spec.StructureDefinition.RootComponent.StatusDefinition.StatusMappings = v1alpha1.StatusMappings{
-					Initializing: []v1alpha1.StatusMatcher{
-						{
-							ByConditions: []v1alpha1.ExpectedCondition{
-								{Type: "Initialized", Status: ptr.To("True")},
-							},
-						},
-					},
-				}
+				var mappings v1alpha1.StatusMappings
+				Expect(json.Unmarshal([]byte(`{
+					"initializing": [{"byConditions": [{"type": "Initialized", "status": "True"}]}]
+				}`), &mappings)).To(Succeed())
+				reactorKarta.Spec.StructureDefinition.RootComponent.StatusDefinition.StatusMappings = mappings
 				reactorObject := types.NewReactorObject()
 				reactorObject.Status.Conditions = []metav1.Condition{
 					{Type: "Initialized", Status: metav1.ConditionTrue},
@@ -1079,7 +1075,7 @@ var _ = Describe("Accessor", func() {
 				reactorObject := types.NewReactorObject()
 				reactorObject.Status.Phase = "running"
 				reactorObject.Status.Conditions = []metav1.Condition{
-					{Type: "Ready", Status: metav1.ConditionTrue},
+					{Type: "Rollout", Status: metav1.ConditionTrue},
 				}
 				reactorKarta := types.ReactorKarta()
 				reactorKarta.Spec.StructureDefinition.RootComponent.StatusDefinition.StatusMappings = v1alpha1.StatusMappings{
@@ -1088,10 +1084,10 @@ var _ = Describe("Accessor", func() {
 							ByPhase: "running",
 						},
 					},
-					Initializing: []v1alpha1.StatusMatcher{
+					Progressing: []v1alpha1.StatusMatcher{
 						{
 							ByConditions: []v1alpha1.ExpectedCondition{
-								{Type: "Ready", Status: ptr.To("True")},
+								{Type: "Rollout", Status: ptr.To("True")},
 							},
 						},
 					},
@@ -1102,7 +1098,7 @@ var _ = Describe("Accessor", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).NotTo(BeNil())
-				Expect(result.MatchedStatuses).To(Equal([]v1alpha1.ResourceStatus{v1alpha1.RunningStatus, "Initializing"}))
+				Expect(result.MatchedStatuses).To(ConsistOf(v1alpha1.RunningStatus, v1alpha1.ProgressingStatus))
 			})
 
 			It("should not match when condition is missing", func() {

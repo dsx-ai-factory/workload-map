@@ -5,6 +5,7 @@ package pkg
 
 import (
 	"context"
+	"encoding/json"
 
 	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 
@@ -134,9 +135,10 @@ var _ = Describe("KartaValidator", func() {
 	DescribeTable("warns without rejecting deprecated mappings",
 		func(update bool) {
 			karta := validKarta()
-			legacy := &kartav1alpha1.StatusDefinition{StatusMappings: kartav1alpha1.StatusMappings{
-				Initializing: []kartav1alpha1.StatusMatcher{{ByPhase: "Pending"}},
-			}}
+			legacy := &kartav1alpha1.StatusDefinition{}
+			Expect(json.Unmarshal([]byte(`{
+				"statusMappings": {"initializing": [{"byPhase": "Pending"}]}
+			}`), legacy)).To(Succeed())
 			karta.Spec.StructureDefinition.RootComponent.StatusDefinition = legacy
 			owner := "root"
 			karta.Spec.StructureDefinition.ChildComponents = []kartav1alpha1.ComponentDefinition{

@@ -193,6 +193,21 @@ var _ = Describe("Runner", func() {
 			Expect(results).To(HaveLen(5))
 		})
 
+		It("should allow one result under the limit", func() {
+			results, err := limitedRunner.Evaluate(ctx, ".items[0:4][].id")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(results).To(HaveLen(4))
+		})
+
+		It("should allow zero results for a limit of one", func() {
+			one := 1
+			oneRunner := NewRunner(largeObject, &one, nil)
+
+			results, err := oneRunner.Evaluate(ctx, ".items[0:0][].id")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(results).To(BeEmpty())
+		})
+
 		It("should reject one result over the limit", func() {
 			results, err := limitedRunner.Evaluate(ctx, ".items[0:6][].id")
 			Expect(err).To(HaveOccurred())

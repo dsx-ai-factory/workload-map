@@ -273,7 +273,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Pending"
+              "options": "Initializing"
             },
             "properties": [
               {
@@ -303,7 +303,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Succeeded"
+              "options": "Completed"
             },
             "properties": [
               {
@@ -333,7 +333,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Unknown"
+              "options": "Undefined"
             },
             "properties": [
               {
@@ -341,6 +341,51 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#8e8e8e"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Degraded"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Suspending"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Resuming"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
                 }
               }
             ]

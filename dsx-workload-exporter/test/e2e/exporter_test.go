@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -282,13 +283,7 @@ spec:
 		kept := []any{}
 		for _, rule := range rules {
 			r := rule.(map[string]any)
-			batch := false
-			for _, g := range r["apiGroups"].([]any) {
-				if g == "batch" {
-					batch = true
-				}
-			}
-			if !batch {
+			if !slices.Contains(r["apiGroups"].([]any), "batch") {
 				kept = append(kept, rule)
 			}
 		}

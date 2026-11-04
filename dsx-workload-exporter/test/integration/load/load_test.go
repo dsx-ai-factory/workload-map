@@ -69,7 +69,11 @@ func TestExporterLoad(t *testing.T) {
 	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
 		t.Fatal("KUBEBUILDER_ASSETS is required; run make test-exporter-load")
 	}
-	environment := &envtest.Environment{CRDDirectoryPaths: []string{"../../../../charts/karta/crds"}, ErrorIfCRDPathMissing: true, UseExistingCluster: ptr.To(false)}
+	environment := &envtest.Environment{
+		CRDDirectoryPaths:     []string{"../../../../charts/karta/crds"},
+		ErrorIfCRDPathMissing: true,
+		UseExistingCluster:    ptr.To(false),
+	}
 	t.Cleanup(func() {
 		if err := environment.Stop(); err != nil {
 			t.Error(err)
@@ -112,8 +116,18 @@ func TestExporterLoad(t *testing.T) {
 	cfg.KartaDefinitionSource.Cluster.Include = []string{definition.Name}
 	cfg.RequiredKinds = config.Kinds{deploymentGVK}
 	cfg.Rules = []labelresolver.LabelRule{
-		{Name: "root_revision", Metrics: []string{labelresolver.MetricPodWorkloadInfo, labelresolver.MetricWorkloadStatus}, Sources: []labelresolver.Source{labelresolver.SourceWorkload}, Expression: `object.metadata.labels["load-revision"]`},
-		{Name: "pod_revision", Metrics: []string{labelresolver.MetricPodWorkloadInfo}, Sources: []labelresolver.Source{labelresolver.SourcePod}, Expression: `object.metadata.labels["load-revision"]`},
+		{
+			Name:       "root_revision",
+			Metrics:    []string{labelresolver.MetricPodWorkloadInfo, labelresolver.MetricWorkloadStatus},
+			Sources:    []labelresolver.Source{labelresolver.SourceWorkload},
+			Expression: `object.metadata.labels["load-revision"]`,
+		},
+		{
+			Name:       "pod_revision",
+			Metrics:    []string{labelresolver.MetricPodWorkloadInfo},
+			Sources:    []labelresolver.Source{labelresolver.SourcePod},
+			Expression: `object.metadata.labels["load-revision"]`,
+		},
 	}
 	components, err := bootstrap.New(cfg, kube)
 	if err != nil {
@@ -239,22 +253,57 @@ func integerSetting(t *testing.T, name string, fallback, minValue, maxValue int)
 func newWorkload(ctx context.Context, api client.Client, namespace string, index int) (workload, error) {
 	name := fmt.Sprintf("workload-%06d", index)
 	labels := map[string]string{"app": name, "load-revision": "0"}
-	template := corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: labels}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "main", Image: "example.test/load:v1"}}}}
-	root := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, Labels: labels}, Spec: appsv1.DeploymentSpec{Replicas: ptr.To(int32(0)), Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": name}}, Template: template}}
+	template := corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{Labels: labels},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "main", Image: "example.test/load:v1"}},
+		},
+	}
+	root := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, Labels: labels},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: ptr.To(int32(0)),
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": name}},
+			Template: template,
+		},
+	}
 	if err := api.Create(ctx, root); err != nil {
 		return workload{}, err
 	}
-	root.Status.Conditions = []appsv1.DeploymentCondition{{Type: appsv1.DeploymentProgressing, Status: corev1.ConditionTrue, Reason: "NewReplicaSetAvailable"}}
+	root.Status.Conditions = []appsv1.DeploymentCondition{{
+		Type:   appsv1.DeploymentProgressing,
+		Status: corev1.ConditionTrue,
+		Reason: "NewReplicaSetAvailable",
+	}}
 	if err := api.Status().Update(ctx, root); err != nil {
 		return workload{}, err
 	}
-	owner := &appsv1.ReplicaSet{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(root, deploymentGVK)}}, Spec: appsv1.ReplicaSetSpec{Replicas: ptr.To(int32(0)), Selector: root.Spec.Selector, Template: template}}
+	owner := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            name,
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(root, deploymentGVK)},
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Replicas: ptr.To(int32(0)),
+			Selector: root.Spec.Selector,
+			Template: template,
+		},
+	}
 	if err := api.Create(ctx, owner); err != nil {
 		return workload{}, err
 	}
 	result := workload{root: root, owner: owner, phase: "Running"}
 	for i := range 2 {
-		pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("%s-%d", name, i), Namespace: namespace, Labels: map[string]string{"load-revision": "0"}, OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(owner, appsv1.SchemeGroupVersion.WithKind("ReplicaSet"))}}, Spec: template.Spec}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            fmt.Sprintf("%s-%d", name, i),
+				Namespace:       namespace,
+				Labels:          map[string]string{"load-revision": "0"},
+				OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(owner, appsv1.SchemeGroupVersion.WithKind("ReplicaSet"))},
+			},
+			Spec: template.Spec,
+		}
 		if err := api.Create(ctx, pod); err != nil {
 			return workload{}, err
 		}
@@ -271,7 +320,11 @@ func updateWorkload(ctx context.Context, api client.Client, w *workload, mutatio
 		return err
 	}
 	mutations.Add(1)
-	condition := appsv1.DeploymentCondition{Type: appsv1.DeploymentProgressing, Status: corev1.ConditionTrue, Reason: "NewReplicaSetAvailable"}
+	condition := appsv1.DeploymentCondition{
+		Type:   appsv1.DeploymentProgressing,
+		Status: corev1.ConditionTrue,
+		Reason: "NewReplicaSetAvailable",
+	}
 	w.phase = "Running"
 	if w.revision%2 == 1 {
 		condition.Reason = "NewReplicaSetCreated"
@@ -289,7 +342,15 @@ func updateWorkload(ctx context.Context, api client.Client, w *workload, mutatio
 			}
 			mutations.Add(1)
 			oldUID := pod.UID
-			pod = &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: pod.Name, Namespace: pod.Namespace, Labels: map[string]string{"load-revision": revision}, OwnerReferences: pod.OwnerReferences}, Spec: pod.Spec}
+			pod = &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            pod.Name,
+					Namespace:       pod.Namespace,
+					Labels:          map[string]string{"load-revision": revision},
+					OwnerReferences: pod.OwnerReferences,
+				},
+				Spec: pod.Spec,
+			}
 			if err := api.Create(ctx, pod); err != nil {
 				return err
 			}

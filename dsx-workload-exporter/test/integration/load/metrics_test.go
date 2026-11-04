@@ -126,13 +126,20 @@ func checkFleet(families map[string]*dto.MetricFamily, fleet []workload) error {
 			return fmt.Errorf("unexpected or repeated Pod UID %s", l["pod_uid"])
 		}
 		seenPods[l["pod_uid"]] = true
-		if l["namespace"] != w.root.Namespace || l["workload_group"] != deploymentGVK.Group || l["workload_version"] != deploymentGVK.Version || l["workload_kind"] != deploymentGVK.Kind || l["workload_uid"] != string(w.root.UID) || l["workload_name"] != w.root.Name || l["pod_name"] != names[l["pod_uid"]] {
+		hasExpectedKind := l["workload_group"] == deploymentGVK.Group &&
+			l["workload_version"] == deploymentGVK.Version && l["workload_kind"] == deploymentGVK.Kind
+		hasExpectedWorkload := l["namespace"] == w.root.Namespace &&
+			l["workload_uid"] == string(w.root.UID) && l["workload_name"] == w.root.Name
+		if !hasExpectedKind || !hasExpectedWorkload || l["pod_name"] != names[l["pod_uid"]] {
 			return fmt.Errorf("incorrect Pod identity %v", l)
 		}
 		if l["root_revision"] != strconv.Itoa(w.revision) || l["pod_revision"] != strconv.Itoa(w.revision) {
 			return fmt.Errorf("stale Pod revision for %s: %v", l["pod_name"], l)
 		}
-		if l["observation_valid"] != "true" || l["owner_resolution"] != "resolved" || l["component"] != "deployment" || l["component_instance"] != "" || l["replica_group_id"] != "" {
+		hasValidObservation := l["observation_valid"] == "true" && l["owner_resolution"] == "resolved"
+		hasExpectedComponent := l["component"] == "deployment" &&
+			l["component_instance"] == "" && l["replica_group_id"] == ""
+		if !hasValidObservation || !hasExpectedComponent {
 			return fmt.Errorf("invalid Pod attribution %v", l)
 		}
 	}
@@ -159,7 +166,12 @@ func checkFleet(families map[string]*dto.MetricFamily, fleet []workload) error {
 		if l["phase"] == w.phase {
 			want = 1
 		}
-		if l["namespace"] != w.root.Namespace || l["workload_group"] != deploymentGVK.Group || l["workload_version"] != deploymentGVK.Version || l["workload_kind"] != deploymentGVK.Kind || sample.GetGauge().GetValue() != want || l["root_revision"] != strconv.Itoa(w.revision) || l["observation_valid"] != "true" || l["workload_name"] != w.root.Name {
+		hasExpectedKind := l["workload_group"] == deploymentGVK.Group &&
+			l["workload_version"] == deploymentGVK.Version && l["workload_kind"] == deploymentGVK.Kind
+		hasExpectedWorkload := l["namespace"] == w.root.Namespace && l["workload_name"] == w.root.Name
+		hasCurrentStatus := sample.GetGauge().GetValue() == want &&
+			l["root_revision"] == strconv.Itoa(w.revision) && l["observation_valid"] == "true"
+		if !hasExpectedKind || !hasExpectedWorkload || !hasCurrentStatus {
 			return fmt.Errorf("stale status for %s phase %s revision %s", w.root.Name, l["phase"], l["root_revision"])
 		}
 	}
@@ -175,7 +187,8 @@ func checkFleet(families map[string]*dto.MetricFamily, fleet []workload) error {
 			return fmt.Errorf("unexpected creation identity %v", l)
 		}
 		seenCreated[l["workload_uid"]] = true
-		if l["namespace"] != w.root.Namespace || sample.GetGauge().GetValue() != float64(w.root.CreationTimestamp.Unix()) || l["workload_name"] != w.root.Name {
+		hasExpectedWorkload := l["namespace"] == w.root.Namespace && l["workload_name"] == w.root.Name
+		if !hasExpectedWorkload || sample.GetGauge().GetValue() != float64(w.root.CreationTimestamp.Unix()) {
 			return fmt.Errorf("incorrect creation timestamp for %s", w.root.Name)
 		}
 	}
@@ -192,10 +205,19 @@ func checkFleet(families map[string]*dto.MetricFamily, fleet []workload) error {
 	}
 	for _, sample := range healthRows {
 		l := labels(sample)
-		if l["scope"] != "resource_type" || sample.GetGauge().GetValue() != 1 || l["reason"] != "none" || l["workload_name"] != "" || l["workload_uid"] != "" {
+		isResourceType := l["scope"] == "resource_type" && l["workload_name"] == "" && l["workload_uid"] == ""
+		isHealthy := sample.GetGauge().GetValue() == 1 && l["reason"] == "none"
+		if !isResourceType || !isHealthy {
 			return fmt.Errorf("unexpected health row %v value=%g", l, sample.GetGauge().GetValue())
 		}
-		identity := resourceCollection{namespace: l["namespace"], gvk: schema.GroupVersionKind{Group: l["resource_group"], Version: l["resource_version"], Kind: l["resource_kind"]}}
+		identity := resourceCollection{
+			namespace: l["namespace"],
+			gvk: schema.GroupVersionKind{
+				Group:   l["resource_group"],
+				Version: l["resource_version"],
+				Kind:    l["resource_kind"],
+			},
+		}
 		seen, expected := healthy[identity]
 		if !expected || seen {
 			return fmt.Errorf("unexpected or repeated health identity %v", l)

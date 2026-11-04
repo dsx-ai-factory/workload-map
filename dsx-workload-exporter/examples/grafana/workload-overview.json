@@ -2,7 +2,7 @@
   "uid": "dsx-example-workloads",
   "id": null,
   "title": "DSX | Workload Overview",
-  "description": "Portable DSX workload exporter example. One cluster per datasource and one exporter scrape job. SPDX-License-Identifier: Apache-2.0; Copyright (c) 2026 NVIDIA Corporation.",
+  "description": "All published workloads, independent phase history and optional resource trends. One cluster per datasource and one exporter scrape job. SPDX-License-Identifier: Apache-2.0; Copyright (c) 2026 NVIDIA Corporation.",
   "tags": [
     "dsx",
     "examples"
@@ -150,7 +150,7 @@
         "x": 0,
         "y": 0,
         "w": 24,
-        "h": 2
+        "h": 4
       },
       "fieldConfig": {
         "defaults": {
@@ -160,9 +160,22 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Select an exporter job and namespaces. Load both rules from `recording-rules.yaml` for inventory and attribution. Empty inventory: check rule setup and raw output in Metric Samples."
+        "content": "### Workload overview\nAll published workloads in the selected namespaces. Open a workload to inspect its components and Pods. Resource charts use the optional cAdvisor and DCGM jobs; gaps mean unavailable measurements.\n\nLoad both rules from `recording-rules.yaml`. For missing inventory or observations, check Collection below and Metric Samples."
       },
       "transparent": true
+    },
+    {
+      "id": 12,
+      "type": "row",
+      "title": "Summary | published identities and independent phases",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
     },
     {
       "id": 2,
@@ -171,7 +184,7 @@
       "type": "stat",
       "gridPos": {
         "x": 0,
-        "y": 2,
+        "y": 5,
         "w": 8,
         "h": 5
       },
@@ -180,7 +193,7 @@
           "noValue": "Unavailable",
           "color": {
             "mode": "fixed",
-            "fixedColor": "text"
+            "fixedColor": "#5794F2"
           },
           "decimals": 0
         },
@@ -199,7 +212,11 @@
           "values": false
         },
         "textMode": "value_and_name",
-        "wideLayout": true
+        "wideLayout": true,
+        "text": {
+          "valueSize": 36,
+          "titleSize": 13
+        }
       },
       "datasource": {
         "type": "prometheus",
@@ -241,7 +258,7 @@
       "type": "stat",
       "gridPos": {
         "x": 8,
-        "y": 2,
+        "y": 5,
         "w": 16,
         "h": 5
       },
@@ -396,7 +413,7 @@
         "colorMode": "value",
         "graphMode": "none",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -405,7 +422,11 @@
           "values": false
         },
         "textMode": "value_and_name",
-        "wideLayout": true
+        "wideLayout": false,
+        "text": {
+          "valueSize": 20,
+          "titleSize": 12
+        }
       },
       "datasource": {
         "type": "prometheus",
@@ -428,13 +449,230 @@
       ]
     },
     {
+      "id": 14,
+      "title": "Independent phase matches over time",
+      "description": "Several phases can match one workload. Counts are independent; never sum them as a workload total. Invalid status, metadata conflicts and disagreeing values are excluded. No selected definition and all-zero phases differ from unavailable status.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (phase) (((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1))",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{phase}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Unavailable",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisCenteredZero": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Running"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Initializing"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Completed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Suspended"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#B877D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Undefined"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8e8e8e"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Degraded"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Suspending"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Resuming"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "Workloads | inventory and phase history",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
       "id": 4,
-      "title": "Published workload inventory",
+      "title": "All published workloads | open a workload for components and Pods",
       "description": "Published identities remain when status or age is unavailable. Age requires agreement across reporting replicas. Published definition describes emitted metadata. Phase summary requires all nine agreed flags and available scrapes. See raw samples for invalid observations and disagreements.",
       "type": "table",
       "gridPos": {
         "x": 0,
-        "y": 7,
+        "y": 18,
         "w": 24,
         "h": 10
       },
@@ -527,11 +765,47 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "Inspect attribution",
-                    "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&var-namespace=${__data.fields.Namespace:percentencode}&var-workload_uid=${__data.fields[\"Workload UID\"]:percentencode}&from=${__from}&to=${__to}",
+                    "title": "Inspect workload",
+                    "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__data.fields.Namespace:percentencode}&var-workload_uid=${__data.fields[\"Workload UID\"]:percentencode}&from=${__from}&to=${__to}",
                     "targetBlank": false
                   }
                 ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload UID"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Age"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
               }
             ]
           }
@@ -543,7 +817,12 @@
         "footer": {
           "show": false
         },
-        "sortBy": []
+        "sortBy": [
+          {
+            "displayName": "Namespace",
+            "desc": false
+          }
+        ]
       },
       "datasource": {
         "type": "prometheus",
@@ -638,15 +917,1413 @@
       ]
     },
     {
+      "id": 15,
+      "title": "Workload phase history | each phase is independent",
+      "description": "One row per workload UID and phase. Colored intervals name the matching phase. Several phases may match together. Hover an interval for observed start and end times. Gaps mean status is unavailable, invalid or conflicting. Page through nine rows at a time.",
+      "type": "state-timeline",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace((((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)), \"uid_short\", \"$1\", \"workload_uid\", \"(.{1,8}).*\")",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{namespace}} / {{workload_name}} [{{uid_short}}] / {{phase}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Not matched",
+                  "color": "#30343B"
+                },
+                "1": {
+                  "text": "Matched",
+                  "color": "#5794F2"
+                }
+              }
+            }
+          ],
+          "links": [
+            {
+              "title": "Inspect workload",
+              "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__field.labels.namespace:percentencode}&var-workload_uid=${__field.labels.workload_uid:percentencode}&from=${__from}&to=${__to}",
+              "targetBlank": false
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* / Running"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matched",
+                        "color": "#30343B"
+                      },
+                      "1": {
+                        "text": "Running",
+                        "color": "#73BF69"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* / Initializing"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matched",
+                        "color": "#30343B"
+                      },
+                      "1": {
+                        "text": "Initializing",
+                        "color": "#FF9830"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* / Failed"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matched",
+                        "color": "#30343B"
+                      },
+                      "1": {
+                        "text": "Failed",
+                        "color": "#F2495C"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* / Completed"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matched",
+                        "color": "#30343B"
+                      },
+                      "1": {
+                        "text": "Completed",
+                        "color": "#5794F2"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* / Suspended"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matched",
+                        "color": "#30343B"
+                      },
+                      "1": {
+                        "text": "Suspended",
+                        "color": "#B877D9"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* / Undefined"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matched",
+                        "color": "#30343B"
+                      },
+                      "1": {
+                        "text": "Undefined",
+                        "color": "#8e8e8e"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* / Degraded"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matched",
+                        "color": "#30343B"
+                      },
+                      "1": {
+                        "text": "Degraded",
+                        "color": "#F2495C"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* / Suspending"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matched",
+                        "color": "#30343B"
+                      },
+                      "1": {
+                        "text": "Suspending",
+                        "color": "#FF9830"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* / Resuming"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Not matched",
+                        "color": "#30343B"
+                      },
+                      "1": {
+                        "text": "Resuming",
+                        "color": "#FF9830"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "mergeValues": true,
+        "rowHeight": 0.8,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "single"
+        },
+        "perPage": 9
+      }
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "GPU measurements | optional DCGM source",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 10,
+      "title": "Maximum measured GPU utilization | current top 10",
+      "description": "Maximum measured device utilization, not allocated capacity or idleness. Requires DCGM namespace, nonempty pod_uid and UUID. Out-of-range samples and conflicting device streams are rejected. Open a workload for component and Pod attribution.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 42,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 95
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 210
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Maximum measured GPU utilization"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 190
+              },
+              {
+                "id": "displayName",
+                "value": "Measured"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload UID"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Inspect workload",
+                    "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__data.fields.Namespace:percentencode}&var-workload_uid=${__data.fields[\"Workload UID\"]:percentencode}&from=${__from}&to=${__to}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "topk(10, (max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "namespace",
+                "workload_name",
+                "workload_uid",
+                "Value"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "namespace": "Namespace",
+              "workload_name": "Workload",
+              "workload_uid": "Workload UID",
+              "Value": "Maximum measured GPU utilization"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "workload_name": 1,
+              "workload_uid": 2,
+              "Value": 3
+            },
+            "excludeByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "GPU framebuffer used | current top 10",
+      "description": "Framebuffer use reported by distinct matched GPU entities. Shared-device rows within a workload count once; conflicting readings are excluded. MiB are converted to bytes. This is device memory, not per-process allocation.",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 42,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 95
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 210
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "GPU framebuffer used"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 190
+              },
+              {
+                "id": "displayName",
+                "value": "Measured"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload UID"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Inspect workload",
+                    "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__data.fields.Namespace:percentencode}&var-workload_uid=${__data.fields[\"Workload UID\"]:percentencode}&from=${__from}&to=${__to}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "topk(10, (sum by (namespace, workload_name, workload_uid) ((max by (namespace, workload_name, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"})) == min by (namespace, workload_name, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "namespace",
+                "workload_name",
+                "workload_uid",
+                "Value"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "namespace": "Namespace",
+              "workload_name": "Workload",
+              "workload_uid": "Workload UID",
+              "Value": "GPU framebuffer used"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "workload_name": 1,
+              "workload_uid": 2,
+              "Value": 3
+            },
+            "excludeByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "GPU utilization over time | maximum measured device",
+      "description": "Maximum measured device utilization, not allocated capacity or idleness. Requires DCGM namespace, nonempty pod_uid and UUID. Out-of-range samples and conflicting device streams are rejected. All measured workloads are shown; UID keeps recreated workloads separate. Missing samples remain gaps.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{namespace}} / {{workload_name}} [{{workload_uid}}]"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Unavailable",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisCenteredZero": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "links": [
+            {
+              "title": "Inspect workload",
+              "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__field.labels.namespace:percentencode}&var-workload_uid=${__field.labels.workload_uid:percentencode}&from=${__from}&to=${__to}",
+              "targetBlank": false
+            }
+          ],
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "title": "GPU framebuffer used over time",
+      "description": "Framebuffer use reported by distinct matched GPU entities. Shared-device rows within a workload count once; conflicting readings are excluded. MiB are converted to bytes. This is device memory, not per-process allocation.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 50,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (namespace, workload_name, workload_uid) ((max by (namespace, workload_name, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"})) == min by (namespace, workload_name, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{namespace}} / {{workload_name}} [{{workload_uid}}]"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "Unavailable",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisCenteredZero": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "links": [
+            {
+              "title": "Inspect workload",
+              "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__field.labels.namespace:percentencode}&var-workload_uid=${__field.labels.workload_uid:percentencode}&from=${__from}&to=${__to}",
+              "targetBlank": false
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "row",
+      "title": "CPU and memory | optional cAdvisor source",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 59,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 8,
+      "title": "CPU cores | current top 10",
+      "description": "Five-minute average CPU cores. One selected cAdvisor job; identical streams collapse and ambiguous container identities are rejected. Pod-name joins can cross name reuse and apply current attribution to the rate window. Open a workload for component and Pod attribution.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 95
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 210
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU cores"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "cores"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 190
+              },
+              {
+                "id": "displayName",
+                "value": "Measured"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload UID"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Inspect workload",
+                    "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__data.fields.Namespace:percentencode}&var-workload_uid=${__data.fields[\"Workload UID\"]:percentencode}&from=${__from}&to=${__to}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "topk(10, (sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "namespace",
+                "workload_name",
+                "workload_uid",
+                "Value"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "namespace": "Namespace",
+              "workload_name": "Workload",
+              "workload_uid": "Workload UID",
+              "Value": "CPU cores"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "workload_name": 1,
+              "workload_uid": 2,
+              "Value": 3
+            },
+            "excludeByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Working-set memory | current top 10",
+      "description": "cAdvisor working-set bytes. Missing streams remain unavailable. Pod-name joins cannot establish continuity across Pod replacement. Open a workload for component and Pod attribution.",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 60,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 95
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 210
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Working-set memory"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 190
+              },
+              {
+                "id": "displayName",
+                "value": "Measured"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload UID"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Inspect workload",
+                    "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__data.fields.Namespace:percentencode}&var-workload_uid=${__data.fields[\"Workload UID\"]:percentencode}&from=${__from}&to=${__to}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "topk(10, (sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "namespace",
+                "workload_name",
+                "workload_uid",
+                "Value"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "namespace": "Namespace",
+              "workload_name": "Workload",
+              "workload_uid": "Workload UID",
+              "Value": "Working-set memory"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "workload_name": 1,
+              "workload_uid": 2,
+              "Value": 3
+            },
+            "excludeByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "CPU cores over time",
+      "description": "Five-minute average CPU cores. One selected cAdvisor job; identical streams collapse and ambiguous container identities are rejected. Pod-name joins can cross name reuse and apply current attribution to the rate window. All measured workloads are shown; UID keeps recreated workloads separate. Missing samples remain gaps.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 68,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{namespace}} / {{workload_name}} [{{workload_uid}}]"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "noValue": "Unavailable",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisCenteredZero": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "links": [
+            {
+              "title": "Inspect workload",
+              "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__field.labels.namespace:percentencode}&var-workload_uid=${__field.labels.workload_uid:percentencode}&from=${__from}&to=${__to}",
+              "targetBlank": false
+            }
+          ],
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "title": "Working-set memory over time",
+      "description": "cAdvisor working-set bytes. Missing streams remain unavailable. Pod-name joins cannot establish continuity across Pod replacement. All measured workloads are shown; UID keeps recreated workloads separate. Missing samples remain gaps.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 68,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{namespace}} / {{workload_name}} [{{workload_uid}}]"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "Unavailable",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisCenteredZero": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "links": [
+            {
+              "title": "Inspect workload",
+              "url": "d/dsx-example-structure/workload-structure?${datasource:queryparam}&${exporter_job:queryparam}&${cadvisor_job:queryparam}&${dcgm_job:queryparam}&var-namespace=${__field.labels.namespace:percentencode}&var-workload_uid=${__field.labels.workload_uid:percentencode}&from=${__from}&to=${__to}",
+              "targetBlank": false
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "row",
+      "title": "Collection | exporter targets and reported failures",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 76,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
       "id": 5,
       "title": "Exporter targets",
       "description": "Per-target scrape state and maximum age of currently queryable raw DSX samples. Missing targets and missing diagnostics are not zero or healthy. Sample age is not Kubernetes evaluation age.",
       "type": "table",
       "gridPos": {
         "x": 0,
-        "y": 17,
-        "w": 11,
-        "h": 8
+        "y": 77,
+        "w": 8,
+        "h": 9
       },
       "fieldConfig": {
         "defaults": {
@@ -766,10 +2443,10 @@
       "description": "Raw target rows retain failure scope, reason and invalid observations. No rows means no reported rows, not proven health. Metric Samples exposes all status values and metadata for replica disagreements.",
       "type": "table",
       "gridPos": {
-        "x": 11,
-        "y": 17,
-        "w": 13,
-        "h": 8
+        "x": 8,
+        "y": 77,
+        "w": 16,
+        "h": 9
       },
       "fieldConfig": {
         "defaults": {
@@ -812,603 +2489,6 @@
         }
       ],
       "transformations": []
-    },
-    {
-      "id": 7,
-      "type": "row",
-      "title": "Optional resource measurements | top 10 workloads per panel",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 25,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "id": 8,
-      "title": "CPU cores",
-      "description": "Five-minute average CPU cores. One selected cAdvisor job; identical streams collapse and ambiguous container identities are rejected. Pod-name joins can cross name reuse and apply current attribution to the rate window.",
-      "type": "table",
-      "gridPos": {
-        "x": 0,
-        "y": 26,
-        "w": 6,
-        "h": 9
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unavailable",
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 95
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "CPU cores"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "cores"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "custom.width",
-                "value": 110
-              },
-              {
-                "id": "displayName",
-                "value": "Measured"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload UID"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false
-        },
-        "sortBy": []
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "topk(10, (sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "A",
-          "legendFormat": "__auto"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "filterFieldsByName",
-          "options": {
-            "include": {
-              "names": [
-                "namespace",
-                "workload_name",
-                "workload_uid",
-                "Value"
-              ]
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "renameByName": {
-              "namespace": "Namespace",
-              "workload_name": "Workload",
-              "workload_uid": "Workload UID",
-              "Value": "CPU cores"
-            },
-            "indexByName": {
-              "namespace": 0,
-              "workload_name": 1,
-              "workload_uid": 2,
-              "Value": 3
-            },
-            "excludeByName": {}
-          }
-        }
-      ]
-    },
-    {
-      "id": 9,
-      "title": "Working-set memory",
-      "description": "cAdvisor working-set bytes. Missing streams remain unavailable. Pod-name joins cannot establish continuity across Pod replacement.",
-      "type": "table",
-      "gridPos": {
-        "x": 6,
-        "y": 26,
-        "w": 6,
-        "h": 9
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unavailable",
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 95
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Working-set memory"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bytes"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "custom.width",
-                "value": 110
-              },
-              {
-                "id": "displayName",
-                "value": "Measured"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload UID"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false
-        },
-        "sortBy": []
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "topk(10, (sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "A",
-          "legendFormat": "__auto"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "filterFieldsByName",
-          "options": {
-            "include": {
-              "names": [
-                "namespace",
-                "workload_name",
-                "workload_uid",
-                "Value"
-              ]
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "renameByName": {
-              "namespace": "Namespace",
-              "workload_name": "Workload",
-              "workload_uid": "Workload UID",
-              "Value": "Working-set memory"
-            },
-            "indexByName": {
-              "namespace": 0,
-              "workload_name": 1,
-              "workload_uid": 2,
-              "Value": 3
-            },
-            "excludeByName": {}
-          }
-        }
-      ]
-    },
-    {
-      "id": 10,
-      "title": "Maximum measured GPU utilization",
-      "description": "Maximum measured device utilization, not allocated capacity or idleness. Requires DCGM namespace, nonempty pod_uid and UUID. Out-of-range samples and conflicting device streams are rejected.",
-      "type": "table",
-      "gridPos": {
-        "x": 12,
-        "y": 26,
-        "w": 6,
-        "h": 9
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unavailable",
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 95
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Maximum measured GPU utilization"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "custom.width",
-                "value": 110
-              },
-              {
-                "id": "displayName",
-                "value": "Measured"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload UID"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false
-        },
-        "sortBy": []
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "topk(10, (max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "A",
-          "legendFormat": "__auto"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "filterFieldsByName",
-          "options": {
-            "include": {
-              "names": [
-                "namespace",
-                "workload_name",
-                "workload_uid",
-                "Value"
-              ]
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "renameByName": {
-              "namespace": "Namespace",
-              "workload_name": "Workload",
-              "workload_uid": "Workload UID",
-              "Value": "Maximum measured GPU utilization"
-            },
-            "indexByName": {
-              "namespace": 0,
-              "workload_name": 1,
-              "workload_uid": 2,
-              "Value": 3
-            },
-            "excludeByName": {}
-          }
-        }
-      ]
-    },
-    {
-      "id": 11,
-      "title": "GPU framebuffer used",
-      "description": "DCGM framebuffer MiB converted to bytes once, summed over distinct measured devices. Requires nonempty Pod UID and device UUID. Missing devices do not mean zero usage.",
-      "type": "table",
-      "gridPos": {
-        "x": 18,
-        "y": 26,
-        "w": 6,
-        "h": 9
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unavailable",
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 95
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "GPU framebuffer used"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bytes"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "custom.width",
-                "value": 110
-              },
-              {
-                "id": "displayName",
-                "value": "Measured"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Workload UID"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false
-        },
-        "sortBy": []
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "topk(10, (sum by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "A",
-          "legendFormat": "__auto"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "filterFieldsByName",
-          "options": {
-            "include": {
-              "names": [
-                "namespace",
-                "workload_name",
-                "workload_uid",
-                "Value"
-              ]
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "renameByName": {
-              "namespace": "Namespace",
-              "workload_name": "Workload",
-              "workload_uid": "Workload UID",
-              "Value": "GPU framebuffer used"
-            },
-            "indexByName": {
-              "namespace": 0,
-              "workload_name": 1,
-              "workload_uid": 2,
-              "Value": 3
-            },
-            "excludeByName": {}
-          }
-        }
-      ]
     }
   ]
 }

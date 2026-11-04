@@ -97,19 +97,28 @@ def check(filename, uid):
 
 
 def check_fixture_expressions():
-    fixture = (ROOT / "tests/rules.test.yaml").read_text()
-    entries = re.findall(
-        r"# dashboard-expression: (\S+) (\d+) (\S+)\n"
-        r"      - expr: (?:&\w+ )?\|-\n((?:          [^\n]+\n)+)",
-        fixture,
-    )
-    assert len(entries) == 5, "Expected phase, age, mapping-count and GPU fixtures"
+    entries = []
+    for path in sorted((ROOT / "tests").glob("*.test.yaml")):
+        lines = path.read_text().splitlines()
+        for index, line in enumerate(lines):
+            match = re.search(r"# dashboard-expression: (\S+) (\d+) (\S+)$", line)
+            if not match:
+                continue
+            assert re.match(r"\s*- expr: (?:&\w+ )?\|-?$", lines[index + 1]), path
+            indent = len(lines[index + 2]) - len(lines[index + 2].lstrip())
+            block = []
+            for value in lines[index + 2:]:
+                if not value.strip() or len(value) - len(value.lstrip()) < indent:
+                    break
+                block.append(value.strip())
+            entries.append((*match.groups(), " ".join(block)))
+    assert len(entries) == 10, "Expected core, node-resource and shared-device fixtures"
     for filename, panel_id, ref_id, expression in entries:
         dashboard = json.loads((ROOT / filename).read_text())
         panel = next(obj for obj in objects(dashboard) if obj.get("id") == int(panel_id))
         actual = next(target["expr"] for target in panel["targets"] if target["refId"] == ref_id)
-        for variable, value in {"exporter_job": "exporter", "namespace": "ns", "workload_uid": "multi", "dcgm_job": "dcgm"}.items():
-            actual = actual.replace("${" + variable + ":regex}", value)
+        for variable, value in {"exporter_job": "exporter", "namespace": "ns", "workload_uid": "multi", "dcgm_job": "dcgm", "cadvisor_job": "cadvisor", "__rate_interval": "5m"}.items():
+            actual = actual.replace("${" + variable + ":regex}", value).replace("$" + variable, value)
         assert " ".join(actual.split()) == " ".join(expression.split()), (filename, panel_id, ref_id, "fixture query drift")
     print(f"PASS {len(entries)} fixture expressions match the shipped dashboard queries")
 

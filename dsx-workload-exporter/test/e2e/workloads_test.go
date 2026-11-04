@@ -13,6 +13,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	dto "github.com/prometheus/client_model/go"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -45,11 +46,7 @@ spec:
 		command("", "exec", "-n", namespace, "lifecycle", "-c", "initialize", "--", "touch", "/gates/start")
 		phase("lifecycle", "Running")
 		uid := strings.TrimSpace(command("", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
-		eventually("standalone Pod identity", func() bool {
-			fs := pollMetrics("a")
-			if fs == nil {
-				return false
-			}
+		waitForMetrics("standalone Pod identity", "a", func(fs map[string]*dto.MetricFamily) bool {
 			rows := matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": uid, "workload_uid": uid, "component": "pod"})
 			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
 		})
@@ -75,11 +72,7 @@ spec:
 		command("", "exec", "-n", namespace, "lifecycle", "-c", "work", "--", "touch", "/gates/finish")
 		phase("lifecycle", "Completed")
 		command("", "delete", "pod", "lifecycle", "-n", namespace, "--wait=true")
-		eventually("deleted Pod metrics removed", func() bool {
-			fs := pollMetrics("a")
-			if fs == nil {
-				return false
-			}
+		waitForMetrics("deleted Pod metrics removed", "a", func(fs map[string]*dto.MetricFamily) bool {
 			for _, name := range []string{"dsx_workload_pod_info", "dsx_workload_status", "dsx_workload_created_timestamp_seconds"} {
 				if len(matching(fs, name, map[string]string{"workload_uid": uid})) != 0 {
 					return false
@@ -124,11 +117,7 @@ spec:
           image: busybox:1.37.0
           command: [sh, -c, 'sleep 3600']
 `)
-		eventually("unknown root has dense zero statuses", func() bool {
-			fs := pollMetrics("a")
-			if fs == nil {
-				return false
-			}
+		waitForMetrics("unknown root has dense zero statuses", "a", func(fs map[string]*dto.MetricFamily) bool {
 			if !hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": "empty"}) {
 				return false
 			}
@@ -159,29 +148,17 @@ spec:
 		command("", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"statusMappings":{"running":[],"completed":[{"byPhase":"ready"}]}}}}}}`)
 		phase("empty", "Completed")
 		command("", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"phaseDefinition":{"path":"error(\"e2e evaluation failure\")"}}}}}}`)
-		eventually("workload evaluation failure retains Completed", func() bool {
-			fs := pollMetrics("a")
-			if fs == nil {
-				return false
-			}
+		waitForMetrics("workload evaluation failure retains Completed", "a", func(fs map[string]*dto.MetricFamily) bool {
 			rows := matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": namespace, "scope": "workload", "workload_name": "empty", "reason": "evaluation_failed"})
 			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 0 && hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": "empty", "observation_valid": "false", "karta": "exporter-e2e-deployment", "karta_source": "cluster"}, "Completed")
 		})
 		command("", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"phaseDefinition":{"path":".metadata.labels.phase"}}}}}}`)
 		phase("empty", "Completed")
-		eventually("evaluation failure cleared after repair", func() bool {
-			fs := pollMetrics("a")
-			if fs == nil {
-				return false
-			}
+		waitForMetrics("evaluation failure cleared after repair", "a", func(fs map[string]*dto.MetricFamily) bool {
 			return len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": namespace, "scope": "workload", "workload_name": "empty"})) == 0
 		})
 		command("", "delete", "karta", "exporter-e2e-deployment")
-		eventually("removed definition clears phases", func() bool {
-			fs := pollMetrics("a")
-			if fs == nil {
-				return false
-			}
+		waitForMetrics("removed definition clears phases", "a", func(fs map[string]*dto.MetricFamily) bool {
 			if len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": namespace, "scope": "workload", "workload_name": "empty"})) != 0 {
 				return false
 			}
@@ -193,11 +170,7 @@ spec:
 			Fail("exporter restarted during definition update")
 		}
 		command("", "scale", "deployment/empty", "-n", namespace, "--replicas=1")
-		eventually("Deployment Pod resolves through ReplicaSet", func() bool {
-			fs := pollMetrics("a")
-			if fs == nil {
-				return false
-			}
+		waitForMetrics("Deployment Pod resolves through ReplicaSet", "a", func(fs map[string]*dto.MetricFamily) bool {
 			return len(matching(fs, "dsx_workload_pod_info", map[string]string{"namespace": namespace, "workload_name": "empty", "workload_kind": "Deployment", "owner_resolution": "resolved"})) == 1
 		})
 	})
@@ -239,11 +212,7 @@ spec:
 		command("", "exec", "-n", namespace, pod, "-c", "initialize", "--", "touch", "/gates/start")
 		phase("slow-job", "Running")
 		jobUID := strings.TrimSpace(command("", "get", "job", "slow-job", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
-		eventually("Job Pod identity", func() bool {
-			fs := pollMetrics("a")
-			if fs == nil {
-				return false
-			}
+		waitForMetrics("Job Pod identity", "a", func(fs map[string]*dto.MetricFamily) bool {
 			rows := matching(fs, "dsx_workload_pod_info", map[string]string{"namespace": namespace, "pod_name": pod, "workload_uid": jobUID, "workload_kind": "Job"})
 			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
 		})
@@ -367,11 +336,7 @@ spec:
 			_, err := kubectl("", "get", "--raw", "/api/v1/namespaces/exporter-e2e-a/services/dsx-workload-exporter:8080/proxy/readyz")
 			return err == nil && health(1)
 		})
-		eventually("recovered namespace Job published", func() bool {
-			fs := pollMetrics("a")
-			if fs == nil {
-				return false
-			}
+		waitForMetrics("recovered namespace Job published", "a", func(fs map[string]*dto.MetricFamily) bool {
 			pods := matching(fs, "dsx_workload_pod_info", map[string]string{"namespace": "exporter-workloads-denied", "pod_uid": recoveredPodUID, "workload_uid": recoveredJobUID, "workload_kind": "Job", "component": "job", "owner_resolution": "resolved", "observation_valid": "true"})
 			rows := matching(fs, "dsx_workload_status", map[string]string{"namespace": "exporter-workloads-denied", "workload_name": "recovered", "workload_uid": recoveredJobUID, "observation_valid": "true", "phase": "Running"})
 			return len(matching(fs, "dsx_exporter_observation_valid", discoveryLabels)) == 0 &&

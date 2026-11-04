@@ -167,11 +167,18 @@ func eventually(description string, check func() bool) {
 	Eventually(check, 90*time.Second, 250*time.Millisecond).Should(BeTrue(), description)
 }
 
+func waitForMetrics(description, shard string, check func(map[string]*dto.MetricFamily) bool) {
+	GinkgoHelper()
+	eventually(description, func() bool {
+		fs := pollMetrics(shard)
+		return fs != nil && check(fs)
+	})
+}
+
 func phase(name string, want ...string) {
 	GinkgoHelper()
-	eventually(name+" phases "+strings.Join(want, ","), func() bool {
-		fs := pollMetrics("a")
-		return fs != nil && hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": name, "observation_valid": "true"}, want...)
+	waitForMetrics(name+" phases "+strings.Join(want, ","), "a", func(fs map[string]*dto.MetricFamily) bool {
+		return hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": name, "observation_valid": "true"}, want...)
 	})
 }
 

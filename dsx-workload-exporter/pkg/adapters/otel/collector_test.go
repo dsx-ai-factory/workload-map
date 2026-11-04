@@ -88,7 +88,7 @@ func TestFourMetricFamiliesAndDensePhases(t *testing.T) {
 	for _, name := range []string{MetricPodWorkloadInfo, MetricWorkloadStatus, MetricWorkloadCreatedTimestamp, MetricExporterObservationValid} {
 		g.Expect(output).To(ContainSubstring(name + "{"))
 	}
-	g.Expect(strings.Count(output, MetricWorkloadStatus+"{")).To(Equal(9))
+	g.Expect(strings.Count(output, MetricWorkloadStatus+"{")).To(Equal(11))
 	g.Expect(output).To(ContainSubstring(`custom_19="saved"`))
 	g.Expect(output).To(ContainSubstring(`reason="none"`))
 	g.Expect(output).NotTo(ContainSubstring(`scope="workload"`))
@@ -99,6 +99,37 @@ func TestFourMetricFamiliesAndDensePhases(t *testing.T) {
 				expected = " 1"
 			}
 			g.Expect(line).To(HaveSuffix(expected))
+		}
+	}
+}
+
+func TestPendingProgressingAndLegacyPhaseMetrics(t *testing.T) {
+	g := NewWithT(t)
+	s, workload, _, scrape := collectorFixture(t)
+	for _, test := range []struct {
+		name                                        string
+		phases                                      []string
+		pending, progressing, running, initializing int
+	}{
+		{"waiting rollout", []string{"Pending", "Progressing"}, 1, 1, 0, 0},
+		{"running clears startup", []string{"Running"}, 0, 0, 1, 0},
+		{"legacy definition", []string{"Initializing"}, 0, 0, 0, 1},
+	} {
+		workload.Record.Phases = test.phases
+		s.UpsertWorkload(workload)
+		var samples []string
+		for _, line := range strings.Split(scrape(), "\n") {
+			if strings.HasPrefix(line, MetricWorkloadStatus+"{") {
+				samples = append(samples, line)
+			}
+		}
+		for phase, value := range map[string]int{
+			"Pending": test.pending, "Progressing": test.progressing,
+			"Running": test.running, "Initializing": test.initializing,
+		} {
+			g.Expect(samples).To(ContainElement(SatisfyAll(
+				ContainSubstring(`phase="`+phase+`"`), HaveSuffix(fmt.Sprintf(" %d", value)),
+			)), test.name)
 		}
 	}
 }
@@ -425,7 +456,7 @@ func TestConcurrentCollectionAndIndependentUpdates(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		output := scrape()
 		g.Expect(strings.Count(output, MetricPodWorkloadInfo+"{")).To(Equal(1))
-		g.Expect(strings.Count(output, MetricWorkloadStatus+"{")).To(Equal(9))
+		g.Expect(strings.Count(output, MetricWorkloadStatus+"{")).To(Equal(11))
 	}
 	wg.Wait()
 	output := scrape()

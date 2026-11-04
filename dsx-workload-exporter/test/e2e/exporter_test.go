@@ -38,7 +38,13 @@ func TestExporter(t *testing.T) {
 
 	for _, shard := range []string{"a", "b"} {
 		ns := "exporter-workloads-" + shard
-		apply(t, fmt.Sprintf("apiVersion: v1\nkind: Namespace\nmetadata:\n  name: %s\n  labels:\n    exporter-e2e-shard: %s\n", ns, shard))
+		apply(t, fmt.Sprintf(`apiVersion: v1
+kind: Namespace
+metadata:
+  name: %s
+  labels:
+    exporter-e2e-shard: %s
+`, ns, shard))
 		t.Cleanup(func() {
 			if !t.Failed() {
 				command(t, "", "delete", "namespace", ns, "--ignore-not-found", "--wait=false")
@@ -112,7 +118,18 @@ spec:
 		})
 	})
 	t.Run("failed Pod", func(t *testing.T) {
-		apply(t, "apiVersion: v1\nkind: Pod\nmetadata:\n  name: failed\n  namespace: "+namespace+"\nspec:\n  restartPolicy: Never\n  containers:\n    - name: fail\n      image: busybox:1.37.0\n      command: [sh, -c, 'exit 1']\n")
+		apply(t, `apiVersion: v1
+kind: Pod
+metadata:
+  name: failed
+  namespace: `+namespace+`
+spec:
+  restartPolicy: Never
+  containers:
+    - name: fail
+      image: busybox:1.37.0
+      command: [sh, -c, 'exit 1']
+`)
 		phase(t, "failed", "Failed")
 	})
 	t.Run("root without Pods and dynamic definition", func(t *testing.T) {
@@ -208,7 +225,17 @@ spec:
 	t.Run("namespace shards and resource health", func(t *testing.T) {
 		for _, shard := range []string{"a", "b"} {
 			ns := "exporter-workloads-" + shard
-			apply(t, "apiVersion: v1\nkind: Pod\nmetadata:\n  name: shard-probe\n  namespace: "+ns+"\nspec:\n  containers:\n    - name: work\n      image: busybox:1.37.0\n      command: [sh, -c, 'sleep 3600']\n")
+			apply(t, `apiVersion: v1
+kind: Pod
+metadata:
+  name: shard-probe
+  namespace: `+ns+`
+spec:
+  containers:
+    - name: work
+      image: busybox:1.37.0
+      command: [sh, -c, 'sleep 3600']
+`)
 			eventually(t, "positive shard "+shard, func() bool {
 				return len(matching(metrics(t, shard), "dsx_workload_pod_info", map[string]string{"namespace": ns, "pod_name": "shard-probe"})) == 1
 			})
@@ -293,7 +320,12 @@ spec:
 		})
 		command(t, "", "patch", "clusterrole", roleName, "--type=merge", "-p", string(patch))
 		// Existing watches survive revocation. A new namespace forces a new LIST.
-		apply(t, "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: exporter-workloads-denied\n  labels: {exporter-e2e-shard: a}\n")
+		apply(t, `apiVersion: v1
+kind: Namespace
+metadata:
+  name: exporter-workloads-denied
+  labels: {exporter-e2e-shard: a}
+`)
 		t.Cleanup(func() {
 			if !t.Failed() {
 				command(t, "", "delete", "namespace", "exporter-workloads-denied", "--ignore-not-found", "--wait=false")
@@ -318,7 +350,20 @@ spec:
 		eventually(t, "forbidden Job collection", func() bool { return health(0) })
 		command(t, "", "patch", "clusterrole", roleName, "--type=merge", "-p", string(restorePatch))
 		eventually(t, "Job collection recovered", func() bool { return health(1) })
-		apply(t, "apiVersion: batch/v1\nkind: Job\nmetadata:\n  name: recovered\n  namespace: exporter-workloads-denied\nspec:\n  template:\n    spec:\n      restartPolicy: Never\n      containers:\n        - name: work\n          image: busybox:1.37.0\n          command: [sh, -c, 'sleep 3600']\n")
+		apply(t, `apiVersion: batch/v1
+kind: Job
+metadata:
+  name: recovered
+  namespace: exporter-workloads-denied
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: work
+          image: busybox:1.37.0
+          command: [sh, -c, 'sleep 3600']
+`)
 		eventually(t, "recovered namespace Job published", func() bool {
 			rows := matching(metrics(t, "a"), "dsx_workload_status", map[string]string{"namespace": "exporter-workloads-denied", "workload_name": "recovered", "phase": "Running"})
 			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1

@@ -6,7 +6,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"maps"
 	"os"
@@ -39,13 +38,6 @@ var safeVersion = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+_-]*$`)
 
 func prepareCandidate(ctx context.Context, root string, plan updatePlan, base string) (candidate, error) {
 	var result candidate
-	head, err := gitOutput(ctx, root, "rev-parse", "HEAD")
-	if err != nil {
-		return result, err
-	}
-	if strings.TrimSpace(string(head)) != base {
-		return result, fmt.Errorf("recording must start directly on base commit %q", base)
-	}
 	before, err := gitOutput(ctx, root, "show", base+":"+pinsPath)
 	if err != nil {
 		return result, err
@@ -93,20 +85,6 @@ func prepareCandidate(ctx context.Context, root string, plan updatePlan, base st
 	if expected != string(after) {
 		return result, fmt.Errorf("global.env contains changes other than the selected version pins")
 	}
-	changed, err := gitOutput(ctx, root, "diff", "--name-only", "-z", base)
-	if err != nil {
-		return result, err
-	}
-	if string(changed) != pinsPath+"\x00" {
-		return result, fmt.Errorf("candidate must initially change only global.env")
-	}
-	untracked, err := gitOutput(ctx, root, "ls-files", "--others", "--exclude-standard", "-z")
-	if err != nil {
-		return result, err
-	}
-	if len(untracked) != 0 {
-		return result, fmt.Errorf("candidate checkout has unexpected untracked files")
-	}
 	versions := make(map[string]string, len(plan.Recordings))
 	directories := make([]string, 0, len(plan.Recordings))
 	for _, recording := range plan.Recordings {
@@ -138,7 +116,8 @@ func prepareCandidate(ctx context.Context, root string, plan updatePlan, base st
 	if len(directories) == 0 {
 		return result, fmt.Errorf("operator group %q has no recording coverage", plan.Group)
 	}
-	return candidate{Base: base, Group: plan.Group, Versions: versions, Directories: directories, Pins: changes, Defaults: updated}, nil
+	result = candidate{Base: base, Group: plan.Group, Versions: versions, Directories: directories, Pins: changes, Defaults: updated}
+	return result, validateCandidateChanges(ctx, root, result)
 }
 
 func verifyInstalled(candidate candidate, plan updatePlan, path string) error {
@@ -204,8 +183,8 @@ func candidateFiles(root string, candidate candidate) ([]string, error) {
 			if err != nil {
 				return nil, fmt.Errorf("inspect recording: %w", err)
 			}
-			if !info.Mode().IsRegular() {
-				return nil, fmt.Errorf("recording is not a regular file: %s", name)
+			if !info.Mode().IsRegular() || info.Mode().Perm()&^0o644 != 0 {
+				return nil, fmt.Errorf("recording is not a regular, non-executable file: %s", name)
 			}
 			result = append(result, filepath.ToSlash(name))
 		}
@@ -261,65 +240,39 @@ func addRecordingHeaders(root string, candidate candidate) error {
 	return nil
 }
 
-func copyCandidate(root, destination string, candidate candidate) error {
-	files, err := candidateFiles(root, candidate)
-	if err != nil {
-		return err
-	}
-	for _, directory := range candidate.Directories {
-		path, err := candidatePath(destination, directory)
-		if err != nil {
-			return err
-		}
-		if err := os.RemoveAll(path); err != nil {
-			return fmt.Errorf("remove old candidate recordings: %w", err)
-		}
-	}
-	for _, name := range files {
-		target, err := candidatePath(destination, name)
-		if err != nil {
-			return err
-		}
-		data, err := os.ReadFile(filepath.Join(root, name))
-		if err != nil {
-			return fmt.Errorf("read candidate file: %w", err)
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return fmt.Errorf("create candidate directory: %w", err)
-		}
-		if err := os.WriteFile(target, data, 0o644); err != nil {
-			return fmt.Errorf("copy candidate file: %w", err)
-		}
-	}
-	return nil
-}
-
-func candidateManifest(ctx context.Context, root string, candidate candidate) (manifest, error) {
-	result := manifest{Base: candidate.Base, Group: candidate.Group, Files: make(map[string]string)}
-	paths, err := candidateFiles(root, candidate)
-	if err != nil {
-		return result, err
-	}
-	for _, path := range paths {
-		data, err := os.ReadFile(filepath.Join(root, path))
-		if err != nil {
-			return result, fmt.Errorf("hash candidate file: %w", err)
-		}
-		result.Files[path] = fmt.Sprintf("%x", sha256.Sum256(data))
-	}
-	for _, args := range [][]string{{"diff", "--name-only", "-z", candidate.Base}, {"ls-files", "--others", "--exclude-standard", "-z"}} {
+func validateCandidateChanges(ctx context.Context, root string, candidate candidate) error {
+	for _, args := range [][]string{{"diff", "--name-only", "--no-renames", "-z", candidate.Base}, {"ls-files", "--others", "--exclude-standard", "-z"}} {
 		changed, err := gitOutput(ctx, root, args...)
 		if err != nil {
-			return result, err
+			return err
 		}
-		for _, name := range strings.Split(strings.TrimSuffix(string(changed), "\x00"), "\x00") {
+		for name := range strings.SplitSeq(strings.TrimSuffix(string(changed), "\x00"), "\x00") {
 			if name == "" {
 				continue
 			}
-			if _, exists := result.Files[name]; !exists {
-				return result, fmt.Errorf("unexpected changed file: %s", name)
+			allowed := name == pinsPath
+			for _, directory := range candidate.Directories {
+				relative, found := strings.CutPrefix(name, directory+"/")
+				parts := strings.Split(relative, "/")
+				if found && len(parts) == 2 && groupPattern.MatchString(parts[0]) && strings.HasSuffix(parts[1], ".yaml") && groupPattern.MatchString(strings.TrimSuffix(parts[1], ".yaml")) {
+					allowed = true
+				}
+			}
+			if !allowed {
+				return fmt.Errorf("unexpected changed file: %s", name)
+			}
+			path, err := candidatePath(root, name)
+			if err != nil {
+				return err
+			}
+			info, err := os.Lstat(path)
+			if err != nil {
+				return fmt.Errorf("inspect changed file %s: %w", name, err)
+			}
+			if !info.Mode().IsRegular() || info.Mode().Perm()&^0o644 != 0 {
+				return fmt.Errorf("candidate must contain regular, non-executable files: %s", name)
 			}
 		}
 	}
-	return result, nil
+	return nil
 }

@@ -62,7 +62,6 @@ func TestRunErrors(t *testing.T) {
 		{"recordArgument", []string{"record", "jobset"}, "CI environment"},
 		{"runOutsideCI", []string{"run"}, "GitHub Actions"},
 		{"recordOutsideCI", []string{"record"}, "GitHub Actions"},
-		{"verifyArgument", []string{"verify-commit", "unexpected"}, "unexpected verify-commit arguments"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var output, diagnostics bytes.Buffer
@@ -132,23 +131,38 @@ func TestOptionsFromEnvironment(t *testing.T) {
 	}
 }
 
-func TestRecordingLifecycle(t *testing.T) {
+func TestRecordPullRequestLifecycle(t *testing.T) {
 	for _, test := range []struct {
 		name        string
 		failInstall bool
 		failCleanup bool
+		failStage   string
 		want        string
 	}{
-		{"completed", false, false, ""},
-		{"installationFailed", true, false, "install.log"},
-		{"cleanupFailed", false, true, "clean recording environment"},
+		{"completed", false, false, "", ""},
+		{"installationFailed", true, false, "", "install.log"},
+		{"cleanupFailed", false, true, "", "clean recording environment"},
+		{"recordingFailed", false, false, "record-e2e", "recording.log"},
+		{"verificationFailed", false, false, "verify", "verification.log"},
+		{"replayFailed", false, false, "verify-recordings", "replay.log"},
+		{"presubmitFailed", false, false, "check", "make-check.log"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			fixture := newVerificationFixture(t)
 			fixture.write(".gitignore", "hack/e2e/operators/.installed-versions-*\n")
 			fixture.base = fixture.commit(true, false)
 			fixture.write(pinsPath, verificationAfter)
-			plan := updatePlan{Group: "example", Pins: []operatorPin{{Variable: "EXAMPLE_VERSION"}}, Workloads: []string{"example"}, WebhookMode: "auto", Recordings: []recordingPlan{{Operator: "example", VersionVariables: []string{"EXAMPLE_VERSION"}}}}
+			head := fixture.commit(true, false)
+			plan := updatePlan{Group: "example", Branch: "renovate-operators/example/update", Pins: []operatorPin{{Variable: "EXAMPLE_VERSION"}}, Workloads: []string{"example"}, WebhookMode: "auto", Recordings: []recordingPlan{{Operator: "example", VersionVariables: []string{"EXAMPLE_VERSION"}}}}
+			remote := filepath.Join(t.TempDir(), "remote.git")
+			fixture.git("clone", "--bare", fixture.root, remote)
+			fixture.git("remote", "add", "origin", remote)
+			fixture.git("push", "origin", head+":refs/heads/"+plan.Branch)
+			realGit, err := exec.LookPath("git")
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("TEST_GIT_BINARY", realGit)
 			temp := t.TempDir()
 			artifacts := filepath.Join(temp, "evidence")
 			if err := os.Mkdir(artifacts, 0o755); err != nil {
@@ -158,6 +172,15 @@ func TestRecordingLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			installTestCommands(t, map[string]string{
+				"git": `#!/bin/sh
+set -eu
+printf 'git %s\n' "$*" >> "$TEST_COMMAND_LOG"
+exec "$TEST_GIT_BINARY" "$@"
+`,
+				"gh": `#!/bin/sh
+set -eu
+printf 'gh %s\n' "$*" >> "$TEST_COMMAND_LOG"
+`,
 				"kind": `#!/bin/sh
 set -eu
 printf 'kind %s\n' "$*" >> "$TEST_COMMAND_LOG"
@@ -168,6 +191,7 @@ fi
 				"make": `#!/bin/sh
 set -eu
 printf 'make %s\n' "$*" >> "$TEST_COMMAND_LOG"
+if [ "$1" = "$TEST_FAIL_STAGE" ]; then exit 1; fi
 case "$1" in
   e2e-up)
     test -z "${EXAMPLE_VERSION:-}"
@@ -198,12 +222,14 @@ esac
 				"go": `#!/bin/sh
 set -eu
 printf 'go %s\n' "$*" >> "$TEST_COMMAND_LOG"
+if [ "$1" = run ] && [ "$TEST_FAIL_STAGE" = verify ]; then exit 1; fi
 `,
 			})
 			t.Setenv("TEST_COMMAND_LOG", filepath.Join(artifacts, "commands.log"))
 			t.Setenv("TEST_RECORDING", filepath.Join(fixture.root, verificationRecording))
 			t.Setenv("TEST_FAIL_INSTALL", "false")
 			t.Setenv("TEST_FAIL_CLEANUP", "false")
+			t.Setenv("TEST_FAIL_STAGE", test.failStage)
 			if test.failInstall {
 				t.Setenv("TEST_FAIL_INSTALL", "true")
 			}
@@ -213,11 +239,11 @@ printf 'go %s\n' "$*" >> "$TEST_COMMAND_LOG"
 			for _, variable := range []string{"EXAMPLE_VERSION", "FLOW", "E2E_FOCUS", "E2E_LABELS", "KIND_NODE_IMAGE"} {
 				t.Setenv(variable, "caller-override")
 			}
-			opts := updateOptions{Root: fixture.root, Group: "example", BaseSHA: fixture.base, Artifacts: artifacts, RunnerTemp: temp, RunID: "1", RunAttempt: "2", RunURL: "https://example.com/run"}
+			opts := updateOptions{Root: fixture.root, Group: "example", BaseSHA: fixture.base, Artifacts: artifacts, RunnerTemp: temp, RunID: "1", RunAttempt: "2", RunURL: "https://example.com/run", Author: verificationAuthor, Repository: "example/repo"}
 			var output, diagnostics bytes.Buffer
-			err := recordUpdate(t.Context(), opts, executor{dir: fixture.root, env: os.Environ(), stdout: &output, stderr: &diagnostics})
+			err = recordPullRequest(t.Context(), opts, plan, head, executor{dir: fixture.root, env: os.Environ(), stdout: &output, stderr: &diagnostics})
 			if test.want == "" && err != nil || test.want != "" && (err == nil || !strings.Contains(err.Error(), test.want)) {
-				t.Fatalf("recordUpdate() = %v, want %q\nstdout: %s\nstderr: %s", err, test.want, output.String(), diagnostics.String())
+				t.Fatalf("recordPullRequest() = %v, want %q\nstdout: %s\nstderr: %s", err, test.want, output.String(), diagnostics.String())
 			}
 			calls, readErr := os.ReadFile(filepath.Join(artifacts, "commands.log"))
 			if readErr != nil {
@@ -226,90 +252,48 @@ printf 'go %s\n' "$*" >> "$TEST_COMMAND_LOG"
 			if !strings.Contains(string(calls), "kind delete cluster --name renovate-example-1-2\n") {
 				t.Fatalf("temporary cluster was not deleted: %s", calls)
 			}
-			if test.failInstall && !strings.Contains(string(calls), "kind export logs ") {
+			if (test.failInstall || test.failStage != "" && test.failStage != "check") && !strings.Contains(string(calls), "kind export logs ") {
 				t.Fatalf("failed recording did not collect diagnostics: %s", calls)
 			}
-			if !test.failInstall && !strings.Contains(string(calls), "make check VERSION=0.0.0-main-") {
-				t.Fatalf("recording did not reach presubmit before cleanup: %s", calls)
+			if !test.failInstall && test.failStage == "" && !strings.Contains(string(calls), "make verify-recordings test-replay") {
+				t.Fatalf("recording did not reach replay before cleanup: %s", calls)
 			}
 			if _, err := os.Stat(filepath.Join(temp, "renovate-example-kubeconfig")); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("temporary kubeconfig remains: %v", err)
 			}
-			checkouts, err := filepath.Glob(filepath.Join(temp, "operator-check-*"))
-			if err != nil || len(checkouts) != 0 {
-				t.Fatalf("temporary presubmit checkouts remain: %v, %v", checkouts, err)
+			got := fixture.git("-C", remote, "rev-parse", "refs/heads/"+plan.Branch)
+			if test.want != "" && got != head {
+				t.Fatalf("failed CI published a recording commit: %s", got)
 			}
-			manifestPath := filepath.Join(artifacts, "manifest.json")
-			if test.want != "" {
-				if _, err := os.Stat(manifestPath); !errors.Is(err, os.ErrNotExist) {
-					t.Fatalf("failed recording left publication evidence: %v", err)
+			if test.want == "" && got == head {
+				t.Fatal("successful CI did not publish recordings")
+			}
+			if strings.Contains(string(calls), "state=success") != (test.want == "") {
+				t.Fatalf("unexpected success status: %s", calls)
+			}
+			if test.want != "" && !strings.Contains(string(calls), "state=failure") {
+				t.Fatalf("failed CI did not mark the draft head failed: %s", calls)
+			}
+			if test.want == "" {
+				previous := -1
+				for _, step := range []string{"make record-e2e", "go run ./cmd/verify-operator-update", "make verify-recordings test-replay", "kind delete cluster", "commit --allow-empty", "make check", "git push", "state=success"} {
+					index := strings.Index(string(calls), step)
+					if index <= previous {
+						t.Fatalf("step %q missing or out of order: %s", step, calls)
+					}
+					previous = index
 				}
-				return
 			}
-			evidence, err := readManifest(manifestPath, fixture.root, fixture.base)
-			if err != nil {
-				t.Fatal(err)
+			if test.want != "" {
+				return
 			}
 			data, err := os.ReadFile(filepath.Join(fixture.root, verificationRecording))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if evidence.Files[verificationRecording] != digestString(string(data)) || evidence.Files[pinsPath] != digestString(verificationAfter) {
-				t.Fatalf("manifest does not describe final candidate bytes: %+v", evidence)
-			}
 			if !bytes.HasPrefix(data, []byte("# SPDX-License-Identifier: Apache-2.0\n")) {
 				t.Fatalf("recording is missing its license header: %s", data)
 			}
 		})
-	}
-}
-
-func TestPrePushBinary(t *testing.T) {
-	fixture := newVerificationFixture(t)
-	sha := fixture.makeCandidate(true)
-	temp := t.TempDir()
-	binary := filepath.Join(temp, "renovate-operators")
-	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".")
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build hook binary: %v\n%s", err, output)
-	}
-	hooks := filepath.Join(temp, "hooks")
-	if err := os.Mkdir(hooks, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := copyExecutable(binary, filepath.Join(hooks, "pre-push")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(binary); err != nil {
-		t.Fatal(err)
-	}
-	branch := "renovate-operators/example/update"
-	settings := hookSettings{ManifestPath: fixture.manifest, BaseSHA: fixture.base, Author: verificationAuthor, Branch: branch}
-	if err := writeJSONFile(filepath.Join(hooks, "settings.json"), settings); err != nil {
-		t.Fatal(err)
-	}
-	remote := filepath.Join(temp, "remote.git")
-	fixture.git("init", "--bare", "--quiet", remote)
-	fixture.git("remote", "add", "test", remote)
-	if err := os.Remove(fixture.manifest); err != nil {
-		t.Fatal(err)
-	}
-	push := func() ([]byte, error) {
-		command := exec.CommandContext(t.Context(), "git", "-c", "core.hooksPath="+hooks, "push", "test", "HEAD:refs/heads/"+branch)
-		command.Dir = fixture.root
-		return command.CombinedOutput()
-	}
-	if output, err := push(); err == nil || !bytes.Contains(output, []byte("manifest")) {
-		t.Fatalf("push without evidence = %v, want manifest rejection\n%s", err, output)
-	}
-	if refs := fixture.git("ls-remote", "--heads", "test"); refs != "" {
-		t.Fatalf("rejected push published a ref: %s", refs)
-	}
-	fixture.writeManifest()
-	if output, err := push(); err != nil {
-		t.Fatalf("push with verified evidence: %v\n%s", err, output)
-	}
-	if refs := fixture.git("ls-remote", "--heads", "test"); refs != sha+"\trefs/heads/"+branch {
-		t.Fatalf("published ref = %q, want candidate %s", refs, sha)
 	}
 }

@@ -57,23 +57,25 @@ and retractions. Knative/Kourier and Kubeflow/MPI stay grouped. Trainer v2
 requires an API migration and is excluded. Tool pins, Ray runtime, and Gateway
 API are outside this operator update job.
 
-For each candidate, Renovate changes the pins and the workflow runs these steps:
+For each candidate, the same CI job runs these steps:
 
-1. The Go recording hook creates a fresh kind cluster and runs the existing
-   install/verify scripts.
-2. Check provisioning metadata against the pins and discover every selected flow
-   through Ginkgo.
-3. Record those flows and reject missing, skipped, failed, or stale fixtures.
-4. Replay the recordings, run `make check`, and remove the temporary cluster.
-5. Renovate commits the pins and recordings with the bot identity and DCO.
-6. The Go launcher verifies the pushed commit against the tested file hashes,
-   then opens or updates a draft PR with a link to the CI run. Nothing merges
-   automatically.
+1. Renovate changes the pins and opens or updates a draft PR. Its body links
+   the CI run and tracking issue.
+2. The Go tool fetches the PR's exact commit and checks that it changes only
+   the selected pins and recording paths.
+3. Create a fresh kind cluster, run the install/verify scripts, check the
+   installed versions, and discover every selected flow through Ginkgo.
+4. Record those flows, reject missing, skipped, failed, or stale fixtures,
+   replay the recordings, and remove the temporary cluster.
+5. Commit the recordings with the bot identity and DCO, then run `make check`
+   on that commit.
+6. Push the tested commit only if the PR branch has not changed, and set the
+   recording status to success. The PR stays a draft; nothing merges automatically.
 
-A Git pre-push hook is installed before Renovate starts. A failed post-upgrade
-command cannot publish an update without successful evidence. Evidence is
-specific to the source commit and generated file contents. Logs, JUnit reports,
-installed versions, image references, and hashes remain available as Actions
+A recording or validation failure leaves the draft version-bump PR visible
+without a new recording commit. The failed CI run contains the diagnostics.
+Retry it by running the workflow for the same operator group. Logs, JUnit
+reports, installed versions, and image references remain available as Actions
 artifacts for 14 days.
 
 Infrastructure updates also exercise workloads: cert-manager runs KServe and
@@ -89,15 +91,16 @@ The upstream workflow reuses `RENOVATE_APP_CLIENT_ID` and
 `RENOVATE_APP_PRIVATE_KEY`. The App needs contents, pull requests and commit
 statuses write access, plus issues read access. Set the repository variable
 `E2E_OPERATOR_TRACKING_ISSUE` to the public, open issue that tracks recording
-updates. The launcher checks it before publishing.
+updates. The Go tool checks it before starting Renovate.
 
 Forks use `GITHUB_TOKEN` and the `github-actions[bot]` identity. Enable GitHub
 Actions to create pull requests in the fork's Actions settings. Fork schedules
 are disabled, but manual and reusable workflow calls are supported. Their
 `base-branch` input can target a validation branch. Upstream always uses `main`.
-The Go tool's `run` and `record` commands require GitHub Actions. Node runs
-Renovate itself; configuration generation, recording orchestration, and
-publication checks use the Go tool.
+PR creation and recording run in the same job. This also works with the fork's
+`GITHUB_TOKEN`, whose PR events do not start another workflow. The automation
+requires GitHub Actions. Node runs Renovate itself; configuration generation
+and recording orchestration use the Go tool.
 
 ### Extending and testing operator automation
 

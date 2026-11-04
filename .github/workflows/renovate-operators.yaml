@@ -84,7 +84,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   update:
-    name: Record and update ${{ matrix.operator }}
+    name: Update and record ${{ matrix.operator }}
     needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 70
@@ -211,7 +211,7 @@ jobs:
             echo 'author=github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update, record, validate and publish
+      - name: Open draft PR, record and commit after validation
         timeout-minutes: 50
         env:
           RENOVATE_TOKEN: ${{ steps.app-token.outputs.token || github.token }}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-// Command renovate-operators records and validates operator updates before publication.
+// Command renovate-operators updates operators and adds CI recordings to Renovate draft PRs.
 package main
 
 import (
@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 )
 
@@ -34,19 +33,8 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if err != nil {
 		return fmt.Errorf("find executable: %w", err)
 	}
-	if filepath.Base(binary) == "pre-push" {
-		var settings hookSettings
-		if err := readJSONFile(filepath.Join(filepath.Dir(binary), "settings.json"), &settings); err != nil {
-			return err
-		}
-		root, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		return verifyPush(ctx, verifyOptions{Root: root, ManifestPath: settings.ManifestPath, BaseSHA: settings.BaseSHA, Author: settings.Author}, settings.Branch, stdin)
-	}
 	if len(args) == 0 {
-		return errors.New("usage: renovate-operators matrix|plan|config|run|record|verify-commit")
+		return errors.New("usage: renovate-operators matrix|plan|config|run|record")
 	}
 	command := args[0]
 	args = args[1:]
@@ -66,21 +54,6 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	}
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	if command == "verify-commit" {
-		var opts verifyOptions
-		flags.StringVar(&opts.Root, "repo", ".", "candidate checkout")
-		flags.StringVar(&opts.ManifestPath, "manifest", "", "absolute path to CI evidence")
-		flags.StringVar(&opts.BaseSHA, "base-sha", "", "tested base commit")
-		flags.StringVar(&opts.Author, "author", "", "expected bot identity")
-		flags.StringVar(&opts.Commit, "commit", "HEAD", "candidate commit")
-		if err := flags.Parse(args); err != nil {
-			return err
-		}
-		if flags.NArg() != 0 {
-			return errors.New("unexpected verify-commit arguments")
-		}
-		return verifyCommit(ctx, opts)
-	}
 	group := flags.String("operator", os.Getenv("E2E_UPDATE_GROUP"), "operator group or all for matrix")
 	root := flags.String("repo", ".", "repository root")
 	base := flags.String("base-branch", os.Getenv("E2E_UPDATE_BASE_BRANCH"), "base branch")

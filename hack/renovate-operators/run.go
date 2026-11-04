@@ -4,19 +4,14 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
-	"text/template"
 	"time"
 )
 
@@ -26,20 +21,10 @@ type updateOptions struct {
 	Author, TrackingIssue, Token                        string
 }
 
-type hookSettings struct {
-	ManifestPath string `json:"manifestPath"`
-	BaseSHA      string `json:"baseSHA"`
-	Author       string `json:"author"`
-	Branch       string `json:"branch"`
-}
-
 var (
 	issuePattern = regexp.MustCompile(`^https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/([1-9][0-9]*)$`)
 	ciRunPattern = regexp.MustCompile(`^[0-9]+$`)
 )
-
-//go:embed pull_request.md.tmpl
-var pullRequestTemplate string
 
 func optionsFromEnvironment(ctx context.Context, publish bool) (updateOptions, error) {
 	var opts updateOptions
@@ -106,7 +91,7 @@ func checkArtifactDirectory(root, artifacts string) error {
 	return nil
 }
 
-func runUpdates(ctx context.Context, opts updateOptions, binary string, commands executor) (result error) {
+func runUpdates(ctx context.Context, opts updateOptions, binary string, commands executor) error {
 	env := environment(commands.env)
 	env["GH_TOKEN"] = opts.Token
 	commands.env = environmentList(env)
@@ -119,15 +104,11 @@ func runUpdates(ctx context.Context, opts updateOptions, binary string, commands
 	if err := checkArtifactDirectory(opts.Root, opts.Artifacts); err != nil {
 		return err
 	}
-	planPath := filepath.Join(opts.Artifacts, "plan.json")
-	if _, err := os.Lstat(planPath); !errors.Is(err, os.ErrNotExist) {
-		return errors.New("evidence directory must be new for each job attempt")
-	}
 	plan, err := makePlan(ctx, planOptions{Root: opts.Root, Binary: binary, Group: opts.Group, BaseBranch: opts.BaseBranch})
 	if err != nil {
 		return err
 	}
-	if err := writeJSONFile(planPath, plan); err != nil {
+	if err := writeJSONFile(filepath.Join(opts.Artifacts, "plan.json"), plan); err != nil {
 		return err
 	}
 	config, err := renovateConfig(plan, env)
@@ -138,11 +119,6 @@ func runUpdates(ctx context.Context, opts updateOptions, binary string, commands
 	if err := writeJSONFile(configPath, config); err != nil {
 		return err
 	}
-	cleanup, err := installPushGuard(ctx, opts, binary, plan.Branch, commands)
-	if err != nil {
-		return err
-	}
-	defer func() { result = errors.Join(result, cleanup()) }()
 	env["RENOVATE_CONFIG_FILE"] = configPath
 	env["RENOVATE_BASE_DIR"] = filepath.Join(opts.RunnerTemp, "renovate-"+opts.Group)
 	env["RENOVATE_EXIT_CODE_FOR_ERRORS"] = "true"
@@ -150,31 +126,154 @@ func runUpdates(ctx context.Context, opts updateOptions, binary string, commands
 	if err := commands.logged(ctx, filepath.Join(opts.Artifacts, "renovate.log"), "renovate"); err != nil {
 		return err
 	}
-	if _, err := os.Stat(filepath.Join(opts.Artifacts, "record-started")); errors.Is(err, os.ErrNotExist) {
-		return writeSummary(fmt.Sprintf("No new %s candidate required recording.\n", opts.Group), commands)
-	} else if err != nil {
+
+	// Continue in this run: PRs made with the fork's GITHUB_TOKEN do not trigger CI.
+	var prs []struct {
+		HeadRefOid, URL            string
+		IsDraft, IsCrossRepository bool
+	}
+	if err := commands.outputJSON(ctx, &prs, "gh", "pr", "list", "--repo", opts.Repository,
+		"--base", opts.BaseBranch, "--head", plan.Branch, "--state", "open", "--json", "headRefOid,url,isDraft,isCrossRepository"); err != nil {
 		return err
 	}
-	shaOutput, err := commands.output(ctx, "gh", "api", "repos/"+opts.Repository+"/git/ref/heads/"+plan.Branch, "--jq", ".object.sha")
+	if len(prs) == 0 {
+		return writeSummary("No open "+opts.Group+" update needs recording.\n", commands)
+	}
+	if len(prs) != 1 || !shaPattern.MatchString(prs[0].HeadRefOid) || !prs[0].IsDraft || prs[0].IsCrossRepository {
+		return errors.New("expected one draft Renovate PR with a full head SHA")
+	}
+	head := prs[0].HeadRefOid
+	if err := writeSummary("Operator draft: "+prs[0].URL+"\n\nRecording run: "+opts.RunURL+"\n", commands); err != nil {
+		return err
+	}
+	var statuses []struct{ Context, State string }
+	if err := commands.outputJSON(ctx, &statuses, "gh", "api", "repos/"+opts.Repository+"/commits/"+head+"/statuses"); err != nil {
+		return err
+	}
+	for _, status := range statuses {
+		if status.Context == "e2e/operator-recording" {
+			if status.State == "success" {
+				return writeSummary("This PR head already has successful CI recordings.\n", commands)
+			}
+			break
+		}
+	}
+	base, err := checkoutCandidate(ctx, opts.BaseBranch, head, commands)
 	if err != nil {
 		return err
 	}
-	sha := strings.TrimSpace(string(shaOutput))
-	if !shaPattern.MatchString(sha) {
-		return fmt.Errorf("invalid candidate commit %q", sha)
+	opts.BaseSHA = base
+	return recordPullRequest(ctx, opts, plan, head, commands)
+}
+
+func checkoutCandidate(ctx context.Context, baseBranch, head string, commands executor) (string, error) {
+	if err := commands.run(ctx, "git", "fetch", "origin", head); err != nil {
+		return "", err
 	}
-	if err := commands.run(ctx, "git", "fetch", "origin", sha); err != nil {
+	// Renovate may have used a newer base than the workflow's planning job.
+	if err := commands.run(ctx, "git", "fetch", "origin", "refs/heads/"+baseBranch); err != nil {
+		return "", err
+	}
+	base, err := commands.output(ctx, "git", "merge-base", "FETCH_HEAD", head)
+	if err != nil {
+		return "", err
+	}
+	if err := commands.run(ctx, "git", "checkout", "--detach", head); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(base)), nil
+}
+
+func recordPullRequest(ctx context.Context, opts updateOptions, plan updatePlan, head string, commands executor) (result error) {
+	if err := setRecordingStatus(ctx, opts, head, "pending", commands); err != nil {
 		return err
 	}
-	if err := verifyCommit(ctx, verifyOptions{Root: opts.Root, ManifestPath: filepath.Join(opts.Artifacts, "manifest.json"), BaseSHA: opts.BaseSHA, Author: opts.Author, Commit: sha}); err != nil {
+	defer func() {
+		if result != nil {
+			statusCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+			defer cancel()
+			result = errors.Join(result, setRecordingStatus(statusCtx, opts, head, "failure", commands))
+		}
+	}()
+	record := commands
+	env := environment(record.env)
+	for _, key := range []string{"GH_TOKEN", "GITHUB_TOKEN", "RENOVATE_TOKEN"} {
+		delete(env, key)
+	}
+	record.env = environmentList(env)
+	if err := recordUpdate(ctx, opts, record); err != nil {
 		return err
 	}
-	if err := commands.run(ctx, "gh", "api", "repos/"+opts.Repository+"/statuses/"+sha,
-		"-f", "state=success", "-f", "context=e2e/operator-recording", "-f", "target_url="+opts.RunURL,
-		"-f", "description=Fresh kind install, complete recordings, replay, presubmit and cleanup passed"); err != nil {
+	var candidate candidate
+	if err := readJSONFile(filepath.Join(opts.Artifacts, "candidate.json"), &candidate); err != nil {
 		return err
 	}
-	return publishPullRequest(ctx, opts, plan, commands)
+	if err := commitRecordings(ctx, opts, candidate, record); err != nil {
+		return err
+	}
+	if err := record.logged(ctx, filepath.Join(opts.Artifacts, "make-check.log"), "make", "check", "VERSION=0.0.0-main-"+opts.BaseSHA[:7]); err != nil {
+		return err
+	}
+	if err := publishRecordings(ctx, opts, plan.Branch, head, commands); err != nil {
+		return err
+	}
+	return writeSummary("Recordings, replay, presubmit and cluster cleanup passed; the bot recording commit is on the draft PR.\n", commands)
+}
+
+func commitRecordings(ctx context.Context, opts updateOptions, candidate candidate, commands executor) error {
+	if err := validateCandidateChanges(ctx, opts.Root, candidate); err != nil {
+		return err
+	}
+	files, err := candidateFiles(opts.Root, candidate)
+	if err != nil {
+		return err
+	}
+	if err := commands.run(ctx, append([]string{"git", "add", "--"}, files...)...); err != nil {
+		return err
+	}
+	author := authorPattern.FindStringSubmatch(opts.Author)
+	if author == nil {
+		return errors.New("bot author must have the form Name <email>")
+	}
+	// An identical re-recording still gets a commit tying it to this CI run.
+	return commands.run(ctx, "git", "-c", "user.name="+author[1], "-c", "user.email="+author[2],
+		"-c", "commit.gpgsign=false", "commit", "--allow-empty", "-s", "-m", "test(e2e): record "+opts.Group+" operator update", "-m", "Recording and validation: "+opts.RunURL)
+}
+
+func publishRecordings(ctx context.Context, opts updateOptions, branch, head string, commands executor) error {
+	dirty, err := commands.output(ctx, "git", "status", "--porcelain")
+	if err != nil {
+		return err
+	}
+	if len(dirty) != 0 {
+		return errors.New("validation changed the tested commit; refusing to push")
+	}
+	commit, err := commands.output(ctx, "git", "rev-parse", "HEAD")
+	if err != nil {
+		return err
+	}
+	parent, err := commands.output(ctx, "git", "show", "-s", "--format=%P", "HEAD")
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(string(parent)) != head {
+		return errors.New("recording commit must be directly on the fetched PR head")
+	}
+
+	if err := commands.run(ctx, "gh", "auth", "setup-git", "--hostname", "github.com"); err != nil {
+		return err
+	}
+	// The lease rejects a concurrent update, including a rebase, without overwriting it.
+	if err := commands.run(ctx, "git", "push", "--force-with-lease=refs/heads/"+branch+":"+head, "origin", strings.TrimSpace(string(commit))+":refs/heads/"+branch); err != nil {
+		return err
+	}
+	return setRecordingStatus(ctx, opts, strings.TrimSpace(string(commit)), "success", commands)
+}
+
+func setRecordingStatus(ctx context.Context, opts updateOptions, sha, state string, commands executor) error {
+	return commands.run(ctx, "gh", "api", "repos/"+opts.Repository+"/statuses/"+sha,
+		"-f", "state="+state, "-f", "context=e2e/operator-recording", "-f", "target_url="+opts.RunURL,
+		"-f", "description=CI operator recordings: "+state)
 }
 
 func verifyTrackingIssue(ctx context.Context, url string, commands executor) error {
@@ -199,84 +298,6 @@ func verifyTrackingIssue(ctx context.Context, url string, commands executor) err
 		return errors.New("tracking issue must be public and open")
 	}
 	return nil
-}
-
-func installPushGuard(ctx context.Context, opts updateOptions, binary, branch string, commands executor) (func() error, error) {
-	previous, err := commands.output(ctx, "git", "config", "--global", "--get", "core.hooksPath")
-	if err != nil {
-		var exit *exec.ExitError
-		if !errors.As(err, &exit) || exit.ExitCode() != 1 {
-			return nil, err
-		}
-	}
-	if strings.TrimSpace(string(previous)) != "" {
-		return nil, errors.New("runner already has a global Git hook path")
-	}
-	hooks, err := os.MkdirTemp(opts.RunnerTemp, "operator-hooks-")
-	if err != nil {
-		return nil, err
-	}
-	settings := hookSettings{ManifestPath: filepath.Join(opts.Artifacts, "manifest.json"), BaseSHA: opts.BaseSHA, Author: opts.Author, Branch: branch}
-	if err = writeJSONFile(filepath.Join(hooks, "settings.json"), settings); err == nil {
-		err = copyExecutable(binary, filepath.Join(hooks, "pre-push"))
-	}
-	if err == nil {
-		// Renovate rejects custom GIT_CONFIG_* paths. Use the hosted runner's normal configuration.
-		err = commands.run(ctx, "git", "config", "--global", "core.hooksPath", hooks)
-	}
-	if err != nil {
-		return nil, errors.Join(err, os.RemoveAll(hooks))
-	}
-	return func() error {
-		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
-		defer cancel()
-		err := commands.run(cleanupCtx, "git", "config", "--global", "--unset", "core.hooksPath")
-		return errors.Join(err, os.RemoveAll(hooks))
-	}, nil
-}
-
-func publishPullRequest(ctx context.Context, opts updateOptions, plan updatePlan, commands executor) error {
-	var update candidate
-	if err := readJSONFile(filepath.Join(opts.Artifacts, "candidate.json"), &update); err != nil {
-		return err
-	}
-	bodyTemplate, err := template.New("pull-request").Parse(pullRequestTemplate)
-	if err != nil {
-		return err
-	}
-	var body bytes.Buffer
-	if err := bodyTemplate.Execute(&body, struct {
-		Candidate     candidate
-		RunURL, Issue string
-	}{update, opts.RunURL, opts.TrackingIssue}); err != nil {
-		return err
-	}
-	bodyPath := filepath.Join(opts.Artifacts, "pr-body.md")
-	if err := os.WriteFile(bodyPath, body.Bytes(), 0o644); err != nil {
-		return err
-	}
-	var existing []struct{ Number int }
-	if err := commands.outputJSON(ctx, &existing, "gh", "pr", "list", "--repo", opts.Repository, "--base", opts.BaseBranch, "--head", plan.Branch, "--state", "open", "--json", "number"); err != nil {
-		return err
-	}
-	var url []byte
-	if len(existing) > 0 {
-		number := strconv.Itoa(existing[0].Number)
-		if err := commands.run(ctx, "gh", "pr", "edit", number, "--repo", opts.Repository, "--body-file", bodyPath); err != nil {
-			return err
-		}
-		url, err = commands.output(ctx, "gh", "pr", "view", number, "--repo", opts.Repository, "--json", "url", "--jq", ".url")
-	} else {
-		url, err = commands.output(ctx, "gh", "pr", "create", "--repo", opts.Repository, "--base", opts.BaseBranch, "--head", plan.Branch, "--draft", "--title", "build(e2e): update "+opts.Group+" with CI recordings", "--body-file", bodyPath)
-	}
-	if err != nil {
-		return err
-	}
-	prURL := strings.TrimSpace(string(url))
-	if err := os.WriteFile(filepath.Join(opts.Artifacts, "pr-url.txt"), []byte(prURL+"\n"), 0o644); err != nil {
-		return err
-	}
-	return writeSummary(fmt.Sprintf("Validated operator update: %s\n\nRecording run: %s\n", prURL, opts.RunURL), commands)
 }
 
 func writeSummary(message string, commands executor) error {

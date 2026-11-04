@@ -3,9 +3,9 @@
 
 # Operator update automation
 
-This Go tool runs the operator update workflow. It generates Renovate's JSON
-configuration, orchestrates CI recording, verifies the bot commit, and publishes
-the update PR. It has its own module and uses only the standard library.
+This Go tool generates Renovate's configuration and adds validated CI recordings
+to its draft operator update PRs. It has its own module and uses only the
+standard library.
 
 The workflow and repository setup are described in
 [Dependency Updates](../../docs/Dependency%20Updates.md#operator-updates-and-recordings).
@@ -37,10 +37,12 @@ The workflow builds the executable outside Renovate's checkout and puts it on
 operator group. The pinned Renovate configuration validator checks that JSON
 before the job creates an App token.
 
-`renovate-operators run` starts Renovate with the publication guard installed.
-Renovate invokes `renovate-operators record` after changing the selected pins.
-Both commands require GitHub Actions. The same executable verifies Git pushes
-against the tested commit and recording hashes. Node runs Renovate itself.
+`renovate-operators run` starts Renovate, which opens a draft PR for the selected
+version pins. The same CI job checks out that PR's commit, records and validates
+the update in a fresh kind cluster, and removes the cluster. It then commits the
+recordings with the bot identity, runs `make check`, and pushes only if the PR
+branch has not changed. A failed check leaves the draft PR without a new
+recording commit. Node runs Renovate itself; the orchestration uses Go.
 
 ## Adding an operator
 

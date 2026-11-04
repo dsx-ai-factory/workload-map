@@ -5,16 +5,87 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 )
 
+const (
+	verificationAuthor    = "renovate-example[bot] <123+renovate-example[bot]@users.noreply.github.com>"
+	verificationRecording = "test/e2e/recorded_data/example/v0.2.0/example-org-workload-v1/running.yaml"
+	verificationExisting  = "test/e2e/recorded_data/example/v0.1.0/example-org-workload-v1/running.yaml"
+	verificationBefore    = "EXAMPLE_VERSION=\"${EXAMPLE_VERSION:-v0.1.0}\"\n"
+	verificationAfter     = "EXAMPLE_VERSION=\"${EXAMPLE_VERSION:-v0.2.0}\"\n"
+	verificationBytes     = "schemaVersion: 1\nresult:\n  succeeded: true\n"
+)
+
+type verificationFixture struct {
+	t    *testing.T
+	root string
+	base string
+}
+
+func newVerificationFixture(t *testing.T) *verificationFixture {
+	t.Helper()
+	dir := t.TempDir()
+	fixture := &verificationFixture{t: t, root: filepath.Join(dir, "repo")}
+	if err := os.Mkdir(fixture.root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture.git("init", "--quiet")
+	fixture.git("config", "core.fileMode", "true")
+	fixture.git("config", "user.name", "renovate-example[bot]")
+	fixture.git("config", "user.email", "123+renovate-example[bot]@users.noreply.github.com")
+	fixture.write(pinsPath, verificationBefore)
+	fixture.write(verificationExisting, verificationBytes)
+	fixture.base = fixture.commit(true, false)
+	return fixture
+}
+
+func (fixture *verificationFixture) git(args ...string) string {
+	fixture.t.Helper()
+	args = append([]string{"-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false"}, args...)
+	command := exec.CommandContext(fixture.t.Context(), "git", args...)
+	command.Dir = fixture.root
+	output, err := command.CombinedOutput()
+	if err != nil {
+		fixture.t.Fatalf("git %v: %v\n%s", args, err, output)
+	}
+	return strings.TrimSpace(string(output))
+}
+
+func (fixture *verificationFixture) write(name, content string) {
+	fixture.t.Helper()
+	path := filepath.Join(fixture.root, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		fixture.t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		fixture.t.Fatal(err)
+	}
+}
+
+func (fixture *verificationFixture) commit(signoff, amend bool) string {
+	fixture.t.Helper()
+	fixture.git("add", "--all")
+	args := []string{"commit", "--quiet", "-m", "build(e2e): update example"}
+	if signoff {
+		args = append(args, "--signoff")
+	}
+	if amend {
+		args = append(args, "--amend")
+	}
+	fixture.git(args...)
+	return fixture.git("rev-parse", "HEAD")
+}
+
 func candidateFixture(t *testing.T) (*verificationFixture, updatePlan) {
 	t.Helper()
 	fixture := newVerificationFixture(t)
 	fixture.write(pinsPath, verificationAfter)
+	fixture.commit(true, false)
 	return fixture, updatePlan{Group: "example", Pins: []operatorPin{{Variable: "EXAMPLE_VERSION"}}, Workloads: []string{"example"}, Recordings: []recordingPlan{{Operator: "example", VersionVariables: []string{"EXAMPLE_VERSION"}}}}
 }
 
@@ -36,10 +107,10 @@ func TestPrepareCandidateErrors(t *testing.T) {
 		change func(*verificationFixture, *updatePlan)
 		want   string
 	}{
-		{"staleBase", func(f *verificationFixture, _ *updatePlan) { f.base = strings.Repeat("0", 40) }, "base commit"},
+		{"staleBase", func(f *verificationFixture, _ *updatePlan) { f.base = strings.Repeat("0", 40) }, "git show"},
 		{"wrongGroup", func(_ *verificationFixture, p *updatePlan) { p.Pins = []operatorPin{{Variable: "OTHER_VERSION"}} }, "outside operator group"},
 		{"extraEnvEdit", func(f *verificationFixture, _ *updatePlan) { f.write(pinsPath, verificationAfter+"# extra\n") }, "other than"},
-		{"untracked", func(f *verificationFixture, _ *updatePlan) { f.write("unexpected.go", "package main") }, "untracked"},
+		{"untracked", func(f *verificationFixture, _ *updatePlan) { f.write("unexpected.go", "package main") }, "unexpected changed"},
 		{"noChange", func(f *verificationFixture, _ *updatePlan) { f.write(pinsPath, verificationBefore) }, "no changed pins"},
 		{"unsafeVersion", func(f *verificationFixture, _ *updatePlan) {
 			f.write(pinsPath, strings.Replace(verificationAfter, "v0.2.0", "../../outside", 1))
@@ -54,7 +125,7 @@ func TestPrepareCandidateErrors(t *testing.T) {
 			if err := os.Symlink(filepath.Dir(f.root), path); err != nil {
 				f.t.Fatal(err)
 			}
-		}, "unexpected untracked"},
+		}, "symlink"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			fixture, plan := candidateFixture(t)
@@ -146,44 +217,12 @@ func TestCandidateArtifacts(t *testing.T) {
 	if string(data) != string(again) {
 		t.Fatal("addRecordingHeaders() is not idempotent")
 	}
-	actual, err := candidateManifest(t.Context(), fixture.root, value)
-	if err != nil {
+	if err := validateCandidateChanges(t.Context(), fixture.root, value); err != nil {
 		t.Fatal(err)
-	}
-	want := manifest{Base: fixture.base, Group: "example", Files: map[string]string{pinsPath: digestString(verificationAfter), verificationRecording: digestString(string(data))}}
-	if !reflect.DeepEqual(actual, want) {
-		t.Fatalf("candidateManifest() = %#v, want %#v", actual, want)
-	}
-	destination := t.TempDir()
-	stale := filepath.Join(destination, value.Directories[0], "stale-kind", "stale.yaml")
-	if err := os.MkdirAll(filepath.Dir(stale), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(stale, []byte("stale"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := copyCandidate(fixture.root, destination, value); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(stale); !os.IsNotExist(err) {
-		t.Fatalf("copyCandidate() left stale file: %v", err)
-	}
-	for _, name := range files {
-		copied, err := os.ReadFile(filepath.Join(destination, name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		source, err := os.ReadFile(filepath.Join(fixture.root, name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(copied) != string(source) {
-			t.Fatalf("copyCandidate() changed %s", name)
-		}
 	}
 	fixture.write("unexpected", "unrelated")
-	if _, err := candidateManifest(t.Context(), fixture.root, value); err == nil || !strings.Contains(err.Error(), "unexpected changed") {
-		t.Fatalf("candidateManifest(extra file) = %v, want rejection", err)
+	if err := validateCandidateChanges(t.Context(), fixture.root, value); err == nil || !strings.Contains(err.Error(), "unexpected changed") {
+		t.Fatalf("validateCandidateChanges(extra file) = %v, want rejection", err)
 	}
 }
 
@@ -219,6 +258,69 @@ func TestCandidatePathRejectsEscapes(t *testing.T) {
 		t.Run(path, func(t *testing.T) {
 			if _, err := candidatePath(root, path); err == nil {
 				t.Fatalf("candidatePath(%q) accepted a path outside the checkout", path)
+			}
+		})
+	}
+}
+
+func TestPrepareCandidateWithRecordings(t *testing.T) {
+	fixture, plan := candidateFixture(t)
+	fixture.write(verificationRecording, verificationBytes)
+	fixture.commit(true, false)
+	if _, err := prepareCandidate(t.Context(), fixture.root, plan, fixture.base); err != nil {
+		t.Fatalf("prepareCandidate(existing recorded update) = %v", err)
+	}
+}
+
+func TestValidateCandidateChangesErrors(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		change func(*verificationFixture)
+		want   string
+	}{
+		{"unrelatedCommit", func(f *verificationFixture) {
+			f.write("Makefile", "unrelated")
+			f.commit(true, false)
+		}, "unexpected changed"},
+		{"otherVersion", func(f *verificationFixture) {
+			f.write(verificationExisting, "changed old recording")
+		}, "unexpected changed"},
+		{"nestedFile", func(f *verificationFixture) {
+			f.write(strings.Replace(verificationRecording, "running.yaml", "extra/running.yaml", 1), verificationBytes)
+		}, "unexpected changed"},
+		{"executable", func(f *verificationFixture) {
+			if err := os.Chmod(filepath.Join(f.root, verificationRecording), 0o755); err != nil {
+				f.t.Fatal(err)
+			}
+		}, "non-executable"},
+		{"deletedFile", func(f *verificationFixture) {
+			f.base = f.commit(true, false)
+			if err := os.Remove(filepath.Join(f.root, verificationRecording)); err != nil {
+				f.t.Fatal(err)
+			}
+		}, "inspect changed file"},
+		{"symlinkDirectory", func(f *verificationFixture) {
+			directory := filepath.Dir(filepath.Join(f.root, verificationRecording))
+			outside := f.t.TempDir()
+			if err := os.Rename(directory, filepath.Join(outside, "files")); err != nil {
+				f.t.Fatal(err)
+			}
+			if err := os.Symlink(filepath.Join(outside, "files"), directory); err != nil {
+				f.t.Fatal(err)
+			}
+		}, "unexpected changed"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture, plan := candidateFixture(t)
+			value, err := prepareCandidate(t.Context(), fixture.root, plan, fixture.base)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fixture.write(verificationRecording, verificationBytes)
+			test.change(fixture)
+			value.Base = fixture.base
+			if err := validateCandidateChanges(t.Context(), fixture.root, value); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validateCandidateChanges() = %v, want %q", err, test.want)
 			}
 		})
 	}

@@ -4,7 +4,6 @@
 package main
 
 import (
-	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -45,70 +44,87 @@ esac
 	}
 }
 
-func TestPublishPullRequest(t *testing.T) {
-	for _, existing := range []bool{false, true} {
-		name := "createDraft"
-		if existing {
-			name = "updateExisting"
-		}
-		t.Run(name, func(t *testing.T) {
-			artifacts := t.TempDir()
-			installTestCommands(t, map[string]string{"gh": `#!/bin/sh
-set -eu
-printf '%s\n' "$*" >> "$TEST_COMMAND_LOG"
-case "$1 $2" in
-  'pr list') printf '%s\n' "$TEST_EXISTING" ;;
-  'pr edit') ;;
-  'pr create'|'pr view') printf '%s\n' 'https://github.com/example/repo/pull/2' ;;
-  *) exit 2 ;;
-esac
-`})
-			log := filepath.Join(artifacts, "commands.log")
+func TestPublishRecordings(t *testing.T) {
+	for _, scenario := range []string{"success", "concurrentUpdate", "dirtyValidation", "unexpectedParent"} {
+		t.Run(scenario, func(t *testing.T) {
+			fixture, plan := candidateFixture(t)
+			head := fixture.git("rev-parse", "HEAD")
+			candidate, err := prepareCandidate(t.Context(), fixture.root, plan, fixture.base)
+			if err != nil {
+				t.Fatal(err)
+			}
+			remote := filepath.Join(t.TempDir(), "remote.git")
+			fixture.git("clone", "--bare", fixture.root, remote)
+			fixture.git("remote", "add", "origin", remote)
+			branch := "renovate-operators/example/update"
+			fixture.git("push", "origin", head+":refs/heads/"+branch)
+			fixture.write(verificationRecording, verificationBytes)
+			commands := executor{dir: fixture.root, env: os.Environ(), stdout: io.Discard, stderr: io.Discard}
+			opts := updateOptions{Root: fixture.root, Group: "example", Author: verificationAuthor, Repository: "example/repo", RunURL: "https://github.com/example/repo/actions/runs/1"}
+			if err := commitRecordings(t.Context(), opts, candidate, commands); err != nil {
+				t.Fatal(err)
+			}
+			published := fixture.git("rev-parse", "HEAD")
+			if got := fixture.git("show", "-s", "--format=%an <%ae>", "HEAD"); got != opts.Author {
+				t.Fatalf("author = %s", got)
+			}
+			if got := fixture.git("show", "-s", "--format=%B", "HEAD"); !strings.Contains(got, "Signed-off-by: "+opts.Author) || !strings.Contains(got, opts.RunURL) {
+				t.Fatalf("commit message = %s", got)
+			}
+			switch scenario {
+			case "concurrentUpdate":
+				fixture.git("-C", remote, "update-ref", "refs/heads/"+branch, fixture.base, head)
+			case "dirtyValidation":
+				fixture.write("unexpected.txt", "validation generated a file")
+			case "unexpectedParent":
+				fixture.git("commit", "--allow-empty", "-m", "concurrent local commit")
+			}
+			log := filepath.Join(t.TempDir(), "commands.log")
 			t.Setenv("TEST_COMMAND_LOG", log)
-			t.Setenv("TEST_EXISTING", "[]")
-			if existing {
-				t.Setenv("TEST_EXISTING", `[{"number":2}]`)
+			installTestCommands(t, map[string]string{"gh": "#!/bin/sh\nprintf '%s\n' \"$*\" >> \"$TEST_COMMAND_LOG\"\n"})
+			commands.env = os.Environ()
+			err = publishRecordings(t.Context(), opts, branch, head, commands)
+			if (err == nil) != (scenario == "success") {
+				t.Fatalf("publishRecordings = %v", err)
 			}
-			summary := filepath.Join(artifacts, "summary.md")
-			t.Setenv("GITHUB_STEP_SUMMARY", summary)
-			update := candidate{Group: "jobset", Pins: map[string]pinChange{"JOBSET_VERSION": {Before: "v0.10.1", After: "v0.13.0"}}}
-			if err := writeJSONFile(filepath.Join(artifacts, "candidate.json"), update); err != nil {
-				t.Fatal(err)
+			got := fixture.git("-C", remote, "rev-parse", "refs/heads/"+branch)
+			want := head
+			if scenario == "concurrentUpdate" {
+				want = fixture.base
 			}
-			opts := updateOptions{Group: "jobset", Repository: "example/repo", BaseBranch: "main", Artifacts: artifacts, RunURL: "https://github.com/example/repo/actions/runs/1", TrackingIssue: "https://github.com/example/repo/issues/1"}
-			var output bytes.Buffer
-			commands := executor{env: os.Environ(), stdout: &output, stderr: io.Discard}
-			if err := publishPullRequest(t.Context(), opts, updatePlan{Branch: "renovate-operators/jobset/update"}, commands); err != nil {
-				t.Fatal(err)
+			if scenario == "success" {
+				want = published
 			}
-			body, err := os.ReadFile(filepath.Join(artifacts, "pr-body.md"))
-			if err != nil {
-				t.Fatal(err)
+			if got != want {
+				t.Fatalf("remote SHA = %s, want %s", got, want)
 			}
-			for _, want := range []string{"`JOBSET_VERSION`: `v0.10.1` -> `v0.13.0`", opts.RunURL, opts.TrackingIssue} {
-				if !strings.Contains(string(body), want) {
-					t.Errorf("PR body missing %q", want)
-				}
-			}
-			calls, err := os.ReadFile(log)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if existing {
-				if !strings.Contains(string(calls), "pr edit 2") || strings.Contains(string(calls), "pr create") {
-					t.Fatalf("existing PR must be updated: %s", calls)
-				}
-			} else if !strings.Contains(string(calls), "pr create") || !strings.Contains(string(calls), "--draft") {
-				t.Fatalf("new PR must be a draft: %s", calls)
-			}
-			written, err := os.ReadFile(summary)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(written) != output.String() || !strings.Contains(string(written), "https://github.com/example/repo/pull/2") {
-				t.Fatalf("invalid workflow summary: %s", written)
+			calls, _ := os.ReadFile(log)
+			if strings.Contains(string(calls), "state=success") != (scenario == "success") {
+				t.Fatalf("unexpected status calls: %s", calls)
 			}
 		})
+	}
+}
+
+func TestCheckoutCandidateUsesCurrentBase(t *testing.T) {
+	fixture := newVerificationFixture(t)
+	oldBase := fixture.base
+	fixture.write("README.md", "base advanced during workflow setup")
+	currentBase := fixture.commit(true, false)
+	fixture.git("branch", "validation-base", currentBase)
+	fixture.write(pinsPath, verificationAfter)
+	head := fixture.commit(true, false)
+	remote := filepath.Join(t.TempDir(), "remote.git")
+	fixture.git("clone", "--bare", fixture.root, remote)
+	fixture.git("remote", "add", "origin", remote)
+	fixture.git("checkout", "--detach", oldBase)
+	commands := executor{dir: fixture.root, env: os.Environ(), stdout: io.Discard, stderr: io.Discard}
+	base, err := checkoutCandidate(t.Context(), "validation-base", head, commands)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if base != currentBase || fixture.git("rev-parse", "HEAD") != head {
+		t.Fatalf("base = %s, expected %s at candidate %s", base, currentBase, head)
 	}
 }
 

@@ -6,7 +6,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -103,38 +102,23 @@ func TestConfigReleasePolicies(t *testing.T) {
 	}
 }
 
-func TestConfigPublicationGuard(t *testing.T) {
+func TestConfigDraftPR(t *testing.T) {
 	config := testConfig(t, "jobset")
 	for name, want := range map[string]any{
-		"requireConfig": "ignored", "platformCommit": "disabled", "prCreation": "status-success",
+		"requireConfig": "ignored", "platformCommit": "disabled", "prCreation": "immediate",
 		"draftPR": true, "automerge": false, "ignoreTests": false, "dependencyDashboard": false,
 	} {
 		if config[name] != want {
 			t.Errorf("config[%s] = %v, want %v", name, config[name], want)
 		}
 	}
-	if !slices.Equal(config["enabledManagers"].([]string), []string{"custom.regex"}) || !slices.Equal(config["gitNoVerify"].([]string), []string{"commit"}) {
-		t.Error("operator extraction and pre-push execution must remain enabled")
+	if !slices.Equal(config["enabledManagers"].([]string), []string{"custom.regex"}) {
+		t.Error("only operator extraction must be enabled")
 	}
-	forwarded := config["customEnvVariables"].(map[string]string)
-	for _, name := range []string{"GIT_CONFIG_GLOBAL", "RENOVATE_TOKEN"} {
-		if _, ok := forwarded[name]; ok {
-			t.Errorf("config forwarded %s", name)
+	for _, name := range []string{"postUpgradeTasks", "allowedCommands", "customEnvVariables", "gitNoVerify"} {
+		if _, exists := config[name]; exists {
+			t.Errorf("obsolete publication setting %s", name)
 		}
-	}
-	if forwarded["E2E_UPDATE_GROUP"] != "jobset" {
-		t.Errorf("forwarded group = %q, want jobset", forwarded["E2E_UPDATE_GROUP"])
-	}
-	want := map[string]any{
-		"commands": []string{"renovate-operators record"}, "executionMode": "branch",
-		"fileFilters": []string{"test/e2e/recorded_data/jobset/**/*.yaml"},
-	}
-	if !reflect.DeepEqual(config["postUpgradeTasks"], want) {
-		t.Errorf("postUpgradeTasks = %v, want %v", config["postUpgradeTasks"], want)
-	}
-	allowed := regexp.MustCompile(config["allowedCommands"].([]string)[0])
-	if !allowed.MatchString("renovate-operators record") || allowed.MatchString("renovate-operators record; echo unexpected") {
-		t.Error("post-upgrade command allowlist is not exact")
 	}
 	plan := testPlan(t, "jobset", "validation")
 	if got := config["branchPrefix"].(string) + config["group"].(map[string]string)["branchTopic"]; got != plan.Branch {

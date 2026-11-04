@@ -67,17 +67,6 @@ func renovateConfig(plan updatePlan, env map[string]string) (map[string]any, err
 			rules = append(rules, map[string]any{"matchPackageNames": []string{pin.Repository}, "allowedVersions": "!/^(" + strings.Join(excluded, "|") + ")$/"})
 		}
 	}
-	forwarded := map[string]string{}
-	for _, name := range []string{
-		"GITHUB_ACTIONS", "GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_STEP_SUMMARY",
-		"E2E_UPDATE_GROUP", "E2E_UPDATE_BASE_BRANCH", "E2E_UPDATE_BASE_SHA", "E2E_UPDATE_ARTIFACTS", "E2E_UPDATE_RUN_URL", "RUNNER_TEMP",
-	} {
-		forwarded[name] = env[name]
-	}
-	filters := make([]string, 0, len(plan.Workloads))
-	for _, workload := range plan.Workloads {
-		filters = append(filters, "test/e2e/recorded_data/"+workload+"/**/*.yaml")
-	}
 	return map[string]any{
 		"platform":               "github",
 		"repositories":           []string{repository},
@@ -95,7 +84,7 @@ func renovateConfig(plan updatePlan, env map[string]string) (map[string]any, err
 		"group":                  map[string]string{"branchTopic": "update"},
 		"separateMajorMinor":     false,
 		"separateMinorPatch":     false,
-		"prCreation":             "status-success",
+		"prCreation":             "immediate",
 		"draftPR":                true,
 		"dependencyDashboard":    false,
 		"pruneStaleBranches":     false,
@@ -104,20 +93,15 @@ func renovateConfig(plan updatePlan, env map[string]string) (map[string]any, err
 		"ignoreUnstable":         ignoreUnstable,
 		"binarySource":           "global",
 		"platformCommit":         "disabled",
-		"gitNoVerify":            []string{"commit"},
-		"executionTimeout":       45,
-		"allowedCommands":        []string{`^renovate-operators record$`},
-		"customEnvVariables":     forwarded,
 		"semanticCommits":        "enabled",
 		"semanticCommitType":     "build",
 		"semanticCommitScope":    "e2e",
 		"commitBody":             "Signed-off-by: {{{gitAuthor}}}",
 		"customManagers":         managers,
 		"packageRules":           rules,
-		"postUpgradeTasks": map[string]any{
-			"commands":      []string{"renovate-operators record"},
-			"executionMode": "branch",
-			"fileFilters":   filters,
+		"prBodyNotes": []string{
+			"CI records and validates this update in a fresh kind cluster, then adds the recordings as a signed-off bot commit. The PR stays draft for review. Failed validation leaves the version bump here without a recording commit.",
+			"[Recording and validation run](" + env["E2E_UPDATE_RUN_URL"] + "). Related to " + env["E2E_OPERATOR_TRACKING_ISSUE"] + ".",
 		},
 	}, nil
 }

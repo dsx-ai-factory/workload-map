@@ -10,10 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -24,6 +24,12 @@ type executor struct {
 	env            []string
 	stdout, stderr io.Writer
 }
+
+var (
+	shaPattern    = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	groupPattern  = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	authorPattern = regexp.MustCompile(`^([^<>\r\n]+) <([^<>\s]+)>$`)
+)
 
 func (e executor) command(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
@@ -125,25 +131,10 @@ func writeJSONFile(path string, value any) error {
 	return nil
 }
 
-func copyExecutable(source, target string) error {
-	data, err := os.ReadFile(source)
+func gitOutput(ctx context.Context, root string, args ...string) ([]byte, error) {
+	output, err := (executor{dir: root, env: os.Environ()}).output(ctx, append([]string{"git"}, args...)...)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("git %s: %w", args[0], err)
 	}
-	return os.WriteFile(target, data, 0o755)
-}
-
-func removeCheckDirectory(path string) error {
-	if err := filepath.WalkDir(path, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			return os.Chmod(path, 0o755)
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	return os.RemoveAll(path)
+	return output, nil
 }

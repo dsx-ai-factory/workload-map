@@ -18,13 +18,6 @@ func recordUpdate(ctx context.Context, opts updateOptions, exec executor) (resul
 	if err := checkArtifactDirectory(opts.Root, opts.Artifacts); err != nil {
 		return err
 	}
-	started, err := os.OpenFile(filepath.Join(opts.Artifacts, "record-started"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
-	if err != nil {
-		return fmt.Errorf("start fresh recording attempt: %w", err)
-	}
-	if err := started.Close(); err != nil {
-		return err
-	}
 	var plan updatePlan
 	if err := readJSONFile(filepath.Join(opts.Artifacts, "plan.json"), &plan); err != nil {
 		return err
@@ -64,7 +57,6 @@ func recordUpdate(ctx context.Context, opts updateOptions, exec executor) (resul
 			return fmt.Errorf("cluster %s already exists; recording requires a fresh cluster", cluster)
 		}
 	}
-	checkDir := ""
 	defer func() {
 		// Cancellation must still allow deletion of the temporary cluster.
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
@@ -78,9 +70,6 @@ func recordUpdate(ctx context.Context, opts updateOptions, exec executor) (resul
 		if err := os.Remove(kubeconfig); err != nil && !errors.Is(err, os.ErrNotExist) {
 			cleanupErr = errors.Join(cleanupErr, err)
 		}
-		if checkDir != "" {
-			cleanupErr = errors.Join(cleanupErr, removeCheckDirectory(checkDir))
-		}
 		if cleanupErr != nil {
 			if result == nil {
 				result = fmt.Errorf("clean recording environment: %w", cleanupErr)
@@ -88,21 +77,9 @@ func recordUpdate(ctx context.Context, opts updateOptions, exec executor) (resul
 				fmt.Fprintf(exec.stderr, "clean recording environment: %v\n", cleanupErr)
 			}
 		}
-		if result == nil {
-			manifest, err := candidateManifest(ctx, opts.Root, candidate)
-			if err == nil {
-				err = writeJSONFile(filepath.Join(opts.Artifacts, "manifest.json"), manifest)
-			}
-			result = err
-		}
-		if result != nil {
-			if err := os.Remove(filepath.Join(opts.Artifacts, "manifest.json")); err != nil && !errors.Is(err, os.ErrNotExist) {
-				fmt.Fprintf(exec.stderr, "remove failed recording evidence: %v\n", err)
-			}
-		}
 	}()
 
-	patch, err := gitOutput(ctx, opts.Root, "diff", "--", "hack/e2e/global.env")
+	patch, err := gitOutput(ctx, opts.Root, "diff", opts.BaseSHA, "--", pinsPath)
 	if err != nil {
 		return err
 	}
@@ -150,34 +127,7 @@ func recordUpdate(ctx context.Context, opts updateOptions, exec executor) (resul
 		return err
 	}
 
-	// Presubmit requires committed files; Renovate creates the published commit.
-	checkDir, err = os.MkdirTemp(opts.RunnerTemp, "operator-check-")
-	if err != nil {
-		return err
-	}
-	if err := exec.run(ctx, "git", "clone", "--quiet", "--shared", opts.Root, checkDir); err != nil {
-		return err
-	}
-	if err := copyCandidate(opts.Root, checkDir, candidate); err != nil {
-		return err
-	}
-	check := exec
-	check.dir = checkDir
-	for _, args := range [][]string{
-		{"git", "config", "user.name", "CI validation"},
-		{"git", "config", "user.email", "ci@example.com"},
-		{"git", "add", "--", "hack/e2e/global.env", "test/e2e/recorded_data"},
-		{"git", "-c", "commit.gpgsign=false", "commit", "--quiet", "-s", "-m", "test(e2e): validate operator update recordings"},
-	} {
-		if err := check.run(ctx, args...); err != nil {
-			return err
-		}
-	}
-	if err := check.logged(ctx, filepath.Join(opts.Artifacts, "make-check.log"), "make", "check", "VERSION=0.0.0-main-"+opts.BaseSHA[:7]); err != nil {
-		return err
-	}
-	fmt.Fprintf(exec.stdout, "Validated %s in %s\n", opts.Group, opts.RunURL)
-	return nil
+	return validateCandidateChanges(ctx, opts.Root, candidate)
 }
 
 func collectClusterEvidence(ctx context.Context, exec executor, artifacts string) error {

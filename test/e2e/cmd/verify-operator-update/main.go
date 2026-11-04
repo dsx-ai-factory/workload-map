@@ -250,7 +250,7 @@ func verifyRecordings(root string, flows map[string]fixture, versions map[string
 		directories[kindDir] = true
 		versionDirs[versionDir] = true
 	}
-	seen := make(map[string]bool)
+	recordings := 0
 	for versionDir := range versionDirs {
 		// WalkDir does not follow child symlinks. Check its ancestors too, so a
 		// symlinked operator directory cannot import recordings from another run.
@@ -309,15 +309,15 @@ func verifyRecordings(root string, flows map[string]fixture, versions map[string
 			if states == 0 {
 				return fmt.Errorf("no STATE events in %s", path)
 			}
-			seen[path] = true
+			recordings++
 			return nil
 		})
 		if err != nil {
 			return fmt.Errorf("verify recordings: %w", err)
 		}
 	}
-	if len(seen) != len(expected) {
-		return fmt.Errorf("expected %d recordings, found %d", len(expected), len(seen))
+	if recordings != len(expected) {
+		return fmt.Errorf("expected %d recordings, found %d", len(expected), recordings)
 	}
 	return nil
 }

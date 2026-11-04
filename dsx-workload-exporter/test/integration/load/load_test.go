@@ -47,6 +47,8 @@ type scrapeStats struct {
 	err   error
 }
 
+const loadNamespace = "exporter-load"
+
 var deploymentGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
 
 func TestExporterLoad(t *testing.T) {
@@ -90,7 +92,7 @@ func TestExporterLoad(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), duration+5*time.Minute)
 	defer cancel()
-	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "exporter-load"}}
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: loadNamespace}}
 	if err := api.Create(ctx, ns); err != nil {
 		t.Fatal(err)
 	}

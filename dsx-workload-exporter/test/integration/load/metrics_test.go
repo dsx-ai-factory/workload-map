@@ -13,12 +13,19 @@ import (
 	"strconv"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 
 	collector "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/adapters/otel"
 )
+
+type resourceCollection struct {
+	namespace string
+	gvk       schema.GroupVersionKind
+}
 
 var phases = []string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Suspending", "Resuming", "Undefined"}
 
@@ -119,7 +126,7 @@ func checkFleet(families map[string]*dto.MetricFamily, fleet []workload) error {
 			return fmt.Errorf("unexpected or repeated Pod UID %s", l["pod_uid"])
 		}
 		seenPods[l["pod_uid"]] = true
-		if l["workload_uid"] != string(w.root.UID) || l["workload_name"] != w.root.Name || l["pod_name"] != names[l["pod_uid"]] {
+		if l["namespace"] != w.root.Namespace || l["workload_group"] != deploymentGVK.Group || l["workload_version"] != deploymentGVK.Version || l["workload_kind"] != deploymentGVK.Kind || l["workload_uid"] != string(w.root.UID) || l["workload_name"] != w.root.Name || l["pod_name"] != names[l["pod_uid"]] {
 			return fmt.Errorf("incorrect Pod identity %v", l)
 		}
 		if l["root_revision"] != strconv.Itoa(w.revision) || l["pod_revision"] != strconv.Itoa(w.revision) {
@@ -146,7 +153,7 @@ func checkFleet(families map[string]*dto.MetricFamily, fleet []workload) error {
 		if l["phase"] == w.phase {
 			want = 1
 		}
-		if sample.GetGauge().GetValue() != want || l["root_revision"] != strconv.Itoa(w.revision) || l["observation_valid"] != "true" || l["workload_name"] != w.root.Name {
+		if l["namespace"] != w.root.Namespace || l["workload_group"] != deploymentGVK.Group || l["workload_version"] != deploymentGVK.Version || l["workload_kind"] != deploymentGVK.Kind || sample.GetGauge().GetValue() != want || l["root_revision"] != strconv.Itoa(w.revision) || l["observation_valid"] != "true" || l["workload_name"] != w.root.Name {
 			return fmt.Errorf("stale status for %s phase %s revision %s", w.root.Name, l["phase"], l["root_revision"])
 		}
 	}
@@ -162,22 +169,32 @@ func checkFleet(families map[string]*dto.MetricFamily, fleet []workload) error {
 			return fmt.Errorf("unexpected creation identity %v", l)
 		}
 		seenCreated[l["workload_uid"]] = true
-		if sample.GetGauge().GetValue() != float64(w.root.CreationTimestamp.Unix()) || l["workload_name"] != w.root.Name {
+		if l["namespace"] != w.root.Namespace || sample.GetGauge().GetValue() != float64(w.root.CreationTimestamp.Unix()) || l["workload_name"] != w.root.Name {
 			return fmt.Errorf("incorrect creation timestamp for %s", w.root.Name)
 		}
 	}
-	healthy := map[string]bool{}
-	for _, sample := range families[collector.MetricExporterObservationValid].GetMetric() {
+	healthy := map[resourceCollection]bool{
+		{gvk: schema.GroupVersionKind{Version: "v1", Kind: "Namespace"}}:                                           false,
+		{gvk: schema.GroupVersionKind{Group: "run.ai", Version: "v1alpha1", Kind: "Karta"}}:                        false,
+		{namespace: loadNamespace, gvk: schema.GroupVersionKind{Version: "v1", Kind: "Pod"}}:                       false,
+		{namespace: loadNamespace, gvk: deploymentGVK}:                                                             false,
+		{namespace: loadNamespace, gvk: schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "ReplicaSet"}}: false,
+	}
+	healthRows := families[collector.MetricExporterObservationValid].GetMetric()
+	if len(healthRows) != len(healthy) {
+		return fmt.Errorf("health rows=%d want=%d", len(healthRows), len(healthy))
+	}
+	for _, sample := range healthRows {
 		l := labels(sample)
-		if l["scope"] != "resource_type" || sample.GetGauge().GetValue() != 1 || l["reason"] != "none" {
+		if l["scope"] != "resource_type" || sample.GetGauge().GetValue() != 1 || l["reason"] != "none" || l["workload_name"] != "" || l["workload_uid"] != "" {
 			return fmt.Errorf("unexpected health row %v value=%g", l, sample.GetGauge().GetValue())
 		}
-		healthy[l["resource_kind"]] = true
-	}
-	for _, kind := range []string{"Pod", "Deployment", "ReplicaSet"} {
-		if !healthy[kind] {
-			return fmt.Errorf("missing healthy %s resource collection", kind)
+		identity := resourceCollection{namespace: l["namespace"], gvk: schema.GroupVersionKind{Group: l["resource_group"], Version: l["resource_version"], Kind: l["resource_kind"]}}
+		seen, expected := healthy[identity]
+		if !expected || seen {
+			return fmt.Errorf("unexpected or repeated health identity %v", l)
 		}
+		healthy[identity] = true
 	}
 	return nil
 }

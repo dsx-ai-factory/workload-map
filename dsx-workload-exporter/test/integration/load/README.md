@@ -30,7 +30,8 @@ memory measurements. No machine-dependent throughput limits are enforced.
 This exercises real API requests, watches and exporter metrics. Envtest has no
 scheduler, kubelets or workload controllers. The test supplies objects and
 status changes directly, so it does not measure Pod startup or cluster capacity.
-It runs only through the load target; ordinary tests compile it but skip the run.
+It runs when `EXPORTER_LOAD=1` is set, including through the load target.
+Ordinary tests compile it but skip the run.
 
 The Exporter load CI job runs three times for changes to the exporter, SDK,
 chart, Makefile or CI workflow. Its `exporter-load-results` artifact contains

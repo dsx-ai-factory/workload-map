@@ -19,7 +19,18 @@ and failure logs stay in `.artifacts/exporter-e2e/<cluster-name>`; the current k
 is not changed. Set `EXPORTER_E2E_CLUSTER` to choose another isolated cluster name.
 
 The suite uses Ginkgo/Gomega under `<module>/test/e2e`, like the operator.
-Its eight specs run in order because permission coverage reuses the lifecycle
+Start with the file for the behavior being tested. Each scenario contains its
+own `It` body.
+
+| File | What it contains |
+| --- | --- |
+| `workloads_test.go` | Pod and Job lifecycles, dynamic Karta definitions, permission failure and recovery. |
+| `operators_test.go` | JobSet components and completion; LeaderWorkerSet groups and scale-down. |
+| `namespace_test.go` | Moving a populated namespace between exporter shards. |
+| `suite_test.go` | Suite entry point, setup, cleanup, Kubernetes commands and metric helpers. |
+
+All eight specs run serially because they share exporter installations. The five
+native workload specs also run in order: permission coverage reuses the lifecycle
 Job. Shared namespaces are retained if any spec fails.
 
 Tests sample metrics every 250ms. Controlled workload stages remain in place

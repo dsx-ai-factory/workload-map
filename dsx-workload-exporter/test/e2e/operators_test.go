@@ -37,193 +37,195 @@ type operatorWorkload struct {
 	} `json:"status"`
 }
 
-func testJobSet() {
-	applyFixture("jobset")
-	var root operatorWorkload
-	var pods corev1.PodList
-	var jobs batchv1.JobList
-	eventually("JobSet has three running Pods owned through three Jobs", func() bool {
-		if !readObject(&root, "jobset", "component-jobs") ||
-			!readObject(&pods, "pods", "-l", "exporter-e2e-case=jobset") || len(pods.Items) != 3 ||
-			!readObject(&jobs, "jobs", "-l", "jobset.sigs.k8s.io/jobset-name=component-jobs") || len(jobs.Items) != 3 {
-			return false
-		}
-		for _, pod := range pods.Items {
-			owner := metav1.GetControllerOf(&pod)
-			if owner == nil || owner.Kind != "Job" || !containerRunning(pod.Status.ContainerStatuses, "work") {
+var _ = Describe("Operator workloads", Serial, func() {
+	It("JobSet components and completion", func() {
+		applyFixture("jobset")
+		var root operatorWorkload
+		var pods corev1.PodList
+		var jobs batchv1.JobList
+		eventually("JobSet has three running Pods owned through three Jobs", func() bool {
+			if !readObject(&root, "jobset", "component-jobs") ||
+				!readObject(&pods, "pods", "-l", "exporter-e2e-case=jobset") || len(pods.Items) != 3 ||
+				!readObject(&jobs, "jobs", "-l", "jobset.sigs.k8s.io/jobset-name=component-jobs") || len(jobs.Items) != 3 {
 				return false
 			}
-			found := false
-			for _, job := range jobs.Items {
-				jobOwner := metav1.GetControllerOf(&job)
-				if job.UID == owner.UID && jobOwner != nil && jobOwner.Kind == "JobSet" && jobOwner.UID == root.UID {
-					found = true
+			for _, pod := range pods.Items {
+				owner := metav1.GetControllerOf(&pod)
+				if owner == nil || owner.Kind != "Job" || !containerRunning(pod.Status.ContainerStatuses, "work") {
+					return false
+				}
+				found := false
+				for _, job := range jobs.Items {
+					jobOwner := metav1.GetControllerOf(&job)
+					if job.UID == owner.UID && jobOwner != nil && jobOwner.Kind == "JobSet" && jobOwner.UID == root.UID {
+						found = true
+					}
+				}
+				if !found {
+					return false
 				}
 			}
-			if !found {
-				return false
-			}
-		}
-		return true
-	})
-	waitStatus := func(completed bool) {
-		GinkgoHelper()
-		eventually(fmt.Sprintf("JobSet controller status and metrics, completed=%t", completed), func() bool {
-			var current operatorWorkload
-			if !readObject(&current, "jobset", root.Name) || len(current.Status.ReplicatedJobsStatus) != 2 {
-				return false
-			}
-			conditions := conditionStatuses(current)
-			if (conditions["Completed"] == metav1.ConditionTrue) != completed || conditions["Failed"] == metav1.ConditionTrue || conditions["Suspended"] == metav1.ConditionTrue {
-				return false
-			}
-			var phases []string
-			initializing, running := false, false
-			for _, status := range current.Status.ReplicatedJobsStatus {
-				want := int32(0)
-				if !completed {
-					switch status.Name {
-					case "workers":
-						want = 2
-					case "evaluator":
-						want = 1
-					default:
+			return true
+		})
+		waitStatus := func(completed bool) {
+			GinkgoHelper()
+			eventually(fmt.Sprintf("JobSet controller status and metrics, completed=%t", completed), func() bool {
+				var current operatorWorkload
+				if !readObject(&current, "jobset", root.Name) || len(current.Status.ReplicatedJobsStatus) != 2 {
+					return false
+				}
+				conditions := conditionStatuses(current)
+				if (conditions["Completed"] == metav1.ConditionTrue) != completed || conditions["Failed"] == metav1.ConditionTrue || conditions["Suspended"] == metav1.ConditionTrue {
+					return false
+				}
+				var phases []string
+				initializing, running := false, false
+				for _, status := range current.Status.ReplicatedJobsStatus {
+					want := int32(0)
+					if !completed {
+						switch status.Name {
+						case "workers":
+							want = 2
+						case "evaluator":
+							want = 1
+						default:
+							return false
+						}
+					}
+					if status.Active != want || status.Failed != 0 {
+						return false
+					}
+					initializing = initializing || status.Active > 0 && status.Ready == 0
+					running = running || status.Active > 0 || status.Ready > 0
+				}
+				if completed {
+					phases = append(phases, "Completed")
+				}
+				if running {
+					phases = append(phases, "Running")
+				}
+				if initializing {
+					phases = append(phases, "Initializing")
+				}
+				fs := pollMetrics("a")
+				if fs == nil || !hasOperatorStatus(fs, current, "jobset-x-k8s-io-jobset-v1alpha2", phases...) || len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(root.UID)})) != 3 {
+					return false
+				}
+				instances := map[string]int{}
+				for _, pod := range pods.Items {
+					instance := pod.Labels["jobset.sigs.k8s.io/replicatedjob-name"]
+					instances[instance]++
+					if !hasOperatorPod(fs, root, pod, "replicatedjob", instance, "") {
 						return false
 					}
 				}
-				if status.Active != want || status.Failed != 0 {
-					return false
-				}
-				initializing = initializing || status.Active > 0 && status.Ready == 0
-				running = running || status.Active > 0 || status.Ready > 0
-			}
-			if completed {
-				phases = append(phases, "Completed")
-			}
-			if running {
-				phases = append(phases, "Running")
-			}
-			if initializing {
-				phases = append(phases, "Initializing")
-			}
-			fs := pollMetrics("a")
-			if fs == nil || !hasOperatorStatus(fs, current, "jobset-x-k8s-io-jobset-v1alpha2", phases...) || len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(root.UID)})) != 3 {
-				return false
-			}
-			instances := map[string]int{}
-			for _, pod := range pods.Items {
-				instance := pod.Labels["jobset.sigs.k8s.io/replicatedjob-name"]
-				instances[instance]++
-				if !hasOperatorPod(fs, root, pod, "replicatedjob", instance, "") {
-					return false
-				}
-			}
-			return instances["workers"] == 2 && instances["evaluator"] == 1
-		})
-	}
-	waitStatus(false)
-	for _, pod := range pods.Items {
-		command("", "exec", "-n", namespace, pod.Name, "-c", "work", "--", "touch", "/tmp/finish")
-	}
-	waitStatus(true)
-	command("", "delete", "jobset", root.Name, "-n", namespace, "--cascade=foreground", "--wait=true", "--timeout=30s")
-	eventually("deleted JobSet and descendant metrics removed", func() bool {
-		var remaining corev1.PodList
-		if !readObject(&remaining, "pods", "-l", "exporter-e2e-case=jobset") || len(remaining.Items) != 0 {
-			return false
+				return instances["workers"] == 2 && instances["evaluator"] == 1
+			})
 		}
-		fs := pollMetrics("a")
-		if fs == nil {
-			return false
-		}
-		for _, family := range workloadFamilies {
-			if len(matching(fs, family, map[string]string{"workload_uid": string(root.UID)})) != 0 {
-				return false
-			}
-		}
+		waitStatus(false)
 		for _, pod := range pods.Items {
-			if len(matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": string(pod.UID)})) != 0 {
-				return false
-			}
+			command("", "exec", "-n", namespace, pod.Name, "-c", "work", "--", "touch", "/tmp/finish")
 		}
-		return true
-	})
-}
-
-func testLeaderWorkerSet() {
-	applyFixture("leaderworkerset")
-	var root operatorWorkload
-	var pods corev1.PodList
-	retained := map[types.UID]bool{}
-	removed := map[types.UID]bool{}
-	waitReady := func(replicas int32) {
-		GinkgoHelper()
-		eventually(fmt.Sprintf("LeaderWorkerSet has %d ready groups and exact Pod metrics", replicas), func() bool {
-			var current operatorWorkload
-			var currentPods corev1.PodList
-			if !readObject(&current, "leaderworkerset", "worker-groups") || current.Status.ReadyReplicas != replicas || current.Status.Replicas != replicas || current.Status.UpdatedReplicas != replicas ||
-				!readObject(&currentPods, "pods", "-l", "leaderworkerset.sigs.k8s.io/name=worker-groups") || len(currentPods.Items) != int(replicas)*2 {
+		waitStatus(true)
+		command("", "delete", "jobset", root.Name, "-n", namespace, "--cascade=foreground", "--wait=true", "--timeout=30s")
+		eventually("deleted JobSet and descendant metrics removed", func() bool {
+			var remaining corev1.PodList
+			if !readObject(&remaining, "pods", "-l", "exporter-e2e-case=jobset") || len(remaining.Items) != 0 {
 				return false
-			}
-			if root.UID != "" && current.UID != root.UID {
-				return false
-			}
-			conditions := conditionStatuses(current)
-			if conditions["Available"] != metav1.ConditionTrue {
-				return false
-			}
-			phases := []string{"Running"}
-			if conditions["Progressing"] == metav1.ConditionTrue {
-				phases = append(phases, "Initializing")
 			}
 			fs := pollMetrics("a")
-			if fs == nil || !hasOperatorStatus(fs, current, "leaderworkerset-x-k8s-io-leaderworkerset-v1", phases...) || len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(current.UID)})) != int(replicas)*2 {
+			if fs == nil {
 				return false
 			}
-			groups := map[string]map[string]bool{}
-			for _, pod := range currentPods.Items {
-				component := "worker"
-				if pod.Labels["leaderworkerset.sigs.k8s.io/worker-index"] == "0" {
-					component = "leader"
-				}
-				group := pod.Labels["leaderworkerset.sigs.k8s.io/group-index"]
-				if pod.DeletionTimestamp != nil || !containerRunning(pod.Status.ContainerStatuses, "work") || !hasOperatorPod(fs, current, pod, component, "", group) {
-					return false
-				}
-				if replicas == 1 && (group != "0" || !retained[pod.UID]) {
-					return false
-				}
-				if groups[group] == nil {
-					groups[group] = map[string]bool{}
-				}
-				groups[group][component] = true
-			}
-			for group := int32(0); group < replicas; group++ {
-				members := groups[strconv.Itoa(int(group))]
-				if !members["leader"] || !members["worker"] {
+			for _, family := range workloadFamilies {
+				if len(matching(fs, family, map[string]string{"workload_uid": string(root.UID)})) != 0 {
 					return false
 				}
 			}
-			for uid := range removed {
-				if len(matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": string(uid)})) != 0 {
+			for _, pod := range pods.Items {
+				if len(matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": string(pod.UID)})) != 0 {
 					return false
 				}
 			}
-			root, pods = current, currentPods
 			return true
 		})
-	}
-	waitReady(2)
-	for _, pod := range pods.Items {
-		if pod.Labels["leaderworkerset.sigs.k8s.io/group-index"] == "0" {
-			retained[pod.UID] = true
-		} else {
-			removed[pod.UID] = true
+	})
+
+	It("LeaderWorkerSet groups and scale down", func() {
+		applyFixture("leaderworkerset")
+		var root operatorWorkload
+		var pods corev1.PodList
+		retained := map[types.UID]bool{}
+		removed := map[types.UID]bool{}
+		waitReady := func(replicas int32) {
+			GinkgoHelper()
+			eventually(fmt.Sprintf("LeaderWorkerSet has %d ready groups and exact Pod metrics", replicas), func() bool {
+				var current operatorWorkload
+				var currentPods corev1.PodList
+				if !readObject(&current, "leaderworkerset", "worker-groups") || current.Status.ReadyReplicas != replicas || current.Status.Replicas != replicas || current.Status.UpdatedReplicas != replicas ||
+					!readObject(&currentPods, "pods", "-l", "leaderworkerset.sigs.k8s.io/name=worker-groups") || len(currentPods.Items) != int(replicas)*2 {
+					return false
+				}
+				if root.UID != "" && current.UID != root.UID {
+					return false
+				}
+				conditions := conditionStatuses(current)
+				if conditions["Available"] != metav1.ConditionTrue {
+					return false
+				}
+				phases := []string{"Running"}
+				if conditions["Progressing"] == metav1.ConditionTrue {
+					phases = append(phases, "Initializing")
+				}
+				fs := pollMetrics("a")
+				if fs == nil || !hasOperatorStatus(fs, current, "leaderworkerset-x-k8s-io-leaderworkerset-v1", phases...) || len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(current.UID)})) != int(replicas)*2 {
+					return false
+				}
+				groups := map[string]map[string]bool{}
+				for _, pod := range currentPods.Items {
+					component := "worker"
+					if pod.Labels["leaderworkerset.sigs.k8s.io/worker-index"] == "0" {
+						component = "leader"
+					}
+					group := pod.Labels["leaderworkerset.sigs.k8s.io/group-index"]
+					if pod.DeletionTimestamp != nil || !containerRunning(pod.Status.ContainerStatuses, "work") || !hasOperatorPod(fs, current, pod, component, "", group) {
+						return false
+					}
+					if replicas == 1 && (group != "0" || !retained[pod.UID]) {
+						return false
+					}
+					if groups[group] == nil {
+						groups[group] = map[string]bool{}
+					}
+					groups[group][component] = true
+				}
+				for group := int32(0); group < replicas; group++ {
+					members := groups[strconv.Itoa(int(group))]
+					if !members["leader"] || !members["worker"] {
+						return false
+					}
+				}
+				for uid := range removed {
+					if len(matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": string(uid)})) != 0 {
+						return false
+					}
+				}
+				root, pods = current, currentPods
+				return true
+			})
 		}
-	}
-	command("", "patch", "leaderworkerset", root.Name, "-n", namespace, "--type=merge", "-p", `{"spec":{"replicas":1}}`)
-	waitReady(1)
-}
+		waitReady(2)
+		for _, pod := range pods.Items {
+			if pod.Labels["leaderworkerset.sigs.k8s.io/group-index"] == "0" {
+				retained[pod.UID] = true
+			} else {
+				removed[pod.UID] = true
+			}
+		}
+		command("", "patch", "leaderworkerset", root.Name, "-n", namespace, "--type=merge", "-p", `{"spec":{"replicas":1}}`)
+		waitReady(1)
+	})
+})
 
 func applyFixture(name string) {
 	GinkgoHelper()

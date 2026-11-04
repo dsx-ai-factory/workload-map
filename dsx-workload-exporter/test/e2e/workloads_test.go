@@ -17,7 +17,7 @@ import (
 )
 
 // The permission scenario reuses the completed Job from the lifecycle scenario.
-var _ = Describe("Exporter", Serial, Ordered, ContinueOnFailure, func() {
+var _ = Describe("Native workloads", Serial, Ordered, ContinueOnFailure, func() {
 	It("standalone Pod lifecycle and deletion", func() {
 		apply(`apiVersion: v1
 kind: Pod
@@ -202,7 +202,6 @@ spec:
 		})
 	})
 
-	It("namespace selector handoff", testNamespaceHandoff)
 	It("slow Job lifecycle", func() {
 		apply(`apiVersion: batch/v1
 kind: Job
@@ -252,9 +251,6 @@ spec:
 		command("", "exec", "-n", namespace, pod, "-c", "work", "--", "touch", "/gates/finish")
 		phase("slow-job", "Completed")
 	})
-
-	It("JobSet components and completion", testJobSet)
-	It("LeaderWorkerSet groups and scale down", testLeaderWorkerSet)
 
 	It("permission failure and recovery", func() {
 		// Keep the original namespace authorized if its Job watch reconnects.

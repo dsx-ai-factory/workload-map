@@ -218,8 +218,11 @@ func (r *controllerState) updateWatchHealth(w *resourceWatch, err error) {
 	}
 	if recovered {
 		r.enqueueScopeRefresh(w.key.Namespace)
-		for uid := range r.roots {
-			r.workloadQueue.Add(workloadJobKey{RootUID: uid})
+		// A namespaced source feeds only the roots in its namespace; a cluster-wide one feeds all.
+		for uid, root := range r.roots {
+			if w.key.Namespace == "" || root.ref.Namespace == w.key.Namespace {
+				r.workloadQueue.Add(workloadJobKey{RootUID: uid})
+			}
 		}
 	}
 	if w.gvk == namespaceGVK {
@@ -316,9 +319,9 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 				return
 			case event, ok := <-stream.ResultChan():
 				if !ok {
-					if ctx.Err() == nil && !monitored.Stopping() {
-						r.setWatchHealth(w, errors.New("watch closed"))
-					}
+					// The server ends watches routinely. The reflector resumes from the last
+					// resourceVersion, or relists through Replace, so a close is not a failure;
+					// a restart that fails reports itself through recordWatchStart.
 					return
 				}
 				if event.Type == watch.Error {

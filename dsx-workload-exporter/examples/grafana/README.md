@@ -20,8 +20,9 @@ workload name to open its structure with the same datasource and source jobs.
 
 [Import Workload Structure](workload-structure.json). Select one workload by UID.
 Follow its components, instances, groups and Pods in the graph. Nodes show maximum
-measured GPU utilization and framebuffer use. Click a node for CPU, working-set
-memory and identity details. Grafana opens these details on click, not hover.
+measured GPU utilization and GPU memory used. VRAM values are in GiB, as labeled
+in the graph legend and node details. Click a node for CPU, working-set memory
+and identity details. Grafana opens these details on click, not hover.
 The exact attribution table remains available below the graph.
 
 ![Workload structure, resource details and phase history](screenshots/workload-structure.png)
@@ -91,7 +92,7 @@ Use one external source job and one measurement stream per container or GPU
 entity after source deduplication. cAdvisor joins retain their
 [Pod-name reuse and rate-window limits](../../../docs/dsx-workload-exporter/queries.md#2-cpu-and-memory-by-component-instance-and-group).
 
-GPU framebuffer use is memory reported by the matched GPU devices. Shared device
+VRAM use is GPU framebuffer memory reported by the matched GPU devices. Shared device
 rows count once within each graph node or workload, including MIG entity identity.
 Conflicting readings are excluded; missing devices make coverage partial. It is not a
 measurement of memory allocated by an individual process. Low GPU utilization

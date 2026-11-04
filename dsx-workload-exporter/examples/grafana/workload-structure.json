@@ -857,14 +857,14 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Graph: orange = workload, blue = component, purple = instance, gray = replica group, green = Pod. Node values: GPU utilization / GPU framebuffer. Click a node for CPU, memory and identity details. Select optional cAdvisor and DCGM jobs to add measurements. N/A means no accepted measurement."
+        "content": "Graph: orange = workload, blue = component, purple = instance, gray = replica group, green = Pod. Node values: GPU utilization / VRAM used (GiB). Click a node for CPU, memory and identity details. Select optional cAdvisor and DCGM jobs to add measurements. N/A means no accepted measurement."
       },
       "transparent": true
     },
     {
       "id": 4,
       "title": "Workload structure | GPU, memory and CPU",
-      "description": "Published attribution, not ownerReferences or desired replicas. Node labels show names and types. Inside each node: maximum measured GPU utilization and used GPU framebuffer. Click a node for CPU cores, working-set memory and identity details. Resource measurements are optional. Missing or rejected telemetry stays unavailable; nodes remain visible. Framebuffer totals count each UUID/MIG entity once per node. They describe device memory use, not per-process allocation. Solid edges show attribution; dashed edges show logical replica-group membership. Colors identify object types, not health.",
+      "description": "Published attribution, not ownerReferences or desired replicas. Node labels show names and types. Inside each node: maximum measured GPU utilization and GPU memory (VRAM) used in GiB. Click a node for CPU cores, working-set memory and identity details. Resource measurements are optional. Missing or rejected telemetry stays unavailable; nodes remain visible. VRAM totals count each UUID/MIG entity once per node. They describe device memory use, not per-process allocation. Solid edges show attribution; dashed edges show logical replica-group membership. Colors identify object types, not health.",
       "type": "nodeGraph",
       "gridPos": {
         "x": 0,
@@ -905,7 +905,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "GPU framebuffer used"
+                "value": "VRAM used (GiB)"
               },
               {
                 "id": "unit",
@@ -1036,7 +1036,7 @@
         "zoomMode": "cooperative",
         "nodes": {
           "mainStatUnit": "%",
-          "secondaryStatUnit": "GiB"
+          "secondaryStatUnit": "VRAM"
         },
         "edges": {}
       },
@@ -1255,7 +1255,7 @@
             "indexByName": {},
             "renameByName": {
               "mainstat": "GPU max utilization",
-              "secondarystat": "GPU framebuffer used",
+              "secondarystat": "VRAM used (GiB)",
               "detail__cpu_cores": "CPU cores (5m)",
               "detail__memory_mib": "Working-set memory (MiB)",
               "detail__workload_uid": "Workload UID",

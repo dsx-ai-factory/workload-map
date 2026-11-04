@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+operator:
+  enabled: false
+crdUpgrader:
+  enabled: false
+exporter:
+  enabled: true
+  image:
+    repository: dsx-workload-exporter
+    tag: e2e
+    pullPolicy: Never
+  namespaceSelector:
+    matchExpressions: []
+  kartaDefinitionSource:
+    catalog:
+      enabled: true
+      include: [core-pod-v1, batch-job-v1]
+  requiredKinds:
+    - v1/Pod
+    - apps/v1/Deployment
+    - batch/v1/Job
+  rbac:
+    workloadRules:
+      - apiGroups: [""]
+        resources: [pods]
+      - apiGroups: [apps]
+        resources: [deployments, replicasets]
+      - apiGroups: [batch]
+        resources: [jobs]

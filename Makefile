@@ -480,7 +480,7 @@ exporter-version-smoke: build-exporter ## Verify the exporter reports the stampe
 		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
 
 .PHONY: check-exporter
-check-exporter: fmt-check-exporter vet-exporter lint-exporter modules-check-exporter test-exporter exporter-version-smoke ## Full exporter presubmit
+check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter test-exporter exporter-version-smoke ## Full exporter presubmit
 
 EXPORTER_GO_VERSION := $(shell awk '/^go /{print $$2; exit}' dsx-workload-exporter/go.mod)
 EXPORTER_IMAGE_REPOSITORY ?= $(IMAGE_REGISTRY)/dsx-workload-exporter
@@ -747,6 +747,20 @@ build-operator-e2e: ## Compile the operator e2e suite without running it (no clu
 test-operator-e2e: ## Run the operator e2e against the current cluster (KARTA_WEBHOOK_MODE must match the one e2e-up installed; CLUSTER_NAME for a named one)
 	CLUSTER_NAME=$(CLUSTER_NAME) KARTA_WEBHOOK_MODE=$(KARTA_WEBHOOK_MODE) $(E2E_KUBECONFIG) ./hack/e2e/karta-operator/test.sh
 
+.PHONY: exporter-e2e-up test-exporter-e2e exporter-e2e-down build-exporter-e2e
+exporter-e2e-up: ## Create an isolated Kind cluster and install two exporter shards
+	./hack/e2e/dsx-workload-exporter/up.sh
+
+test-exporter-e2e: ## Run exporter E2E against its isolated Kind cluster
+	./hack/e2e/dsx-workload-exporter/test.sh
+
+exporter-e2e-down: ## Delete the isolated exporter Kind cluster
+	./hack/e2e/dsx-workload-exporter/down.sh
+
+build-exporter-e2e: ## Compile exporter E2E tests without a cluster
+	cd dsx-workload-exporter && go test -tags e2e -run '^$$' ./test/e2e/...
+
+
 .PHONY: e2e-down
 e2e-down: ## Tear down the e2e cluster (set CLUSTER_NAME for a named one)
 	CLUSTER_NAME=$(CLUSTER_NAME) ./hack/e2e/down.sh
@@ -770,6 +784,7 @@ verify-recordings: ## Fail if any recorded fixture ended with succeeded false (r
 # The e2e shell scripts to shellcheck: the provisioner, teardown, the karta-operator
 # scripts, the shared helpers, and every per-operator install.sh/verify.sh.
 E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh \
+	$(wildcard hack/e2e/dsx-workload-exporter/*.sh) \
 	$(wildcard hack/e2e/karta-operator/*.sh) \
 	hack/e2e/operators/_common.sh \
 	$(wildcard hack/e2e/operators/*/install.sh) \

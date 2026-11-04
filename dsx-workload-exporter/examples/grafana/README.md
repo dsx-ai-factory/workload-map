@@ -13,6 +13,9 @@ editable examples for an existing Grafana and Prometheus installation.
 come first. Workload charts, inventory, phase history and component details follow.
 Use the workload filter to narrow the overview. Component and instance filters
 apply to the component sections. Select a workload name to open its structure.
+The Activity timeline filter defaults to GPU workloads, with Active first. Choose
+Active only or All workloads as needed. It uses the last accepted state in the
+selected range and preserves each displayed workload's earlier transitions.
 
 The overview includes VRAM usage, workload age, zero-Pod roots, independent phase
 history and collection failures. Expand the detail sections when needed.
@@ -28,10 +31,15 @@ Follow its components, instances, groups and Pods in the graph. Nodes show maxim
 measured GPU utilization and GPU memory used. Graph VRAM values use GB (decimal
 gigabytes). Click a node for CPU, RAM consumption and identity details. RAM is
 container working-set memory, shown in MiB. Grafana opens these details on click, not hover.
-Status and phase history follow the graph. The exact attribution table remains
-available below them.
+Status and phase history follow the graph. GPU, VRAM, CPU and RAM history remain
+queryable after a workload completes, while its samples are retained. The graph
+uses the end of the selected time range. Blank node values mean no accepted
+measurement at that time. Set an earlier end time to inspect a running snapshot.
+The exact attribution table remains available below the histories.
 
-![Workload structure, resource details and phase history](screenshots/workload-structure.png)
+![Workload structure with GPU and VRAM measurements](screenshots/workload-structure.png)
+
+![GPU, VRAM, CPU and RAM histories](screenshots/workload-resource-history.png)
 
 [Metric Samples](metric-samples.json) is an optional troubleshooting dashboard.
 It shows all labels and exporter targets for any of the four raw DSX metrics.
@@ -122,8 +130,10 @@ of Active and Low activity; the dashboard does not infer them from a percentage.
 
 Phase flags are independent: a workload can match more than one phase. The
 history keeps separate rows instead of inventing a priority between phases.
-Colored intervals identify the matching phase. Gaps mean no accepted observation,
-not a successful or stopped workload. Prometheus history starts when samples are
+For example, a PyTorchJob definition based on `Created=True` can keep matching
+Initializing after Completed. That overlap comes from the definition; the
+dashboard does not rewrite it. Colored intervals identify the matching phase.
+Gaps mean no accepted observation, not a successful or stopped workload. Prometheus history starts when samples are
 collected; these dashboards do not reconstruct earlier Kubernetes transitions.
 
 A zero-Pod root remains in the inventory and graph. Published Pod mapping counts
@@ -141,10 +151,11 @@ in those labels. An absent `team` label works.
 
 Tested with Grafana 13.2.4, Prometheus/promtool 3.14.0 and Kubernetes 1.34.0 on
 Kind, including imports, panel queries, graph details, workload links and Grafana
-served below a URL subpath. Overview uses isolated workloads and real cAdvisor
-CPU/memory measurements. The structure screenshot uses a synthetic hierarchy,
-resource values and phase transitions to show each level. GPU readings and
-activity states are synthetic fixtures; physical GPU collection was not tested.
+served below a URL subpath. Live playground checks also cover completed-workload
+history and all three activity filters. The overview, structure and history images
+show playground workloads with real cAdvisor CPU/memory and simulated GPU data.
+The component detail image uses an isolated fixture. Physical GPU collection was
+not tested.
 
 From this directory:
 

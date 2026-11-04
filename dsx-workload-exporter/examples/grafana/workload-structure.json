@@ -171,7 +171,7 @@
         "x": 0,
         "y": 0,
         "w": 24,
-        "h": 2
+        "h": 3
       },
       "fieldConfig": {
         "defaults": {
@@ -181,7 +181,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Select an exporter job, namespace and workload. Start with its structure and resource measurements, then inspect status and phase history below. Load `recording-rules.yaml` for inventory and attribution. Metric Samples contains raw evidence."
+        "content": "Select a workload. The graph shows measurements at the end of the selected time range. Completed or deleted Pods may have no current measurements. When collected, earlier GPU, VRAM, CPU and RAM samples remain in the resource history below."
       },
       "transparent": true
     },
@@ -192,9 +192,9 @@
       "type": "text",
       "gridPos": {
         "x": 0,
-        "y": 2,
+        "y": 3,
         "w": 24,
-        "h": 2
+        "h": 3
       },
       "fieldConfig": {
         "defaults": {
@@ -204,7 +204,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Graph: orange = workload, blue = component, purple = instance, gray = replica group, green = Pod. Node values: GPU utilization / VRAM used (GB). Click a node for CPU, RAM consumption and identity details. Select optional cAdvisor and DCGM jobs to add measurements. N/A means no accepted measurement."
+        "content": "Graph: orange = workload, blue = component, purple = instance, gray = replica group, green = Pod. Inside each node: GPU utilization / VRAM used (GB). Click for CPU and RAM. Blank values mean no accepted measurement, not zero. To inspect an earlier graph snapshot, set the time range end to a time when the workload was running."
       },
       "transparent": true
     },
@@ -215,7 +215,7 @@
       "type": "nodeGraph",
       "gridPos": {
         "x": 0,
-        "y": 4,
+        "y": 6,
         "w": 24,
         "h": 25
       },
@@ -725,7 +725,7 @@
       "type": "table",
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 31,
         "w": 15,
         "h": 5
       },
@@ -989,7 +989,7 @@
       "type": "stat",
       "gridPos": {
         "x": 15,
-        "y": 29,
+        "y": 31,
         "w": 9,
         "h": 5
       },
@@ -1056,12 +1056,12 @@
     },
     {
       "id": 7,
-      "title": "Phase history | status at each observed time",
-      "description": "Each row is an independent phase flag. Colored intervals name the matching phase; gray intervals mean that phase did not match. Hover an interval for its start and end times. Several phases can match at once. Gaps mean unavailable, invalid or disagreeing samples. Times reflect sampled observations at the query resolution, not exact lifecycle event timestamps.",
+      "title": "Phase history | independent definition matches",
+      "description": "Each row shows one definition expression, not a mutually exclusive lifecycle stage. For example, a definition mapped to Created=True can still match Initializing after Completed. This chart preserves those reported flags. Gray intervals mean not matching. Hover for sampled interval times. Gaps mean unavailable, invalid or disagreeing samples.",
       "type": "state-timeline",
       "gridPos": {
         "x": 0,
-        "y": 34,
+        "y": 36,
         "w": 24,
         "h": 10
       },
@@ -1078,7 +1078,7 @@
               "type": "value",
               "options": {
                 "0": {
-                  "text": "Not matching",
+                  "text": " ",
                   "color": "dark-gray"
                 },
                 "1": {
@@ -1113,7 +1113,7 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Not matching",
+                        "text": " ",
                         "color": "dark-gray"
                       },
                       "1": {
@@ -1139,7 +1139,7 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Not matching",
+                        "text": " ",
                         "color": "dark-gray"
                       },
                       "1": {
@@ -1165,7 +1165,7 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Not matching",
+                        "text": " ",
                         "color": "dark-gray"
                       },
                       "1": {
@@ -1191,7 +1191,7 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Not matching",
+                        "text": " ",
                         "color": "dark-gray"
                       },
                       "1": {
@@ -1217,7 +1217,7 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Not matching",
+                        "text": " ",
                         "color": "dark-gray"
                       },
                       "1": {
@@ -1243,7 +1243,7 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Not matching",
+                        "text": " ",
                         "color": "dark-gray"
                       },
                       "1": {
@@ -1269,7 +1269,7 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Not matching",
+                        "text": " ",
                         "color": "dark-gray"
                       },
                       "1": {
@@ -1295,7 +1295,7 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Not matching",
+                        "text": " ",
                         "color": "dark-gray"
                       },
                       "1": {
@@ -1321,7 +1321,7 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Not matching",
+                        "text": " ",
                         "color": "dark-gray"
                       },
                       "1": {
@@ -1372,13 +1372,271 @@
       ]
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Maximum measured device utilization, not allocated capacity or idleness. Requires DCGM namespace, nonempty pod_uid and UUID. Out-of-range samples and conflicting device streams are rejected. Open a workload for component and Pod attribution. Samples are historical. Gaps after completion do not mean zero usage.",
+      "fieldConfig": {
+        "defaults": {
+          "max": 100,
+          "min": 0,
+          "unit": "percent",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false,
+            "lineInterpolation": "linear"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 46,
+        "w": 12,
+        "h": 7
+      },
+      "id": 9,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{workload_name}}"
+        }
+      ],
+      "title": "GPU utilization history",
+      "type": "timeseries",
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "interval": "15s",
+      "maxDataPoints": 5760
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "VRAM (GPU framebuffer memory) reported by distinct matched GPU entities. Shared-device rows within a workload count once; conflicting readings are excluded. MiB are converted to bytes. This is device memory, not per-process allocation. Only the selected workload UID is shown. Missing samples remain gaps. Samples are historical. Gaps after completion do not mean zero usage.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "noValue": "Unavailable",
+          "unit": "suffix:GB VRAM"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 46,
+        "w": 12,
+        "h": 7
+      },
+      "id": 10,
+      "interval": "15s",
+      "maxDataPoints": 5760,
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "((sum by (namespace, workload_name, workload_uid) ((max by (namespace, workload_name, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) == min by (namespace, workload_name, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}))))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)) / 1000000000",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{workload_name}}"
+        }
+      ],
+      "title": "VRAM used history",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Five-minute average CPU cores. One selected cAdvisor job; identical streams collapse and ambiguous container identities are rejected. Pod-name joins can cross name reuse and apply current attribution to the rate window. Only the selected workload UID is shown. Missing samples remain gaps. Samples are historical. Gaps after completion do not mean zero usage.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "noValue": "Unavailable",
+          "unit": "suffix:mCPU"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 12,
+        "h": 7
+      },
+      "id": 11,
+      "interval": "15s",
+      "maxDataPoints": 5760,
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "1000 * (sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{workload_name}}"
+        }
+      ],
+      "title": "CPU usage history",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "cAdvisor working-set bytes. Missing streams remain unavailable. Pod-name joins cannot establish continuity across Pod replacement. Only the selected workload UID is shown. Missing samples remain gaps. Samples are historical. Gaps after completion do not mean zero usage.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "noValue": "Unavailable",
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 53,
+        "w": 12,
+        "h": 7
+      },
+      "id": 12,
+      "interval": "15s",
+      "maxDataPoints": 5760,
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{workload_name}}"
+        }
+      ],
+      "title": "RAM working-set history",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
       "id": 5,
       "title": "Exact accepted Pod attribution",
       "description": "Every label from the conflict-checked recording rule is retained. Only observation_valid=true rows are shown. This table includes a standalone Pod even when its graph uses the root node. Blank labels are not inferred.",
       "type": "table",
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 60,
         "w": 24,
         "h": 9
       },
@@ -1457,7 +1715,7 @@
       "type": "table",
       "gridPos": {
         "x": 0,
-        "y": 53,
+        "y": 69,
         "w": 24,
         "h": 10
       },

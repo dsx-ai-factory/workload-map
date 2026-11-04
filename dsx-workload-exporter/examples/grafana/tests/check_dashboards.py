@@ -60,6 +60,16 @@ def check(filename, uid):
             assert variable["datasource"] == DATASOURCE, (filename, variable["name"])
     if filename != "metric-samples.json":
         assert variables["namespace"]["multi"] is True, filename
+    if filename == "workload-overview.json":
+        activity_view = variables["activity_view"]
+        assert activity_view["type"] == "custom", filename
+        assert not activity_view.get("multi") and not activity_view.get("includeAll"), filename
+        assert activity_view["current"] == {"text": "GPU workloads", "value": "4"}, filename
+        assert {(option["text"], option["value"]) for option in activity_view["options"]} == {
+            ("GPU workloads", "4"), ("Active only", "1"), ("All workloads", "5")
+        }, filename
+        assert all("${activity_view:" not in json.dumps(panel)
+                   for panel in dashboard["panels"] if panel["id"] != 308), filename
     if filename == "workload-structure.json":
         assert not variables["workload_uid"].get("multi"), filename
         assert not variables["workload_uid"].get("includeAll"), filename
@@ -124,13 +134,13 @@ def check_fixture_expressions():
                     break
                 block.append(value.strip())
             entries.append((*match.groups(), " ".join(block)))
-    assert len(entries) == 12, "Expected core, node-resource, shared-device and observer fixtures"
+    assert len(entries) == 13, "Expected core, node-resource, shared-device and observer fixtures"
     for filename, panel_id, ref_id, expression in entries:
         dashboard = json.loads((ROOT / filename).read_text())
         panel = next(obj for obj in objects(dashboard) if obj.get("id") == int(panel_id))
         actual = next(target["expr"] for target in panel["targets"] if target["refId"] == ref_id)
-        for variable, value in {"exporter_job": "exporter", "namespace": "ns", "workload_uid": "multi", "dcgm_job": "dcgm", "cadvisor_job": "cadvisor", "workload": ".*", "component": ".*", "component_instance": ".*", "gpu_device": ".*", "observer_job": "observer", "__rate_interval": "5m"}.items():
-            actual = actual.replace("${" + variable + ":regex}", value).replace("$" + variable, value)
+        for variable, value in {"exporter_job": "exporter", "namespace": "ns", "workload_uid": "multi", "dcgm_job": "dcgm", "cadvisor_job": "cadvisor", "workload": ".*", "component": ".*", "component_instance": ".*", "gpu_device": ".*", "observer_job": "observer", "activity_view": "4", "__range_s": "300", "__interval": "30s", "__rate_interval": "5m"}.items():
+            actual = actual.replace("${" + variable + ":regex}", value).replace("${" + variable + ":raw}", value).replace("${" + variable + "}", value).replace("$" + variable, value)
         assert " ".join(actual.split()) == " ".join(expression.split()), (filename, panel_id, ref_id, "fixture query drift")
     print(f"PASS {len(entries)} fixture expressions match the shipped dashboard queries")
 

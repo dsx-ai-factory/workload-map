@@ -31,7 +31,7 @@ Use `--metrics-bind-address` to change the default `:8080` listener.
 ## Runtime configuration
 
 Use the [Helm installation guide](../docs/dsx-workload-exporter/installation.md)
-for a standalone catalog demo. The [configuration reference](../docs/dsx-workload-exporter/configuration.md)
+to deploy the exporter. The [configuration reference](../docs/dsx-workload-exporter/configuration.md)
 lists supported Helm settings, binary flags, environment variables and defaults.
 
 For the binary, put runtime settings at the YAML root without `exporter:`:

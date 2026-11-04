@@ -3,7 +3,7 @@
 
 # DSX workload exporter configuration
 
-For a catalog-only demo, follow [installation](installation.md). The exporter
+For a minimal Helm deployment, follow [installation](installation.md). The exporter
 runs independently of the Karta operator. Settings below describe the current
 chart and binary, not planned delivery modes.
 
@@ -27,13 +27,17 @@ reads it at startup.
 | `tolerations` | `[]` | Exporter tolerations. |
 | `podLabels`, `podAnnotations` | `{}` | Additional Pod metadata; selector labels and `checksum/config` are reserved. |
 | `service.annotations` | `{}` | Additional Service annotations. |
+| `serviceMonitor.enabled` | `false` | Create a ServiceMonitor for an existing Prometheus Operator. |
+| `serviceMonitor.additionalLabels` | `{}` | Labels used by Prometheus to select the ServiceMonitor. |
+| `serviceMonitor.interval`, `serviceMonitor.scrapeTimeout` | `""` | Empty inherits Prometheus settings. Use duration strings such as `30s` and `10s`. |
 | `namespaceSelector` | Exclude `kube-system`, `kube-public`, `kube-node-lease` | Namespace label selection. Set `matchExpressions: []` to remove these exclusions. |
 | `objectSelector`, `podSelector` | `{}` | Root and Pod output selection. |
 | `resourceRules` | `[]` | Allowed root API types; empty means unrestricted. |
 | `excludeResourceRules` | Core ConfigMaps and Secrets, all versions | Excluded root types. Set `[]` to remove these exclusions. |
 | `ignoredOwnerKinds`, `requiredKinds` | `[]` | Owner boundaries and additional watched kinds. |
 | `workers` | `4` | Default concurrency for each Pod/workload queue. |
-| `leafWorkers`, `rootWorkers` | `0` | Queue-specific concurrency; zero inherits `workers`. |
+| `leafWorkers` | `0` | Goroutines processing Pod queue jobs. Zero inherits `workers`. |
+| `rootWorkers` | `0` | Goroutines processing workload queue jobs. Zero inherits `workers`. |
 | `requestTimeout` | `30s` | Resource discovery and each LIST page timeout. |
 | `apiQPS`, `apiBurst` | `20`, `40` | Shared Kubernetes client request rate and burst. |
 | `rbac.workloadRules` | All API groups and resources | Read access, including Secrets; replace with explicit rules. |
@@ -41,7 +45,7 @@ reads it at startup.
 | `genericLabelEvaluationLimits.costLimit` | `10000` | CEL cost units per evaluation. |
 | `genericLabelEvaluationLimits.maxExpressionBytes` | `4096` | Maximum expression size. |
 | `genericLabelEvaluationLimits.maxResultBytes` | `1024` | Maximum returned string size. |
-| `kartaDefinitionSource.catalog.enabled` | `false` | Load bundled definitions. |
+| `kartaDefinitionSource.catalog.enabled` | `true` | Load bundled definitions. |
 | `kartaDefinitionSource.cluster.enabled` | `true` | Watch cluster Karta definitions. |
 | Each source's `include`, `exclude` | `[]` | Definition-name filters. |
 
@@ -50,6 +54,9 @@ The exporter uses one replica and its own ServiceAccount. Global
 see [FIPS modes](../FIPS.md#setting-the-mode). Operator settings such as `replicaCount`,
 `resources`, `ports`, `serviceAccount`, `extraArgs` and `podAnnotations` do not
 configure the exporter. `fullnameOverride` changes its resource-name prefix.
+
+The default worker settings start four Pod workers and four workload workers.
+These counts control queue processing, not the total goroutines or API requests.
 
 For an unreleased checkout, set `image.repository` and `image.tag` to an image
 built from that checkout and accessible to cluster nodes. The chart appVersion
@@ -100,7 +107,7 @@ resources or RBAC authorization.
 exporter:
   namespaceSelector:
     matchLabels:
-      kubernetes.io/metadata.name: dsx-demo
+      kubernetes.io/metadata.name: workloads
     matchExpressions: []
   resourceRules:
     - apiGroups: ["apps"]
@@ -121,6 +128,10 @@ same group/kind. Cluster ties use oldest creation time, then name. Catalog ties
 use Kubernetes version priority, then name. A source or selected-definition
 error is not absence and does not trigger fallback.
 
+Both sources are enabled by default. Set a source's `enabled` to `false` to
+disable it. Cluster watching requires the Karta CRD, even when no Karta objects
+exist. Bundled definitions provide built-in workload support without those objects.
+
 `ignoredOwnerKinds` contains exact GVK strings, such as
 `example.com/v1/PlatformWrapper`. Traversal stops before that owner. The last
 verified object below it becomes the root. A definition on an intermediate owner
@@ -136,6 +147,11 @@ metadata watch coverage for those ancestors. Evaluated roots use full-object
 coverage. A replacement full-object watch must synchronize before replacing the
 metadata watch. Denied LIST/WATCH is not silently replaced by GET-only observation.
 See the [controller flow](../../dsx-workload-exporter/pkg/controller/README.md).
+
+Kubernetes may warn when a watched API version is deprecated. The exporter logs
+each distinct API warning once per process. Select a Karta definition using the
+supported API version to address the warning. Enabling the catalog does not
+replace a deprecated version selected by a cluster definition.
 
 ## Configured labels
 
@@ -163,7 +179,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: train
-  namespace: dsx-demo
+  namespace: workloads
   labels:
     example.com/team: research
 ```
@@ -199,15 +215,37 @@ by default and is not needed for the exporter installation guide.
 Only Prometheus pull is wired into the current runtime. `/metrics`, `/healthz`
 and `/readyz` share the listener. Native OTLP push is unsupported. A separately
 configured OTel Collector can scrape `/metrics` and forward to an OTLP backend.
-The chart does not provide a ServiceMonitor or a NetworkPolicy. Configure scrape
-discovery and network access outside this chart. The endpoint has no built-in
-authentication.
+The endpoint has no built-in authentication. The chart does not provide a
+NetworkPolicy; configure network access for your monitoring system.
 
 The Service publishes unready addresses so diagnostics remain reachable during
 watch failures. Readiness still requires healthy inventory and synchronized
 required watches. Scrape each exporter endpoint separately rather than a single
 load-balanced address when comparing replicas. Scrape success does not establish
 [observation validity](../keps/0001-metrics-exporter/README.md#reading-observation-validity).
+
+### Prometheus Operator
+
+If Prometheus Operator and its ServiceMonitor CRD are already installed, enable
+`exporter.serviceMonitor.enabled`. The chart creates a ServiceMonitor in the
+exporter's namespace, selecting its Service and named `metrics` port. It does
+not install Prometheus Operator, Prometheus or their CRDs.
+
+Prometheus must select the ServiceMonitor's namespace and labels through
+`serviceMonitorNamespaceSelector` and `serviceMonitorSelector`. For example,
+if its selector requires `release: prometheus`, use:
+
+```yaml
+exporter:
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: prometheus
+```
+
+Use the label required by your Prometheus installation. Creating a ServiceMonitor
+does not configure a standalone Prometheus server. See
+[Prometheus Operator discovery](https://prometheus-operator.dev/docs/platform/troubleshooting/#troubleshooting-servicemonitor-changes).
 
 ## Deployment and permissions
 

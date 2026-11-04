@@ -210,14 +210,28 @@ var _ = Describe("config rejects invalid input", func() {
 })
 
 var _ = Describe("Karta definition sources", func() {
-	It("reads the cluster and leaves the catalog off by default", func() {
+	It("enables bundled and cluster definitions by default", func() {
 		cfg, err := loadConfig("", nil)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(cfg.KartaDefinitionSource.InventoryConfig()).To(Equal(kartadefinitioninventory.Config{
+			Catalog: kartadefinitioninventory.SourceConfig{Enabled: true},
 			Cluster: kartadefinitioninventory.SourceConfig{Enabled: true},
 		}))
 	})
+
+	DescribeTable("preserves explicit source settings",
+		func(content string, catalogEnabled, clusterEnabled bool) {
+			cfg, err := loadConfig(content, nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.KartaDefinitionSource.Catalog.Enabled).To(Equal(catalogEnabled))
+			Expect(cfg.KartaDefinitionSource.Cluster.Enabled).To(Equal(clusterEnabled))
+		},
+		Entry("catalog disabled", "kartaDefinitionSource:\n  catalog:\n    enabled: false\n", false, true),
+		Entry("cluster disabled", "kartaDefinitionSource:\n  cluster:\n    enabled: false\n", true, false),
+		Entry("both disabled", "kartaDefinitionSource:\n  catalog:\n    enabled: false\n  cluster:\n    enabled: false\n", false, false),
+		Entry("filters without enabled flags", "kartaDefinitionSource:\n  catalog:\n    include: [batch-job-v1]\n  cluster:\n    exclude: [team-job]\n", true, true),
+	)
 
 	It("selects every catalog definition when the file only enables the catalog", func() {
 		cfg, err := loadConfig("kartaDefinitionSource:\n  catalog:\n    enabled: true\n", nil)

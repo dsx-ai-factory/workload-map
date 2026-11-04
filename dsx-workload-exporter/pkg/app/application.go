@@ -20,6 +20,7 @@ import (
 
 	collector "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/adapters/otel"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/controller"
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/exportermetrics"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
 )
 
@@ -52,6 +53,9 @@ func New(components Components) (*Application, error) {
 		return nil, ErrIncompleteExporterComponents
 	}
 	registry := prometheus.NewRegistry()
+	if err := exportermetrics.Register(registry); err != nil {
+		return nil, fmt.Errorf("register exporter metrics: %w", err)
+	}
 	reader, err := otelprom.New(otelprom.WithRegisterer(registry), otelprom.WithTranslationStrategy(otlptranslator.NoTranslation), otelprom.WithoutScopeInfo(), otelprom.WithoutTargetInfo())
 	if err != nil {
 		return nil, fmt.Errorf("create Prometheus reader: %w", err)

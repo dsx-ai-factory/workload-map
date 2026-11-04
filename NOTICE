@@ -107,6 +107,7 @@ Third-party Dependencies:
 - github.com/beorn7/perks (MIT)
 - github.com/cespare/xxhash/v2 (MIT)
 - github.com/go-logr/stdr (Apache-2.0)
+- github.com/kylelemons/godebug (Apache-2.0)
 - github.com/pmezard/go-difflib (BSD-3-Clause)
 - github.com/prometheus/procfs (Apache-2.0)
 - github.com/stretchr/objx (MIT)

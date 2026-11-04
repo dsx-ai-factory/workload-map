@@ -496,6 +496,11 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v1.2.2
 - License: Apache-2.0
 
+### github.com/kylelemons/godebug
+- Name: github.com/kylelemons/godebug
+- Version: v1.1.0
+- License: Apache-2.0
+
 ### github.com/pmezard/go-difflib
 - Name: github.com/pmezard/go-difflib
 - Version: v1.0.1-0.20181226105442-5d4384ee4fb2

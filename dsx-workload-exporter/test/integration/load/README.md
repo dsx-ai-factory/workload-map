@@ -37,6 +37,6 @@ status changes directly, so it does not measure Pod startup or cluster capacity.
 It runs when `EXPORTER_LOAD=1` is set, including through the load target.
 Ordinary tests compile it but skip the run.
 
-The Exporter load CI job runs three times for changes to the exporter, SDK,
-chart, Makefile or CI workflow. Its `exporter-load-results` artifact contains
-the test output.
+The dedicated [Exporter load workflow](../../../../.github/workflows/exporter-load.yaml)
+runs three times for changes under `dsx-workload-exporter/` or to the workflow
+itself. Its `exporter-load-results` artifact contains the test output.

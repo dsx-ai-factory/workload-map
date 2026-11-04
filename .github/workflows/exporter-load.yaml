@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+name: Exporter load
+
+on:
+  push:
+    branches:
+      - main
+      - "v[0-9]+.[0-9]+"
+      - "release-[0-9]+.[0-9]+"
+    paths:
+      - 'dsx-workload-exporter/**'
+      - '.github/workflows/exporter-load.yaml'
+  pull_request:
+    branches:
+      - main
+      - "v[0-9]+.[0-9]+"
+      - "release-[0-9]+.[0-9]+"
+    paths:
+      - 'dsx-workload-exporter/**'
+      - '.github/workflows/exporter-load.yaml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  exporter-load:
+    name: Exporter load
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: 'dsx-workload-exporter/test/integration/go.mod'
+          cache: true
+          cache-dependency-path: |
+            karta/sdk/go.sum
+            dsx-workload-exporter/go.sum
+            dsx-workload-exporter/test/integration/go.sum
+
+      - name: Run exporter load test three times
+        shell: bash
+        run: |
+          mkdir -p .artifacts
+          make test-exporter-load EXPORTER_LOAD_COUNT=3 2>&1 | tee .artifacts/exporter-load.log
+
+      - name: Upload load results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: exporter-load-results
+          path: .artifacts/exporter-load.log
+          include-hidden-files: true
+          if-no-files-found: warn

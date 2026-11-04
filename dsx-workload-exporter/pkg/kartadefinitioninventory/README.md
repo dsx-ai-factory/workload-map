@@ -1,0 +1,74 @@
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright (c) 2026 NVIDIA Corporation -->
+
+# Karta definition inventory
+
+`Reader` defines the definition lookup contract, and `Inventory` implements it.
+`Lookup` selects for the observed root's group and kind.
+The returned `GVK` identifies the selected definition's API representation.
+A nil `Definition` with no error means confirmed absence after sources initialize.
+An error means lookup is unresolved or unavailable. Callers ignore that result.
+Source failure must not appear as absence or trigger a fallback selection.
+
+A cluster Karta for `apps/Deployment` overrides the bundled Deployment
+selection. Deleting it selects the next cluster candidate or the catalog.
+
+`Config` is constructor input. Catalog and cluster sources each have an enable
+flag and definition-name include/exclude lists. Empty includes mean all;
+exclusions win. Selected cluster definitions take precedence over catalog ones.
+`RequestTimeout` bounds each LIST page. Zero uses the caller's context without
+adding a deadline. Negative values are rejected. Watches use the caller's context
+and remain open independently of the LIST timeout.
+
+`Observer` exposes `List` and `Changes` to a controller. `List` returns an atomic,
+sorted snapshot of `SelectionResult` values. Each result embeds `Selection` and
+has an `Err` field. An invalid winner keeps its definition, GVK and origin in the
+snapshot, so callers can report its error without treating the kind as absent.
+Missing root versions or kinds are omitted. Returned definitions belong to the
+caller. A top-level error reports source health and returns no snapshot.
+
+`Changes` is a buffered, coalesced signal for one observer. It reports accepted
+definition changes, initial loading, source failures, recovery and shutdown.
+Read the initial snapshot, then read `List` again after each signal. A signal is
+not an event log. The observer decides which roots and Pods need work. The channel
+remains open after shutdown so the observer can read the final health; stop on
+the caller's context. Inventory has no dependency on controller queues or metric
+storage.
+
+The inventory owns two maps: cluster definitions by Karta name and catalog
+winners by workload group and kind. The catalog map is built once. Watch events
+replace or delete cluster entries. A complete list replaces the cluster map
+atomically. One `sync.RWMutex` protects cluster data and source health.
+
+`Lookup(gvk)` checks health and scans cluster definitions under a read lock.
+It ignores the requested version. Include and exclude filters apply before
+election. The oldest matching cluster definition wins; name breaks ties.
+When none matches, the catalog winner applies. Catalog selection prefers
+Kubernetes version priority, then name. Missing root version or kind prevents
+selection. Other validation errors are returned only if that definition wins.
+
+Every cluster candidate stays in the map so deletion and root-kind changes can
+select another winner. Validation runs once per decoded entry,
+outside the lock, including entries that do not win. The stored result avoids
+validation work during lookup. Entries are replaced whole. The winning definition
+is copied after releasing the lock, so callers own their returned data. `Origin`
+identifies the source and name, plus UID and resource version for cluster results.
+
+Start `Run(ctx)` in a goroutine, then call `WaitLoaded(ctx)` before consumers.
+The first complete list closes the load channel, even if empty. Multiple callers
+can wait. Waiter cancellation or stopping before the first load returns an error.
+A disabled cluster source is already loaded. `Run` may be started only once.
+
+Initial loading and current health are separate. Lookup returns `ErrNotReady`
+before loading. A list failure or watch error makes lookups unavailable,
+including catalog lookups. A watch that closes without an error resumes from
+the last applied resource version and stays healthy. Permission errors remain distinct.
+Only a fresh complete list can restore health; a failure after that list began
+cannot be cleared by it. Servers without streaming-list support use ordinary LIST.
+Events from a stopped watch cannot change health. Decode errors remain until the
+Karta is corrected or deleted. Stopping Run makes cluster lookups unavailable;
+a catalog-only inventory keeps serving.
+
+A nil `Definition` with no error means both enabled sources are healthy and
+neither has a matching definition. An invalid winner returns an error. Neither
+source failure nor validation failure selects another definition.

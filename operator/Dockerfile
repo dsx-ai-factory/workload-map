@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 
-# Build from the repository root so the `replace github.com/dsx-ai-factory/workload-map => ../`
-# directive in operator/go.mod resolves against the local pkg/ tree. Prefer
+# Build from the repository root so the `replace github.com/dsx-ai-factory/workload-map/karta/sdk => ../karta/sdk`
+# directive in operator/go.mod resolves against the local karta/sdk/ module. Prefer
 # `make operator-image`, which supplies GO_LDFLAGS from the root Makefile.
 # Keep GO_VERSION aligned with the `go` directive in operator/go.mod:
 #
 #   docker build \
 #     --build-arg GO_VERSION=$(awk '/^go /{print $2}' operator/go.mod) \
 #     -f operator/Dockerfile -t karta-operator:latest .
-ARG GO_VERSION=1.26.8
+ARG GO_VERSION=1.27.3
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
 
 ARG TARGETOS

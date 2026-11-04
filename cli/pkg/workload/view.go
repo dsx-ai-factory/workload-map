@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
-	"github.com/dsx-ai-factory/workload-map/pkg/resource"
-	"github.com/dsx-ai-factory/workload-map/pkg/tree"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/tree"
 )
 
 // View is one workload as Karta resolves it: the root object's identity, the

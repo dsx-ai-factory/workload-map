@@ -82,7 +82,7 @@ For more information about the DCO, please visit: https://developercertificate.o
 ### Design Proposals
 
 For changes that need design agreement before implementation, follow the
-[Karta Enhancement Proposal process](keps/README.md). It describes when to write
+[Karta Enhancement Proposal process](docs/keps/README.md). It describes when to write
 one and provides a template.
 
 ### Development Environment Setup
@@ -126,10 +126,11 @@ make help              # every target, grouped
 every supported development host. The operator e2e suite is compiled during
 `make check`; its live cluster run remains a separate target.
 
-The root Go workspace contains the library, CLI, and operator modules. The
-separate release helper, Karta WASM module, and other nested modules are
-deliberately isolated. When running Go commands directly in those modules, set
-`GOWORK=off`. Make targets already do this where required.
+There is no Go workspace. The library is the `karta/sdk/` module, and the CLI,
+operator, and other modules reach it through a relative `replace` directive in
+their own `go.mod`. Run Go commands from a module's directory, for example
+`cd karta && go test ./pkg/...`. The root `go.mod` only marks the library's old
+module path as deprecated and has no packages.
 
 `make lint` never rewrites your files. `make fmt` and the per-component
 `fmt-*` targets are the only ones that reformat, and nothing depends on them.
@@ -149,6 +150,36 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`. When p
 ```bash
 git commit -s -m "fix(api): validate status mapping expressions before applying them"
 ```
+
+### Commit Attribution
+
+Commit co-author trailers identify human contributors. Do not add AI tools as
+co-authors. Human `Co-authored-by` trailers and the required human `Signed-off-by`
+trailer remain valid. AI-assisted contributions are allowed; this check does not
+detect or prohibit AI use.
+
+CI rejects parsed `Co-authored-by` trailers
+containing Claude, ChatGPT, Copilot, Codex, Devin, Cursor, Gemini, or Anthropic,
+case-insensitively. Merge, revert, and fixup commit messages are checked too.
+This is name matching, not an identity lookup. Unlisted names are outside the
+rule's scope. Normal prose mentioning these tools is allowed.
+
+PRs and updates to existing branches check the supplied base-to-head range.
+For a new branch push, GitHub supplies an all-zero base. CI then checks only
+commits not already on the repository's default branch. Creating a release
+branch does not recheck inherited history. Locally, this fallback uses
+`refs/remotes/origin/main`; set `COMMIT_DEFAULT_BRANCH` to use another ref.
+An unavailable base ref fails the check rather than skipping validation.
+
+Run the same check locally:
+
+```bash
+make commit-attribution-check COMMIT_BASE=origin/main COMMIT_HEAD=HEAD
+```
+
+If it fails, remove the AI co-author line from each reported commit message.
+Keep human attribution and DCO sign-offs. A new commit does not repair an earlier
+commit's message.
 
 ### Making Changes
 
@@ -195,8 +226,8 @@ recording is a claim; the recording is the evidence.
 
 Adding one means, in order:
 
-1. The builder under `pkg/catalog/kartas/`, registered in
-   `pkg/catalog/catalog.go`, then `make generate-samples` for the generated
+1. The builder under `karta/sdk/pkg/catalog/kartas/`, registered in
+   `karta/sdk/pkg/catalog/catalog.go`, then `make generate-samples` for the generated
    file under `docs/catalog/`. Never hand-edit the generated file. Add the
    workload to the Pre-built Karta Definitions table in `README.md`, unless it
    is a Kubernetes builtin (apps, batch, core): the table lists operator-backed
@@ -287,7 +318,7 @@ Adding one means, in order:
 | Trigger | Published `version` and `appVersion` |
 |---|---|
 | Push to `main` (dev build) | `0.0.0-main-<short-sha>` |
-| Tag push (release) | the tag (e.g. tag `v1.2.3` → `1.2.3`) |
+| Published GitHub Release | the release's tag (e.g. tag `v1.2.3` -> `1.2.3`) |
 
 Consumers pin a specific release by chart `version` (which equals the tag), e.g. `version: 1.2.3` in the consumer's `Chart.yaml` dependency entry.
 
@@ -295,10 +326,12 @@ This is the same model used by [ai-dynamo/grove](https://github.com/ai-dynamo/gr
 
 ### Releasing
 
-The root library, CLI module, and operator module use one synchronized version.
-The preparation, two-tag convention, local snapshot, guarded release command,
-credentials, and recovery procedure are documented in
-[RELEASE.md](RELEASE.md).
+A release publishes the GitHub Release for `vX.Y.Z` from the merged commit,
+which creates the `vX.Y.Z` tag and starts the release workflow; once its checks
+pass, the workflow tags the `karta/sdk/` library module as `karta/sdk/vX.Y.Z` on
+the same commit. The two tags, local snapshot, guarded release command,
+Homebrew cask pull request, credentials, and recovery procedure are documented
+in [RELEASE.md](RELEASE.md).
 
 No `Chart.yaml` bump is needed. The release tag remains the source of truth for
 the published chart version and app version.

@@ -26,7 +26,7 @@ import (
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/workload"
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/catalog"
 )
 
 const (
@@ -235,7 +235,8 @@ func describeLive(
 	if err != nil {
 		return nil, warnings, fmt.Errorf("list pods: %w", err)
 	}
-	owned, err := workload.NewPodAttributor(look.dyn, look.mapper).Filter(ctx, pods, obj.GetUID())
+	owned, attributeWarnings, err := workload.NewPodAttributor(look.metadata, look.mapper).Filter(ctx, pods, obj.GetUID())
+	warnings = append(warnings, attributeWarnings...)
 	if err != nil {
 		return nil, warnings, fmt.Errorf("attribute pods: %w", err)
 	}

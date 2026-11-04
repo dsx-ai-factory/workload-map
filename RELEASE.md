@@ -27,54 +27,42 @@ fixes ship without waiting on `main`.
 ## Who can cut a release
 
 Releases are cut by project [maintainers](MAINTAINERS.md). Release artifacts are
-built by CI from the pushed tag, never from a local machine.
+built by CI when a maintainer publishes the GitHub Release, never from a local
+machine.
 
-## Synchronized modules and tags
+## Modules and tags
 
-The root library, CLI, and operator are separate Go modules on one product
-release train:
+The library is the only published Go module:
 
-- `github.com/dsx-ai-factory/workload-map`
-- `github.com/dsx-ai-factory/workload-map/cli`
-- `github.com/dsx-ai-factory/workload-map/operator`
+- `github.com/dsx-ai-factory/workload-map/karta/sdk`, in `karta/sdk/`
 
-Release `1.2.3` uses the tags `v1.2.3` and `cli/v1.2.3`. Both tags must point
-to the same commit. Only the root tag starts the release workflow. The operator
-ships as a container image and does not need its own module tag.
+The CLI, operator, and the other modules in the repository require it at
+`v0.0.0` with a relative `replace` directive, so they always build against the
+library in the same commit. Those modules are not published: the CLI ships as
+the GoReleaser archives on the GitHub Release, and the operator ships as a
+container image. `go install` of the CLI is not supported, because the go
+command refuses a module whose `go.mod` carries a `replace`.
 
-The CLI and operator `go.mod` files must require the matching root module
-version, and `go.work` must replace that same version with the local root
-module. Set all three in the release preparation change with one command:
+Release `1.2.3` uses the tags `v1.2.3` and `karta/sdk/v1.2.3`, and both must point
+to the same commit. `v1.2.3` names the GitHub Release, the operator image, the
+Helm chart, and the CLI archives. `karta/sdk/v1.2.3` is the library's Go
+module version; the go command requires the `karta/sdk/` prefix for a module that
+lives in a subdirectory.
 
-```bash
-make pin-bump VERSION=1.2.3
-make release-validate VERSION=1.2.3
-```
+`karta/sdk/go.mod` must never carry a `replace` or `exclude` directive. Both apply
+only when the module is the one being built, so a consumer's `go get` would
+resolve a different dependency graph than the repository tests.
+`make modules-check-lib` enforces this in `make check`, and the release guard
+checks it again.
 
-Do not edit the three files by hand. `pin-bump` drops the previous `go.work`
-replacement before adding the new one. A bare
-`go work edit -replace=...@v1.2.3=.` does not: it keys on the version, so the
-old entry stays and a second one is added. Nothing rejects that, because the
-validation returns on the first matching replacement, so the stale entries
-accumulate one per release.
-
-`pin-check` validates the pin on every pull request. Once a release ships, the
-pin names a version that is now released, so pull requests fail until the bump
-for the next version lands. Make that bump the first change merged after a
-release.
-
-Do not add a relative `replace` directive to either nested `go.mod` file. The
-version-specific replacement in the root `go.work` file supplies the local root
-module during development and CI, and must be updated with the two requirements.
-The matching root version does not exist until the synchronized tags are pushed,
-so release preparation cannot run the nested modules with `GOWORK=off` or
-precompute their matching root-module checksums.
-
-The release-preparation change can still pass CI before those tags exist.
-License generation removes the Karta requirement only from a temporary copy of
-the CLI module metadata. Karta itself is excluded from the CLI license templates,
-so the third-party inventory does not change and the source `go.mod` remains
-untouched.
+Releases up to v0.2.x published the library as
+`github.com/dsx-ai-factory/workload-map`, from the repository root. Patch
+releases on the `v0.2` branch keep that path. On `main`, the root `go.mod` is a
+stub with no packages and a `Deprecated:` comment, so every later `vX.Y.Z` tag
+is a version of the old path that `go get` and `go list -u` report as
+deprecated, with a pointer to the new path. Upgrading to it still fails to
+build, so the notes for the first release after the move must carry the
+migration to the new import path.
 
 ## Local release validation
 
@@ -89,27 +77,51 @@ make release-verify VERSION=1.2.3
 ```
 
 `release-build` compiles both executable definitions only for the current
-runner target. `release-snapshot` builds the complete CLI release matrix
-without publishing. It does not need release credentials.
+runner target. `release-snapshot` builds the complete CLI release matrix and
+the Homebrew cask without publishing. It does not need release credentials.
+`release-verify` checks the archives and that the cask installs exactly those
+archives.
+
+The release and the cask follow `GITHUB_REPOSITORY`, so a fork releases to
+itself. A local snapshot renders the upstream values.
 
 ## How a release is cut
 
-Before tagging, add the version entry to [CHANGELOG.md](CHANGELOG.md), update the
-two root-module requirements, and run the checks above. After that preparation
-change is merged, create both tags from the same commit and push them in one
-operation:
+Before releasing, add the version entry to [CHANGELOG.md](CHANGELOG.md) and run
+the checks above. After that preparation change is merged, publish the GitHub
+Release from the merged commit, with a new `v1.2.3` tag and the version's
+CHANGELOG.md entry as its notes. Use the Releases page, or:
 
 ```bash
-git tag v1.2.3
-git tag cli/v1.2.3
-git push origin v1.2.3 cli/v1.2.3
+gh release create v1.2.3 --target <commit> --title v1.2.3 --notes-file notes.md
 ```
 
-The root tag runs the coordinated workflow. The workflow builds and pushes the
-multi-architecture operator image from source and publishes the Helm chart.
-GoReleaser then builds the four CLI archives and checksum manifest and creates
-the GitHub Release. Finally, the workflow generates the two image locks and
-attaches the chart and locks to the existing release.
+Publishing creates the tag and starts the release workflow. Drafts and
+prereleases start nothing; a prerelease starts it once changed to a full
+release.
+
+The tag must be exactly `vX.Y.Z`. Any other tag fails the first step, before
+anything is tagged or published. Delete that release and its tag, and publish
+again.
+
+Once `make check` and a dry run of the CLI release pass, the workflow creates
+`karta/sdk/v1.2.3` on the same commit. It waits for the checks because a
+fetched module version stays in the Go module proxy even if its tag is deleted.
+If the workflow fails before this step, Re-run jobs creates the tag.
+
+The workflow then checks both tags, pushes the operator image, and publishes
+the Helm chart. GoReleaser uploads the CLI archives and checksums to the
+release, keeping its notes, and opens a pull request that updates
+`Casks/kli.rb`. Finally, the workflow attaches the chart and the two image
+locks. The release shows no assets until the workflow finishes.
+
+The workflow uploads to a release that is already published, so the repository
+must not enable GitHub's immutable releases. An immutable release accepts no new
+assets, and GoReleaser stops with "already exists and is immutable".
+
+The cask reaches Homebrew users when its pull request merges. A maintainer
+approves the held `CI` run, reviews, and squash-merges. If an older cask pull
+request is still open, close it; merging it would move the cask back.
 
 The guarded publishing command used by the workflow is:
 
@@ -117,29 +129,41 @@ The guarded publishing command used by the workflow is:
 make release VERSION=1.2.3
 ```
 
-It fails unless the checkout is clean and at the matching root tag, both tags
-point to `HEAD`, the nested module requirements match, and the required
-credentials are present. It must normally run only in the release workflow.
+It fails unless the checkout is clean and at the matching `vX.Y.Z` tag, both
+tags point to `HEAD`, `karta/sdk/go.mod` carries no `replace` or `exclude`
+directive, and the required credentials are present. It must normally run
+only in the release workflow.
 
 ## Release credentials
 
 The normal workflow `GITHUB_TOKEN` is used for the Karta GitHub Release, GHCR
-packages, and release attachments. The release needs no other credential.
+packages, release attachments, and the cask pull request. The release needs no
+other credential. GitHub signs the cask commit as `github-actions[bot]`, and its
+`Signed-off-by` trailer satisfies `dco`.
 
 ## Recovery after a partial release
 
-If a tagged workflow fails after publishing the operator image or Helm chart, do
-not create a second release or move any tag. Correct the failure and rerun the
-same workflow. A later attempt validates and reuses the chart and image from the
-first attempt instead of overwriting them. GoReleaser replaces matching assets
-on an existing GitHub Release. After it succeeds, confirm that the workflow
-attached the chart and both image locks to the same release, and that the assets
-match `checksums.txt`.
+If the workflow fails before it publishes any image, chart, or asset, use
+Re-run jobs if the failure was transient. If the fix needs a code change, merge
+it and release the next patch version, because the tags do not move. Delete the
+failed GitHub Release so it does not stay marked as the latest.
+
+If the release workflow fails after publishing the operator image or Helm chart,
+do not create a second release, unpublish the release, or move any tag. Correct
+the failure and use Re-run jobs on the same workflow run. A later attempt
+validates and reuses the chart and image from the first attempt instead of
+overwriting them. GoReleaser replaces matching assets on an existing GitHub
+Release and updates an open cask pull request. If the cask pull request already
+merged, the rerun opens a second one; close it. After it succeeds, confirm that
+the workflow attached the chart and both image locks to the same release, that
+the assets match `checksums.txt`, and that the cask pull request is open or
+merged.
 
 ## Release notes and breaking changes
 
-The GitHub Release body is written from the version's CHANGELOG.md entry; the
-changelog is the source, the release body is the copy. Every breaking change
+The GitHub Release body is written from the version's CHANGELOG.md entry when
+the release is published, and GoReleaser keeps it; the changelog is the source,
+the release body is the copy. Every breaking change
 (API field changes, removed or renamed library surface, behavioral changes that
 require consumer action) must be documented in the release notes with migration
 guidance so that downstream consumers can upgrade predictably.

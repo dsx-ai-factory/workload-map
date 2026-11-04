@@ -131,13 +131,14 @@ Kubernetes builtins and Karta built from the checkout are exempt.
    see [Catalog Definitions](../../CONTRIBUTING.md#catalog-definitions).
    Infrastructure modules do not need separate catalog definitions or recordings.
 
-The offline tests exercise the CLI, Bash wrappers, and Make target with fake Git
-responses. They do not query upstream or provision a cluster.
+The offline tests exercise the CLI, Bash wrappers, Make target, and provisioning
+order with fake Git and cluster commands. They do not query upstream or provision
+a cluster.
 
 The root Makefile includes this module in `GO_MODULES` and `COMPONENTS`, so
 `make check` runs its formatting, vet, lint, module, and test checks. Use
 `make check-operator-updates` to run only those checks. Direct Go commands in
-this directory use `GOWORK=off`; no workspace entry is needed.
+this directory use `GOWORK=off`, as set by the root Makefile.
 
 The repository's Renovate scanner discovers the module from `go.mod`; no manual
 `includePaths` entry is needed in `renovate.json`. The checker has no third-party

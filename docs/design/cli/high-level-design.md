@@ -122,11 +122,35 @@ Key flags:
 - `--phase <Running|Failed|...>` - filter by normalized phase, repeatable
 - `-l, --selector <labels>` - filter by labels (same syntax as `kubectl`)
 - `--chunk-size <n>` - API list page size
+- `--all-types` - list every type a Karta definition covers instead of naming one; mutually exclusive with a TYPE
 - `-o <table|wide|json|yaml>` - output format. `-o json` emits the typed `WorkloadView` for scripting and MCP consumers, always under an `items` key alongside a `count`, so consumers never branch on shape.
 
 Rows are ordered newest first. Counts and GPU are read from the workload spec, so listing costs one API call per type and no pod reads; `wide` adds the ORIGIN of the resolving definition. A NODES column needs live pod data and follows with `karta describe`, which has to build pod matching anyway.
 
-The cross-type view - every workload Karta covers, in one table, which is the view no native tool provides - is the next step for this command. It needs a rule for which objects are workload roots: the catalog covers Deployment and Pod but not ReplicaSet, so a single-level owner check either floods the table with a Deployment's pods or hides workloads whose controller Karta does not cover.
+`karta get --all-types` is the cross-type view: every workload Karta covers, in one table with a TYPE column. No native tool provides this view.
+
+It needs a rule for which objects are workload roots. The catalog covers Deployment and Pod but not ReplicaSet. A single-level owner check either floods the table with a Deployment's pods or hides workloads whose controller Karta does not cover.
+
+The rule is an ownership walk. An object is top level when no object in its controller-owner chain is covered by a Karta definition. So a Deployment a user created is a row, and one a KServe InferenceService owns is not. A workload wrapped in a CR no definition covers still surfaces.
+
+Owner reads:
+
+- A covered controller is recognized from the owner reference alone.
+- An uncovered owner is read as metadata only, from one list per owner kind and namespace. A namespace of Deployments costs one ReplicaSet list however many pods it runs.
+- An owner kind the caller may get but not list is read one owner at a time.
+
+Degraded results:
+
+- A type the cluster does not serve is skipped silently.
+- A type whose API group failed discovery is skipped with a warning. A failed group no definition covers stays quiet.
+- A type served only at versions no definition covers is skipped with a warning.
+- A type the caller may not list is skipped with a warning.
+- A skipped type is treated as uncovered, so the objects it owns are shown rather than hidden. This also covers a group discovery missed.
+- An object whose owner can be neither listed nor read is shown with a warning, one per cause.
+
+Naming a type still lists every object of it, nested or not.
+
+The rule is only as good as the owner references. An operator that tracks children by label, or across namespaces, leaves no edge to walk. Its children then read as top level.
 
 Clusters can be huge - thousands of workloads across many types is a realistic scenario for our users. `karta get` pages through large result sets so per-request API pressure stays bounded. Note that `--chunk-size` bounds neither total memory nor time-to-first-row: every page is retained, and the default ordering is global, so the whole result is sorted before the first row is rendered.
 

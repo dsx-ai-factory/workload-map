@@ -12,10 +12,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/pkg/catalog"
-	"github.com/dsx-ai-factory/workload-map/pkg/resource"
-	"github.com/dsx-ai-factory/workload-map/pkg/tree"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/tree"
 )
 
 // DecodeDefinition parses a Karta definition from JSON.

@@ -16,8 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	metadatafake "k8s.io/client-go/metadata/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 )
@@ -70,30 +70,48 @@ func pod(name string, owner *metav1.OwnerReference) unstructured.Unstructured {
 	return *owned(podGVK, name, "", owner)
 }
 
-// filter runs the attributor and fails the spec if a matched pod cannot decode.
+// filter runs the attributor and fails the spec if a matched pod cannot decode
+// or a chain cannot be walked.
 func filter(a *PodAttributor, pods []unstructured.Unstructured, rootUID types.UID) []corev1.Pod {
 	GinkgoHelper()
-	matched, err := a.Filter(context.Background(), pods, rootUID)
+	matched, warnings, err := a.Filter(context.Background(), pods, rootUID)
 	Expect(err).NotTo(HaveOccurred())
+	Expect(warnings).To(BeEmpty())
 	return matched
 }
 
-// fakeCluster serves objects through a dynamic client whose mapper knows the
-// apps/v1 kinds an owner chain climbs through.
-func fakeCluster(objects ...runtime.Object) (dynamic.Interface, meta.RESTMapper) {
-	mapper := meta.NewDefaultRESTMapper(nil)
+// fakeCluster serves the metadata of objects, the only part an owner walk
+// reads, through a mapper that knows the kinds an owner chain climbs through.
+func fakeCluster(objects ...*unstructured.Unstructured) (*metadatafake.FakeMetadataClient, meta.RESTMapper) {
+	// Default versions let an unversioned lookup find a kind, as discovery does.
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{
+		deploymentGVK.GroupVersion(), podGVK.GroupVersion(), clusterOwnerGVK.GroupVersion(),
+	})
 	for _, gvk := range []schema.GroupVersionKind{deploymentGVK, replicaSetGVK, podGVK} {
 		mapper.Add(gvk, meta.RESTScopeNamespace)
 	}
 	mapper.Add(clusterOwnerGVK, meta.RESTScopeRoot)
 
-	listKinds := map[schema.GroupVersionResource]string{
-		podsGVR: "PodList",
-		{Group: "example.com", Version: "v1", Resource: "clusterowners"}: "ClusterOwnerList",
-		{Group: "apps", Version: "v1", Resource: "replicasets"}:          "ReplicaSetList",
-		{Group: "apps", Version: "v1", Resource: "deployments"}:          "DeploymentList",
+	scheme := runtime.NewScheme()
+	metav1.AddMetaToScheme(scheme)
+	partials := make([]runtime.Object, 0, len(objects))
+	for _, obj := range objects {
+		var partial metav1.PartialObjectMetadata
+		Expect(runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &partial)).To(Succeed())
+		partials = append(partials, &partial)
 	}
-	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), listKinds, objects...), mapper
+	return metadatafake.NewSimpleMetadataClient(scheme, partials...), mapper
+}
+
+// countReads counts the owner reads of each verb, which is what listing an
+// owner kind once saves.
+func countReads(client *metadatafake.FakeMetadataClient) map[string]int {
+	reads := map[string]int{}
+	client.PrependReactor("*", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		reads[action.GetVerb()]++
+		return false, nil, nil
+	})
+	return reads
 }
 
 var _ = Describe("PodAttributor", func() {
@@ -150,17 +168,11 @@ var _ = Describe("PodAttributor", func() {
 		Expect(filter(NewPodAttributor(dyn, mapper), []unstructured.Unstructured{orphan}, rootUID)).To(BeEmpty())
 	})
 
-	// Sibling pods share an intermediate, and a broken chain must not be
-	// re-fetched once per pod either.
-	It("fetches each owner once across pods, hit or miss", func() {
+	// Sibling pods share an intermediate, and a broken chain must not cost a
+	// read per pod either.
+	It("lists an owner kind once across pods, hit or miss", func() {
 		dyn, mapper := fakeCluster(deployment, replicaSet)
-
-		var gets int
-		dyn.(*dynamicfake.FakeDynamicClient).PrependReactor("get", "*",
-			func(k8stesting.Action) (bool, runtime.Object, error) {
-				gets++
-				return false, nil, nil
-			})
+		reads := countReads(dyn)
 
 		pods := []unstructured.Unstructured{
 			pod("web-abc-1", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
@@ -171,7 +183,8 @@ var _ = Describe("PodAttributor", func() {
 		attributor := NewPodAttributor(dyn, mapper)
 
 		Expect(filter(attributor, pods, rootUID)).To(HaveLen(2))
-		Expect(gets).To(Equal(2), "one fetch for the shared ReplicaSet, one for the missing one")
+		Expect(reads).To(Equal(map[string]int{"list": 1}),
+			"one ReplicaSet list answers the shared owner and the missing one")
 	})
 
 	// Without the scope check the pod is silently dropped from its workload.
@@ -183,13 +196,48 @@ var _ = Describe("PodAttributor", func() {
 		Expect(filter(NewPodAttributor(dyn, mapper), []unstructured.Unstructured{mine}, rootUID)).To(HaveLen(1))
 	})
 
-	// Malformed data can point an owner chain at itself; the walk must end.
-	It("gives up on a cycle rather than recursing forever", func() {
+	// Malformed data can point an owner chain at itself; the walk must end, and
+	// the pod it could not place must not pass for one that is not ours.
+	It("gives up on a cycle rather than recursing forever, and says so", func() {
 		loop := owned(replicaSetGVK, "loop", "loop-uid", controllerOf(replicaSetGVK, "loop", "loop-uid"))
 		dyn, mapper := fakeCluster(loop)
 
 		caught := pod("loop-1", controllerOf(replicaSetGVK, "loop", "loop-uid"))
-		Expect(filter(NewPodAttributor(dyn, mapper), []unstructured.Unstructured{caught}, rootUID)).To(BeEmpty())
+		matched, warnings, err := NewPodAttributor(dyn, mapper).Filter(
+			context.Background(), []unstructured.Unstructured{caught}, rootUID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(matched).To(BeEmpty())
+		Expect(warnings).To(ConsistOf(ContainSubstring(errChainTooLong.Error())))
+	})
+
+	// A role may grant get on ReplicaSets without list; the pods are still ours.
+	It("claims pods through an owner kind it may get but not list", func() {
+		dyn, mapper := fakeCluster(deployment, replicaSet)
+		denyList(dyn)
+
+		pods := []unstructured.Unstructured{
+			pod("web-abc-1", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
+			pod("web-abc-2", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
+		}
+		Expect(filter(NewPodAttributor(dyn, mapper), pods, rootUID)).To(HaveLen(2))
+	})
+
+	// An unreadable chain is not a confirmed miss, so it must not read as zero
+	// pods; one warning covers every pod with the same cause, across owners.
+	It("warns once per cause about pods it could not attribute", func() {
+		other := owned(replicaSetGVK, "web-def", "rs-def-uid", controllerOf(deploymentGVK, "web", rootUID))
+		dyn, mapper := fakeCluster(deployment, replicaSet, other)
+		denyList(dyn)
+		denyGet(dyn)
+
+		pods := []unstructured.Unstructured{
+			pod("web-abc-1", controllerOf(replicaSetGVK, "web-abc", "rs-uid")),
+			pod("web-def-1", controllerOf(replicaSetGVK, "web-def", "rs-def-uid")),
+		}
+		matched, warnings, err := NewPodAttributor(dyn, mapper).Filter(context.Background(), pods, rootUID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(matched).To(BeEmpty())
+		Expect(warnings).To(ConsistOf(And(ContainSubstring("2 pod(s)"), ContainSubstring("forbidden"))))
 	})
 })
 
@@ -199,7 +247,8 @@ var _ = Describe("ListPods", func() {
 	It("returns every pod in the namespace, decodable in full", func() {
 		running := owned(podGVK, "web-abc-1", "pod-uid", nil)
 		Expect(unstructured.SetNestedField(running.Object, "node-01", "spec", "nodeName")).To(Succeed())
-		dyn, _ := fakeCluster(running)
+		dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(),
+			map[schema.GroupVersionResource]string{podsGVR: "PodList"}, running)
 
 		pods, err := ListPods(context.Background(), dyn, namespace)
 		Expect(err).NotTo(HaveOccurred())

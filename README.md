@@ -10,12 +10,13 @@
 > GitHub redirects. The Go module path has also moved to
 > `github.com/dsx-ai-factory/workload-map`; update any pinned `go get` or import
 > paths, GitHub Actions, webhooks, or other automation that reference
-> `run-ai/karta` or `dsx-ai-factory/karta`.
+> `run-ai/karta` or `dsx-ai-factory/karta`. After v0.2.x the library moves again,
+> into the nested module `github.com/dsx-ai-factory/workload-map/karta/sdk`.
 
 **A standard way to describe the structure of any Kubernetes workload type.**
 
 [![CI](https://github.com/dsx-ai-factory/workload-map/actions/workflows/ci.yaml/badge.svg)](https://github.com/dsx-ai-factory/workload-map/actions/workflows/ci.yaml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/dsx-ai-factory/workload-map.svg)](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map)
+[![Go Reference](https://pkg.go.dev/badge/github.com/dsx-ai-factory/workload-map/karta/sdk.svg)](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk)
 [![Go Report Card](https://goreportcard.com/badge/github.com/dsx-ai-factory/workload-map)](https://goreportcard.com/report/github.com/dsx-ai-factory/workload-map)
 [![Latest release](https://img.shields.io/github/v/release/dsx-ai-factory/workload-map)](https://github.com/dsx-ai-factory/workload-map/releases)
 [![License](https://img.shields.io/github/license/dsx-ai-factory/workload-map)](LICENSE)
@@ -101,16 +102,27 @@ The structure in this view comes from Karta path expressions: the group, leader,
 
 ### Install the CLI
 
-Install the latest synchronized Go module release:
+Install `kli` with Homebrew on macOS or Linux. This repository is its own tap,
+so add it by URL once, then install by full name:
 
 ```bash
-go install github.com/dsx-ai-factory/workload-map/cli/cmd/kli@latest
+brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
+brew install dsx-ai-factory/kli/kli
 ```
 
-Or download a prebuilt archive for your platform from the
-[releases page](https://github.com/dsx-ai-factory/workload-map/releases) and put
-the `kli` executable on your `PATH`. Run `kli --version` to print the release
-version.
+The URL is required because the short form of `brew tap` only resolves
+repositories named `homebrew-<name>`. Installing by full name also makes
+Homebrew trust this one cask, which it requires for any tap it does not
+maintain. `brew upgrade kli` installs later releases.
+
+Each release also publishes prebuilt `kli` archives for Linux and macOS on
+amd64 and arm64, with a `checksums.txt` manifest, on the
+[GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
+To install without Homebrew, download the archive for your platform, check it
+against `checksums.txt`, and put the `kli` executable on your `PATH`.
+
+Run `kli --version` to print the release version. `go install` is not a
+supported way to install the CLI.
 
 See the [CLI Guide](docs/CLI%20Guide.md) for shell completion and for installing
 from a clone with make.
@@ -124,8 +136,14 @@ kubectl apply -f https://raw.githubusercontent.com/dsx-ai-factory/workload-map/m
 ### Use the Go library
 
 ```bash
-go get github.com/dsx-ai-factory/workload-map@latest
+go get github.com/dsx-ai-factory/workload-map/karta/sdk@latest
 ```
+
+The library lives in the `karta/sdk/` module. Releases up to v0.2.x published it as
+`github.com/dsx-ai-factory/workload-map`. To move to the new path, require
+`github.com/dsx-ai-factory/workload-map/karta/sdk` and rewrite imports from
+`github.com/dsx-ai-factory/workload-map/pkg/...` to
+`github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/...`.
 
 ### Define a Karta
 
@@ -178,7 +196,7 @@ spec:
 ### Extract workload information
 
 ```go
-import "github.com/dsx-ai-factory/workload-map/pkg/resource"
+import "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 
 // Create a factory from your Karta and workload object
 factory := resource.NewComponentFactoryFromObject(karta, jobSetObject)
@@ -278,6 +296,7 @@ See [ADOPTERS.md](ADOPTERS.md) for the full list of adopters. If you use Karta, 
 - [Technical Guide](docs/Technical%20Guide.md) - Full Karta spec, path syntax (jq), validation rules
 - [Webhook Certificates](docs/Webhook%20Certificates.md) - Webhook cert modes (auto self-signed or manual) and how to wire cert-manager
 - [FIPS 140-3](docs/FIPS.md) - Running the operator with Go's FIPS 140-3 crypto module
+- [Dependency Updates](docs/Dependency%20Updates.md) - How Renovate keeps dependencies current and how to test a configuration change
 - [Karta definitions](docs/catalog/) - Real-world Karta definitions for common workload types
 - [Runnable examples](docs/examples/) - Offline quickstart and an installable controller-runtime example
 - [API Reference](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map) - Go package documentation

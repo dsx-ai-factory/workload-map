@@ -5,9 +5,99 @@ global:
   # Go FIPS 140-3 runtime mode: off, on, or only. See docs/FIPS.md.
   fipsMode: "off"
 
-# Set false to install only the CRD, without deploying the operator workload.
+# Set false to skip the operator workload.
 operator:
   enabled: true
+
+# Standalone metrics exporter with /metrics, /healthz and /readyz.
+exporter:
+  enabled: false
+  # Shared listener, container and Service port for metrics and health endpoints.
+  metricsPort: 8080
+  # Tune for watched object count, object size and scrape frequency.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Selector labels and checksum/config are reserved and cannot be overridden.
+  podLabels: {}
+  podAnnotations: {}
+  service:
+    annotations: {}
+  image:
+    repository: ghcr.io/dsx-ai-factory/workload-map/dsx-workload-exporter
+    # When empty, falls back to .Chart.AppVersion.
+    tag: ""
+    pullPolicy: IfNotPresent
+  # Skip Kubernetes system namespaces. Set matchExpressions: [] to include them.
+  namespaceSelector:
+    matchExpressions:
+      - key: kubernetes.io/metadata.name
+        operator: NotIn
+        values:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+  # Select which objects the publication controller observes.
+  objectSelector: {}
+  podSelector: {}
+  resourceRules: []
+  # Skip ConfigMaps and Secrets as workload roots. RBAC is unchanged.
+  # Set [] to allow them as workload roots.
+  excludeResourceRules:
+    - apiGroups: [""]
+      apiVersions: ["*"]
+      resources: ["configmaps", "secrets"]
+  ignoredOwnerKinds: []
+  requiredKinds: []
+  workers: 4
+  # Zero inherits workers.
+  leafWorkers: 0
+  rootWorkers: 0
+  requestTimeout: 30s
+  apiQPS: 20
+  apiBurst: 40
+  rbac:
+    # LIST/WATCH all resource types, including custom owners and Secrets.
+    # Replace with explicit API groups and resources to limit access.
+    workloadRules:
+      - apiGroups: ["*"]
+        resources: ["*"]
+  # Extra labels for Pod info and workload status. Expressions read object.
+  # See dsx-workload-exporter/pkg/labelevaluator/README.md.
+  labelRules: []
+  # Shared generic label evaluation limits. Zero selects the default.
+  genericLabelEvaluationLimits:
+    costLimit: 10000
+    maxExpressionBytes: 4096
+    maxResultBytes: 1024
+  # Copied as is into the exporter's config file (ConfigMap). Each source
+  # picks definitions by name: include lists the names to use (empty means
+  # all) and exclude removes names; exclude wins. For each workload kind, a
+  # selected cluster Karta replaces the catalog definition. A kind with no
+  # selected cluster Karta (none exists, or it is excluded or not included)
+  # uses the selected catalog definition, if any. Example, with the catalog
+  # enabled: excluding the cluster Karta team-job (batch/Job) makes Jobs use
+  # the catalog's batch-job-v1; also excluding batch-job-v1 leaves Jobs with
+  # no definition. With the catalog off (the default), Jobs get no definition.
+  kartaDefinitionSource:
+    # Definitions built into the exporter, named as in docs/catalog, for
+    # example batch-job-v1. Unknown names fail startup.
+    catalog:
+      enabled: false
+      include: []
+      exclude: []
+    # Watch Karta objects in the cluster, named by metadata.name.
+    cluster:
+      enabled: true
+      include: []
+      exclude: []
 
 # Overrides for resource names. Rarely needed.
 fullnameOverride: ""
@@ -58,6 +148,45 @@ webhook:
     # manual mode only: annotations for the webhook configs. Wire cert-manager
     # here, e.g. cert-manager.io/inject-ca-from: <namespace>/<certificate-name>
     annotations: {}
+
+# Native admission policies, run by the API server. They need neither the
+# operator nor the exporter, so operator.enabled does not affect them.
+admissionPolicies:
+  # Records the authenticated caller that creates a workload in an annotation,
+  # best effort.
+  submitter:
+    # A MutatingAdmissionPolicy fills a missing annotation on CREATE and keeps a
+    # supplied one. Objects with a controller ownerReference are skipped, since
+    # their creator is a controller, not the submitter. It never rejects a
+    # request: on a policy or CEL error the request is admitted unchanged.
+    # Requires MutatingAdmissionPolicy: v1 on Kubernetes 1.36+, or the v1beta1
+    # API enabled on 1.34-1.35.
+    enabled: false
+    # Annotation key that receives the caller's username.
+    annotation: karta.run.ai/submitted-by
+    # MutatingAdmissionPolicy API version: v1 or v1beta1. Empty detects it from
+    # the cluster. Set it for helm template and GitOps tools, which cannot detect it.
+    apiVersion: ""
+    # Workload types, by API group, version and plural resource name. The chart
+    # sets operations and scope. Required when enabled is true.
+    # Example:
+    # - apiGroups: ["batch"]
+    #   apiVersions: ["v1"]
+    #   resources: ["jobs"]
+    resources: []
+    # Types to skip during capture, in the same form. Exclusions win.
+    excludeResources: []
+    # Capture in namespaces matching these labels. Helm merges maps with these
+    # defaults, so to match all namespaces set matchLabels: null rather than {}.
+    namespaceSelector:
+      matchLabels:
+        karta.run.ai/capture-submitter: "true"
+    # Capture objects matching these labels. {} matches all objects.
+    objectSelector: {}
+    # Extra CEL conditions on the CREATE request; all must pass for capture.
+    # An expression that fails to evaluate skips capture. Names starting with
+    # karta- are reserved.
+    matchConditions: []
 
 logLevel: info
 

@@ -88,7 +88,7 @@ and workload versions are recorded in the per-cluster installed-version file.
 
 The infrastructure smoke checks prove certificate issuance, a pod starting with
 a simulated GPU, and a pod scheduled by KAI. They use `run_smoke` to clean up
-throwaway resources after success or failure. `go test ./hack/e2e` exercises
+throwaway resources after success or failure. `make test-e2e-updates` exercises
 planning, install/verify ordering, and failure propagation offline.
 
 ## Shared helpers (`operators/_common.sh`)

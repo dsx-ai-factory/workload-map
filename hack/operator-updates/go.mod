@@ -3,4 +3,4 @@
 
 module github.com/dsx-ai-factory/workload-map/hack/operator-updates
 
-go 1.26.8
+go 1.27.3

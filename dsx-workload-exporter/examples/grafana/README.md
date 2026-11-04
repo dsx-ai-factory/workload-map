@@ -21,9 +21,9 @@ jobs.
 
 [Import Workload Structure](workload-structure.json). Select one workload by UID.
 Follow its components, instances, groups and Pods in the graph. Nodes show maximum
-measured GPU utilization and GPU memory used. VRAM values are in GiB, as labeled
-in the graph legend and node details. Click a node for CPU, working-set memory
-and identity details. Grafana opens these details on click, not hover.
+measured GPU utilization and GPU memory used. Graph VRAM values use GB (decimal
+gigabytes). Click a node for CPU, RAM consumption and identity details. RAM is
+container working-set memory, shown in MiB. Grafana opens these details on click, not hover.
 Status and phase history follow the graph. The exact attribution table remains
 available below them.
 

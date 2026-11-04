@@ -204,14 +204,14 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Graph: orange = workload, blue = component, purple = instance, gray = replica group, green = Pod. Node values: GPU utilization / VRAM used (GiB). Click a node for CPU, memory and identity details. Select optional cAdvisor and DCGM jobs to add measurements. N/A means no accepted measurement."
+        "content": "Graph: orange = workload, blue = component, purple = instance, gray = replica group, green = Pod. Node values: GPU utilization / VRAM used (GB). Click a node for CPU, RAM consumption and identity details. Select optional cAdvisor and DCGM jobs to add measurements. N/A means no accepted measurement."
       },
       "transparent": true
     },
     {
       "id": 4,
       "title": "Workload structure | GPU, memory and CPU",
-      "description": "Published attribution, not ownerReferences or desired replicas. Node labels show names and types. Inside each node: maximum measured GPU utilization and GPU memory (VRAM) used in GiB. Click a node for CPU cores, working-set memory and identity details. Resource measurements are optional. Missing or rejected telemetry stays unavailable; nodes remain visible. VRAM totals count each UUID/MIG entity once per node. They describe device memory use, not per-process allocation. Solid edges show attribution; dashed edges show logical replica-group membership. Colors identify object types, not health.",
+      "description": "Published attribution, not ownerReferences or desired replicas. Node labels show names and types. Inside each node: maximum measured GPU utilization and GPU memory (VRAM) used in GB. Click a node for CPU cores, RAM consumption (container working-set memory) and identity details. Resource measurements are optional. Missing or rejected telemetry stays unavailable; nodes remain visible. VRAM totals count each UUID/MIG entity once per node. They describe device memory use, not per-process allocation. Solid edges show attribution; dashed edges show logical replica-group membership. Colors identify object types, not health.",
       "type": "nodeGraph",
       "gridPos": {
         "x": 0,
@@ -252,11 +252,11 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "VRAM used (GiB)"
+                "value": "VRAM used (GB)"
               },
               {
                 "id": "unit",
-                "value": "gbytes"
+                "value": "decgbytes"
               },
               {
                 "id": "decimals",
@@ -292,7 +292,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "Working-set memory (MiB)"
+                "value": "RAM used (MiB, working set)"
               },
               {
                 "id": "unit",
@@ -383,7 +383,7 @@
         "zoomMode": "cooperative",
         "nodes": {
           "mainStatUnit": "%",
-          "secondaryStatUnit": "VRAM"
+          "secondaryStatUnit": "GB vram"
         },
         "edges": {}
       },
@@ -476,6 +476,28 @@
           "id": "calculateField",
           "filter": {
             "id": "byRefId",
+            "options": "nodes"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "fixed": "50"
+              },
+              "operator": "+",
+              "right": {
+                "fixed": "0"
+              }
+            },
+            "alias": "nodeRadius",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
             "options": "gpu"
           },
           "options": {
@@ -493,7 +515,7 @@
                 "fixed": "1"
               }
             },
-            "alias": "mainstat",
+            "alias": "gpuUtilization",
             "replaceFields": false
           }
         },
@@ -515,11 +537,54 @@
               },
               "operator": "/",
               "right": {
-                "fixed": "1073741824"
+                "fixed": "1000000000"
               }
             },
             "alias": "secondarystat",
             "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "framebuffer"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "fixed": "1"
+              },
+              "operator": "+",
+              "right": {
+                "fixed": "0"
+              }
+            },
+            "alias": "statDecimals",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "configFromData",
+          "filter": {
+            "id": "byRefId",
+            "options": "framebuffer"
+          },
+          "options": {
+            "configRefId": "framebuffer",
+            "applyTo": {
+              "id": "byName",
+              "options": "secondarystat"
+            },
+            "mappings": [
+              {
+                "fieldName": "statDecimals",
+                "handlerKey": "decimals",
+                "reducerId": "lastNotNull"
+              }
+            ]
           }
         },
         {
@@ -573,10 +638,25 @@
           }
         },
         {
+          "id": "convertFieldType",
+          "filter": {
+            "id": "byRefId",
+            "options": "memory"
+          },
+          "options": {
+            "conversions": [
+              {
+                "targetField": "detail__memory_mib",
+                "destinationType": "string"
+              }
+            ]
+          }
+        },
+        {
           "id": "filterFieldsByName",
           "options": {
             "include": {
-              "pattern": "^(id|title|subtitle|mainstat|secondarystat|source|target|color|strokeDasharray|detail__.*)$"
+              "pattern": "^(id|title|subtitle|mainstat|gpuUtilization|secondarystat|source|target|nodeRadius|color|strokeDasharray|detail__.*)$"
             }
           }
         },
@@ -592,19 +672,40 @@
           }
         },
         {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "/^(joinByField-.*|nodes)$/"
+          },
+          "options": {
+            "mode": "reduceRow",
+            "timeSeries": false,
+            "reduce": {
+              "include": [
+                "gpuUtilization"
+              ],
+              "reducer": "lastNotNull"
+            },
+            "alias": "mainstat",
+            "replaceFields": false
+          }
+        },
+        {
           "id": "organize",
           "filter": {
             "id": "byRefId",
             "options": "/^(joinByField-.*|nodes)$/"
           },
           "options": {
-            "excludeByName": {},
+            "excludeByName": {
+              "gpuUtilization": true
+            },
             "indexByName": {},
             "renameByName": {
               "mainstat": "GPU max utilization",
-              "secondarystat": "VRAM used (GiB)",
+              "secondarystat": "VRAM used (GB)",
               "detail__cpu_cores": "CPU cores (5m)",
-              "detail__memory_mib": "Working-set memory (MiB)",
+              "detail__memory_mib": "RAM used (MiB, working set)",
               "detail__workload_uid": "Workload UID",
               "detail__pod_uid": "Pod UID",
               "detail__namespace": "Namespace",

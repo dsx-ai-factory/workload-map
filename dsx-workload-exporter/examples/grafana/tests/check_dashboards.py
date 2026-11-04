@@ -21,6 +21,13 @@ METRICS = {
     "dsx_exporter_observation_valid",
 }
 RULES = {"dsx:workload:observed", "dsx:pod_attribution:unique"}
+OBSERVER_METRICS = {
+    "workload_gpu_observer_state",
+    "workload_gpu_observer_assigned_devices",
+    "workload_gpu_observer_utilization_max_ratio",
+    "workload_gpu_observer_low_activity_observation_seconds",
+    "workload_gpu_observer_observation_healthy",
+}
 DATASOURCE = {"type": "prometheus", "uid": "${datasource}"}
 
 
@@ -73,6 +80,11 @@ def check(filename, uid):
             targets.append(obj)
             assert obj.get("datasource") == DATASOURCE, (filename, obj.get("refId"))
             assert not obj.get("hide", False), (filename, obj.get("refId"), "hidden query")
+            observer_metrics = set(re.findall(r"\bworkload_gpu_observer_\w+", obj["expr"]))
+            if observer_metrics:
+                assert filename == "workload-overview.json", filename
+                assert observer_metrics <= OBSERVER_METRICS, (filename, observer_metrics)
+                assert '${observer_job:regex}' in obj["expr"], (filename, "unscoped observer")
         if "spanNulls" in obj:
             assert obj["spanNulls"] is False, filename
         if "url" in obj:
@@ -82,7 +94,7 @@ def check(filename, uid):
     text = json.dumps(dashboard)
     assert set(re.findall(r"\bdsx_[a-zA-Z0-9_]+", text)) <= METRICS | {"dsx_workload_"}, filename
     assert set(re.findall(r"\bdsx:[a-zA-Z0-9_:]+", text)) <= RULES, filename
-    assert not re.search(r"karta_demo:|workload_gpu_observer_|gpu_observer_|simulator_|/karta/grafana", text), filename
+    assert not re.search(r"karta_demo:|\bgpu_observer_|simulator_|/karta/grafana", text), filename
     for variable in re.findall(r"\$\{([a-zA-Z_]\w*)(?::[^}]+)?\}|\$([a-zA-Z_]\w*)", text):
         name = variable[0] or variable[1]
         assert name in variables or name.startswith("__"), (filename, name)
@@ -112,12 +124,12 @@ def check_fixture_expressions():
                     break
                 block.append(value.strip())
             entries.append((*match.groups(), " ".join(block)))
-    assert len(entries) == 10, "Expected core, node-resource and shared-device fixtures"
+    assert len(entries) == 12, "Expected core, node-resource, shared-device and observer fixtures"
     for filename, panel_id, ref_id, expression in entries:
         dashboard = json.loads((ROOT / filename).read_text())
         panel = next(obj for obj in objects(dashboard) if obj.get("id") == int(panel_id))
         actual = next(target["expr"] for target in panel["targets"] if target["refId"] == ref_id)
-        for variable, value in {"exporter_job": "exporter", "namespace": "ns", "workload_uid": "multi", "dcgm_job": "dcgm", "cadvisor_job": "cadvisor", "__rate_interval": "5m"}.items():
+        for variable, value in {"exporter_job": "exporter", "namespace": "ns", "workload_uid": "multi", "dcgm_job": "dcgm", "cadvisor_job": "cadvisor", "workload": ".*", "component": ".*", "component_instance": ".*", "gpu_device": ".*", "observer_job": "observer", "__rate_interval": "5m"}.items():
             actual = actual.replace("${" + variable + ":regex}", value).replace("$" + variable, value)
         assert " ".join(actual.split()) == " ".join(expression.split()), (filename, panel_id, ref_id, "fixture query drift")
     print(f"PASS {len(entries)} fixture expressions match the shipped dashboard queries")

@@ -229,7 +229,7 @@ tests:
     promql_expr_test:
       # dashboard-expression: workload-overview.json 3 A
       - expr: &dashboard_phases |-
-          sum by (phase) (((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~"exporter", namespace=~"ns", observation_valid="true"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~"exporter", namespace=~"ns", observation_valid="true"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~"exporter", namespace=~"ns", observation_valid!="true"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~"exporter", namespace=~"ns"})) != 1)) and on () (min(up{job=~"exporter"}) == 1))
+          sum by (phase) (((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~"exporter", namespace=~"ns", workload_name=~".*", observation_valid="true"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~"exporter", namespace=~"ns", workload_name=~".*", observation_valid="true"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~"exporter", namespace=~"ns", workload_name=~".*", observation_valid!="true"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~"exporter", namespace=~"ns", workload_name=~".*"})) != 1)) and on () (min(up{job=~"exporter"}) == 1))
         eval_time: 0m
         exp_samples: &phase_matches
           - labels: '{phase="Initializing"}'
@@ -294,7 +294,7 @@ tests:
     promql_expr_test:
       # dashboard-expression: workload-overview.json 4 B
       - expr: &dashboard_age |-
-          (time() - (min by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~"exporter", namespace=~"ns"}) == max by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~"exporter", namespace=~"ns"}))) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns"})
+          (time() - (min by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~"exporter", namespace=~"ns", workload_name=~".*"}) == max by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~"exporter", namespace=~"ns", workload_name=~".*"}))) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})
         eval_time: 10m
         exp_samples:
           - labels: '{job="exporter",namespace="ns",workload_name="same",workload_uid="same"}'
@@ -310,6 +310,8 @@ tests:
   - name: Published mapping count alone may zero-fill observed roots
     interval: 1m
     input_series:
+      - series: 'up{job="exporter"}'
+        values: '1x2'
       - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="zero",workload_uid="zero"}'
         values: '10 10 stale'
       - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="pod-root",workload_uid="pod-root"}'
@@ -317,9 +319,9 @@ tests:
       - series: 'dsx_workload_pod_info{job="exporter",namespace="ns",workload_name="pod-root",workload_uid="pod-root",pod_name="pod",pod_uid="pod-uid",observation_valid="true"}'
         values: '1 stale'
     promql_expr_test:
-      # dashboard-expression: workload-overview.json 2 B
+      # dashboard-expression: workload-overview.json 102 A
       - expr: &dashboard_mappings |-
-          sum(count by (job, namespace, workload_name, workload_uid) (dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", observation_valid="true"}) or on (job, namespace, workload_name, workload_uid) (0 * dsx:workload:observed{job=~"exporter", namespace=~"ns"}))
+          sum((count by (job, namespace, workload_name, workload_uid) (dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_name=~".*", observation_valid="true"}) or on (job, namespace, workload_name, workload_uid) (0 * dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"}))) and on () (min(up{job=~"exporter"}) == 1)
         eval_time: 0m
         exp_samples:
           - labels: '{}'
@@ -377,7 +379,7 @@ tests:
     promql_expr_test:
       # dashboard-expression: workload-overview.json 10 A
       - expr: &dashboard_gpu |-
-          (max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!=""}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!=""})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!=""}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!=""})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", observation_valid="true"}))) and on () (min(up{job=~"exporter"}) == 1) and on () (min(up{job=~"dcgm"}) == 1)
+          (max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_name=~".*", observation_valid="true"}))) and on () (min(up{job=~"exporter"}) == 1) and on () (min(up{job=~"dcgm"}) == 1)
         eval_time: 0m
         exp_samples: &gpu_measurements
           - labels: '{namespace="ns",workload_name="mixed",workload_uid="mixed"}'

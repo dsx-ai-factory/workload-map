@@ -9,13 +9,17 @@ editable examples for an existing Grafana and Prometheus installation.
 
 ## All workloads
 
-[Import Workload Overview](workload-overview.json). Start with GPU utilization
-and VRAM trends, then compare current measurements for every workload with
-accepted GPU telemetry. Workload inventory, status, CPU and memory follow below.
-Select a workload name to open its structure with the same datasource and source
-jobs.
+[Import Workload Overview](workload-overview.json). GPU summary cards and activity
+come first. Workload charts, inventory, phase history and component details follow.
+Use the workload filter to narrow the overview. Component and instance filters
+apply to the component sections. Select a workload name to open its structure.
+
+The overview includes VRAM usage, workload age, zero-Pod roots, independent phase
+history and collection failures. Expand the detail sections when needed.
 
 ![Workload overview with inventory, status and resource sections](screenshots/workload-overview.png)
+
+![Component CPU, memory and GPU details](screenshots/workload-overview-details.png)
 
 ## Inside one workload
 
@@ -73,6 +77,7 @@ warning severity are example policy.
    workloads. Current-value panels can be empty while their history remains.
 4. Select `cadvisor_job` for CPU/memory and `dcgm_job` for GPU measurements.
    These sources are optional. Inventory and status work without them.
+   Select `observer_job` only if a separate GPU activity observer is installed.
 5. Choose a time range in Grafana. Hover a history interval to see its start and
    end times. Select a workload in Overview to investigate it in Structure.
 
@@ -101,6 +106,18 @@ measurement of memory allocated by an individual process. Low GPU utilization
 does not prove a workload is idle. Missing telemetry, missing Pod UIDs and
 rejected mappings remain unavailable.
 
+### Optional GPU activity observer
+
+Active, Low activity and Warming come from a separate observer's
+`workload_gpu_observer_*` metrics. Neither DSX nor DCGM Exporter supplies these
+states. The observer is not installed by these examples. Without it, activity
+panels stay unavailable; GPU utilization, VRAM and the DSX panels still work.
+
+The activity panels require a successful observer scrape and samples newer than
+45 seconds. The observer must label samples with `namespace`, `workload`,
+`workload_uid` and `workload_kind`. Its state and allocation checks own the meaning
+of Active and Low activity; the dashboard does not infer them from a percentage.
+
 ## Read status and history
 
 Phase flags are independent: a workload can match more than one phase. The
@@ -126,8 +143,8 @@ Tested with Grafana 13.2.4, Prometheus/promtool 3.14.0 and Kubernetes 1.34.0 on
 Kind, including imports, panel queries, graph details, workload links and Grafana
 served below a URL subpath. Overview uses isolated workloads and real cAdvisor
 CPU/memory measurements. The structure screenshot uses a synthetic hierarchy,
-resource values and phase transitions to show each level. All GPU readings are
-synthetic fixtures; physical GPU collection was not tested.
+resource values and phase transitions to show each level. GPU readings and
+activity states are synthetic fixtures; physical GPU collection was not tested.
 
 From this directory:
 

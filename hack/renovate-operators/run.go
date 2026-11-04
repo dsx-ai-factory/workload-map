@@ -182,25 +182,17 @@ func verifyTrackingIssue(ctx context.Context, url string, commands executor) err
 	if match == nil {
 		return errors.New("tracking issue must be a public GitHub issue URL")
 	}
-	repoJSON, err := commands.output(ctx, "gh", "api", "repos/"+match[1])
-	if err != nil {
-		return err
-	}
 	var repository struct {
 		Private *bool `json:"private"`
 	}
-	if err := json.Unmarshal(repoJSON, &repository); err != nil {
-		return err
-	}
-	issueJSON, err := commands.output(ctx, "gh", "api", "repos/"+match[1]+"/issues/"+match[2])
-	if err != nil {
+	if err := commands.outputJSON(ctx, &repository, "gh", "api", "repos/"+match[1]); err != nil {
 		return err
 	}
 	var issue struct {
 		State       string          `json:"state"`
 		PullRequest json.RawMessage `json:"pull_request"`
 	}
-	if err := json.Unmarshal(issueJSON, &issue); err != nil {
+	if err := commands.outputJSON(ctx, &issue, "gh", "api", "repos/"+match[1]+"/issues/"+match[2]); err != nil {
 		return err
 	}
 	if repository.Private == nil || *repository.Private || issue.State != "open" || len(issue.PullRequest) != 0 {
@@ -263,12 +255,8 @@ func publishPullRequest(ctx context.Context, opts updateOptions, plan updatePlan
 	if err := os.WriteFile(bodyPath, body.Bytes(), 0o644); err != nil {
 		return err
 	}
-	existingJSON, err := commands.output(ctx, "gh", "pr", "list", "--repo", opts.Repository, "--base", opts.BaseBranch, "--head", plan.Branch, "--state", "open", "--json", "number")
-	if err != nil {
-		return err
-	}
 	var existing []struct{ Number int }
-	if err := json.Unmarshal(existingJSON, &existing); err != nil {
+	if err := commands.outputJSON(ctx, &existing, "gh", "pr", "list", "--repo", opts.Repository, "--base", opts.BaseBranch, "--head", plan.Branch, "--state", "open", "--json", "number"); err != nil {
 		return err
 	}
 	var url []byte

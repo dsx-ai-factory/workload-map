@@ -46,6 +46,14 @@ func (e executor) output(ctx context.Context, args ...string) ([]byte, error) {
 	return output, nil
 }
 
+func (e executor) outputJSON(ctx context.Context, value any, args ...string) error {
+	output, err := e.output(ctx, args...)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(output, value)
+}
+
 func (e executor) run(ctx context.Context, args ...string) error {
 	cmd := e.command(ctx, args...)
 	cmd.Stdout, cmd.Stderr = e.stdout, e.stderr

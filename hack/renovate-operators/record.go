@@ -181,21 +181,13 @@ func recordUpdate(ctx context.Context, opts updateOptions, exec executor) (resul
 }
 
 func collectClusterEvidence(ctx context.Context, exec executor, artifacts string) error {
-	data, err := exec.output(ctx, "kubectl", "version", "-o", "json")
-	if err != nil {
-		return err
-	}
 	var version struct {
 		ServerVersion json.RawMessage `json:"serverVersion"`
 	}
-	if err := json.Unmarshal(data, &version); err != nil {
+	if err := exec.outputJSON(ctx, &version, "kubectl", "version", "-o", "json"); err != nil {
 		return err
 	}
 	if err := writeJSONFile(filepath.Join(artifacts, "kubernetes.json"), version); err != nil {
-		return err
-	}
-	data, err = exec.output(ctx, "kubectl", "get", "pods", "-A", "-o", "json")
-	if err != nil {
 		return err
 	}
 	type container struct {
@@ -209,7 +201,7 @@ func collectClusterEvidence(ctx context.Context, exec executor, artifacts string
 			Status   struct{ ContainerStatuses []container }
 		}
 	}
-	if err := json.Unmarshal(data, &pods); err != nil {
+	if err := exec.outputJSON(ctx, &pods, "kubectl", "get", "pods", "-A", "-o", "json"); err != nil {
 		return err
 	}
 	type podImages struct {

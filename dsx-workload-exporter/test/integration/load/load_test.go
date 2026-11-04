@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	collector "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/adapters/otel"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/app"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/bootstrap"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/config"
@@ -346,7 +347,7 @@ func scrapeContinuously(ctx context.Context, httpClient *http.Client, endpoint s
 		// timeout. Cancellation must not disguise a failed completed scrape.
 		families, err := scrape(context.WithoutCancel(ctx), httpClient, endpoint)
 		if err == nil {
-			for _, name := range []string{"dsx_workload_pod_info", "dsx_workload_status", "dsx_workload_created_timestamp_seconds", "dsx_exporter_observation_valid"} {
+			for _, name := range []string{collector.MetricPodWorkloadInfo, collector.MetricWorkloadStatus, collector.MetricWorkloadCreatedTimestamp, collector.MetricExporterObservationValid} {
 				if len(families[name].GetMetric()) == 0 {
 					err = fmt.Errorf("empty metric family during load: %s", name)
 					break

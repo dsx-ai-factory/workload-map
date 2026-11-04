@@ -79,6 +79,7 @@ const (
 type definitionRow struct {
 	Name       string
 	Kind       string
+	APIVersion string
 	Origin     string
 	Components []string
 }
@@ -149,13 +150,13 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 				kartas = append(kartas, def.Karta)
 			}
 			table := func(out io.Writer) error {
-				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit)
+				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit, output.Get() == generator.OutputWide)
 			}
 			return generator.Render(cmd.OutOrStdout(), output.Get(), kartas, len(args) == 1, table)
 		},
 	}
 
-	output = withOutput(cmd, cmd.Flags(), false)
+	output = withOutput(cmd, cmd.Flags(), true)
 	cmd.Flags().StringVar(&group, flagGroup, "", usageGroup)
 	cmd.Flags().StringVar(&kind, flagKind, "", usageKind)
 	cmd.Flags().StringVar(&version, flagVersion, "", usageVersion)
@@ -244,9 +245,11 @@ func definitionRows(defs []definitions.Definition) []definitionRow {
 		for _, child := range structure.ChildComponents {
 			components = append(components, child.Name)
 		}
+		gvk := catalog.RootKey(def.Karta)
 		rows = append(rows, definitionRow{
 			Name:       def.Karta.Name,
-			Kind:       catalog.RootKey(def.Karta).Kind,
+			Kind:       gvk.Kind,
+			APIVersion: schema.GroupVersion{Group: gvk.Group, Version: gvk.Version}.String(),
 			Origin:     string(def.Origin),
 			Components: components,
 		})
@@ -257,21 +260,31 @@ func definitionRows(defs []definitions.Definition) []definitionRow {
 
 // renderDefinitions writes the table. The empty note goes to errOut so stdout
 // stays parseable.
-func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int) error {
+func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int, wideOutput ...bool) error {
+	wide := len(wideOutput) > 0 && wideOutput[0]
 	if len(rows) == 0 {
 		fmt.Fprintln(errOut, "No Karta definitions found.")
 		return nil
 	}
 	w := tabwriter.NewWriter(out, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tKIND\tORIGIN\tCOMPONENTS")
+	if wide {
+		fmt.Fprintln(w, "NAME\tKIND\tAPIVERSION\tORIGIN\tCOMPONENTS")
+	} else {
+		fmt.Fprintln(w, "NAME\tKIND\tORIGIN\tCOMPONENTS")
+	}
 	for _, row := range rows {
 		// Still listed, so its author can see the one they wrote.
 		kind := row.Kind
 		if kind == "" {
 			kind = "<none>"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-			row.Name, kind, row.Origin, componentsCell(row.Components, componentLimit))
+		if wide {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				row.Name, kind, row.APIVersion, row.Origin, componentsCell(row.Components, componentLimit))
+		} else {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+				row.Name, kind, row.Origin, componentsCell(row.Components, componentLimit))
+		}
 	}
 	if err := w.Flush(); err != nil {
 		return fmt.Errorf("write definitions table: %w", err)

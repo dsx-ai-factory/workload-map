@@ -190,7 +190,7 @@ lint-lib: golangci-lint ## Lint the library module (set VERBOSE=1 for -v)
 .PHONY: test-lib
 test-lib: lib-generate-mocks ## Run the library tests, plus the offline e2e recorder tests
 	cd karta/sdk && go test ./...
-	cd test/e2e && go test ./recorder/...
+	cd test/e2e && go test ./recorder/... ./cmd/verify-operator-update/...
 
 # The library is the one published module, so a replace in it would break every
 # consumer's `go get`. The other modules carry one on purpose.
@@ -734,6 +734,8 @@ E2E_KUBECONFIG := KUBECONFIG=$(HOME)/.kube/kind-$(CLUSTER_NAME).kubeconfig
 endif
 # Overall go-test timeout for the online suite; override for a quick subset, e.g. E2E_TIMEOUT=10m.
 E2E_TIMEOUT ?= 30m
+# Optional JUnit evidence for automated operator update validation.
+E2E_JUNIT_REPORT ?=
 
 # Select cases by operator with the same WORKLOADS list as e2e-up: record-e2e WORKLOADS="batch-job"
 # records just the batch-job case (a comma is OR in ginkgo label filters). E2E_LABELS overrides it
@@ -792,6 +794,11 @@ build-operator-updates: $(LOCALBIN) ## Build the operator update checker into bi
 .PHONY: test-e2e-updates
 test-e2e-updates: test-operator-updates ## Test operator update detection offline (also covered by make check)
 
+.PHONY: test-renovate-operators
+test-renovate-operators: ## Test operator recording and publication guards offline
+	python3 -B -m unittest discover -s hack/e2e/renovate -p "test_*.py"
+	node --test hack/e2e/renovate/*.test.cjs
+
 .PHONY: e2e-down
 e2e-down: ## Tear down the e2e cluster (set CLUSTER_NAME for a named one)
 	CLUSTER_NAME=$(CLUSTER_NAME) ./hack/e2e/down.sh
@@ -803,7 +810,7 @@ record-e2e: ## Record the fixtures against the current cluster - kind from e2e-u
 	@if [ "$(strip $(WORKLOADS))" = "none" ]; then \
 		echo "record-e2e: WORKLOADS=none selects no cases"; exit 2; fi
 	cd test/e2e && go test -count=1 ./recorder
-	cd test/e2e && CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) go test -count=1 -v -timeout $(E2E_TIMEOUT) ./flows $(if $(E2E_FOCUS)$(E2E_LABELS),-args $(if $(E2E_FOCUS),-ginkgo.focus="$(E2E_FOCUS)") $(if $(E2E_LABELS),-ginkgo.label-filter="$(E2E_LABELS)"))
+	cd test/e2e && CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) go test -count=1 -v -timeout $(E2E_TIMEOUT) ./flows $(if $(E2E_FOCUS)$(E2E_LABELS)$(E2E_JUNIT_REPORT),-args $(if $(E2E_JUNIT_REPORT),-ginkgo.junit-report="$(E2E_JUNIT_REPORT)") $(if $(E2E_FOCUS),-ginkgo.focus="$(E2E_FOCUS)") $(if $(E2E_LABELS),-ginkgo.label-filter="$(E2E_LABELS)"))
 
 .PHONY: verify-recordings
 verify-recordings: ## Fail if any recorded fixture ended with succeeded false (re-record it clean before pushing)
@@ -816,6 +823,7 @@ verify-recordings: ## Fail if any recorded fixture ended with succeeded false (r
 # scripts, the shared helpers, and every operator install, verify, and update check.
 E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh hack/e2e/check-updates.sh \
 	hack/e2e/_updates.sh \
+	$(wildcard hack/e2e/renovate/*.sh) \
 	$(wildcard hack/e2e/infra/*/*.sh) \
 	$(wildcard hack/e2e/operators/*/check-updates.sh) \
 	$(wildcard hack/e2e/karta-operator/*.sh) \

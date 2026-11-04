@@ -43,6 +43,73 @@ lets a maintainer trigger or retry one.
 Every commit carries a `Signed-off-by` trailer for the bot identity, so the DCO
 check passes.
 
+## Operator updates and recordings
+
+`Renovate operators` runs separately every Sunday at 04:00 UTC. It updates the
+operator pins in `hack/e2e/global.env` on `main`. Each operator group gets its
+own job, with at most two jobs running together. The workflow can also run one
+group manually through its `operator` input.
+
+The configuration reads release repositories, tag prefixes, channels, and
+retractions from the existing `check-updates.sh` wrappers. Knative/Kourier and
+Kubeflow/MPI stay grouped. Trainer v2 requires an API migration and is excluded.
+Tool pins, Ray runtime, and Gateway API are outside this operator update job.
+
+For each candidate, Renovate changes the pins and runs a post-upgrade hook:
+
+1. Create a fresh kind cluster and run the existing install/verify scripts.
+2. Check provisioning metadata against the pins and discover every selected flow
+   through Ginkgo.
+3. Record those flows and reject missing, skipped, failed, or stale fixtures.
+4. Replay the recordings, run `make check`, and remove the temporary cluster.
+5. Commit the pins and recordings with the Renovate App identity and DCO.
+6. Verify the pushed commit against the tested file hashes, then open or update
+   a draft PR with a link to the CI run. Nothing merges automatically.
+
+A Git pre-push hook is installed before Renovate starts. A failed post-upgrade
+command cannot publish an update without successful evidence. Evidence is
+specific to the source commit and generated file contents. Logs, JUnit reports,
+installed versions, image references, and hashes remain available as Actions
+artifacts for 14 days.
+
+Infrastructure updates also exercise workloads: cert-manager runs KServe and
+Karta's cert-manager webhook tests; Fake GPU Operator runs Grove; KAI runs
+Grove and Dynamo. The infrastructure smoke tests still verify certificate
+issuance, GPU allocation, and scheduling. Recordings keep their workload
+operator version paths; the CI evidence identifies the infrastructure versions.
+Passing these flows proves the tested configuration, not every deployment.
+
+### Repository setup
+
+The upstream workflow reuses `RENOVATE_APP_CLIENT_ID` and
+`RENOVATE_APP_PRIVATE_KEY`. The App needs contents, pull requests and commit
+statuses write access, plus issues read access. Set the repository variable
+`E2E_OPERATOR_TRACKING_ISSUE` to the public, open issue that tracks recording
+updates. The launcher checks it before publishing.
+
+Forks use `GITHUB_TOKEN` and the `github-actions[bot]` identity. Enable GitHub
+Actions to create pull requests in the fork's Actions settings. Fork schedules
+are disabled, but manual and reusable workflow calls are supported. Their
+`base-branch` input can target a validation branch. Upstream always uses `main`.
+Recordings run in CI; the launcher rejects local invocation.
+
+### Extending and testing operator automation
+
+Add the operator's pin variables and workload coverage to
+`hack/e2e/renovate/config.cjs`. Release rules still belong in its checker wrapper.
+Add each recorded kind to `test/e2e/cmd/verify-operator-update`; flow names are
+discovered from the suite, so adding a flow does not require another list.
+Test a real update in a fork before enabling or changing its coverage.
+
+```sh
+make test-renovate-operators
+make check
+make lint-shell
+```
+
+The automation tests need Python 3.9+ and Node 18+. CI runs them separately from
+`make check`, which also includes the Go recording validator tests.
+
 ## Testing a configuration change
 
 ### Dry run

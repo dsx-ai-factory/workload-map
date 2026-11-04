@@ -97,6 +97,9 @@ jobs:
       - name: Lint shell scripts
         run: make lint-shell
 
+      - name: Test operator update automation
+        run: make test-renovate-operators
+
   operator-e2e:
     name: Operator E2E (${{ matrix.webhook }})
     if: github.event_name == 'push'

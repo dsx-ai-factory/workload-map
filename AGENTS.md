@@ -17,6 +17,7 @@ Always do:
 - Reference an open GitHub issue in the PR.
 - Regenerate manifests after changing API types: `make lib-generate && make lib-manifests`.
 - Ship a recorded e2e flow with every new catalog definition (see Catalog Definitions in `CONTRIBUTING.md`): the recording is how the mapped states are proven, and the replay suite keeps proving them.
+- Add an executable `check-updates.sh` and offline Go tests for every new external workload or infrastructure operator; follow [Adding an operator](hack/e2e/README.md#adding-an-operator) and run `make test-e2e-updates`.
 - Use `git mv` when moving files so history is preserved.
 
 Discuss in the PR description:

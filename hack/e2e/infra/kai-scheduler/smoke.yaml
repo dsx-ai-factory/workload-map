@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# The Helm chart owns default-parent-queue. Only the smoke leaf is created here,
+# so cleanup does not race KAI's rejection of parent deletion while children exist.
+apiVersion: scheduling.run.ai/v2
+kind: Queue
+metadata:
+  name: kai-smoke-queue
+spec:
+  parentQueue: default-parent-queue
+  resources:
+    cpu:
+      limit: -1
+      overQuotaWeight: 1
+      quota: 0
+    gpu:
+      limit: -1
+      overQuotaWeight: 1
+      quota: 0
+    memory:
+      limit: -1
+      overQuotaWeight: 1
+      quota: 0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kai-smoke
+  namespace: default
+  labels:
+    kai.scheduler/queue: kai-smoke-queue
+spec:
+  automountServiceAccountToken: false
+  schedulerName: kai-scheduler
+  restartPolicy: Never
+  containers:
+    - name: pause
+      image: registry.k8s.io/pause:3.10
+      resources:
+        requests:
+          cpu: 20m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi

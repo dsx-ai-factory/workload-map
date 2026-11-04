@@ -3,104 +3,80 @@
 
 # Install the DSX workload exporter with Helm
 
-The exporter is part of the Karta Helm chart. This example uses bundled
-definitions without installing the Karta operator, CRDs or admission policies.
-Choose a fresh namespace and release so an existing installation is not changed.
+The exporter is part of the Karta Helm chart and runs without the Karta operator.
+Helm and kubectl must point to the cluster where you want to install it.
 
-Helm and kubectl must be configured for your cluster.
+## Install
 
-## 1. Configure
-
-See the [configuration reference](configuration.md#helm-values) for all options,
-including images, namespace selection, Karta definitions, labels, workers and
-resources.
-
-Save this as `dsx-demo-values.yaml`. Set the image repository and tag to an
-exporter image your cluster can pull. For a release with a matching published
-exporter image, omit `exporter.image` to use the chart defaults:
-
-```yaml
-operator:
-  enabled: false
-crdUpgrader:
-  enabled: false
-exporter:
-  enabled: true
-  image:
-    repository: registry.example.com/team/dsx-workload-exporter
-    tag: YOUR_IMAGE_TAG
-  kartaDefinitionSource:
-    catalog:
-      enabled: true
-      include: [apps-deployment-v1]
-    cluster:
-      enabled: false
-  namespaceSelector:
-    matchLabels:
-      kubernetes.io/metadata.name: dsx-demo
-    matchExpressions: []
-  rbac:
-    workloadRules:
-      - apiGroups: [apps]
-        resources: [deployments, replicasets]
-```
-
-This scopes observation to `dsx-demo`. The explicit read rules cover Deployment
-roots and their ReplicaSet owners; Pod and Namespace reads are supplied by the
-chart. Runtime scope does not make these grants namespace-scoped.
-
-## 2. Install or upgrade
-
-Use a published chart version that includes the DSX workload exporter. Replace
-`CHART_VERSION` with that version:
+Set `VERSION` to a published chart version that includes the exporter. Chart
+version `0.3.0` predates it. The chart supplies the matching exporter image;
+no values file is required.
 
 ```sh
-helm upgrade --install dsx-demo oci://ghcr.io/dsx-ai-factory/workload-map/karta \
-  --version CHART_VERSION \
-  --namespace dsx-demo --create-namespace --skip-crds \
-  -f dsx-demo-values.yaml \
+VERSION=CHART_VERSION
+
+helm upgrade --install dsx-workload \
+  oci://ghcr.io/dsx-ai-factory/workload-map/karta \
+  --version "$VERSION" \
+  --namespace karta-system --create-namespace \
+  --set operator.enabled=false \
+  --set webhook.enabled=false \
+  --set exporter.enabled=true \
   --wait --timeout 5m
 ```
 
-For an unreleased checkout, run the same command from the repository root with
-`./charts/karta` instead of the OCI URL and omit `--version`. Set
-`exporter.image` to an image built from that checkout.
+Helm creates the installation namespace. The exporter observes all namespaces
+except `kube-system`, `kube-public` and `kube-node-lease` by default.
+Both bundled and cluster Karta definitions are enabled. The chart installs the
+Karta CRD and maintains it through its upgrade hook. Built-in workload kinds do
+not require creating Karta objects. Cluster definitions override bundled ones.
+
+Use a separate namespace and release if Karta is already installed. To leave
+its shared CRD unchanged, add both `--skip-crds` and
+`--set crdUpgrader.enabled=false`.
+
+## Verify
 
 ```sh
-kubectl -n dsx-demo rollout status deployment/dsx-workload-exporter --timeout=120s
-```
-
-`--skip-crds` prevents Helm from installing CRDs. Disabling `crdUpgrader` also
-prevents the chart's CRD upgrade hook. Disabling the cluster definition source
-removes the exporter's need for installed Karta definitions.
-
-## 3. Check metrics
-
-Create a small workload using an image available to your cluster:
-
-```sh
-kubectl -n dsx-demo create deployment demo --image=registry.k8s.io/pause:3.10
-kubectl -n dsx-demo rollout status deployment/demo --timeout=120s
-kubectl -n dsx-demo port-forward service/dsx-workload-exporter 8080:8080
+kubectl -n karta-system port-forward service/dsx-workload-exporter 8080:8080
 ```
 
 In another terminal:
 
 ```sh
-curl -fsS http://127.0.0.1:8080/readyz
+curl -fv http://127.0.0.1:8080/readyz
 curl -fsS http://127.0.0.1:8080/metrics | grep '^dsx_'
 ```
 
-Expect Pod attribution and status rows for `workload_name="demo"`, plus its
-creation timestamp. Inspect `observation_valid` and diagnostic rows rather than
-using HTTP success alone. See [metric semantics](../keps/0001-metrics-exporter/README.md#metrics).
+Readiness returns HTTP 200 with an empty body when the definition inventory and
+required watches are healthy. Inspect `dsx_exporter_observation_valid` for
+collection and workload errors; a successful scrape alone does not establish valid observations.
+See the [metric reference](../keps/0001-metrics-exporter/README.md#metrics).
 
-## Cleanup
+## Configure
 
-Only remove the demo resources created above:
+The [configuration reference](configuration.md#helm-values) covers namespace
+selection, definition sources, labels, worker counts, resources and permissions.
+To let an existing Prometheus Operator discover the exporter, follow
+[Prometheus integration](configuration.md#prometheus-operator).
+
+For a catalog-only installation without the Karta CRD, add these flags to the
+install command:
 
 ```sh
-kubectl -n dsx-demo delete deployment demo
-helm uninstall dsx-demo --namespace dsx-demo
-kubectl delete namespace dsx-demo
+--skip-crds \
+--set crdUpgrader.enabled=false \
+--set exporter.kartaDefinitionSource.cluster.enabled=false
 ```
+
+For an unreleased checkout, use `./charts/karta` instead of the OCI URL and omit
+`--version`. Set `exporter.image.repository` and `exporter.image.tag` to an image
+built from that checkout. See [development](../../dsx-workload-exporter/README.md#development).
+
+## Uninstall
+
+```sh
+helm uninstall dsx-workload --namespace karta-system
+```
+
+The namespace and shared Karta CRD remain. Other installations may use them.

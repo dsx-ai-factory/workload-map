@@ -67,15 +67,15 @@ func TestExporterLoad(t *testing.T) {
 		t.Fatal("KUBEBUILDER_ASSETS is required; run make test-exporter-load")
 	}
 	environment := &envtest.Environment{CRDDirectoryPaths: []string{"../../../../charts/karta/crds"}, ErrorIfCRDPathMissing: true, UseExistingCluster: ptr.To(false)}
-	kube, err := environment.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
 	t.Cleanup(func() {
 		if err := environment.Stop(); err != nil {
 			t.Error(err)
 		}
 	})
+	kube, err := environment.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
 	kube.QPS = 1000
 	kube.Burst = 2000
 	scheme := kruntime.NewScheme()

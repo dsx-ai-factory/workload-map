@@ -47,44 +47,6 @@ Selecting a subset keeps a run light, and `none` keeps only the base, which is w
 the operator e2e wants. Dependencies are added automatically: kserve pulls
 knative, dynamo pulls grove.
 
-## Reusing the operator image
-
-By default, `up.sh` builds `IMAGE` before creating or reusing the kind cluster.
-For serial batches with unchanged operator runtime code, opt into local image
-reuse:
-
-```sh
-KARTA_REUSE_OPERATOR_IMAGE=true IMAGE=karta-operator:e2e ./hack/e2e/up.sh jobset
-```
-
-The caller must have built that image from the current operator runtime source,
-dependencies, and build inputs. This avoids rebuilding when only recordings,
-fixtures, or documentation change. The provisioner checks that `IMAGE` exists
-locally with `docker image inspect`; it does not verify source freshness.
-A missing image fails before cluster creation, without falling back to a build.
-Only `true` and `false` are accepted. The default is `false`.
-This option affects only the Karta operator image; workload operator images keep
-their existing installation behavior.
-
-## Selecting workload image nodes
-
-`KIND_WORKLOAD_IMAGE_NODES` optionally limits workload image preloads to a
-comma-separated list of kind node names. Both `preload_image` and
-`build_and_load_image` pass it to `kind load --nodes`. An empty or unset value
-keeps the default of loading every node.
-
-For a cluster whose workloads run only on its worker:
-
-```sh
-CLUSTER_NAME=karta-e2e KIND_WORKLOAD_IMAGE_NODES=karta-e2e-worker \
-  ./hack/e2e/up.sh kuberay
-```
-
-Use names from the target cluster, with no spaces between comma-separated names.
-Include every node that may schedule the workload. This avoids copying large
-images onto an unschedulable control-plane node. The Karta operator image load
-in `up.sh` still targets every node.
-
 ## NIM operator image pin
 
 The NIM installer fetches the chart at `NIM_OPERATOR_VERSION` and overrides its

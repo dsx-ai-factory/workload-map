@@ -306,11 +306,6 @@ a legacy predicate might describe an unscheduled Pod and contain no progress
 evidence. Migrate each predicate according to the observations it actually reads.
 No removal version is set in this change.
 
-Fresh live validation on 2026-10-18 covered 83 successful flows and 454 STATE
-frames across all 23 catalog definitions, with exact-set SDK replay. The run
-used real controllers with CPU applications and stand-ins; it did not validate
-real model inference or GPU execution.
-
 The 2026-10-19 whole-catalog audit examines every recording, including traces
 without Undefined phases. Twenty of 23 definitions improve. On the same 455
 native observations, 95 frames across 50 recordings change, and Undefined falls
@@ -327,7 +322,7 @@ clusters: 457 native STATE frames, all passing exact-set SDK replay. One explici
 NIMCache reconcile error remains Undefined. The guide lists the coverage and
 remaining limits.
 
-See [the per-kind mapping, fresh coverage, and historical comparison](docs/Status%20Mapping%20Migration.md)
+See [the per-kind mapping, live coverage, and remaining limits](docs/Status%20Mapping%20Migration.md)
 for tested operator versions, behavior changes, and verification limits.
 
 ## Pre-built Karta Definitions

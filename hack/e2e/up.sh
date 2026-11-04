@@ -75,7 +75,6 @@ Usage: $0 [--list] [workload...]
 Environment (see hack/e2e/global.env):
   KARTA_WEBHOOK_MODE  auto | cert-manager | disabled   (default auto)
   CERT_MANAGER        auto | true | false              (default auto)
-  KARTA_REUSE_OPERATOR_IMAGE  true | false             (default false)
 EOF
 }
 
@@ -96,18 +95,10 @@ require_tools() {
 }
 
 setup_cluster() {
-  if [ "${KARTA_REUSE_OPERATOR_IMAGE}" = true ]; then
-    echo "==> reuse local operator image (${IMAGE})"
-    if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
-      echo "error: KARTA_REUSE_OPERATOR_IMAGE=true requires an existing local image: ${IMAGE}" >&2
-      exit 1
-    fi
-  else
-    echo "==> build operator image (${IMAGE})"
-    # Build output is left visible: a failing image build is the first thing to debug.
-    docker build --build-arg "GO_VERSION=${GO_VERSION}" \
-      -f "${REPO_ROOT}/operator/Dockerfile" -t "${IMAGE}" "${REPO_ROOT}"
-  fi
+  echo "==> build operator image (${IMAGE})"
+  # Build output is left visible: a failing image build is the first thing to debug.
+  docker build --build-arg "GO_VERSION=${GO_VERSION}" \
+    -f "${REPO_ROOT}/operator/Dockerfile" -t "${IMAGE}" "${REPO_ROOT}"
 
   if kind get clusters 2>/dev/null | grep -qx "${CLUSTER_NAME}"; then
     echo "==> reusing existing kind cluster (${CLUSTER_NAME})"
@@ -251,14 +242,6 @@ main() {
       ;;
   esac
 
-  case "${KARTA_REUSE_OPERATOR_IMAGE}" in
-    true | false) ;;
-    *)
-      echo "error: unknown KARTA_REUSE_OPERATOR_IMAGE '${KARTA_REUSE_OPERATOR_IMAGE}' (want: true, false)" >&2
-      exit 2
-      ;;
-  esac
-
   local cert_manager_needed_by=""
   [ "${KARTA_WEBHOOK_MODE}" = "cert-manager" ] && cert_manager_needed_by="KARTA_WEBHOOK_MODE=cert-manager"
   for w in ${plan[@]+"${plan[@]}"}; do
@@ -294,7 +277,7 @@ main() {
   fi
 
   require_tools
-  group "operator image + kind cluster"; setup_cluster; endgroup
+  group "build image + kind cluster"; setup_cluster; endgroup
   if [ "${install_cm}" = false ] && kubectl get namespace cert-manager >/dev/null 2>&1; then
     warn "cert-manager is already on ${CLUSTER_NAME}; not installing it does not remove it"
   fi

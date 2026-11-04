@@ -13,8 +13,9 @@ make test-exporter-load EXPORTER_LOAD_COUNT=10
 
 The test starts a local Kubernetes API server and etcd through envtest, then runs
 the exporter against them. Writers continuously update workload and Pod objects
-while an HTTP client scrapes metrics every 100ms. After writes stop, the test waits
-for the final identities and phases, checks timestamps and collection health,
+while one HTTP client attempts a scrape every 100ms. Slow scrapes reduce the
+actual scrape rate. After writes stop, the test waits for the final identities
+and phases, checks timestamps and collection health,
 and verifies that deleting objects removes their metrics.
 
 The defaults are 100 workload roots with 200 Pods, four writers and at least
@@ -23,7 +24,10 @@ last longer than the requested duration.
 `EXPORTER_LOAD_WORKLOADS`, `EXPORTER_LOAD_WRITERS` and `EXPORTER_LOAD_DURATION`
 change that load. `EXPORTER_LOAD_COUNT` repeats the whole test with a fresh API
 server. `EXPORTER_LOAD_TIMEOUT` defaults to `10m` for all repetitions together;
-increase it for long durations or many repetitions. The log reports completed updates, HTTP scrape time and Go heap usage.
+increase it for long durations or many repetitions.
+
+The log reports completed API writes, time spent scraping and validating metrics,
+and Go heap usage. `scrape_max` includes the request, parsing and validation.
 The exporter and test share that heap; these are not isolated exporter CPU or
 memory measurements. No machine-dependent throughput limits are enforced.
 

@@ -18,6 +18,10 @@ The test exporters request 100m CPU each to fit alongside both operators. Their 
 and failure logs stay in `.artifacts/exporter-e2e/<cluster-name>`; the current kubectl context
 is not changed. Set `EXPORTER_E2E_CLUSTER` to choose another isolated cluster name.
 
+The suite uses Ginkgo/Gomega under `<module>/test/e2e`, like the operator.
+Its eight specs run in order because permission coverage reuses the lifecycle
+Job. Shared namespaces are retained if any spec fails.
+
 Tests sample metrics every 250ms. Controlled workload stages remain in place
 until their metrics have been observed. CI runs the suite for changes to the
 exporter, SDK, catalog, chart, E2E harness or build configuration. The CI job has

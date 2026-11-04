@@ -7,46 +7,19 @@ package e2e
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
 	"slices"
 	"strings"
-	"testing"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func TestExporter(t *testing.T) {
-	cluster := os.Getenv("EXPORTER_E2E_CLUSTER")
-	if cluster == "" {
-		cluster = "dsx-exporter-e2e"
-	}
-	expected := "kind-" + cluster
-	current := strings.TrimSpace(command(t, "", "config", "current-context"))
-	if current != expected {
-		t.Fatalf("refusing context %q, expected dedicated %q", current, expected)
-	}
-	command(t, "", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "exporter-workloads-denied", "--ignore-not-found", "--wait=true", "--timeout=60s")
-	command(t, "", "delete", "karta", "exporter-e2e-deployment", "--ignore-not-found")
-
-	for _, shard := range []string{"a", "b"} {
-		ns := "exporter-workloads-" + shard
-		apply(t, fmt.Sprintf(`apiVersion: v1
-kind: Namespace
-metadata:
-  name: %s
-  labels:
-    exporter-e2e-shard: %s
-`, ns, shard))
-		t.Cleanup(func() {
-			if !t.Failed() {
-				command(t, "", "delete", "namespace", ns, "--ignore-not-found", "--wait=false")
-			}
-		})
-	}
-	t.Run("standalone Pod lifecycle and deletion", func(t *testing.T) {
-		apply(t, `apiVersion: v1
+// The permission scenario reuses the completed Job from the lifecycle scenario.
+var _ = Describe("Exporter", Serial, Ordered, ContinueOnFailure, func() {
+	It("standalone Pod lifecycle and deletion", func() {
+		apply(`apiVersion: v1
 kind: Pod
 metadata:
   name: lifecycle
@@ -67,13 +40,13 @@ spec:
       command: [sh, -c, 'until test -f /gates/finish; do sleep 0.1; done']
       volumeMounts: [{name: gates, mountPath: /gates}]
 `)
-		phase(t, "lifecycle", "Initializing")
-		waitContainer(t, "lifecycle", "initialize", true)
-		command(t, "", "exec", "-n", namespace, "lifecycle", "-c", "initialize", "--", "touch", "/gates/start")
-		phase(t, "lifecycle", "Running")
-		uid := strings.TrimSpace(command(t, "", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
-		eventually(t, "standalone Pod identity", func() bool {
-			fs := pollMetrics(t, "a")
+		phase("lifecycle", "Initializing")
+		waitContainer("lifecycle", "initialize", true)
+		command("", "exec", "-n", namespace, "lifecycle", "-c", "initialize", "--", "touch", "/gates/start")
+		phase("lifecycle", "Running")
+		uid := strings.TrimSpace(command("", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
+		eventually("standalone Pod identity", func() bool {
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
@@ -81,31 +54,29 @@ spec:
 			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
 		})
 
-		fs := metrics(t, "a")
+		fs := metrics("a")
 		if len(matching(fs, "dsx_workload_status", map[string]string{"workload_uid": uid})) != 9 {
-			t.Fatal("expected nine phase gauges")
+			Fail("expected nine phase gauges")
 		}
 		created := matching(fs, "dsx_workload_created_timestamp_seconds", map[string]string{"workload_uid": uid})
-		stamp := strings.TrimSpace(command(t, "", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.creationTimestamp}"))
+		stamp := strings.TrimSpace(command("", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.creationTimestamp}"))
 		at, err := time.Parse(time.RFC3339, stamp)
-		if err != nil {
-			t.Fatal(err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 		if len(created) != 1 || created[0].GetGauge().GetValue() != float64(at.Unix()) {
-			t.Fatal("creation timestamp differs from API")
+			Fail("creation timestamp differs from API")
 		}
 		if len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"scope": "workload", "workload_uid": uid})) != 0 {
-			t.Fatal("healthy workload must not emit health row")
+			Fail("healthy workload must not emit health row")
 		}
-		if len(matching(metrics(t, "b"), "dsx_workload_pod_info", map[string]string{"pod_uid": uid})) != 0 {
-			t.Fatal("Pod leaked to other shard")
+		if len(matching(metrics("b"), "dsx_workload_pod_info", map[string]string{"pod_uid": uid})) != 0 {
+			Fail("Pod leaked to other shard")
 		}
-		waitContainer(t, "lifecycle", "work", false)
-		command(t, "", "exec", "-n", namespace, "lifecycle", "-c", "work", "--", "touch", "/gates/finish")
-		phase(t, "lifecycle", "Completed")
-		command(t, "", "delete", "pod", "lifecycle", "-n", namespace, "--wait=true")
-		eventually(t, "deleted Pod metrics removed", func() bool {
-			fs := pollMetrics(t, "a")
+		waitContainer("lifecycle", "work", false)
+		command("", "exec", "-n", namespace, "lifecycle", "-c", "work", "--", "touch", "/gates/finish")
+		phase("lifecycle", "Completed")
+		command("", "delete", "pod", "lifecycle", "-n", namespace, "--wait=true")
+		eventually("deleted Pod metrics removed", func() bool {
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
@@ -117,12 +88,12 @@ spec:
 			return true
 		})
 	})
-	t.Run("failed Pod", func(t *testing.T) {
-		apply(t, `apiVersion: v1
+	It("failed Pod", func() {
+		apply(`apiVersion: v1
 kind: Pod
 metadata:
   name: failed
-  namespace: `+namespace+`
+  namespace: ` + namespace + `
 spec:
   restartPolicy: Never
   containers:
@@ -130,10 +101,10 @@ spec:
       image: busybox:1.37.0
       command: [sh, -c, 'exit 1']
 `)
-		phase(t, "failed", "Failed")
+		phase("failed", "Failed")
 	})
-	t.Run("root without Pods and dynamic definition", func(t *testing.T) {
-		apply(t, `apiVersion: apps/v1
+	It("root without Pods and dynamic definition", func() {
+		apply(`apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: empty
@@ -153,8 +124,8 @@ spec:
           image: busybox:1.37.0
           command: [sh, -c, 'sleep 3600']
 `)
-		eventually(t, "unknown root has dense zero statuses", func() bool {
-			fs := pollMetrics(t, "a")
+		eventually("unknown root has dense zero statuses", func() bool {
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
@@ -163,8 +134,8 @@ spec:
 			}
 			return len(matching(fs, "dsx_workload_created_timestamp_seconds", map[string]string{"workload_name": "empty"})) == 1
 		})
-		before := command(t, "", "get", "pods", "-n", "exporter-e2e-a", "-o", "jsonpath={.items[*].metadata.uid}{.items[*].status.containerStatuses[*].restartCount}")
-		apply(t, `apiVersion: run.ai/v1alpha1
+		before := command("", "get", "pods", "-n", "exporter-e2e-a", "-o", "jsonpath={.items[*].metadata.uid}{.items[*].status.containerStatuses[*].restartCount}")
+		apply(`apiVersion: run.ai/v1alpha1
 kind: Karta
 metadata:
   name: exporter-e2e-deployment
@@ -179,35 +150,35 @@ spec:
         statusMappings:
           running: [{byPhase: ready}]
 `)
-		t.Cleanup(func() {
-			if !t.Failed() {
-				command(t, "", "delete", "karta", "exporter-e2e-deployment", "--ignore-not-found")
+		DeferCleanup(func() {
+			if !CurrentSpecReport().Failed() {
+				command("", "delete", "karta", "exporter-e2e-deployment", "--ignore-not-found")
 			}
 		})
-		phase(t, "empty", "Running")
-		command(t, "", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"statusMappings":{"running":[],"completed":[{"byPhase":"ready"}]}}}}}}`)
-		phase(t, "empty", "Completed")
-		command(t, "", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"phaseDefinition":{"path":"error(\"e2e evaluation failure\")"}}}}}}`)
-		eventually(t, "workload evaluation failure retains Completed", func() bool {
-			fs := pollMetrics(t, "a")
+		phase("empty", "Running")
+		command("", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"statusMappings":{"running":[],"completed":[{"byPhase":"ready"}]}}}}}}`)
+		phase("empty", "Completed")
+		command("", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"phaseDefinition":{"path":"error(\"e2e evaluation failure\")"}}}}}}`)
+		eventually("workload evaluation failure retains Completed", func() bool {
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
 			rows := matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": namespace, "scope": "workload", "workload_name": "empty", "reason": "evaluation_failed"})
 			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 0 && hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": "empty", "observation_valid": "false", "karta": "exporter-e2e-deployment", "karta_source": "cluster"}, "Completed")
 		})
-		command(t, "", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"phaseDefinition":{"path":".metadata.labels.phase"}}}}}}`)
-		phase(t, "empty", "Completed")
-		eventually(t, "evaluation failure cleared after repair", func() bool {
-			fs := pollMetrics(t, "a")
+		command("", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"phaseDefinition":{"path":".metadata.labels.phase"}}}}}}`)
+		phase("empty", "Completed")
+		eventually("evaluation failure cleared after repair", func() bool {
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
 			return len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": namespace, "scope": "workload", "workload_name": "empty"})) == 0
 		})
-		command(t, "", "delete", "karta", "exporter-e2e-deployment")
-		eventually(t, "removed definition clears phases", func() bool {
-			fs := pollMetrics(t, "a")
+		command("", "delete", "karta", "exporter-e2e-deployment")
+		eventually("removed definition clears phases", func() bool {
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
@@ -217,13 +188,13 @@ spec:
 			return hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": "empty"})
 		})
 
-		after := command(t, "", "get", "pods", "-n", "exporter-e2e-a", "-o", "jsonpath={.items[*].metadata.uid}{.items[*].status.containerStatuses[*].restartCount}")
+		after := command("", "get", "pods", "-n", "exporter-e2e-a", "-o", "jsonpath={.items[*].metadata.uid}{.items[*].status.containerStatuses[*].restartCount}")
 		if before != after {
-			t.Fatal("exporter restarted during definition update")
+			Fail("exporter restarted during definition update")
 		}
-		command(t, "", "scale", "deployment/empty", "-n", namespace, "--replicas=1")
-		eventually(t, "Deployment Pod resolves through ReplicaSet", func() bool {
-			fs := pollMetrics(t, "a")
+		command("", "scale", "deployment/empty", "-n", namespace, "--replicas=1")
+		eventually("Deployment Pod resolves through ReplicaSet", func() bool {
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
@@ -231,9 +202,9 @@ spec:
 		})
 	})
 
-	t.Run("namespace selector handoff", testNamespaceHandoff)
-	t.Run("slow Job lifecycle", func(t *testing.T) {
-		apply(t, `apiVersion: batch/v1
+	It("namespace selector handoff", testNamespaceHandoff)
+	It("slow Job lifecycle", func() {
+		apply(`apiVersion: batch/v1
 kind: Job
 metadata:
   name: slow-job
@@ -256,52 +227,48 @@ spec:
           command: [sh, -c, 'until test -f /gates/finish; do sleep 0.1; done']
           volumeMounts: [{name: gates, mountPath: /gates}]
 `)
-		phase(t, "slow-job", "Initializing")
+		phase("slow-job", "Initializing")
 		var pod string
-		eventually(t, "Job init running", func() bool {
+		eventually("Job init running", func() bool {
 			var pods corev1.PodList
-			if !readObject(t, &pods, "pods", "-l", "job-name=slow-job") || len(pods.Items) != 1 {
+			if !readObject(&pods, "pods", "-l", "job-name=slow-job") || len(pods.Items) != 1 {
 				return false
 			}
 			pod = pods.Items[0].Name
 			return containerRunning(pods.Items[0].Status.InitContainerStatuses, "initialize")
 		})
-		command(t, "", "exec", "-n", namespace, pod, "-c", "initialize", "--", "touch", "/gates/start")
-		phase(t, "slow-job", "Running")
-		jobUID := strings.TrimSpace(command(t, "", "get", "job", "slow-job", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
-		eventually(t, "Job Pod identity", func() bool {
-			fs := pollMetrics(t, "a")
+		command("", "exec", "-n", namespace, pod, "-c", "initialize", "--", "touch", "/gates/start")
+		phase("slow-job", "Running")
+		jobUID := strings.TrimSpace(command("", "get", "job", "slow-job", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
+		eventually("Job Pod identity", func() bool {
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
 			rows := matching(fs, "dsx_workload_pod_info", map[string]string{"namespace": namespace, "pod_name": pod, "workload_uid": jobUID, "workload_kind": "Job"})
 			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
 		})
-		waitContainer(t, pod, "work", false)
-		command(t, "", "exec", "-n", namespace, pod, "-c", "work", "--", "touch", "/gates/finish")
-		phase(t, "slow-job", "Completed")
+		waitContainer(pod, "work", false)
+		command("", "exec", "-n", namespace, pod, "-c", "work", "--", "touch", "/gates/finish")
+		phase("slow-job", "Completed")
 	})
 
-	t.Run("JobSet components and completion", testJobSet)
-	t.Run("LeaderWorkerSet groups and scale down", testLeaderWorkerSet)
+	It("JobSet components and completion", testJobSet)
+	It("LeaderWorkerSet groups and scale down", testLeaderWorkerSet)
 
-	t.Run("permission failure and recovery", func(t *testing.T) {
+	It("permission failure and recovery", func() {
 		// Keep the original namespace authorized if its Job watch reconnects.
-		command(t, "", "create", "role", "healthy-jobs", "-n", namespace, "--verb=get,list,watch", "--resource=jobs.batch")
-		command(t, "", "create", "rolebinding", "healthy-jobs", "-n", namespace, "--role=healthy-jobs", "--serviceaccount=exporter-e2e-a:dsx-workload-exporter")
-		jobUID := strings.TrimSpace(command(t, "", "get", "job", "slow-job", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
-		podUID := strings.TrimSpace(command(t, "", "get", "pods", "-l", "job-name=slow-job", "-n", namespace, "-o", "jsonpath={.items[0].metadata.uid}"))
+		command("", "create", "role", "healthy-jobs", "-n", namespace, "--verb=get,list,watch", "--resource=jobs.batch")
+		command("", "create", "rolebinding", "healthy-jobs", "-n", namespace, "--role=healthy-jobs", "--serviceaccount=exporter-e2e-a:dsx-workload-exporter")
+		jobUID := strings.TrimSpace(command("", "get", "job", "slow-job", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
+		podUID := strings.TrimSpace(command("", "get", "pods", "-l", "job-name=slow-job", "-n", namespace, "-o", "jsonpath={.items[0].metadata.uid}"))
 		roleName := "dsx-workload-exporter-exporter-e2e-a"
-		original := command(t, "", "get", "clusterrole", roleName, "-o", "json")
+		original := command("", "get", "clusterrole", roleName, "-o", "json")
 		var role map[string]any
-		if err := json.Unmarshal([]byte(original), &role); err != nil {
-			t.Fatal(err)
-		}
+		Expect(json.Unmarshal([]byte(original), &role)).To(Succeed())
 		rules := role["rules"].([]any)
 		restorePatch, err := json.Marshal(map[string]any{"rules": rules})
-		if err != nil {
-			t.Fatal(err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 		kept := []any{}
 		for _, rule := range rules {
 			r := rule.(map[string]any)
@@ -310,24 +277,24 @@ spec:
 			}
 		}
 		patch, _ := json.Marshal(map[string]any{"rules": kept})
-		t.Cleanup(func() {
-			command(t, "", "patch", "clusterrole", roleName, "--type=merge", "-p", string(restorePatch))
+		DeferCleanup(func() {
+			command("", "patch", "clusterrole", roleName, "--type=merge", "-p", string(restorePatch))
 		})
-		command(t, "", "patch", "clusterrole", roleName, "--type=merge", "-p", string(patch))
+		command("", "patch", "clusterrole", roleName, "--type=merge", "-p", string(patch))
 		// Existing watches survive revocation. A new namespace forces a new LIST.
-		apply(t, `apiVersion: v1
+		apply(`apiVersion: v1
 kind: Namespace
 metadata:
   name: exporter-workloads-denied
   labels: {exporter-e2e-shard: a}
 `)
-		t.Cleanup(func() {
-			if !t.Failed() {
-				command(t, "", "delete", "namespace", "exporter-workloads-denied", "--ignore-not-found", "--wait=false")
+		DeferCleanup(func() {
+			if !CurrentSpecReport().Failed() {
+				command("", "delete", "namespace", "exporter-workloads-denied", "--ignore-not-found", "--wait=false")
 			}
 		})
 		health := func(value float64) bool {
-			fs := pollMetrics(t, "a")
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
@@ -347,11 +314,11 @@ metadata:
 			return len(pods) == 1 && pods[0].GetGauge().GetValue() == 1 &&
 				hasPhases(fs, map[string]string{"namespace": namespace, "workload_uid": jobUID, "workload_kind": "Job", "observation_valid": "true"}, "Completed")
 		}
-		eventually(t, "forbidden Job collection remains observable while unready", func() bool {
+		eventually("forbidden Job collection remains observable while unready", func() bool {
 			_, err := kubectl("", "get", "--raw", "/api/v1/namespaces/exporter-e2e-a/services/dsx-workload-exporter:8080/proxy/readyz")
 			return err != nil && strings.Contains(err.Error(), "ServiceUnavailable") && health(0)
 		})
-		apply(t, `apiVersion: batch/v1
+		apply(`apiVersion: batch/v1
 kind: Job
 metadata:
   name: recovered
@@ -366,10 +333,10 @@ spec:
           image: busybox:1.37.0
           command: [sh, -c, 'sleep 3600']
 `)
-		recoveredJobUID := strings.TrimSpace(command(t, "", "get", "job", "recovered", "-n", "exporter-workloads-denied", "-o", "jsonpath={.metadata.uid}"))
+		recoveredJobUID := strings.TrimSpace(command("", "get", "job", "recovered", "-n", "exporter-workloads-denied", "-o", "jsonpath={.metadata.uid}"))
 		var recoveredPodUID string
 		discoveryLabels := map[string]string{"namespace": "exporter-workloads-denied", "scope": "discovery"}
-		eventually(t, "unreadable Job owner emits discovery health without a guessed root", func() bool {
+		eventually("unreadable Job owner emits discovery health without a guessed root", func() bool {
 			body, err := kubectl("", "get", "pods", "-n", "exporter-workloads-denied", "-l", "job-name=recovered", "-o", "json")
 			var pods corev1.PodList
 			if err != nil || json.Unmarshal([]byte(body), &pods) != nil || len(pods.Items) != 1 {
@@ -384,7 +351,7 @@ spec:
 				return false
 			}
 			recoveredPodUID = string(pod.UID)
-			fs := pollMetrics(t, "a")
+			fs := pollMetrics("a")
 			if fs == nil || len(matching(fs, "dsx_exporter_observation_valid", discoveryLabels)) != 1 {
 				return false
 			}
@@ -399,13 +366,13 @@ spec:
 			}
 			return true
 		})
-		command(t, "", "patch", "clusterrole", roleName, "--type=merge", "-p", string(restorePatch))
-		eventually(t, "Job collection and readiness recovered", func() bool {
+		command("", "patch", "clusterrole", roleName, "--type=merge", "-p", string(restorePatch))
+		eventually("Job collection and readiness recovered", func() bool {
 			_, err := kubectl("", "get", "--raw", "/api/v1/namespaces/exporter-e2e-a/services/dsx-workload-exporter:8080/proxy/readyz")
 			return err == nil && health(1)
 		})
-		eventually(t, "recovered namespace Job published", func() bool {
-			fs := pollMetrics(t, "a")
+		eventually("recovered namespace Job published", func() bool {
+			fs := pollMetrics("a")
 			if fs == nil {
 				return false
 			}
@@ -415,5 +382,4 @@ spec:
 				len(pods) == 1 && pods[0].GetGauge().GetValue() == 1 && len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
 		})
 	})
-
-}
+})

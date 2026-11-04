@@ -6,12 +6,14 @@
 package e2e
 
 import (
-	"testing"
 	"time"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-func testNamespaceHandoff(t *testing.T) {
-	apply(t, `apiVersion: v1
+func testNamespaceHandoff() {
+	apply(`apiVersion: v1
 kind: Pod
 metadata:
   name: shard-probe
@@ -23,11 +25,11 @@ spec:
       image: busybox:1.37.0
       command: [sh, -c, 'sleep 3600']
 `)
-	waitContainer(t, "shard-probe", "work", false)
-	phase(t, "shard-probe", "Running")
+	waitContainer("shard-probe", "work", false)
+	phase("shard-probe", "Running")
 	// A populated namespace must move all result families and its source health.
 	check := func(destination, source string) bool {
-		dst, src := metrics(t, destination), metrics(t, source)
+		dst, src := metrics(destination), metrics(source)
 		for _, family := range workloadFamilies {
 			if len(matching(src, family, map[string]string{"namespace": namespace})) != 0 {
 				return false
@@ -40,18 +42,14 @@ spec:
 			len(matching(dst, "dsx_workload_created_timestamp_seconds", map[string]string{"namespace": namespace, "workload_name": "shard-probe"})) == 1 &&
 			hasPhases(dst, map[string]string{"namespace": namespace, "workload_name": "shard-probe", "observation_valid": "true"}, "Running")
 	}
-	eventually(t, "namespace initially collected only by A", func() bool { return check("a", "b") })
-	t.Cleanup(func() {
-		command(t, "", "label", "namespace", namespace, "exporter-e2e-shard=a", "--overwrite")
+	eventually("namespace initially collected only by A", func() bool { return check("a", "b") })
+	DeferCleanup(func() {
+		command("", "label", "namespace", namespace, "exporter-e2e-shard=a", "--overwrite")
 	})
-	command(t, "", "label", "namespace", namespace, "exporter-e2e-shard=b", "--overwrite")
-	eventually(t, "namespace moves from A to B", func() bool { return check("b", "a") })
-	for until := time.Now().Add(3 * time.Second); time.Now().Before(until); {
-		if !check("b", "a") {
-			t.Fatal("namespace handoff did not remain consistent")
-		}
-		time.Sleep(250 * time.Millisecond)
-	}
-	command(t, "", "label", "namespace", namespace, "exporter-e2e-shard=a", "--overwrite")
-	eventually(t, "namespace returns from B to A", func() bool { return check("a", "b") })
+	command("", "label", "namespace", namespace, "exporter-e2e-shard=b", "--overwrite")
+	eventually("namespace moves from A to B", func() bool { return check("b", "a") })
+	Consistently(func() bool { return check("b", "a") }, 3*time.Second, 250*time.Millisecond).
+		Should(BeTrue(), "namespace handoff did not remain consistent")
+	command("", "label", "namespace", namespace, "exporter-e2e-shard=a", "--overwrite")
+	eventually("namespace returns from B to A", func() bool { return check("a", "b") })
 }

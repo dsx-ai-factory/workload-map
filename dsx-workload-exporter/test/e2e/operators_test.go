@@ -10,8 +10,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"testing"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	dto "github.com/prometheus/client_model/go"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -36,15 +37,15 @@ type operatorWorkload struct {
 	} `json:"status"`
 }
 
-func testJobSet(t *testing.T) {
-	applyFixture(t, "jobset")
+func testJobSet() {
+	applyFixture("jobset")
 	var root operatorWorkload
 	var pods corev1.PodList
 	var jobs batchv1.JobList
-	eventually(t, "JobSet has three running Pods owned through three Jobs", func() bool {
-		if !readObject(t, &root, "jobset", "component-jobs") ||
-			!readObject(t, &pods, "pods", "-l", "exporter-e2e-case=jobset") || len(pods.Items) != 3 ||
-			!readObject(t, &jobs, "jobs", "-l", "jobset.sigs.k8s.io/jobset-name=component-jobs") || len(jobs.Items) != 3 {
+	eventually("JobSet has three running Pods owned through three Jobs", func() bool {
+		if !readObject(&root, "jobset", "component-jobs") ||
+			!readObject(&pods, "pods", "-l", "exporter-e2e-case=jobset") || len(pods.Items) != 3 ||
+			!readObject(&jobs, "jobs", "-l", "jobset.sigs.k8s.io/jobset-name=component-jobs") || len(jobs.Items) != 3 {
 			return false
 		}
 		for _, pod := range pods.Items {
@@ -66,10 +67,10 @@ func testJobSet(t *testing.T) {
 		return true
 	})
 	waitStatus := func(completed bool) {
-		t.Helper()
-		eventually(t, fmt.Sprintf("JobSet controller status and metrics, completed=%t", completed), func() bool {
+		GinkgoHelper()
+		eventually(fmt.Sprintf("JobSet controller status and metrics, completed=%t", completed), func() bool {
 			var current operatorWorkload
-			if !readObject(t, &current, "jobset", root.Name) || len(current.Status.ReplicatedJobsStatus) != 2 {
+			if !readObject(&current, "jobset", root.Name) || len(current.Status.ReplicatedJobsStatus) != 2 {
 				return false
 			}
 			conditions := conditionStatuses(current)
@@ -105,7 +106,7 @@ func testJobSet(t *testing.T) {
 			if initializing {
 				phases = append(phases, "Initializing")
 			}
-			fs := pollMetrics(t, "a")
+			fs := pollMetrics("a")
 			if fs == nil || !hasOperatorStatus(fs, current, "jobset-x-k8s-io-jobset-v1alpha2", phases...) || len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(root.UID)})) != 3 {
 				return false
 			}
@@ -122,16 +123,16 @@ func testJobSet(t *testing.T) {
 	}
 	waitStatus(false)
 	for _, pod := range pods.Items {
-		command(t, "", "exec", "-n", namespace, pod.Name, "-c", "work", "--", "touch", "/tmp/finish")
+		command("", "exec", "-n", namespace, pod.Name, "-c", "work", "--", "touch", "/tmp/finish")
 	}
 	waitStatus(true)
-	command(t, "", "delete", "jobset", root.Name, "-n", namespace, "--cascade=foreground", "--wait=true", "--timeout=30s")
-	eventually(t, "deleted JobSet and descendant metrics removed", func() bool {
+	command("", "delete", "jobset", root.Name, "-n", namespace, "--cascade=foreground", "--wait=true", "--timeout=30s")
+	eventually("deleted JobSet and descendant metrics removed", func() bool {
 		var remaining corev1.PodList
-		if !readObject(t, &remaining, "pods", "-l", "exporter-e2e-case=jobset") || len(remaining.Items) != 0 {
+		if !readObject(&remaining, "pods", "-l", "exporter-e2e-case=jobset") || len(remaining.Items) != 0 {
 			return false
 		}
-		fs := pollMetrics(t, "a")
+		fs := pollMetrics("a")
 		if fs == nil {
 			return false
 		}
@@ -149,19 +150,19 @@ func testJobSet(t *testing.T) {
 	})
 }
 
-func testLeaderWorkerSet(t *testing.T) {
-	applyFixture(t, "leaderworkerset")
+func testLeaderWorkerSet() {
+	applyFixture("leaderworkerset")
 	var root operatorWorkload
 	var pods corev1.PodList
 	retained := map[types.UID]bool{}
 	removed := map[types.UID]bool{}
 	waitReady := func(replicas int32) {
-		t.Helper()
-		eventually(t, fmt.Sprintf("LeaderWorkerSet has %d ready groups and exact Pod metrics", replicas), func() bool {
+		GinkgoHelper()
+		eventually(fmt.Sprintf("LeaderWorkerSet has %d ready groups and exact Pod metrics", replicas), func() bool {
 			var current operatorWorkload
 			var currentPods corev1.PodList
-			if !readObject(t, &current, "leaderworkerset", "worker-groups") || current.Status.ReadyReplicas != replicas || current.Status.Replicas != replicas || current.Status.UpdatedReplicas != replicas ||
-				!readObject(t, &currentPods, "pods", "-l", "leaderworkerset.sigs.k8s.io/name=worker-groups") || len(currentPods.Items) != int(replicas)*2 {
+			if !readObject(&current, "leaderworkerset", "worker-groups") || current.Status.ReadyReplicas != replicas || current.Status.Replicas != replicas || current.Status.UpdatedReplicas != replicas ||
+				!readObject(&currentPods, "pods", "-l", "leaderworkerset.sigs.k8s.io/name=worker-groups") || len(currentPods.Items) != int(replicas)*2 {
 				return false
 			}
 			if root.UID != "" && current.UID != root.UID {
@@ -175,7 +176,7 @@ func testLeaderWorkerSet(t *testing.T) {
 			if conditions["Progressing"] == metav1.ConditionTrue {
 				phases = append(phases, "Initializing")
 			}
-			fs := pollMetrics(t, "a")
+			fs := pollMetrics("a")
 			if fs == nil || !hasOperatorStatus(fs, current, "leaderworkerset-x-k8s-io-leaderworkerset-v1", phases...) || len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(current.UID)})) != int(replicas)*2 {
 				return false
 			}
@@ -220,17 +221,15 @@ func testLeaderWorkerSet(t *testing.T) {
 			removed[pod.UID] = true
 		}
 	}
-	command(t, "", "patch", "leaderworkerset", root.Name, "-n", namespace, "--type=merge", "-p", `{"spec":{"replicas":1}}`)
+	command("", "patch", "leaderworkerset", root.Name, "-n", namespace, "--type=merge", "-p", `{"spec":{"replicas":1}}`)
 	waitReady(1)
 }
 
-func applyFixture(t *testing.T, name string) {
-	t.Helper()
+func applyFixture(name string) {
+	GinkgoHelper()
 	body, err := os.ReadFile("testdata/" + name + ".yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	apply(t, string(body))
+	Expect(err).NotTo(HaveOccurred())
+	apply(string(body))
 }
 
 func conditionStatuses(root operatorWorkload) map[string]metav1.ConditionStatus {

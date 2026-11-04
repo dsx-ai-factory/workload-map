@@ -31,8 +31,6 @@ var _ = Describe("RayJob", Ordered, Label("kuberay", "rayjob"), func() {
 			AddState(kartav1alpha1.SuspendedStatus, PhaseEq("Suspended", "status", "jobDeploymentStatus"))
 	})
 
-	// jobStatus jumps between PENDING/RUNNING/SUCCEEDED/FAILED; a fast job can skip intermediates, so
-	// Pending and (for terminal flows) Running are Optional.
 	It("running", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "running", "testdata/rayjob/running.yaml").Through(
 			recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
@@ -45,7 +43,7 @@ var _ = Describe("RayJob", Ordered, Label("kuberay", "rayjob"), func() {
 	It("completed", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "completed", "testdata/rayjob/completed.yaml").Through(
 			recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
-			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.RunningStatus),
 			recorder.Reaches(kartav1alpha1.CompletedStatus),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
@@ -55,7 +53,7 @@ var _ = Describe("RayJob", Ordered, Label("kuberay", "rayjob"), func() {
 	It("failed", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "failed", "testdata/rayjob/failed.yaml").Through(
 			recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
-			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.RunningStatus),
 			recorder.Reaches(kartav1alpha1.FailedStatus),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())

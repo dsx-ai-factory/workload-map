@@ -37,12 +37,10 @@ var _ = Describe("MPIJob", Ordered, Label("kubeflow", "mpijob"), func() {
 		Expect(err).To(Succeed())
 	})
 
-	// The launcher can finish before Running is observed. A brief readiness wait before
-	// the terminal condition is also optional.
 	It("completed", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "completed", "testdata/mpijob/completed.yaml").Through(
 			recorder.Reaches(kartav1alpha1.PendingStatus),
-			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.RunningStatus),
 			recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
 			recorder.Reaches(kartav1alpha1.CompletedStatus),
 		).Run(ctx)

@@ -26,9 +26,11 @@ a 15-minute limit including tool setup, cluster setup, tests and cleanup.
 The suite covers Pod and Job lifecycle gates, a root without Pods, live Karta
 updates and evaluation recovery, namespace selector handoff, and permission
 failure recovery. Permission loss in one namespace must not invalidate Job or
-Pod metrics in another namespace that remains authorized. Namespace handoff
-checks all four metric families after a
-populated namespace moves between exporters.
+Pod metrics in another namespace that remains authorized. A new Pod with an
+unreadable Job owner emits discovery health without guessed workload metrics.
+After permission recovery, the same Pod UID must resolve to the same Job UID.
+Namespace handoff checks all four metric families after a populated namespace
+moves between exporters.
 
 The real-operator cases use the bundled catalog definitions. JobSet runs two
 worker Jobs and one evaluator Job. The suite checks each Pod's Job owner and

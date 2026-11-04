@@ -351,11 +351,6 @@ metadata:
 			_, err := kubectl("", "get", "--raw", "/api/v1/namespaces/exporter-e2e-a/services/dsx-workload-exporter:8080/proxy/readyz")
 			return err != nil && strings.Contains(err.Error(), "ServiceUnavailable") && health(0)
 		})
-		command(t, "", "patch", "clusterrole", roleName, "--type=merge", "-p", string(restorePatch))
-		eventually(t, "Job collection and readiness recovered", func() bool {
-			_, err := kubectl("", "get", "--raw", "/api/v1/namespaces/exporter-e2e-a/services/dsx-workload-exporter:8080/proxy/readyz")
-			return err == nil && health(1)
-		})
 		apply(t, `apiVersion: batch/v1
 kind: Job
 metadata:
@@ -371,13 +366,53 @@ spec:
           image: busybox:1.37.0
           command: [sh, -c, 'sleep 3600']
 `)
+		recoveredJobUID := strings.TrimSpace(command(t, "", "get", "job", "recovered", "-n", "exporter-workloads-denied", "-o", "jsonpath={.metadata.uid}"))
+		var recoveredPodUID string
+		discoveryLabels := map[string]string{"namespace": "exporter-workloads-denied", "scope": "discovery"}
+		eventually(t, "unreadable Job owner emits discovery health without a guessed root", func() bool {
+			body, err := kubectl("", "get", "pods", "-n", "exporter-workloads-denied", "-l", "job-name=recovered", "-o", "json")
+			var pods corev1.PodList
+			if err != nil || json.Unmarshal([]byte(body), &pods) != nil || len(pods.Items) != 1 {
+				return false
+			}
+			pod := pods.Items[0]
+			if pod.UID == "" || len(pod.OwnerReferences) != 1 {
+				return false
+			}
+			owner := pod.OwnerReferences[0]
+			if owner.Controller == nil || !*owner.Controller || owner.APIVersion != "batch/v1" || owner.Kind != "Job" || owner.Name != "recovered" || string(owner.UID) != recoveredJobUID {
+				return false
+			}
+			recoveredPodUID = string(pod.UID)
+			fs := pollMetrics(t, "a")
+			if fs == nil || len(matching(fs, "dsx_exporter_observation_valid", discoveryLabels)) != 1 {
+				return false
+			}
+			rows := matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": "exporter-workloads-denied", "scope": "discovery", "resource_group": "", "resource_version": "v1", "resource_kind": "Pod", "workload_name": "", "workload_uid": "", "reason": "permission_denied"})
+			if len(rows) != 1 || rows[0].GetGauge().GetValue() != 0 {
+				return false
+			}
+			for _, family := range []string{"dsx_workload_pod_info", "dsx_workload_status", "dsx_workload_created_timestamp_seconds"} {
+				if len(matching(fs, family, map[string]string{"namespace": "exporter-workloads-denied"})) != 0 {
+					return false
+				}
+			}
+			return true
+		})
+		command(t, "", "patch", "clusterrole", roleName, "--type=merge", "-p", string(restorePatch))
+		eventually(t, "Job collection and readiness recovered", func() bool {
+			_, err := kubectl("", "get", "--raw", "/api/v1/namespaces/exporter-e2e-a/services/dsx-workload-exporter:8080/proxy/readyz")
+			return err == nil && health(1)
+		})
 		eventually(t, "recovered namespace Job published", func() bool {
 			fs := pollMetrics(t, "a")
 			if fs == nil {
 				return false
 			}
-			rows := matching(fs, "dsx_workload_status", map[string]string{"namespace": "exporter-workloads-denied", "workload_name": "recovered", "phase": "Running"})
-			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
+			pods := matching(fs, "dsx_workload_pod_info", map[string]string{"namespace": "exporter-workloads-denied", "pod_uid": recoveredPodUID, "workload_uid": recoveredJobUID, "workload_kind": "Job", "component": "job", "owner_resolution": "resolved", "observation_valid": "true"})
+			rows := matching(fs, "dsx_workload_status", map[string]string{"namespace": "exporter-workloads-denied", "workload_name": "recovered", "workload_uid": recoveredJobUID, "observation_valid": "true", "phase": "Running"})
+			return len(matching(fs, "dsx_exporter_observation_valid", discoveryLabels)) == 0 &&
+				len(pods) == 1 && pods[0].GetGauge().GetValue() == 1 && len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
 		})
 	})
 

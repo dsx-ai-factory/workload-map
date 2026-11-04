@@ -21,6 +21,11 @@ type updateOptions struct {
 	Author, TrackingIssue, Token                        string
 }
 
+type updatePR struct {
+	HeadRefOid, URL            string
+	IsDraft, IsCrossRepository bool
+}
+
 var (
 	issuePattern = regexp.MustCompile(`^https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/([1-9][0-9]*)$`)
 	ciRunPattern = regexp.MustCompile(`^[0-9]+$`)
@@ -128,10 +133,7 @@ func runUpdates(ctx context.Context, opts updateOptions, binary string, commands
 	}
 
 	// Continue in this run: PRs made with the fork's GITHUB_TOKEN do not trigger CI.
-	var prs []struct {
-		HeadRefOid, URL            string
-		IsDraft, IsCrossRepository bool
-	}
+	var prs []updatePR
 	if err := commands.outputJSON(ctx, &prs, "gh", "pr", "list", "--repo", opts.Repository,
 		"--base", opts.BaseBranch, "--head", plan.Branch, "--state", "open", "--json", "headRefOid,url,isDraft,isCrossRepository"); err != nil {
 		return err
@@ -139,24 +141,19 @@ func runUpdates(ctx context.Context, opts updateOptions, binary string, commands
 	if len(prs) == 0 {
 		return writeSummary("No open "+opts.Group+" update needs recording.\n", commands)
 	}
-	if len(prs) != 1 || !shaPattern.MatchString(prs[0].HeadRefOid) || !prs[0].IsDraft || prs[0].IsCrossRepository {
-		return errors.New("expected one draft Renovate PR with a full head SHA")
+	if len(prs) != 1 || !shaPattern.MatchString(prs[0].HeadRefOid) || prs[0].IsCrossRepository {
+		return errors.New("expected one Renovate PR in this repository with a full head SHA")
 	}
 	head := prs[0].HeadRefOid
-	if err := writeSummary("Operator draft: "+prs[0].URL+"\n\nRecording run: "+opts.RunURL+"\n", commands); err != nil {
+	if err := writeSummary("Operator PR: "+prs[0].URL+"\n\nRecording run: "+opts.RunURL+"\n", commands); err != nil {
 		return err
 	}
-	var statuses []struct{ Context, State string }
-	if err := commands.outputJSON(ctx, &statuses, "gh", "api", "repos/"+opts.Repository+"/commits/"+head+"/statuses"); err != nil {
+	needed, err := needsRecording(ctx, opts, prs[0], commands)
+	if err != nil {
 		return err
 	}
-	for _, status := range statuses {
-		if status.Context == "e2e/operator-recording" {
-			if status.State == "success" {
-				return writeSummary("This PR head already has successful CI recordings.\n", commands)
-			}
-			break
-		}
+	if !needed {
+		return writeSummary("This PR head already has successful CI recordings.\n", commands)
 	}
 	base, err := checkoutCandidate(ctx, opts.BaseBranch, head, commands)
 	if err != nil {
@@ -164,6 +161,28 @@ func runUpdates(ctx context.Context, opts updateOptions, binary string, commands
 	}
 	opts.BaseSHA = base
 	return recordPullRequest(ctx, opts, plan, head, commands)
+}
+
+func needsRecording(ctx context.Context, opts updateOptions, pr updatePR, commands executor) (bool, error) {
+	var statuses []struct{ Context, State string }
+	if err := commands.outputJSON(ctx, &statuses, "gh", "api", "repos/"+opts.Repository+"/commits/"+pr.HeadRefOid+"/statuses"); err != nil {
+		return false, err
+	}
+	for _, status := range statuses {
+		if status.Context == "e2e/operator-recording" {
+			if status.State == "success" {
+				return false, nil
+			}
+			break
+		}
+	}
+	// Renovate's draftPR setting applies only when a PR is first created.
+	if !pr.IsDraft {
+		if err := commands.run(ctx, "gh", "pr", "ready", "--undo", pr.URL); err != nil {
+			return false, errors.Join(err, setRecordingStatus(ctx, opts, pr.HeadRefOid, "failure", commands))
+		}
+	}
+	return true, nil
 }
 
 func checkoutCandidate(ctx context.Context, baseBranch, head string, commands executor) (string, error) {

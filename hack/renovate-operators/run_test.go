@@ -128,6 +128,58 @@ func TestCheckoutCandidateUsesCurrentBase(t *testing.T) {
 	}
 }
 
+func TestNeedsRecording(t *testing.T) {
+	for _, test := range []struct {
+		name, statuses               string
+		draft, failDraft, need, undo bool
+	}{
+		{"verifiedDraft", `[{"context":"e2e/operator-recording","state":"success"}]`, true, false, false, false},
+		{"verifiedReady", `[{"context":"e2e/operator-recording","state":"success"}]`, false, false, false, false},
+		{"unverifiedDraft", `[]`, true, false, true, false},
+		{"unverifiedReady", `[]`, false, false, true, true},
+		{"latestFailure", `[{"context":"e2e/operator-recording","state":"failure"},{"context":"e2e/operator-recording","state":"success"}]`, true, false, true, false},
+		{"draftConversionFails", `[]`, false, true, false, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			log := filepath.Join(t.TempDir(), "calls")
+			t.Setenv("TEST_COMMAND_LOG", log)
+			t.Setenv("TEST_STATUSES", test.statuses)
+			t.Setenv("TEST_DRAFT_FAIL", "false")
+			if test.failDraft {
+				t.Setenv("TEST_DRAFT_FAIL", "true")
+			}
+			installTestCommands(t, map[string]string{"gh": `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$TEST_COMMAND_LOG"
+case "$1 $2" in
+  'pr ready') test "$TEST_DRAFT_FAIL" = false ;;
+  api*) case "$2" in
+    */commits/*/statuses) printf '%s\n' "$TEST_STATUSES" ;;
+    */statuses/*) ;;
+    *) exit 2 ;;
+  esac ;;
+  *) exit 2 ;;
+esac
+`})
+			commands := executor{env: os.Environ(), stdout: io.Discard, stderr: io.Discard}
+			needed, err := needsRecording(t.Context(), updateOptions{Repository: "example/repo"}, updatePR{HeadRefOid: strings.Repeat("a", 40), URL: "https://github.com/example/repo/pull/1", IsDraft: test.draft}, commands)
+			if needed != test.need || (err != nil) != test.failDraft {
+				t.Fatalf("needsRecording = %v, %v", needed, err)
+			}
+			calls, err := os.ReadFile(log)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(calls), "pr ready --undo") != test.undo {
+				t.Fatalf("draft conversion calls: %s", calls)
+			}
+			if strings.Contains(string(calls), "state=failure") != test.failDraft {
+				t.Fatalf("failure status calls: %s", calls)
+			}
+		})
+	}
+}
+
 func installTestCommands(t *testing.T, scripts map[string]string) {
 	t.Helper()
 	binaries := t.TempDir()

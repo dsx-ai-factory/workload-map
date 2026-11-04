@@ -72,6 +72,10 @@ For each candidate, the same CI job runs these steps:
 6. Push the tested commit only if the PR branch has not changed, and set the
    recording status to success. The PR stays a draft; nothing merges automatically.
 
+An unchanged PR head with successful recordings is skipped, even after a
+maintainer marks it ready. A new unverified update returns to draft before
+recording and requires review again.
+
 A recording or validation failure leaves the draft version-bump PR visible
 without a new recording commit. The failed CI run contains the diagnostics.
 Retry it by running the workflow for the same operator group. Logs, JUnit

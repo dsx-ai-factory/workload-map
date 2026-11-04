@@ -19,7 +19,7 @@ import (
 func TestFleetValidation(t *testing.T) {
 	fleet := []workload{{root: &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "root", Namespace: loadNamespace, UID: "root-uid", CreationTimestamp: metav1.NewTime(time.Unix(1000, 0))}}, pods: []*corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "pod", UID: "pod-uid"}}}, phase: "Running", revision: 2}}
 	body := `# TYPE dsx_workload_pod_info gauge
- dsx_workload_pod_info{namespace="exporter-load",pod_name="pod",pod_uid="pod-uid",workload_name="root",workload_uid="root-uid",workload_group="apps",workload_version="v1",workload_kind="Deployment",root_revision="2",pod_revision="2",observation_valid="true",owner_resolution="resolved",component="deployment"} 1
+ dsx_workload_pod_info{namespace="exporter-load",pod_name="pod",pod_uid="pod-uid",workload_name="root",workload_uid="root-uid",workload_group="apps",workload_version="v1",workload_kind="Deployment",root_revision="2",pod_revision="2",observation_valid="true",owner_resolution="resolved",component="deployment",component_instance="",replica_group_id=""} 1
 # TYPE dsx_workload_created_timestamp_seconds gauge
  dsx_workload_created_timestamp_seconds{namespace="exporter-load",workload_name="root",workload_uid="root-uid"} 1000
 # TYPE dsx_workload_status gauge
@@ -29,7 +29,7 @@ func TestFleetValidation(t *testing.T) {
 		if phase == "Running" {
 			value = 1
 		}
-		body += fmt.Sprintf("dsx_workload_status{namespace=\"exporter-load\",workload_group=\"apps\",workload_version=\"v1\",workload_kind=\"Deployment\",workload_name=\"root\",workload_uid=\"root-uid\",phase=%q,root_revision=\"2\",observation_valid=\"true\"} %d\n", phase, value)
+		body += fmt.Sprintf("dsx_workload_status{namespace=\"exporter-load\",workload_group=\"apps\",workload_version=\"v1\",workload_kind=\"Deployment\",workload_name=\"root\",workload_uid=\"root-uid\",owner_resolution=\"resolved\",karta=\"load-deployment\",karta_source=\"cluster\",phase=%q,root_revision=\"2\",observation_valid=\"true\"} %d\n", phase, value)
 	}
 	body += "# TYPE dsx_exporter_observation_valid gauge\n"
 	for _, kind := range []string{"Pod", "Deployment", "ReplicaSet", "Namespace", "Karta"} {
@@ -52,6 +52,13 @@ func TestFleetValidation(t *testing.T) {
 		valid      bool
 	}{
 		{"valid", body, true},
+		{"wrong status owner resolution", strings.ReplaceAll(body, `owner_resolution="resolved",karta=`, `owner_resolution="unresolved",karta=`), false},
+		{"wrong Karta", strings.ReplaceAll(body, `karta="load-deployment"`, `karta="other"`), false},
+		{"wrong Karta source", strings.ReplaceAll(body, `karta_source="cluster"`, `karta_source="catalog"`), false},
+		{"Pod revision on status", strings.ReplaceAll(body, `karta_source="cluster"`, `karta_source="cluster",pod_revision="2"`), false},
+		{"empty Pod revision on status", strings.ReplaceAll(body, `karta_source="cluster"`, `karta_source="cluster",pod_revision=""`), false},
+		{"nonempty Pod component instance", strings.ReplaceAll(body, `component_instance=""`, `component_instance="other"`), false},
+		{"nonempty Pod replica group", strings.ReplaceAll(body, `replica_group_id=""`, `replica_group_id="other"`), false},
 		{"wrong namespace", strings.Replace(body, `namespace="exporter-load"`, `namespace="other"`, 1), false},
 		{"wrong workload kind", strings.Replace(body, `workload_kind="Deployment"`, `workload_kind="Job"`, 1), false},
 		{"wrong workload group", strings.Replace(body, `workload_group="apps"`, `workload_group="other"`, 1), false},

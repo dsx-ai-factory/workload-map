@@ -132,7 +132,7 @@ func checkFleet(families map[string]*dto.MetricFamily, fleet []workload) error {
 		if l["root_revision"] != strconv.Itoa(w.revision) || l["pod_revision"] != strconv.Itoa(w.revision) {
 			return fmt.Errorf("stale Pod revision for %s: %v", l["pod_name"], l)
 		}
-		if l["observation_valid"] != "true" || l["owner_resolution"] != "resolved" || l["component"] != "deployment" {
+		if l["observation_valid"] != "true" || l["owner_resolution"] != "resolved" || l["component"] != "deployment" || l["component_instance"] != "" || l["replica_group_id"] != "" {
 			return fmt.Errorf("invalid Pod attribution %v", l)
 		}
 	}
@@ -149,6 +149,12 @@ func checkFleet(families map[string]*dto.MetricFamily, fleet []workload) error {
 			return fmt.Errorf("unexpected status %v", l)
 		}
 		seenPhases[key] = true
+		if _, present := l["pod_revision"]; present {
+			return fmt.Errorf("unexpected Pod revision on status %v", l)
+		}
+		if l["owner_resolution"] != "resolved" || l["karta"] != "load-deployment" || l["karta_source"] != "cluster" {
+			return fmt.Errorf("invalid status attribution %v", l)
+		}
 		want := 0.0
 		if l["phase"] == w.phase {
 			want = 1

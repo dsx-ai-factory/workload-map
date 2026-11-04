@@ -10,12 +10,26 @@ install it and how to set up shell completion.
 
 ## Install a release
 
-Download a prebuilt archive from the
+Install `kli` with Homebrew on macOS or Linux. This repository is its own tap,
+so add it by URL once, then install by full name:
+
+```bash
+brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
+brew install dsx-ai-factory/kli/kli
+```
+
+The URL is required because the short form of `brew tap` only resolves
+repositories named `homebrew-<name>`. Installing by full name also makes
+Homebrew trust this one cask, which it requires for any tap it does not
+maintain. `brew upgrade kli` installs later releases.
+
+To install without Homebrew, download a prebuilt archive from the
 [releases page](https://github.com/dsx-ai-factory/workload-map/releases).
 Each release publishes archives for Linux and macOS on amd64 and arm64, with a
-`checksums.txt` manifest. Check the archive against `checksums.txt`, put the
-`kli` executable on your `PATH`, then run `kli --version` to print the release
-version.
+`checksums.txt` manifest. Check the archive against `checksums.txt` and put the
+`kli` executable on your `PATH`.
+
+Run `kli --version` to print the release version.
 
 `go install` is not a supported way to install the CLI. The CLI module builds
 against the library in the same commit through a `replace` directive, which

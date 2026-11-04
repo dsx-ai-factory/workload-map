@@ -82,7 +82,7 @@ For more information about the DCO, please visit: https://developercertificate.o
 ### Design Proposals
 
 For changes that need design agreement before implementation, follow the
-[Karta Enhancement Proposal process](keps/README.md). It describes when to write
+[Karta Enhancement Proposal process](docs/keps/README.md). It describes when to write
 one and provides a template.
 
 ### Development Environment Setup
@@ -151,6 +151,36 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`. When p
 git commit -s -m "fix(api): validate status mapping expressions before applying them"
 ```
 
+### Commit Attribution
+
+Commit co-author trailers identify human contributors. Do not add AI tools as
+co-authors. Human `Co-authored-by` trailers and the required human `Signed-off-by`
+trailer remain valid. AI-assisted contributions are allowed; this check does not
+detect or prohibit AI use.
+
+CI rejects parsed `Co-authored-by` trailers
+containing Claude, ChatGPT, Copilot, Codex, Devin, Cursor, Gemini, or Anthropic,
+case-insensitively. Merge, revert, and fixup commit messages are checked too.
+This is name matching, not an identity lookup. Unlisted names are outside the
+rule's scope. Normal prose mentioning these tools is allowed.
+
+PRs and updates to existing branches check the supplied base-to-head range.
+For a new branch push, GitHub supplies an all-zero base. CI then checks only
+commits not already on the repository's default branch. Creating a release
+branch does not recheck inherited history. Locally, this fallback uses
+`refs/remotes/origin/main`; set `COMMIT_DEFAULT_BRANCH` to use another ref.
+An unavailable base ref fails the check rather than skipping validation.
+
+Run the same check locally:
+
+```bash
+make commit-attribution-check COMMIT_BASE=origin/main COMMIT_HEAD=HEAD
+```
+
+If it fails, remove the AI co-author line from each reported commit message.
+Keep human attribution and DCO sign-offs. A new commit does not repair an earlier
+commit's message.
+
 ### Making Changes
 
 1. Fork the repository
@@ -218,13 +248,20 @@ Adding one means, in order:
      server, and name objects `karta-e2e-<workload>-<flow>`.
    - Install: if the operator is new or its install needs new pieces, follow
      Adding an operator in `hack/e2e/README.md` (`install.sh`, `verify.sh`,
-     `smoke.yaml`, the version pin in `global.env`, `ALL_WORKLOADS` and
+     executable `check-updates.sh`, `smoke.yaml`, the version pin in
+     `global.env`, `ALL_WORKLOADS` and
      `version_of` in `up.sh`) so `make e2e-up` still provisions everything. A
      new kind for an operator already installed keeps its directory, pin, and
      `up.sh` entries; it extends any flag in `install.sh` that gates which
      kinds the controller serves and adds a `<kind>-smoke.yaml` plus a
      `run_smoke` line in `verify.sh`. A Kubernetes builtin needs none of
      this.
+   - Update checks: every external workload and infrastructure operator needs
+     an executable, registered `check-updates.sh` and offline tests. Follow the
+     [checker contract](hack/operator-updates/README.md#add-an-operator) and run
+     `make test-e2e-updates`. It reports candidate tags; installation, smoke
+     verification, recording, and replay establish compatibility. Kubernetes
+     builtins and locally built Karta are exempt.
    - Naming: the operator directory takes the upstream project's short name
      (`kuberay`, `spark-operator`). `Fixture.Operator` in the flow must equal
      that directory name; that is how the recording is filed under the
@@ -289,11 +326,12 @@ This is the same model used by [ai-dynamo/grove](https://github.com/ai-dynamo/gr
 
 ### Releasing
 
-A release tags the product as `vX.Y.Z` and the `karta/sdk/` library module as
-`karta/sdk/vX.Y.Z` on the same commit, then publishes the GitHub Release for
-`vX.Y.Z`, which starts the release workflow. The two-tag convention, local
-snapshot, guarded release command, credentials, and recovery procedure are
-documented in [RELEASE.md](RELEASE.md).
+A release publishes the GitHub Release for `vX.Y.Z` from the merged commit,
+which creates the `vX.Y.Z` tag and starts the release workflow; once its checks
+pass, the workflow tags the `karta/sdk/` library module as `karta/sdk/vX.Y.Z` on
+the same commit. The two tags, local snapshot, guarded release command,
+Homebrew cask pull request, credentials, and recovery procedure are documented
+in [RELEASE.md](RELEASE.md).
 
 No `Chart.yaml` bump is needed. The release tag remains the source of truth for
 the published chart version and app version.

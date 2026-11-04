@@ -22,7 +22,7 @@ is unclear, ask a maintainer in the issue.
 ## Submit a KEP
 
 1. Open an upstream issue describing the problem, or use an existing one.
-2. Copy [TEMPLATE.md](TEMPLATE.md) to `keps/NNNN-short-name/README.md`.
+2. Copy [TEMPLATE.md](TEMPLATE.md) to `docs/keps/NNNN-short-name/README.md`.
    Start at `0001` and choose the next unused number, checking merged KEPs and
    open KEP PRs. Keep any diagrams beside the README.
 3. Keep the proposal as short as the decision allows. For a section that does
@@ -32,7 +32,7 @@ is unclear, ask a maintainer in the issue.
    keyword; keep it open for implementation.
 5. The author sets `implementable` before requesting final approval. A
    maintainer's approval of that revision accepts the design; merge follows the
-   [contribution review process](../CONTRIBUTING.md#review-process).
+   [contribution review process](../../CONTRIBUTING.md#review-process).
    Close the PR if the proposal is declined or withdrawn.
 6. Implementation PRs link the KEP and issue. The final implementation PR sets
    `implemented`, updates History, and closes the issue when it merges.
@@ -56,4 +56,4 @@ updates, open a new issue if the original is closed.
 
 ## Index
 
-No KEPs have been added yet.
+- [KEP-0001: DSX workload exporter](0001-metrics-exporter/README.md)

@@ -157,11 +157,7 @@ func TestRecordingLifecycle(t *testing.T) {
 			if err := writeJSONFile(filepath.Join(artifacts, "plan.json"), plan); err != nil {
 				t.Fatal(err)
 			}
-			binaries := filepath.Join(temp, "bin")
-			if err := os.Mkdir(binaries, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			for name, script := range map[string]string{
+			installTestCommands(t, map[string]string{
 				"kind": `#!/bin/sh
 set -eu
 printf 'kind %s\n' "$*" >> "$TEST_COMMAND_LOG"
@@ -203,12 +199,7 @@ esac
 set -eu
 printf 'go %s\n' "$*" >> "$TEST_COMMAND_LOG"
 `,
-			} {
-				if err := os.WriteFile(filepath.Join(binaries, name), []byte(script), 0o755); err != nil {
-					t.Fatal(err)
-				}
-			}
-			t.Setenv("PATH", binaries+string(os.PathListSeparator)+os.Getenv("PATH"))
+			})
 			t.Setenv("TEST_COMMAND_LOG", filepath.Join(artifacts, "commands.log"))
 			t.Setenv("TEST_RECORDING", filepath.Join(fixture.root, verificationRecording))
 			t.Setenv("TEST_FAIL_INSTALL", "false")

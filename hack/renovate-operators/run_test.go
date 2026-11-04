@@ -26,19 +26,14 @@ func TestVerifyTrackingIssue(t *testing.T) {
 		{"invalidURL", "https://example.com/issues/1", `{"private":false}`, `{"state":"open"}`, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			binaries := t.TempDir()
-			path := filepath.Join(binaries, "gh")
-			if err := os.WriteFile(path, []byte(`#!/bin/sh
+			installTestCommands(t, map[string]string{"gh": `#!/bin/sh
 set -eu
 case "$2" in
   repos/example/repo) printf '%s\n' "$TEST_REPOSITORY" ;;
   repos/example/repo/issues/1) printf '%s\n' "$TEST_ISSUE" ;;
   *) exit 2 ;;
 esac
-`), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			t.Setenv("PATH", binaries+string(os.PathListSeparator)+os.Getenv("PATH"))
+`})
 			t.Setenv("TEST_REPOSITORY", test.repository)
 			t.Setenv("TEST_ISSUE", test.issue)
 			commands := executor{env: os.Environ(), stdout: io.Discard, stderr: io.Discard}
@@ -58,8 +53,7 @@ func TestPublishPullRequest(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			artifacts := t.TempDir()
-			binaries := t.TempDir()
-			if err := os.WriteFile(filepath.Join(binaries, "gh"), []byte(`#!/bin/sh
+			installTestCommands(t, map[string]string{"gh": `#!/bin/sh
 set -eu
 printf '%s\n' "$*" >> "$TEST_COMMAND_LOG"
 case "$1 $2" in
@@ -68,11 +62,8 @@ case "$1 $2" in
   'pr create'|'pr view') printf '%s\n' 'https://github.com/example/repo/pull/2' ;;
   *) exit 2 ;;
 esac
-`), 0o755); err != nil {
-				t.Fatal(err)
-			}
+`})
 			log := filepath.Join(artifacts, "commands.log")
-			t.Setenv("PATH", binaries+string(os.PathListSeparator)+os.Getenv("PATH"))
 			t.Setenv("TEST_COMMAND_LOG", log)
 			t.Setenv("TEST_EXISTING", "[]")
 			if existing {
@@ -119,4 +110,15 @@ esac
 			}
 		})
 	}
+}
+
+func installTestCommands(t *testing.T, scripts map[string]string) {
+	t.Helper()
+	binaries := t.TempDir()
+	for name, script := range scripts {
+		if err := os.WriteFile(filepath.Join(binaries, name), []byte(script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", binaries+string(os.PathListSeparator)+os.Getenv("PATH"))
 }

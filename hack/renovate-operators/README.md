@@ -44,8 +44,5 @@ against the tested commit and recording hashes. Node runs Renovate itself.
 
 ## Adding an operator
 
-Add the pin variables and workload coverage in `plan.go`. Keep release rules in
-the operator's `check-updates.sh` wrapper. Add each recorded kind to
-`test/e2e/cmd/verify-operator-update`; flow names are discovered from the suite.
-Run the offline checks above and validate an update through the fork workflow
-before enabling new coverage.
+Follow [Extending and testing operator automation](../../docs/Dependency%20Updates.md#extending-and-testing-operator-automation)
+for the pin mapping, workload coverage, and fork validation requirements.

@@ -57,16 +57,18 @@ and retractions. Knative/Kourier and Kubeflow/MPI stay grouped. Trainer v2
 requires an API migration and is excluded. Tool pins, Ray runtime, and Gateway
 API are outside this operator update job.
 
-For each candidate, Renovate changes the pins and runs a post-upgrade hook:
+For each candidate, Renovate changes the pins and the workflow runs these steps:
 
-1. Create a fresh kind cluster and run the existing install/verify scripts.
+1. The Go recording hook creates a fresh kind cluster and runs the existing
+   install/verify scripts.
 2. Check provisioning metadata against the pins and discover every selected flow
    through Ginkgo.
 3. Record those flows and reject missing, skipped, failed, or stale fixtures.
 4. Replay the recordings, run `make check`, and remove the temporary cluster.
-5. Commit the pins and recordings with the Renovate App identity and DCO.
-6. Verify the pushed commit against the tested file hashes, then open or update
-   a draft PR with a link to the CI run. Nothing merges automatically.
+5. Renovate commits the pins and recordings with the bot identity and DCO.
+6. The Go launcher verifies the pushed commit against the tested file hashes,
+   then opens or updates a draft PR with a link to the CI run. Nothing merges
+   automatically.
 
 A Git pre-push hook is installed before Renovate starts. A failed post-upgrade
 command cannot publish an update without successful evidence. Evidence is

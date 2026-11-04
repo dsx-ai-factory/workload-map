@@ -261,7 +261,7 @@ func hasOperatorStatus(fs map[string]*dto.MetricFamily, root operatorWorkload, k
 		}
 	}
 	created := matching(fs, "dsx_workload_created_timestamp_seconds", map[string]string{"workload_uid": string(root.UID)})
-	return len(created) == 1 && created[0].GetGauge().GetValue() == float64(root.CreationTimestamp.Unix()) &&
+	return hasSingleGauge(created, float64(root.CreationTimestamp.Unix())) &&
 		len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"scope": "workload", "workload_uid": string(root.UID)})) == 0
 }
 
@@ -273,5 +273,5 @@ func hasOperatorPod(fs map[string]*dto.MetricFamily, root operatorWorkload, pod 
 		"pod_name": pod.Name, "pod_uid": string(pod.UID), "component": component, "component_instance": instance, "replica_group_id": group,
 		"owner_resolution": "resolved", "observation_valid": "true", "team": "root-team", "pod_team": "pod-team",
 	})
-	return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
+	return hasSingleGauge(rows, 1)
 }

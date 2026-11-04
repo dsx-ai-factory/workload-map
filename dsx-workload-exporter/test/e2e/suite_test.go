@@ -153,6 +153,10 @@ func matching(fs map[string]*dto.MetricFamily, name string, labels map[string]st
 	return found
 }
 
+func hasSingleGauge(rows []*dto.Metric, want float64) bool {
+	return len(rows) == 1 && rows[0].GetGauge().GetValue() == want
+}
+
 func labelValue(m *dto.Metric, key string) (string, bool) {
 	for _, label := range m.Label {
 		if label.GetName() == key {

@@ -38,8 +38,8 @@ spec:
 			}
 			rows := matching(dst, "dsx_workload_pod_info", map[string]string{"namespace": namespace, "pod_name": "shard-probe", "observation_valid": "true"})
 			health := matching(dst, "dsx_exporter_observation_valid", map[string]string{"namespace": namespace, "scope": "resource_type", "resource_kind": "Pod", "reason": "none"})
-			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1 &&
-				len(health) == 1 && health[0].GetGauge().GetValue() == 1 &&
+			return hasSingleGauge(rows, 1) &&
+				hasSingleGauge(health, 1) &&
 				len(matching(dst, "dsx_workload_created_timestamp_seconds", map[string]string{"namespace": namespace, "workload_name": "shard-probe"})) == 1 &&
 				hasPhases(dst, map[string]string{"namespace": namespace, "workload_name": "shard-probe", "observation_valid": "true"}, "Running")
 		}

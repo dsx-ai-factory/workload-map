@@ -48,7 +48,7 @@ spec:
 		uid := strings.TrimSpace(command("", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
 		waitForMetrics("standalone Pod identity", "a", func(fs map[string]*dto.MetricFamily) bool {
 			rows := matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": uid, "workload_uid": uid, "component": "pod"})
-			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
+			return hasSingleGauge(rows, 1)
 		})
 
 		fs := metrics("a")
@@ -59,7 +59,7 @@ spec:
 		stamp := strings.TrimSpace(command("", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.creationTimestamp}"))
 		at, err := time.Parse(time.RFC3339, stamp)
 		Expect(err).NotTo(HaveOccurred())
-		if len(created) != 1 || created[0].GetGauge().GetValue() != float64(at.Unix()) {
+		if !hasSingleGauge(created, float64(at.Unix())) {
 			Fail("creation timestamp differs from API")
 		}
 		if len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"scope": "workload", "workload_uid": uid})) != 0 {
@@ -150,7 +150,7 @@ spec:
 		command("", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"phaseDefinition":{"path":"error(\"e2e evaluation failure\")"}}}}}}`)
 		waitForMetrics("workload evaluation failure retains Completed", "a", func(fs map[string]*dto.MetricFamily) bool {
 			rows := matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": namespace, "scope": "workload", "workload_name": "empty", "reason": "evaluation_failed"})
-			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 0 && hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": "empty", "observation_valid": "false", "karta": "exporter-e2e-deployment", "karta_source": "cluster"}, "Completed")
+			return hasSingleGauge(rows, 0) && hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": "empty", "observation_valid": "false", "karta": "exporter-e2e-deployment", "karta_source": "cluster"}, "Completed")
 		})
 		command("", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"phaseDefinition":{"path":".metadata.labels.phase"}}}}}}`)
 		phase("empty", "Completed")
@@ -214,7 +214,7 @@ spec:
 		jobUID := strings.TrimSpace(command("", "get", "job", "slow-job", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
 		waitForMetrics("Job Pod identity", "a", func(fs map[string]*dto.MetricFamily) bool {
 			rows := matching(fs, "dsx_workload_pod_info", map[string]string{"namespace": namespace, "pod_name": pod, "workload_uid": jobUID, "workload_kind": "Job"})
-			return len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
+			return hasSingleGauge(rows, 1)
 		})
 		waitContainer(pod, "work", false)
 		command("", "exec", "-n", namespace, pod, "-c", "work", "--", "touch", "/gates/finish")
@@ -264,7 +264,7 @@ metadata:
 				return false
 			}
 			rows := matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": "exporter-workloads-denied", "scope": "resource_type", "resource_kind": "Job", "resource_group": "batch", "resource_version": "v1"})
-			if len(rows) != 1 || rows[0].GetGauge().GetValue() != value {
+			if !hasSingleGauge(rows, value) {
 				return false
 			}
 			want := "none"
@@ -276,7 +276,7 @@ metadata:
 				return false
 			}
 			pods := matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": podUID, "workload_uid": jobUID, "component": "job", "observation_valid": "true"})
-			return len(pods) == 1 && pods[0].GetGauge().GetValue() == 1 &&
+			return hasSingleGauge(pods, 1) &&
 				hasPhases(fs, map[string]string{"namespace": namespace, "workload_uid": jobUID, "workload_kind": "Job", "observation_valid": "true"}, "Completed")
 		}
 		eventually("forbidden Job collection remains observable while unready", func() bool {
@@ -321,7 +321,7 @@ spec:
 				return false
 			}
 			rows := matching(fs, "dsx_exporter_observation_valid", map[string]string{"namespace": "exporter-workloads-denied", "scope": "discovery", "resource_group": "", "resource_version": "v1", "resource_kind": "Pod", "workload_name": "", "workload_uid": "", "reason": "permission_denied"})
-			if len(rows) != 1 || rows[0].GetGauge().GetValue() != 0 {
+			if !hasSingleGauge(rows, 0) {
 				return false
 			}
 			for _, family := range []string{"dsx_workload_pod_info", "dsx_workload_status", "dsx_workload_created_timestamp_seconds"} {
@@ -340,7 +340,7 @@ spec:
 			pods := matching(fs, "dsx_workload_pod_info", map[string]string{"namespace": "exporter-workloads-denied", "pod_uid": recoveredPodUID, "workload_uid": recoveredJobUID, "workload_kind": "Job", "component": "job", "owner_resolution": "resolved", "observation_valid": "true"})
 			rows := matching(fs, "dsx_workload_status", map[string]string{"namespace": "exporter-workloads-denied", "workload_name": "recovered", "workload_uid": recoveredJobUID, "observation_valid": "true", "phase": "Running"})
 			return len(matching(fs, "dsx_exporter_observation_valid", discoveryLabels)) == 0 &&
-				len(pods) == 1 && pods[0].GetGauge().GetValue() == 1 && len(rows) == 1 && rows[0].GetGauge().GetValue() == 1
+				hasSingleGauge(pods, 1) && hasSingleGauge(rows, 1)
 		})
 	})
 })

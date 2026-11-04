@@ -311,7 +311,6 @@ func waitForFleet(t *testing.T, ctx context.Context, httpClient *http.Client, en
 	defer deadline.Stop()
 	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
-	var last error
 	for {
 		families, err := scrape(ctx, httpClient, endpoint)
 		if err == nil {
@@ -320,12 +319,11 @@ func waitForFleet(t *testing.T, ctx context.Context, httpClient *http.Client, en
 		if err == nil {
 			return
 		}
-		last = err
 		select {
 		case <-deadline.C:
-			t.Fatalf("metrics did not converge: %v", last)
+			t.Fatalf("metrics did not converge: %v", err)
 		case <-ctx.Done():
-			t.Fatalf("metrics wait: %v; last: %v", ctx.Err(), last)
+			t.Fatalf("metrics wait: %v; last: %v", ctx.Err(), err)
 		case <-tick.C:
 		}
 	}

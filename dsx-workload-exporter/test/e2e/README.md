@@ -33,10 +33,12 @@ All eight specs run serially because they share exporter installations. The five
 native workload specs also run in order: permission coverage reuses the lifecycle
 Job. Shared namespaces are retained if any spec fails.
 
-Tests sample metrics every 250ms. Controlled workload stages remain in place
-until their metrics have been observed. CI runs the suite for changes to the
-exporter, SDK, catalog, chart, E2E harness or build configuration. The CI job has
-a 15-minute limit including tool setup, cluster setup, tests and cleanup.
+Tests fetch `/metrics` through the exporter Service proxy and parse it with
+`expfmt`. Checks compare metric names, labels and gauge values. Retries wait 250ms
+between requests. Controlled workload stages remain in place until their metrics
+have been observed. CI runs the suite for changes to the exporter, SDK, catalog,
+chart, E2E harness or build configuration. The CI job has a 15-minute limit
+including tool setup, cluster setup, tests and cleanup.
 
 The suite covers Pod and Job lifecycle gates, a root without Pods, live Karta
 updates and evaluation recovery, namespace selector handoff, and permission

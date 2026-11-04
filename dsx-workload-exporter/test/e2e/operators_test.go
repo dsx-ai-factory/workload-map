@@ -44,9 +44,19 @@ var _ = Describe("Operator workloads", Serial, func() {
 		var pods corev1.PodList
 		var jobs batchv1.JobList
 		eventually("JobSet has three running Pods owned through three Jobs", func() bool {
-			if !readObject(&root, "jobset", "component-jobs") ||
-				!readObject(&pods, "pods", "-l", "exporter-e2e-case=jobset") || len(pods.Items) != 3 ||
-				!readObject(&jobs, "jobs", "-l", "jobset.sigs.k8s.io/jobset-name=component-jobs") || len(jobs.Items) != 3 {
+			if !readObject(&root, "jobset", "component-jobs") {
+				return false
+			}
+			if !readObject(&pods, "pods", "-l", "exporter-e2e-case=jobset") {
+				return false
+			}
+			if len(pods.Items) != 3 {
+				return false
+			}
+			if !readObject(&jobs, "jobs", "-l", "jobset.sigs.k8s.io/jobset-name=component-jobs") {
+				return false
+			}
+			if len(jobs.Items) != 3 {
 				return false
 			}
 			for _, pod := range pods.Items {
@@ -71,7 +81,10 @@ var _ = Describe("Operator workloads", Serial, func() {
 			GinkgoHelper()
 			eventually(fmt.Sprintf("JobSet controller status and metrics, completed=%t", completed), func() bool {
 				var current operatorWorkload
-				if !readObject(&current, "jobset", root.Name) || len(current.Status.ReplicatedJobsStatus) != 2 {
+				if !readObject(&current, "jobset", root.Name) {
+					return false
+				}
+				if len(current.Status.ReplicatedJobsStatus) != 2 {
 					return false
 				}
 				conditions := conditionStatuses(current)
@@ -108,7 +121,13 @@ var _ = Describe("Operator workloads", Serial, func() {
 					phases = append(phases, "Initializing")
 				}
 				fs := pollMetrics("a")
-				if fs == nil || !hasOperatorStatus(fs, current, "jobset-x-k8s-io-jobset-v1alpha2", phases...) || len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(root.UID)})) != 3 {
+				if fs == nil {
+					return false
+				}
+				if !hasOperatorStatus(fs, current, "jobset-x-k8s-io-jobset-v1alpha2", phases...) {
+					return false
+				}
+				if len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(root.UID)})) != 3 {
 					return false
 				}
 				instances := map[string]int{}
@@ -130,7 +149,10 @@ var _ = Describe("Operator workloads", Serial, func() {
 		command("", "delete", "jobset", root.Name, "-n", namespace, "--cascade=foreground", "--wait=true", "--timeout=30s")
 		eventually("deleted JobSet and descendant metrics removed", func() bool {
 			var remaining corev1.PodList
-			if !readObject(&remaining, "pods", "-l", "exporter-e2e-case=jobset") || len(remaining.Items) != 0 {
+			if !readObject(&remaining, "pods", "-l", "exporter-e2e-case=jobset") {
+				return false
+			}
+			if len(remaining.Items) != 0 {
 				return false
 			}
 			fs := pollMetrics("a")
@@ -162,8 +184,18 @@ var _ = Describe("Operator workloads", Serial, func() {
 			eventually(fmt.Sprintf("LeaderWorkerSet has %d ready groups and exact Pod metrics", replicas), func() bool {
 				var current operatorWorkload
 				var currentPods corev1.PodList
-				if !readObject(&current, "leaderworkerset", "worker-groups") || current.Status.ReadyReplicas != replicas || current.Status.Replicas != replicas || current.Status.UpdatedReplicas != replicas ||
-					!readObject(&currentPods, "pods", "-l", "leaderworkerset.sigs.k8s.io/name=worker-groups") || len(currentPods.Items) != int(replicas)*2 {
+				if !readObject(&current, "leaderworkerset", "worker-groups") {
+					return false
+				}
+				isReady := current.Status.ReadyReplicas == replicas &&
+					current.Status.Replicas == replicas && current.Status.UpdatedReplicas == replicas
+				if !isReady {
+					return false
+				}
+				if !readObject(&currentPods, "pods", "-l", "leaderworkerset.sigs.k8s.io/name=worker-groups") {
+					return false
+				}
+				if len(currentPods.Items) != int(replicas)*2 {
 					return false
 				}
 				if root.UID != "" && current.UID != root.UID {
@@ -178,7 +210,13 @@ var _ = Describe("Operator workloads", Serial, func() {
 					phases = append(phases, "Initializing")
 				}
 				fs := pollMetrics("a")
-				if fs == nil || !hasOperatorStatus(fs, current, "leaderworkerset-x-k8s-io-leaderworkerset-v1", phases...) || len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(current.UID)})) != int(replicas)*2 {
+				if fs == nil {
+					return false
+				}
+				if !hasOperatorStatus(fs, current, "leaderworkerset-x-k8s-io-leaderworkerset-v1", phases...) {
+					return false
+				}
+				if len(matching(fs, "dsx_workload_pod_info", map[string]string{"workload_uid": string(current.UID)})) != int(replicas)*2 {
 					return false
 				}
 				groups := map[string]map[string]bool{}
@@ -188,7 +226,10 @@ var _ = Describe("Operator workloads", Serial, func() {
 						component = "leader"
 					}
 					group := pod.Labels["leaderworkerset.sigs.k8s.io/group-index"]
-					if pod.DeletionTimestamp != nil || !containerRunning(pod.Status.ContainerStatuses, "work") || !hasOperatorPod(fs, current, pod, component, "", group) {
+					if pod.DeletionTimestamp != nil || !containerRunning(pod.Status.ContainerStatuses, "work") {
+						return false
+					}
+					if !hasOperatorPod(fs, current, pod, component, "", group) {
 						return false
 					}
 					if replicas == 1 && (group != "0" || !retained[pod.UID]) {

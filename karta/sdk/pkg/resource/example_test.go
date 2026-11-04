@@ -28,9 +28,6 @@ func ExampleComponent_GetScale() {
 	}
 
 	// An absent ScaleDefinition is an unsupported capability, not a scale of zero.
-	// This differs from a definition whose configured path does not match the workload:
-	// in that case the path is evaluated and the resulting extraction/data-shape error
-	// is returned rather than DefinitionNotFoundError.
 	withoutScale := &v1alpha1.Karta{
 		Spec: v1alpha1.KartaSpec{
 			StructureDefinition: v1alpha1.StructureDefinition{
@@ -50,6 +47,34 @@ func ExampleComponent_GetScale() {
 	}
 	if scales == nil {
 		fmt.Println("no scale definition: scaling not supported")
+	}
+
+	// A configured path that does not match the workload still produces a scale
+	// entry; its Replicas value is nil because the field is absent.
+	withMissingReplicas := &v1alpha1.Karta{
+		Spec: v1alpha1.KartaSpec{
+			StructureDefinition: v1alpha1.StructureDefinition{
+				RootComponent: v1alpha1.ComponentDefinition{
+					Name: "deployment",
+					ScaleDefinition: &v1alpha1.ScaleDefinition{
+						ReplicasPath: ptr.To(".spec.missing"),
+					},
+				},
+			},
+		},
+	}
+	factory = resource.NewComponentFactoryFromObject(withMissingReplicas, workload)
+	component, err = factory.GetRootComponent()
+	if err != nil {
+		panic(err)
+	}
+
+	scales, err = component.GetScale(ctx)
+	if err != nil {
+		panic(err)
+	}
+	if scale, ok := scales[""]; ok && scale.Replicas == nil {
+		fmt.Println("missing replicas field: scale available, replicas unset")
 	}
 
 	// A malformed JQ expression is returned as a typed execution error.
@@ -79,5 +104,6 @@ func ExampleComponent_GetScale() {
 
 	// Output:
 	// no scale definition: scaling not supported
+	// missing replicas field: scale available, replicas unset
 	// malformed replicas expression: parse error
 }

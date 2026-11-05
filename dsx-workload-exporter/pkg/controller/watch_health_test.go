@@ -18,10 +18,11 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/discovery"
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
 )
 
-// fakeWatchSource serves each Watch call from the next FakeWatcher in watchers.
-func fakeWatchSource(t *testing.T, r *Runtime, resource schema.GroupVersionResource, watchers ...*watch.FakeWatcher) {
+// fakeWatchSource serves each Watch call from the next watcher in watchers.
+func fakeWatchSource(t *testing.T, r *Runtime, resource schema.GroupVersionResource, watchers ...watch.Interface) {
 	t.Helper()
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(kruntime.NewScheme(),
 		map[schema.GroupVersionResource]string{resource: "DeploymentList"})
@@ -60,6 +61,13 @@ func TestWatchCloseKeepsSourceHealthyAndQueuesNothing(t *testing.T) {
 
 	stream, err := r.state.watchResource(t.Context(), w, metav1.ListOptions{})
 	require.NoError(t, err)
+	// A routine close follows minutes of traffic; one event stands in for it here.
+	go first.Add(rootLifetimeObject(lifetimeDeploymentGVK, "ns", "other", "other"))
+	select {
+	case <-stream.ResultChan():
+	case <-time.After(5 * time.Second):
+		t.Fatal("event was not forwarded")
+	}
 	first.Stop()
 	waitClosed(t, stream)
 	require.NoError(t, w.err)
@@ -114,4 +122,31 @@ func TestRecoveredNamespacedSourceRequeuesOnlyItsNamespace(t *testing.T) {
 		r.state.workloadQueue.Done(key)
 	}
 	require.Equal(t, []types.UID{"root-a"}, queued)
+}
+
+func TestAlreadyClosedWatchIsAFailedStart(t *testing.T) {
+	r := newRootLifetimeRuntime(t, Config{})
+	w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "ns", true)
+	// client-go returns this after connection failures such as a dropped proxy.
+	fakeWatchSource(t, r, w.key.Resource, watch.NewEmptyWatch())
+
+	_, err := r.state.watchResource(t.Context(), w, metav1.ListOptions{})
+	require.ErrorIs(t, err, errShortWatch)
+	require.ErrorIs(t, w.err, errShortWatch)
+	require.ErrorIs(t, r.state.sources[w.key].err, errShortWatch)
+	require.Equal(t, store.ReasonAPIUnavailable, failureReason(w.err))
+}
+
+func TestVeryShortWatchMarksSourceUnhealthy(t *testing.T) {
+	r := newRootLifetimeRuntime(t, Config{})
+	w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "ns", true)
+	fake := watch.NewFake()
+	fakeWatchSource(t, r, w.key.Resource, fake)
+
+	stream, err := r.state.watchResource(t.Context(), w, metav1.ListOptions{})
+	require.NoError(t, err)
+	fake.Stop()
+	waitClosed(t, stream)
+	require.ErrorIs(t, w.err, errShortWatch, "a watch that ends at once without events failed")
+	require.ErrorIs(t, r.state.sources[w.key].err, errShortWatch)
 }

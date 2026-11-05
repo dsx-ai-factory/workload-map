@@ -126,6 +126,12 @@ The activity panels require a successful observer scrape and samples newer than
 `workload_uid` and `workload_kind`. Its state and allocation checks own the meaning
 of Active and Low activity; the dashboard does not infer them from a percentage.
 
+Summary cards show observed counts, which can be partial. An Unknown workload,
+such as one awaiting allocation, does not hide accepted peers. The Unknown
+workloads card counts accepted Unknown states only. Missing or conflicting
+observations are not included. GPU workload and assigned-GPU zeros require an explicit accepted
+allocation of zero. Missing, down or stale observer data remains unavailable.
+
 ## Read status and history
 
 Phase flags are independent: a workload can match more than one phase. The

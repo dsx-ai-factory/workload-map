@@ -58,7 +58,11 @@ func (d *discovery) Get(ctx context.Context, ref ObjectRef) (Result, error) {
 		} else {
 			metadata, err := d.reader.GetMetadata(ctx, ref)
 			if err != nil {
-				return Result{}, readError(err)
+				err = readError(err)
+				if len(workload.Path) > 0 && errors.Is(err, ErrUnresolvedOwner) {
+					return Result{}, &MissingOwnerError{Owner: ref, err: err}
+				}
+				return Result{}, err
 			}
 			if metadata == nil {
 				return Result{}, fmt.Errorf("%w: empty metadata", ErrUnavailable)

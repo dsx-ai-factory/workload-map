@@ -523,9 +523,16 @@ func (r *controllerState) queueObjectChange(old, current *unstructured.Unstructu
 		}
 	}
 	objectMembershipChanged := old != nil && current != nil && r.objectSelector.Matches(labelsFor(old)) != r.objectSelector.Matches(labelsFor(current))
-	ancestorOwnershipChanged := ownershipChanged && ancestor
-	if ancestorOwnershipChanged || objectMembershipChanged {
+	// An owner change of an existing object reroutes everything below it, and nothing
+	// records those descendants, so the namespace is rescanned. A created object can
+	// only complete chains that stopped at it; a deleted one changes its descendants,
+	// which receive their own events and are requeued with its root.
+	isSameObject := old != nil && current != nil && old.GetUID() == current.GetUID()
+	switch {
+	case objectMembershipChanged || (ancestor && ownershipChanged && isSameObject):
 		r.enqueueScopeRefresh(object.GetNamespace())
+	case current != nil && ownershipChanged:
+		r.enqueueOwnerWaiters(current.GetUID())
 	}
 }
 

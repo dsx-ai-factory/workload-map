@@ -67,6 +67,7 @@ These are separate publications, not one atomic root-and-Pods transaction.
 | Definition change | Refresh sources and requeue affected workloads/Pods. |
 | Namespace labels change | Recompute selection and watched scopes. |
 | Intermediate ownership change | Rescan affected namespace membership. |
+| Owner creation | Requeue only the Pods and objects that waited for that owner. |
 | Pod deletion | Remove its saved Pod result. |
 | Root deletion | Remove its workload result and requeue Pods; a live Pod can retain an invalid mapping. |
 | Watch or evaluation failure | Keep available previous values and report invalidity/errors. |

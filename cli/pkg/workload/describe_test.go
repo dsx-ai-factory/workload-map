@@ -336,9 +336,9 @@ spec:
 		Expect(pod.Reason).To(Equal("PodCompleted"))
 	})
 
-	// Milvus names 18 pod-bearing components and gives only 12 a selector. Left
-	// unchecked the other six each claim the whole workload, so one pod reports
-	// under seven components and ready counts exceed desired.
+	// Milvus names 18 pod-bearing components and gives only 16 a selector. Left
+	// unchecked the other two each claim the whole workload, so one pod reports
+	// under three components and ready counts exceed desired.
 	It("does not let a selectorless component claim a sibling's pods", func() {
 		view := describeObject([]byte(`
 apiVersion: milvus.io/v1beta1
@@ -353,9 +353,30 @@ spec:
 `), milvusPod("vectors-proxy-0", "proxy"))
 
 		Expect(componentNamed(view.Components, "proxy").Pods).To(HaveLen(1))
-		for _, name := range []string{"etcd", "minio", "pulsar-broker"} {
+		for _, name := range []string{"etcd", "minio"} {
 			Expect(componentNamed(view.Components, name).Pods).To(BeEmpty(), name+" has no selector and owns no pod")
 		}
+	})
+
+	// Milvus and its in-cluster Pulsar both run a proxy. Pulsar labels its pods
+	// component=proxy, so only the app=pulsar label tells the two apart.
+	It("attributes a Pulsar proxy pod by all of its match labels", func() {
+		pulsarProxy := livePod("vectors-pulsar-proxy-0", "node-01", map[string]string{"app": "pulsar", "component": "proxy"}, "0")
+		otherProxy := livePod("other-proxy-0", "node-01", map[string]string{"app": "other", "component": "proxy"}, "0")
+		view := describeObject([]byte(`
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: vectors
+  namespace: ml-team
+spec:
+  components:
+    proxy:
+      replicas: 1
+`), milvusPod("vectors-proxy-0", "proxy"), pulsarProxy, otherProxy)
+
+		Expect(componentNamed(view.Components, "pulsar-proxy").Pods).To(ConsistOf(HaveField("Name", "vectors-pulsar-proxy-0")))
+		Expect(componentNamed(view.Components, "proxy").Pods).To(ConsistOf(HaveField("Name", "vectors-proxy-0")))
 	})
 
 	// With one pod-bearing component there is nothing to confuse a pod with, so

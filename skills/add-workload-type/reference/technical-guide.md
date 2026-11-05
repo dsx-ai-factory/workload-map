@@ -541,6 +541,18 @@ podSelector:
     keyPath: .metadata.labels["leaderworkerset.sigs.k8s.io/group-index"]
 ```
 
+When one label is not enough (two operators reuse the same label value), match
+several labels with `matchLabels`. All entries must match, and `matchLabels`
+can be combined with `keyPath`. At least one of the two must be set, and
+`value` requires `keyPath`.
+
+```yaml
+componentTypeSelector:
+  matchLabels:
+    app: pulsar
+    component: proxy
+```
+
 `componentInstanceSelector` must pair with a component-level `instanceIdPath`,
 and vice versa. Selectors of the same kind must be mutually exclusive across
 components.

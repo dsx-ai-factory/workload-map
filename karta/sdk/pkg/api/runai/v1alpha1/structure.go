@@ -178,7 +178,7 @@ type ScaleDefinition struct {
 // PodSelector defines how to identify pods belonging to a specific component.
 type PodSelector struct {
 	// ComponentTypeSelector determines whether a pod belongs to this component type
-	// by matching a pod label or annotation value via a JQ path.
+	// by matching a pod label or annotation value via a JQ path, a set of pod labels, or both.
 	// This is the primary mechanism for pod-to-component membership.
 	// For example, LWS "leader" uses worker-index="0" to identify leader pods,
 	// and LWS "worker" checks for the existence of the leader-name annotation.
@@ -206,15 +206,27 @@ type PodSelector struct {
 	ReplicaSelector *ReplicaSelector `json:"replicaSelector,omitempty"`
 }
 
+// ComponentTypeSelector matches a pod when every condition that is set holds (AND).
+// At least one of KeyPath or MatchLabels must be set.
+// +kubebuilder:validation:XValidation:rule="has(self.keyPath) || has(self.matchLabels)",message="at least one of keyPath or matchLabels must be set"
+// +kubebuilder:validation:XValidation:rule="!has(self.value) || has(self.keyPath)",message="value requires keyPath"
 type ComponentTypeSelector struct {
 	// KeyPath is the JQ path to the identifying key/label on the pod
 	// JQ path is evaluated against individual pod objects, not the root resource spec
-	// +kubebuilder:validation:Required
-	KeyPath string `json:"keyPath" jq:"validate"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinLength=1
+	KeyPath string `json:"keyPath,omitempty" jq:"validate"`
 
 	// Value is the expected value for the key (optional - if nil, only key existence is checked)
 	// +kubebuilder:validation:Optional
 	Value *string `json:"value,omitempty"`
+
+	// MatchLabels is a map of pod label key/value pairs. Each entry is an equality
+	// requirement and all entries must match. Use it when a single label is not
+	// enough to identify the component's pods (e.g., component=proxy and app=pulsar).
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinProperties=1
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
 
 type ComponentInstanceSelector struct {

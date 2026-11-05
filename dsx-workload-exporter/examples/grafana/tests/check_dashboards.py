@@ -145,7 +145,8 @@ def check_fixture_expressions():
         dashboard = json.loads((ROOT / filename).read_text())
         panel = next(obj for obj in objects(dashboard) if obj.get("id") == int(panel_id))
         actual = next(target["expr"] for target in panel["targets"] if target["refId"] == ref_id)
-        for variable, value in {"exporter_job": "exporter", "namespace": "ns", "workload_uid": "multi", "dcgm_job": "dcgm", "cadvisor_job": "cadvisor", "workload": ".*", "component": ".*", "component_instance": ".*", "gpu_device": ".*", "observer_job": "observer", "activity_view": "4", "__range_s": "300", "__interval": "30s", "__rate_interval": "5m"}.items():
+        actual = actual.replace("${__to:date:seconds}", "90")
+        for variable, value in {"exporter_job": "exporter", "namespace": "ns", "workload_uid": "multi", "dcgm_job": "dcgm", "cadvisor_job": "cadvisor", "workload": ".*", "component": ".*", "component_instance": ".*", "gpu_device": ".*", "observer_job": "observer", "activity_view": "4", "__range_s": "300", "__interval": "30s", "__rate_interval": "5m", "__to": "90000"}.items():
             actual = actual.replace("${" + variable + ":regex}", value).replace("${" + variable + ":raw}", value).replace("${" + variable + "}", value).replace("$" + variable, value)
         assert " ".join(actual.split()) == " ".join(expression.split()), (filename, panel_id, ref_id, "fixture query drift")
     print(f"PASS {len(entries)} fixture expressions match the shipped dashboard queries")

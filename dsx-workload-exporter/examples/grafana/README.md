@@ -40,11 +40,13 @@ The exact attribution table remains available below the histories.
 
 ![Workload structure with GPU and VRAM measurements](screenshots/workload-structure.png)
 
-![GPU, VRAM, CPU and RAM histories](screenshots/workload-resource-history.png)
+![Workload phase, GPU, VRAM, CPU and RAM histories](screenshots/workload-resource-history.png)
 
 [Metric Samples](metric-samples.json) is an optional troubleshooting dashboard.
 It shows all labels and exporter targets for any of the four raw DSX metrics.
 It does not need recording rules.
+
+![Raw Pod attribution labels and values](screenshots/metric-samples.png)
 
 ## Set up Prometheus
 
@@ -159,10 +161,9 @@ in those labels. An absent `team` label works.
 Tested with Grafana 13.2.4, Prometheus/promtool 3.14.0 and Kubernetes 1.34.0 on
 Kind, including imports, panel queries, graph details, workload links and Grafana
 served below a URL subpath. Live playground checks also cover completed-workload
-history and all three activity filters. The overview, structure and history images
-show playground workloads with real cAdvisor CPU/memory and simulated GPU data.
-The component detail image uses an isolated fixture. Physical GPU collection was
-not tested.
+history and all three activity filters. Screenshots show playground workloads
+with real cAdvisor CPU/memory and simulated GPU data. Physical GPU collection
+was not tested.
 
 From this directory:
 

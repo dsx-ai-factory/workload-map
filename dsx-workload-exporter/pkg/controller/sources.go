@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -34,6 +35,11 @@ type reflectorStore struct {
 	controller *controllerState
 	watch      *resourceWatch
 }
+
+// shortWatch matches the reflector's VeryShortWatchError threshold.
+const shortWatch = time.Second
+
+var errShortWatch = errors.New("watch closed before delivering any event")
 
 func (r *controllerState) syncWatches(ctx context.Context) error {
 	if r.config.NamespaceSelector != nil {
@@ -300,17 +306,58 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 	if needsDynamicWatch {
 		stream, err = r.reader.clients.Dynamic.Resource(w.key.Resource).Namespace(w.key.Namespace).Watch(ctx, options)
 	}
+	// After some connection failures client-go returns an already closed watch and no
+	// error. That is a failed start, not a healthy source.
+	var first *watch.Event
+	if err == nil {
+		select {
+		case event, ok := <-stream.ResultChan():
+			if !ok {
+				stream.Stop()
+				err = errShortWatch
+			} else {
+				first = &event
+			}
+		default:
+		}
+	}
 	r.recordWatchStart(ctx, w, options, err)
 	if err != nil {
 		return nil, err
 	}
 	events := make(chan watch.Event)
 	monitored := watch.NewProxyWatcher(events)
+	started := time.Now()
+	// forward converts and passes on one event; false ends the stream.
+	forward := func(event watch.Event) bool {
+		if event.Type == watch.Error {
+			r.setWatchHealth(w, apierrors.FromObject(event.Object))
+		} else {
+			object, conversionErr := prepareWatchObject(event.Object, w.gvk, w.full)
+			if conversionErr != nil {
+				r.setWatchHealth(w, conversionErr)
+				return false
+			}
+			event.Object = object
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-monitored.StopChan():
+			return false
+		case events <- event:
+			return true
+		}
+	}
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
 		defer close(events)
 		defer stream.Stop()
+		received := first != nil
+		if received && !forward(*first) {
+			return
+		}
 		for {
 			select {
 			case <-ctx.Done():
@@ -319,27 +366,19 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 				return
 			case event, ok := <-stream.ResultChan():
 				if !ok {
-					// The server ends watches routinely. The reflector resumes from the last
-					// resourceVersion, or relists through Replace, so a close is not a failure;
-					// a restart that fails reports itself through recordWatchStart.
-					return
-				}
-				if event.Type == watch.Error {
-					r.setWatchHealth(w, apierrors.FromObject(event.Object))
-				} else {
-					object, conversionErr := prepareWatchObject(event.Object, w.gvk, w.full)
-					if conversionErr != nil {
-						r.setWatchHealth(w, conversionErr)
-						return
+					// The server ends watches routinely, after minutes, and the reflector
+					// resumes or relists, so such a close is not a failure. A close within
+					// shortWatch without events is a failed connection: client-go's own
+					// VeryShortWatchError rule.
+					isShort := !received && time.Since(started) < shortWatch
+					if isShort && ctx.Err() == nil && !monitored.Stopping() {
+						r.setWatchHealth(w, errShortWatch)
 					}
-					event.Object = object
+					return
 				}
-				select {
-				case <-ctx.Done():
+				received = true
+				if !forward(event) {
 					return
-				case <-monitored.StopChan():
-					return
-				case events <- event:
 				}
 			}
 		}

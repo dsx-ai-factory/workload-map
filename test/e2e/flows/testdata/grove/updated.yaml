@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+apiVersion: grove.io/v1alpha1
+kind: PodCliqueSet
+metadata:
+  generateName: karta-e2e-grove-update-
+spec:
+  replicas: 1
+  updateStrategy:
+    type: RollingRecreate
+  template:
+    cliques:
+      - name: worker
+        rollingUpdate:
+          maxUnavailable: 1
+        spec:
+          roleName: worker
+          replicas: 2
+          minAvailable: 2
+          podSpec:
+            schedulerName: default-scheduler
+            terminationGracePeriodSeconds: 1
+            containers:
+              - name: worker
+                image: busybox:1.36
+                command: ["/bin/sh", "-c", "sleep 12; touch /tmp/ready; exec sleep 3600"]
+                readinessProbe:
+                  exec:
+                    command: ["/bin/sh", "-c", "test -f /tmp/ready"]
+                  periodSeconds: 1
+                  failureThreshold: 1
+                resources:
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi

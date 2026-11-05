@@ -7,7 +7,8 @@
 `metric.Registration`. It creates four observable gauges and one callback.
 Each callback captures Store once and formats saved values, labels and health.
 
-Status emits all nine normalized phases as zeros or ones. A verified root with
+Status emits all normalized phases as zeros or ones, including legacy
+`Initializing`. `Pending` and `Progressing` can both be one. A verified root with
 no selected Karta emits all phases as zero, with empty `karta` and `karta_source`
 labels. Workload label rules still apply. Invalid retained Pod
 mapping and status values carry `observation_valid="false"`. Invalid creation

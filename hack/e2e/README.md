@@ -75,6 +75,16 @@ support or Karta compatibility. It does not change pins or use a cluster.
 See the [checker README](../operator-updates/README.md) for selection rules,
 options, exit codes, and the required checker when adding an operator.
 
+## NIM operator image pin
+
+The NIM installer fetches the chart at `NIM_OPERATOR_VERSION` and overrides its
+mutable development image with the official release at `NIM_OPERATOR_IMAGE_TAG`.
+The default is v3.0.2 with an immutable multi-platform image digest from
+`nvcr.io/nvidia/cloud-native/k8s-nim-operator`.
+Changing the chart version also requires its matching image tag and digest.
+An existing release must use the configured image reference; otherwise the
+installer fails before building the CPU fixture or changing that installation.
+
 ## How up.sh runs an operator
 
 For each selected infrastructure operator, `up.sh` runs `infra/<name>/install.sh`

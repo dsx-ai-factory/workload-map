@@ -10,6 +10,10 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
+const deploymentCurrentStatus = `.metadata.deletionTimestamp == null
+    and .status.observedGeneration != null
+    and .status.observedGeneration == .metadata.generation`
+
 // Deployment returns the built-in Karta for the apps/v1 Deployment workload.
 func Deployment() *v1alpha1.Karta {
 	return &v1alpha1.Karta{
@@ -35,24 +39,46 @@ func Deployment() *v1alpha1.Karta {
 							ReasonFieldName:  ptr.To("reason"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{
-								// A just-created Deployment: the controller writes this reason exactly once,
-								// before any Available condition exists. Scaling and steady state carry
-								// NewReplicaSetAvailable, so this matcher cannot fire outside birth.
-								{ByConditions: []v1alpha1.ExpectedCondition{
-									{Type: "Progressing", Status: ptr.To("True"), Reason: ptr.To("NewReplicaSetCreated")},
-								}},
-								{ByConditions: []v1alpha1.ExpectedCondition{
-									{Type: "Progressing", Status: ptr.To("True")},
-									{Type: "Available", Status: ptr.To("False")},
-								}},
-							},
-							Running: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
-								{Type: "Progressing", Status: ptr.To("True"), Reason: ptr.To("NewReplicaSetAvailable")},
+							Pending: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: `(` + deploymentCurrentStatus + ` and (.spec.replicas // 1) > 0
+    and (.status.availableReplicas // 0) < (.spec.replicas // 1)) or (
+    .metadata.deletionTimestamp == null and (.spec.replicas // 1) > 0
+    and (.metadata.generation // 0) > 0
+    and (.status.observedGeneration == null or .status.observedGeneration < .metadata.generation)
+    and (any(.status.conditions[]?;
+        (.type == "ReplicaFailure" and .status == "True") or
+        (.type == "Progressing" and .status == "False" and .reason == "ProgressDeadlineExceeded")) | not))`,
+								ExpectedResult: "true",
 							}}},
-							Failed: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
-								{Type: "Progressing", Status: ptr.To("False"), Reason: ptr.To("ProgressDeadlineExceeded")},
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								// Pausing prevents template rollouts, but scaling still reconciles.
+								// NewReplicaSetAvailable remains true after success. A readiness loss alone
+								// does not establish a new rollout while that historical reason remains.
+								Expression: deploymentCurrentStatus + ` and (
+    (.status.replicas // 0) != (.spec.replicas // 1)
+    or (.spec.paused != true and (
+        (.status.updatedReplicas // 0) < (.spec.replicas // 1)
+        or ((.status.availableReplicas // 0) < (.spec.replicas // 1)
+            and any(.status.conditions[]?; .type == "Progressing"
+                and ((.status == "True" and .reason != "NewReplicaSetAvailable")
+                    or (.status == "False" and .reason == "ProgressDeadlineExceeded")))))))`,
+								ExpectedResult: "true",
 							}}},
+							Running: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{{Type: "Available", Status: ptr.To("True")}},
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression: deploymentCurrentStatus + ` and (.spec.replicas // 1) > 0
+    and (.status.availableReplicas // 0) > 0`,
+									ExpectedResult: "true",
+								},
+							}},
+							Failed: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{{Type: "Progressing", Status: ptr.To("False"), Reason: ptr.To("ProgressDeadlineExceeded")}},
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     deploymentCurrentStatus + " and .spec.paused != true",
+									ExpectedResult: "true",
+								},
+							}},
 						},
 					},
 				},

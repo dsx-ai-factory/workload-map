@@ -119,7 +119,7 @@ statusDefinition:
           typeFieldName: "type"
           statusFieldName: "status"
         statusMappings:
-          initializing:
+          pending:
           - byConditions:
             - type: "Created"
               status: "True"

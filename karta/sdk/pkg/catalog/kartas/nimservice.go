@@ -45,10 +45,21 @@ func NIMService() *v1alpha1.Karta {
 							MessageFieldName: ptr.To("message"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{
-								{ByPhase: "NotReady"},
-								{ByPhase: "Pending"},
-							},
+							// NotReady reports unsatisfied readiness, including blocked rollouts. It does not prove motion.
+							Pending: []v1alpha1.StatusMatcher{
+								{ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     inferenceEmptyStatusExpression + ` and (.spec.replicas // 1) > 0`,
+									ExpectedResult: "true",
+								}},
+								{ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     `(.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and (.spec.replicas // 1) > 0 and (.status.state | IN("Pending", "NotReady", "PVC-Created"))`,
+									ExpectedResult: "true",
+								}}},
+							// PVC creation identifies unfinished provisioning, not binding or Pod scheduling.
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression:     `(.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and (.spec.replicas // 1) > 0 and .status.state == "PVC-Created"`,
+								ExpectedResult: "true",
+							}}},
 							Running: []v1alpha1.StatusMatcher{
 								{ByPhase: "Ready"},
 							},

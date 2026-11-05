@@ -18,17 +18,17 @@ spec:
         replicasPath: .spec.jobTemplate.spec.parallelism // 1
       statusDefinition:
         statusMappings:
-          initializing:
+          pending:
             - byExpression:
-                expression: (.spec.suspend // false) != true and (.status.lastScheduleTime == null)
+                expression: .metadata.deletionTimestamp == null and .spec.suspend != true and .status != null and .status.lastScheduleTime == null
                 expectedResult: "true"
           running:
             - byExpression:
-                expression: (.spec.suspend // false) != true and (.status.lastScheduleTime != null)
+                expression: .metadata.deletionTimestamp == null and .spec.suspend != true and .status.lastScheduleTime != null
                 expectedResult: "true"
           suspended:
             - byExpression:
-                expression: (.spec.suspend // false) == true
+                expression: .spec.suspend == true
                 expectedResult: "true"
       suspendDefinition:
         suspendActions:

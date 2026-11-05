@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 #
-# A batch/v1 Job that runs briefly and succeeds. The completed flow observes it move Initializing ->
-# Running -> Completed. sleep 20 with a readiness probe gives a stable Initializing then Running
+# A batch/v1 Job that runs briefly and succeeds. The completed flow observes it move Pending ->
+# Running -> Completed. sleep 20 with a readiness probe gives a stable Pending then Running
 # window before the Job reports Complete.
 apiVersion: batch/v1
 kind: Job

@@ -18,19 +18,53 @@ spec:
         replicasPath: .spec.replicas // 1
       statusDefinition:
         statusMappings:
-          initializing:
+          pending:
             - byExpression:
-                expression: .status.observedGeneration == .metadata.generation and (.status.replicas // 0) > (.spec.replicas // 1)
+                expression: |-
+                  (.metadata.deletionTimestamp == null
+                      and .status.observedGeneration != null
+                      and .status.observedGeneration == .metadata.generation and (.spec.replicas // 1) > 0
+                      and (.status.readyReplicas // 0) < (.spec.replicas // 1)) or (
+                      .metadata.deletionTimestamp == null and (.spec.replicas // 1) > 0
+                      and (.metadata.generation // 0) > 0
+                      and (.status.observedGeneration == null or .status.observedGeneration < .metadata.generation)
+                      and ((.status.conditions // []) | length == 0))
                 expectedResult: "true"
+          progressing:
             - byExpression:
-                expression: (.spec.replicas // 1) > 0 and ((.status.observedGeneration // 0) != (.metadata.generation // 0) or (.status.readyReplicas // 0) == 0 or (.status.updatedReplicas // 0) != (.spec.replicas // 1) or (.status.currentRevision != .status.updateRevision))
+                expression: |-
+                  .metadata.deletionTimestamp == null
+                      and .status.observedGeneration != null
+                      and .status.observedGeneration == .metadata.generation and (
+                      (.status.replicas // 0) != (.spec.replicas // 1)
+                      or ((.spec.updateStrategy.type // "RollingUpdate") == "RollingUpdate"
+                          and .status.currentRevision != null and .status.updateRevision != null
+                          and .status.currentRevision != .status.updateRevision
+                          and (.spec.replicas // 1) > (.spec.updateStrategy.rollingUpdate.partition // 0)
+                          and ((.status.updatedReplicas // 0) < ((.spec.replicas // 1) - (.spec.updateStrategy.rollingUpdate.partition // 0))
+                              or (.status.readyReplicas // 0) < (.spec.replicas // 1)))
+                      or ((.spec.updateStrategy.type // "RollingUpdate") == "Recreate"
+                          and any(.status.conditions[]?; .type == "Progressing" and .status == "True")
+                          and ((.status.updatedReplicas // 0) < (.spec.replicas // 1)
+                              or (.status.readyReplicas // 0) < (.spec.replicas // 1))))
                 expectedResult: "true"
           running:
             - byExpression:
-                expression: (.status.observedGeneration // 0) == (.metadata.generation // 0) and (.status.replicas // 0) == (.spec.replicas // 1) and (.status.readyReplicas // 0) == (.spec.replicas // 1) and (.status.updatedReplicas // 0) == (.spec.replicas // 1) and (.status.currentRevision == .status.updateRevision)
+                expression: |-
+                  .metadata.deletionTimestamp == null
+                      and .status.observedGeneration != null
+                      and .status.observedGeneration == .metadata.generation and (.spec.replicas // 1) > 0
+                      and (.status.replicas // 0) >= (.spec.replicas // 1)
+                      and (.status.readyReplicas // 0) >= (.spec.replicas // 1)
                 expectedResult: "true"
           degraded:
             - byExpression:
-                expression: (.status.readyReplicas // 0) > 0 and (.status.readyReplicas // 0) < (.spec.replicas // 1) and (.status.updatedReplicas // 0) == (.spec.replicas // 1) and (.status.currentRevision == .status.updateRevision) and (.status.observedGeneration // 0) == (.metadata.generation // 0)
+                expression: |-
+                  .metadata.deletionTimestamp == null
+                      and .status.observedGeneration != null
+                      and .status.observedGeneration == .metadata.generation and (.status.readyReplicas // 0) > 0
+                      and (.status.readyReplicas // 0) < (.spec.replicas // 1)
+                      and (.status.updatedReplicas // 0) == (.spec.replicas // 1)
+                      and .status.currentRevision == .status.updateRevision
                 expectedResult: "true"
   optimizationInstructions: {}

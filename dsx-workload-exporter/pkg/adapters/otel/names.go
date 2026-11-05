@@ -37,7 +37,9 @@ const (
 
 // allPhases contains the normalized phases emitted as dense 0/1 observations.
 var allPhases = []v1alpha1.ResourceStatus{
-	v1alpha1.InitializingStatus,
+	"Initializing", // Retained for legacy custom definitions.
+	v1alpha1.PendingStatus,
+	v1alpha1.ProgressingStatus,
 	v1alpha1.RunningStatus,
 	v1alpha1.CompletedStatus,
 	v1alpha1.FailedStatus,

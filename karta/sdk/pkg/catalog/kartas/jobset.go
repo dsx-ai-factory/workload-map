@@ -10,6 +10,10 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
+const jobSetActiveStatus = `.metadata.deletionTimestamp == null and .spec.suspend != true
+    and (any(.status.conditions[]?; .status == "True"
+        and (.type == "Completed" or .type == "Failed")) | not)`
+
 // Jobset returns the built-in Karta for the JobSet workload
 // (jobset.x-k8s.io/v1alpha2).
 func Jobset() *v1alpha1.Karta {
@@ -34,23 +38,39 @@ func Jobset() *v1alpha1.Karta {
 							ReasonFieldName:  ptr.To("reason"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								// Some replicatedJobs are active but none are ready yet.
-								// Guard against a null replicatedJobsStatus before the JobSet
-								// controller initializes status.
-								Expression:     "(.status.replicatedJobsStatus // []) | any(.active > 0 and (.ready // 0) == 0) and all(.failed == 0)",
+							Pending: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: jobSetActiveStatus + ` and (
+    . as $jobset | any(.spec.replicatedJobs[]?; . as $desired |
+        ($jobset.status.replicatedJobsStatus // [] | map(select(.name == $desired.name)) | .[0]) as $observed |
+        ($desired.replicas // 1) > 0 and (
+            ($observed != null and ($desired.replicas // 1) >
+                (([$observed.ready // 0, $observed.active // 0] | min) + ($observed.succeeded // 0))) or
+            ($observed == null and ($jobset.metadata.generation // 0) > 0))))`,
+								ExpectedResult: "true",
+							}}},
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: jobSetActiveStatus + ` and (
+    any(.status.conditions[]?; .type == "RestartingJobSet" and .status == "True")
+    or (.spec.startupPolicy.startupPolicyOrder == "InOrder"
+        and any(.status.conditions[]?; .type == "StartupPolicyInProgress" and .status == "True")))`,
 								ExpectedResult: "true",
 							}}},
 							Running: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								// Working: at least one replicatedJob has active or ready pods and none
-								// have failed. Reading either count (not both) keeps the state stable
-								// while the controller briefly flaps ready to 0 mid-run.
-								Expression:     "(.status.replicatedJobsStatus // []) | any(.active > 0 or .ready > 0) and all((.failed // 0) == 0)",
+								// Ready includes successful Pods. Require active work as well, without
+								// treating active Jobs alone as proof that their Pods are ready.
+								Expression: jobSetActiveStatus + ` and ((.status.replicatedJobsStatus // []) |
+    any((.ready // 0) > 0 and (.active // 0) > 0) and all((.failed // 0) == 0))`,
 								ExpectedResult: "true",
 							}}},
 							Completed: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Completed", Status: ptr.To("True")}}}},
 							Failed:    []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Failed", Status: ptr.To("True")}}}},
-							Suspended: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Suspended", Status: ptr.To("True")}}}},
+							Suspended: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{{Type: "Suspended", Status: ptr.To("True")}},
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     ".spec.suspend == true",
+									ExpectedResult: "true",
+								},
+							}},
 						},
 					},
 				},

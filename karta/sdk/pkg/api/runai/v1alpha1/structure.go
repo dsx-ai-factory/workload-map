@@ -233,12 +233,21 @@ type ReplicaSelector struct {
 }
 
 // ResourceStatus represents the high-level status of a component.
-// +kubebuilder:validation:Enum=Initializing;Running;Completed;Failed;Degraded;Undefined;Suspended;Suspending;Resuming
+// +kubebuilder:validation:Enum=Initializing;Pending;Progressing;Running;Completed;Failed;Degraded;Undefined;Suspended;Suspending;Resuming
 type ResourceStatus string
 
 const (
-	// InitializingStatus indicates the component has been created or starting up or preparing to run (pre Running status)
+	// InitializingStatus indicates the component has been created or starting up or preparing to run (pre Running status).
+	//
+	// Deprecated: Use PendingStatus for waiting and ProgressingStatus for an unfinished state transition, according to the source status.
 	InitializingStatus ResourceStatus = "Initializing"
+
+	// PendingStatus indicates the component is waiting for a required prerequisite or readiness.
+	PendingStatus ResourceStatus = "Pending"
+
+	// ProgressingStatus indicates an observed state transition has not finished.
+	// It can coexist with PendingStatus or RunningStatus and does not guarantee recent activity.
+	ProgressingStatus ResourceStatus = "Progressing"
 
 	// RunningStatus indicates the component is actively running
 	RunningStatus ResourceStatus = "Running"
@@ -317,12 +326,27 @@ type ConditionsDefinition struct {
 // StatusMappings define how to map extracted status information to ResourceStatus values.
 // Each status field contains an array of matchers evaluated with OR logic:
 // if ANY matcher in the array succeeds, that status is matched.
+// Status fields are evaluated independently, so multiple statuses can match.
 type StatusMappings struct {
 	// Initializing defines matchers for the Initializing status.
 	// Multiple matchers are OR'd together.
+	//
+	// Deprecated: Use Pending and Progressing according to the source status. Initializing continues to produce Initializing.
 	// +kubebuilder:validation:Optional
 	// +listType=atomic
 	Initializing []StatusMatcher `json:"initializing,omitempty"`
+
+	// Pending defines matchers for waiting on a required prerequisite or readiness.
+	// Multiple matchers are OR'd together.
+	// +kubebuilder:validation:Optional
+	// +listType=atomic
+	Pending []StatusMatcher `json:"pending,omitempty"`
+
+	// Progressing defines matchers for an observed state transition that has not finished.
+	// Multiple matchers are OR'd together.
+	// +kubebuilder:validation:Optional
+	// +listType=atomic
+	Progressing []StatusMatcher `json:"progressing,omitempty"`
 
 	// Running defines matchers for the Running status.
 	// Multiple matchers are OR'd together.
@@ -374,6 +398,7 @@ type StatusMatchEntry struct {
 }
 
 // Entries returns all status-to-matchers pairs defined in the mappings.
+// The order is stable and does not define precedence between matching statuses.
 // When adding a new ResourceStatus, add a corresponding entry here.
 func (m StatusMappings) Entries() []StatusMatchEntry {
 	return []StatusMatchEntry{
@@ -383,6 +408,8 @@ func (m StatusMappings) Entries() []StatusMatchEntry {
 		{RunningStatus, m.Running},
 		{FailedStatus, m.Failed},
 		{CompletedStatus, m.Completed},
+		{PendingStatus, m.Pending},
+		{ProgressingStatus, m.Progressing},
 		{InitializingStatus, m.Initializing},
 		{DegradedStatus, m.Degraded},
 	}

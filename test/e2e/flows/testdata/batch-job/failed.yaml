@@ -3,7 +3,7 @@
 #
 # A batch/v1 Job that fails: the pod runs briefly then exits non-zero with no retries (backoffLimit
 # 0), so the Job reports Failed. A readiness probe that never passes keeps the pod NotReady while it
-# runs, so the Job fails straight from Initializing and Karta never sees it Running.
+# runs, so the Job fails straight from Pending and Karta never sees it Running.
 apiVersion: batch/v1
 kind: Job
 metadata:

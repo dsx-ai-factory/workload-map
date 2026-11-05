@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A Grove PodCliqueSet whose clique references a nonexistent image tag, so its pods stay in
+# ImagePullBackOff and never become available. The operator keeps status.availableReplicas
+# below spec.replicas, which the definition reads as Pending - a workload still coming
+# up (here, permanently). Karta must read it as Pending, not Running.
+apiVersion: grove.io/v1alpha1
+kind: PodCliqueSet
+metadata:
+  name: karta-e2e-grove-initializing
+  namespace: default
+spec:
+  replicas: 1
+  template:
+    cliques:
+      - name: worker
+        spec:
+          roleName: worker
+          replicas: 2
+          podSpec:
+            containers:
+              - name: worker
+                image: busybox:99.99.99
+                command: ["/bin/sh", "-c", "echo karta-e2e-grove && sleep infinity"]
+                resources:
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi

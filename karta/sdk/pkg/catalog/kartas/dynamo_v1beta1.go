@@ -24,12 +24,32 @@ func DynamoV1beta1() *v1alpha1.Karta {
 					StatusDefinition: &v1alpha1.StatusDefinition{
 						PhaseDefinition: &v1alpha1.PhaseDefinition{Path: ".status.state"},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{
-								{ByPhase: "initializing"},
-								{ByPhase: "pending"},
-							},
-							Running: []v1alpha1.StatusMatcher{{ByPhase: "successful"}},
-							Failed:  []v1alpha1.StatusMatcher{{ByPhase: "failed"}},
+							// A new object waits for observation; only explicit rollout status establishes progress.
+							Pending: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: `.metadata.deletionTimestamp == null and ((.status.state == "pending" and
+                                    (.metadata.generation == null or .status.observedGeneration == null or
+                                     .status.observedGeneration >= .metadata.generation)) or
+                                    (.metadata.deletionTimestamp == null and (.metadata.generation // 0) > 0 and
+                                     any(.spec.components[]?; (.replicas // 1) > 0) and
+                                     (((.status == null or ((.status | keys) - ["state"] | length) == 0) and
+                                       (.status.state == null or (.status.state | IN("", "initializing")))) or
+                                      (.status.observedGeneration != null and .status.observedGeneration < .metadata.generation and
+                                       (.status.state | IN("initializing", "pending", "successful"))))))`,
+								ExpectedResult: "true",
+							}}},
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: `.metadata.deletionTimestamp == null and .status.state != "failed" and
+                                    (.status.rollingUpdate.phase == "Pending" or .status.rollingUpdate.phase == "InProgress") and
+                                    (.metadata.generation == null or .status.observedGeneration == null or
+                                     .status.observedGeneration >= .metadata.generation)`,
+								ExpectedResult: "true",
+							}}},
+							Running: []v1alpha1.StatusMatcher{{ByPhase: "successful", ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: `(.metadata.generation == null or .status.observedGeneration == null or
+                                    .status.observedGeneration >= .metadata.generation)`,
+								ExpectedResult: "true",
+							}}},
+							Failed: []v1alpha1.StatusMatcher{{ByPhase: "failed"}},
 						},
 					},
 				},

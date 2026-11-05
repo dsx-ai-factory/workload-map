@@ -62,15 +62,20 @@ func Sandbox() *v1alpha1.Karta {
 						// .spec.operatingMode, so a condition the controller has not yet
 						// updated cannot resolve to a second, contradictory status.
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{{
+							Pending: []v1alpha1.StatusMatcher{{
 								ByConditions: []v1alpha1.ExpectedCondition{
-									{Type: "Ready", Status: ptr.To("False")},
+									{Type: "Ready", Status: ptr.To("False"), Reason: ptr.To("DependenciesNotReady")},
 									{Type: "Suspended", Status: ptr.To("False")},
 								},
-								ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     `(.spec.operatingMode // "Running") != "Suspended"`,
-									ExpectedResult: "true",
+								ByExpression: &v1alpha1.ExpressionMatcher{Expression: `(.metadata.generation // 0) as $generation | (.spec.operatingMode // "Running") != "Suspended" and (any(.status.conditions[]?; .type == "Finished" and .status == "True") | not) and (.status.observedGeneration == null or .status.observedGeneration >= $generation) and all(.status.conditions[]? | select(.type | IN("Ready", "Suspended")); .observedGeneration == null or .observedGeneration >= $generation)`, ExpectedResult: "true"},
+							}},
+							Progressing: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{
+									{Type: "Ready", Status: ptr.To("False"), Reason: ptr.To("DependenciesNotReady")},
+									{Type: "Suspended", Status: ptr.To("False")},
+									{Type: "PodScheduled", Status: ptr.To("True")},
 								},
+								ByExpression: &v1alpha1.ExpressionMatcher{Expression: `(.metadata.generation // 0) as $generation | (.spec.operatingMode // "Running") != "Suspended" and (any(.status.conditions[]?; .type == "Finished" and .status == "True") | not) and (.status.observedGeneration == null or .status.observedGeneration >= $generation) and all(.status.conditions[]? | select(.type | IN("Ready", "Suspended", "PodScheduled")); .observedGeneration == null or .observedGeneration >= $generation)`, ExpectedResult: "true"},
 							}},
 							// Suspended must not be True, so a stale condition after a
 							// resume resolves to Resuming only.

@@ -10,6 +10,9 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
+const knativeCurrentStatusExpression = `(.metadata.generation == null or .status.observedGeneration == null or
+    .status.observedGeneration >= .metadata.generation)`
+
 // KnativeServing returns the built-in Karta for the Knative Serving Service
 // workload (serving.knative.dev/v1).
 func KnativeServing() *v1alpha1.Karta {
@@ -30,11 +33,23 @@ func KnativeServing() *v1alpha1.Karta {
 						},
 						StatusMappings: v1alpha1.StatusMappings{
 							Running: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("True")}}}},
-							// Knative reports the whole deploy through Ready=Unknown (reasons OutOfDate,
-							// RevisionMissing, IngressNotConfigured, Uninitialized) and a broken Service
-							// through Ready=False - both deliberate signals, matched as written.
-							Initializing: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("Unknown")}}}},
-							Failed:       []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("False")}}}},
+							Pending: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("Unknown")}},
+								ByExpression: &v1alpha1.ExpressionMatcher{Expression: knativeCurrentStatusExpression, ExpectedResult: "true"},
+							}},
+							// Unknown readiness also covers ingress waits, which do not prove a revision transition.
+							Progressing: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("Unknown")}},
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression: `.metadata.deletionTimestamp == null and ` + knativeCurrentStatusExpression + ` and
+                                        (any(.status.conditions[]?; (.type | IN("Ready", "ConfigurationsReady", "RoutesReady")) and .status == "Unknown" and
+                                            (.reason == "OutOfDate" or .reason == "TrafficNotMigrated")) or
+                                         ((.status.latestCreatedRevisionName // "") != "" and
+                                          .status.latestCreatedRevisionName != .status.latestReadyRevisionName))`,
+									ExpectedResult: "true",
+								},
+							}},
+							Failed: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Ready", Status: ptr.To("False")}}}},
 						},
 					},
 				},

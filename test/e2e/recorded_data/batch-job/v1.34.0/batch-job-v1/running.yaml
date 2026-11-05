@@ -4,16 +4,16 @@ events:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-16T11:00:06Z"
+      creationTimestamp: "2026-10-19T06:31:55Z"
       generation: 1
       labels:
-        batch.kubernetes.io/controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+        batch.kubernetes.io/controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
         batch.kubernetes.io/job-name: karta-e2e-job-running
-        controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+        controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
         job-name: karta-e2e-job-running
       name: karta-e2e-job-running
-      namespace: test-n88rk
-      uid: 10f48056-f070-4e64-a367-5715492ed20d
+      namespace: test-pb5h5
+      uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -23,16 +23,17 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+          batch.kubernetes.io/controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+            batch.kubernetes.io/controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
             batch.kubernetes.io/job-name: karta-e2e-job-running
-            controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+            controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
             job-name: karta-e2e-job-running
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -67,28 +68,28 @@ events:
     status:
       active: 1
       ready: 0
-      startTime: "2026-09-16T11:00:06Z"
+      startTime: "2026-10-19T06:31:55Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
-  - Initializing
-  resourceVersion: "623609"
-  state: Initializing
+  - Pending
+  resourceVersion: "2953"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: batch/v1
     kind: Job
     metadata:
-      creationTimestamp: "2026-09-16T11:00:06Z"
+      creationTimestamp: "2026-10-19T06:31:55Z"
       generation: 1
       labels:
-        batch.kubernetes.io/controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+        batch.kubernetes.io/controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
         batch.kubernetes.io/job-name: karta-e2e-job-running
-        controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+        controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
         job-name: karta-e2e-job-running
       name: karta-e2e-job-running
-      namespace: test-n88rk
-      uid: 10f48056-f070-4e64-a367-5715492ed20d
+      namespace: test-pb5h5
+      uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
     spec:
       backoffLimit: 0
       completionMode: NonIndexed
@@ -98,16 +99,17 @@ events:
       podReplacementPolicy: TerminatingOrFailed
       selector:
         matchLabels:
-          batch.kubernetes.io/controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+          batch.kubernetes.io/controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
       suspend: false
       template:
         metadata:
           labels:
-            batch.kubernetes.io/controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+            batch.kubernetes.io/controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
             batch.kubernetes.io/job-name: karta-e2e-job-running
-            controller-uid: 10f48056-f070-4e64-a367-5715492ed20d
+            controller-uid: b73debc3-b68c-4459-93cb-e9ebadc2fb65
             job-name: karta-e2e-job-running
         spec:
+          automountServiceAccountToken: false
           containers:
           - command:
             - sh
@@ -142,13 +144,12 @@ events:
     status:
       active: 1
       ready: 1
-      startTime: "2026-09-16T11:00:06Z"
+      startTime: "2026-10-19T06:31:55Z"
       terminating: 0
       uncountedTerminatedPods: {}
   phases:
-  - Initializing
   - Running
-  resourceVersion: "623685"
+  resourceVersion: "2989"
   state: Running
 flow: running
 kartaFile: docs/catalog/batch-job-v1.yaml
@@ -160,10 +161,9 @@ schemaVersion: 1
 summary:
 - amount: 1
   phases:
-  - Initializing
+  - Pending
 - amount: 1
   phases:
-  - Initializing
   - Running
 version: v1.34.0
 want: Running

@@ -88,7 +88,7 @@ func ReactorKarta() *v1alpha1.Karta {
 							MessageFieldName: ptr.To("message"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{
+							Pending: []v1alpha1.StatusMatcher{
 								{
 									ByPhase: "pending",
 								},

@@ -4,13 +4,13 @@ events:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-10-09T04:51:09Z"
+      creationTimestamp: "2026-10-19T07:09:18Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-stopped
-      namespace: test-47hmn
-      uid: a1cedf79-ca4d-4714-afd2-e819cb6db074
+      namespace: test-qbks7
+      uid: 056fee8d-6d8f-4be5-a4f8-9c1e4b8b3820
     spec:
       model:
         name: karta-e2e/fake-model
@@ -35,21 +35,21 @@ events:
           securityContext:
             runAsUser: 65532
   phases:
-  - Undefined
-  resourceVersion: "7152"
-  state: Undefined
+  - Pending
+  resourceVersion: "3186"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-10-09T04:51:09Z"
+      creationTimestamp: "2026-10-19T07:09:18Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-stopped
-      namespace: test-47hmn
-      uid: a1cedf79-ca4d-4714-afd2-e819cb6db074
+      namespace: test-qbks7
+      uid: 056fee8d-6d8f-4be5-a4f8-9c1e4b8b3820
     spec:
       model:
         name: karta-e2e/fake-model
@@ -75,7 +75,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-stopped-kserve-workload-svc.test-47hmn.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-stopped-kserve-workload-svc.test-qbks7.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -92,23 +92,23 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         reason: Progressing
         severity: Info
         status: "False"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         reason: Progressing
         status: "False"
         type: Ready
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         reason: Progressing
         status: "False"
         type: WorkloadsReady
@@ -123,21 +123,22 @@ events:
           kind: Service
           name: karta-e2e-llmisvc-stopped-kserve-workload-svc
   phases:
-  - Initializing
-  resourceVersion: "7214"
-  state: Initializing
+  - Progressing
+  - Pending
+  resourceVersion: "3224"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-10-09T04:51:09Z"
+      creationTimestamp: "2026-10-19T07:09:18Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-stopped
-      namespace: test-47hmn
-      uid: a1cedf79-ca4d-4714-afd2-e819cb6db074
+      namespace: test-qbks7
+      uid: 056fee8d-6d8f-4be5-a4f8-9c1e4b8b3820
     spec:
       model:
         name: karta-e2e/fake-model
@@ -163,7 +164,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-stopped-kserve-workload-svc.test-47hmn.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-stopped-kserve-workload-svc.test-qbks7.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -180,25 +181,25 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-10-09T04:51:22Z"
+      - lastTransitionTime: "2026-10-19T07:09:28Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         severity: Info
         status: "False"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-10-09T04:51:22Z"
+      - lastTransitionTime: "2026-10-19T07:09:28Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
         type: Ready
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-10-09T04:51:22Z"
+      - lastTransitionTime: "2026-10-19T07:09:28Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
@@ -214,21 +215,21 @@ events:
           kind: Service
           name: karta-e2e-llmisvc-stopped-kserve-workload-svc
   phases:
-  - Initializing
-  resourceVersion: "7267"
-  state: Initializing
+  - Pending
+  resourceVersion: "3278"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-10-09T04:51:09Z"
+      creationTimestamp: "2026-10-19T07:09:18Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-stopped
-      namespace: test-47hmn
-      uid: a1cedf79-ca4d-4714-afd2-e819cb6db074
+      namespace: test-qbks7
+      uid: 056fee8d-6d8f-4be5-a4f8-9c1e4b8b3820
     spec:
       model:
         name: karta-e2e/fake-model
@@ -254,7 +255,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-stopped-kserve-workload-svc.test-47hmn.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-stopped-kserve-workload-svc.test-qbks7.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -271,21 +272,21 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         severity: Info
         status: "True"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         status: "True"
         type: Ready
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         status: "True"
         type: WorkloadsReady
       observedGeneration: 1
@@ -300,7 +301,7 @@ events:
           name: karta-e2e-llmisvc-stopped-kserve-workload-svc
   phases:
   - Running
-  resourceVersion: "7306"
+  resourceVersion: "3301"
   state: Running
 - action:
     name: Suspend
@@ -319,13 +320,13 @@ events:
     metadata:
       annotations:
         serving.kserve.io/stop: "true"
-      creationTimestamp: "2026-10-09T04:51:09Z"
+      creationTimestamp: "2026-10-19T07:09:18Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-stopped
-      namespace: test-47hmn
-      uid: a1cedf79-ca4d-4714-afd2-e819cb6db074
+      namespace: test-qbks7
+      uid: 056fee8d-6d8f-4be5-a4f8-9c1e4b8b3820
     spec:
       model:
         name: karta-e2e/fake-model
@@ -351,7 +352,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-stopped-kserve-workload-svc.test-47hmn.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-stopped-kserve-workload-svc.test-qbks7.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -368,21 +369,21 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         severity: Info
         status: "True"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         status: "True"
         type: Ready
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         status: "True"
         type: WorkloadsReady
       observedGeneration: 1
@@ -397,7 +398,7 @@ events:
           name: karta-e2e-llmisvc-stopped-kserve-workload-svc
   phases:
   - Running
-  resourceVersion: "7309"
+  resourceVersion: "3303"
   state: Running
 - kind: STATE
   object:
@@ -406,13 +407,13 @@ events:
     metadata:
       annotations:
         serving.kserve.io/stop: "true"
-      creationTimestamp: "2026-10-09T04:51:09Z"
+      creationTimestamp: "2026-10-19T07:09:18Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-stopped
-      namespace: test-47hmn
-      uid: a1cedf79-ca4d-4714-afd2-e819cb6db074
+      namespace: test-qbks7
+      uid: 056fee8d-6d8f-4be5-a4f8-9c1e4b8b3820
     spec:
       model:
         name: karta-e2e/fake-model
@@ -453,69 +454,69 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         severity: Info
         status: "False"
         type: GatewaysReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         severity: Info
         status: "False"
         type: HTTPRoutesReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         severity: Info
         status: "False"
         type: InferencePoolReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         severity: Info
         status: "False"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         severity: Info
         status: "False"
         type: PrefillWorkerWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         severity: Info
         status: "False"
         type: PrefillWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:51:15Z"
+      - lastTransitionTime: "2026-10-19T07:09:21Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         status: "False"
         type: Ready
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         status: "False"
         type: RouterReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         severity: Info
         status: "False"
         type: SchedulerWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         severity: Info
         status: "False"
         type: WorkerWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:51:28Z"
+      - lastTransitionTime: "2026-10-19T07:09:32Z"
         message: Service is stopped
         reason: Stopped
         status: "False"
@@ -523,7 +524,7 @@ events:
       observedGeneration: 1
   phases:
   - Suspended
-  resourceVersion: "7322"
+  resourceVersion: "3315"
   state: Suspended
 flow: stopped
 kartaFile: docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml
@@ -535,10 +536,14 @@ schemaVersion: 1
 summary:
 - amount: 1
   phases:
-  - Undefined
-- amount: 2
+  - Pending
+- amount: 1
   phases:
-  - Initializing
+  - Progressing
+  - Pending
+- amount: 1
+  phases:
+  - Pending
 - amount: 2
   phases:
   - Running

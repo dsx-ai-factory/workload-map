@@ -94,7 +94,7 @@ Default expected output:
 ══════════════════════════════════════════
 
 === Workload status ===
-  Karta workload status: Initializing
+  Karta workload status: Pending, Progressing
 
 === Component replica counts ===
   group (virtual)              replicas=4
@@ -120,7 +120,7 @@ Default expected output:
 
 | Step | How | What it shows |
 |------|-----|---------------|
-| 1 | `tree.Build()` → `wt.Status.Phases` | Unified `Running/Initializing/Failed` — no per-CRD condition parsing |
+| 1 | `tree.Build()` → `wt.Status.Phases` | Unified `Running/Pending/Progressing/Failed` — no per-CRD condition parsing |
 | 2 | `tree.Build()` → walk `wt.Children` | Replica counts regardless of where the CRD stores them; LWS worker total computed via a JQ formula; virtual components labelled |
 | 3 | `inst.ExtractedInstance.PodTemplateSpec` | Resource requests per container — GPUs for JobSet, CPU for LWS — same traversal, different CRDs |
 | 4 | `comp.GetPodTemplateSpec` → mutate → `UpdatePodTemplateSpec` | Inject scheduler name and a pod label in one pass via real `corev1` types |

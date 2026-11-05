@@ -20,10 +20,27 @@ spec:
           messageFieldName: message
           reasonFieldName: reason
         statusMappings:
-          initializing:
+          pending:
             - byConditions:
                 - type: Created
                   status: "True"
+              byExpression:
+                expression: |-
+                  .spec.runPolicy.suspend != true and
+                                                          (any(.status.conditions[]?; .status == "True" and
+                                                              (.type == "Running" or .type == "Succeeded" or .type == "Failed" or .type == "Suspended")) | not)
+                expectedResult: "true"
+          progressing:
+            - byConditions:
+                - type: Created
+                  status: "True"
+              byExpression:
+                expression: |-
+                  .spec.runPolicy.suspend != true and
+                                                          (any(.status.conditions[]?; .status == "True" and
+                                                              (.type == "Running" or .type == "Succeeded" or .type == "Failed" or .type == "Suspended")) | not) and
+                                                          any(.status.replicaStatuses[]?; (.active // 0) > 0)
+                expectedResult: "true"
           running:
             - byConditions:
                 - type: Running
@@ -36,6 +53,18 @@ spec:
             - byConditions:
                 - type: Failed
                   status: "True"
+          degraded:
+            - byConditions:
+                - type: Running
+                  status: "True"
+              byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and .spec.runPolicy.suspend != true and
+                                                          .spec.runPolicy.backoffLimit == 0 and (.status.replicaStatuses.Launcher.failed // 0) > 0 and
+                                                          any(.status.replicaStatuses[]?; (.active // 0) > 0) and
+                                                          (any(.status.conditions[]?; .status == "True" and
+                                                              (.type == "Succeeded" or .type == "Failed" or .type == "Suspended")) | not)
+                expectedResult: "true"
           suspended:
             - byConditions:
                 - type: Suspended

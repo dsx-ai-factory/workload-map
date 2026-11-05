@@ -27,14 +27,19 @@ spec:
           messageFieldName: message
           reasonFieldName: reason
         statusMappings:
-          initializing:
-            - byPhase: Pending
-            - byPhase: NotReady
-            - byPhase: PVC-Created
-            - byPhase: Started
-            - byConditions:
-                - type: NIM_CACHE_JOB_CREATED
-                  status: "True"
+          pending:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and
+                      (.metadata.generation // 0) > 0 and (.status == null or .status == {})
+                expectedResult: "true"
+            - byExpression:
+                expression: (.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and (.status.state | IN("Pending", "PVC-Created", "Started")) and (any(.status.conditions[]?; .type == "NIM_CACHE_JOB_COMPLETED" and .status == "True") | not)
+                expectedResult: "true"
+          progressing:
+            - byExpression:
+                expression: (.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and (.status.state | IN("Pending", "PVC-Created", "Started")) and (any(.status.conditions[]?; .type == "NIM_CACHE_JOB_COMPLETED" and .status == "True") | not) and ((.status.state | IN("PVC-Created", "Started")) or any(.status.conditions[]?; .type == "NIM_CACHE_JOB_CREATED" and .status == "True"))
+                expectedResult: "true"
           running:
             - byPhase: InProgress
           completed:

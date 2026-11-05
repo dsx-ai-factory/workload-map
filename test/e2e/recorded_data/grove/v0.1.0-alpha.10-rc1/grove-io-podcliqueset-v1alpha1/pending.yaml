@@ -1,0 +1,328 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: grove.io/v1alpha1
+    kind: PodCliqueSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:51:21Z"
+      finalizers:
+      - grove.io/podcliqueset.grove.io
+      generation: 1
+      name: karta-e2e-grove-initializing
+      namespace: test-sqdss
+      uid: 81c2ca27-30cd-47b8-91d5-eecd060ac94a
+    spec:
+      replicas: 1
+      template:
+        cliqueStartupType: CliqueStartupTypeAnyOrder
+        cliques:
+        - name: worker
+          spec:
+            minAvailable: 2
+            podSpec:
+              containers:
+              - command:
+                - /bin/sh
+                - -c
+                - echo karta-e2e-grove && sleep infinity
+                image: busybox:99.99.99
+                name: worker
+                resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+              restartPolicy: Always
+              terminationGracePeriodSeconds: 30
+            replicas: 2
+            roleName: worker
+        headlessServiceConfig:
+          publishNotReadyAddresses: true
+        terminationDelay: 4h0m0s
+  phases:
+  - Pending
+  resourceVersion: "1601"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: grove.io/v1alpha1
+    kind: PodCliqueSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:51:21Z"
+      finalizers:
+      - grove.io/podcliqueset.grove.io
+      generation: 1
+      name: karta-e2e-grove-initializing
+      namespace: test-sqdss
+      uid: 81c2ca27-30cd-47b8-91d5-eecd060ac94a
+    spec:
+      replicas: 1
+      template:
+        cliqueStartupType: CliqueStartupTypeAnyOrder
+        cliques:
+        - name: worker
+          spec:
+            minAvailable: 2
+            podSpec:
+              containers:
+              - command:
+                - /bin/sh
+                - -c
+                - echo karta-e2e-grove && sleep infinity
+                image: busybox:99.99.99
+                name: worker
+                resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+              restartPolicy: Always
+              terminationGracePeriodSeconds: 30
+            replicas: 2
+            roleName: worker
+        headlessServiceConfig:
+          publishNotReadyAddresses: true
+        terminationDelay: 4h0m0s
+    status:
+      availableReplicas: 0
+      currentGenerationHash: 56dc65cb858dd4667658
+      updatedReplicas: 0
+  phases:
+  - Pending
+  resourceVersion: "1603"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: grove.io/v1alpha1
+    kind: PodCliqueSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:51:21Z"
+      finalizers:
+      - grove.io/podcliqueset.grove.io
+      generation: 1
+      name: karta-e2e-grove-initializing
+      namespace: test-sqdss
+      uid: 81c2ca27-30cd-47b8-91d5-eecd060ac94a
+    spec:
+      replicas: 1
+      template:
+        cliqueStartupType: CliqueStartupTypeAnyOrder
+        cliques:
+        - name: worker
+          spec:
+            minAvailable: 2
+            podSpec:
+              containers:
+              - command:
+                - /bin/sh
+                - -c
+                - echo karta-e2e-grove && sleep infinity
+                image: busybox:99.99.99
+                name: worker
+                resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+              restartPolicy: Always
+              terminationGracePeriodSeconds: 30
+            replicas: 2
+            roleName: worker
+        headlessServiceConfig:
+          publishNotReadyAddresses: true
+        terminationDelay: 4h0m0s
+    status:
+      availableReplicas: 0
+      currentGenerationHash: 56dc65cb858dd4667658
+      lastErrors:
+      - code: ERR_SYNC_ROLEBINDING
+        description: 'failed to sync RoleBinding: [Operation: Sync, Code: ERR_SYNC_ROLEBINDING]
+          message: Error syncing RoleBinding: test-sqdss/grove.io:pcs:karta-e2e-grove-initializing
+          for PodCliqueSet: test-sqdss/karta-e2e-grove-initializing, cause: rolebindings.rbac.authorization.k8s.io
+          "grove.io:pcs:karta-e2e-grove-initializing" not found'
+        observedAt: "2026-10-19T06:51:21Z"
+      updatedReplicas: 0
+  phases:
+  - Pending
+  resourceVersion: "1615"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: grove.io/v1alpha1
+    kind: PodCliqueSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:51:21Z"
+      finalizers:
+      - grove.io/podcliqueset.grove.io
+      generation: 1
+      name: karta-e2e-grove-initializing
+      namespace: test-sqdss
+      uid: 81c2ca27-30cd-47b8-91d5-eecd060ac94a
+    spec:
+      replicas: 1
+      template:
+        cliqueStartupType: CliqueStartupTypeAnyOrder
+        cliques:
+        - name: worker
+          spec:
+            minAvailable: 2
+            podSpec:
+              containers:
+              - command:
+                - /bin/sh
+                - -c
+                - echo karta-e2e-grove && sleep infinity
+                image: busybox:99.99.99
+                name: worker
+                resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+              restartPolicy: Always
+              terminationGracePeriodSeconds: 30
+            replicas: 2
+            roleName: worker
+        headlessServiceConfig:
+          publishNotReadyAddresses: true
+        terminationDelay: 4h0m0s
+    status:
+      availableReplicas: 0
+      currentGenerationHash: 56dc65cb858dd4667658
+      lastErrors:
+      - code: ERR_SYNC_ROLEBINDING
+        description: 'failed to sync RoleBinding: [Operation: Sync, Code: ERR_SYNC_ROLEBINDING]
+          message: Error syncing RoleBinding: test-sqdss/grove.io:pcs:karta-e2e-grove-initializing
+          for PodCliqueSet: test-sqdss/karta-e2e-grove-initializing, cause: rolebindings.rbac.authorization.k8s.io
+          "grove.io:pcs:karta-e2e-grove-initializing" not found'
+        observedAt: "2026-10-19T06:51:21Z"
+      replicas: 1
+      updatedReplicas: 0
+  phases:
+  - Pending
+  resourceVersion: "1616"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: grove.io/v1alpha1
+    kind: PodCliqueSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:51:21Z"
+      finalizers:
+      - grove.io/podcliqueset.grove.io
+      generation: 1
+      name: karta-e2e-grove-initializing
+      namespace: test-sqdss
+      uid: 81c2ca27-30cd-47b8-91d5-eecd060ac94a
+    spec:
+      replicas: 1
+      template:
+        cliqueStartupType: CliqueStartupTypeAnyOrder
+        cliques:
+        - name: worker
+          spec:
+            minAvailable: 2
+            podSpec:
+              containers:
+              - command:
+                - /bin/sh
+                - -c
+                - echo karta-e2e-grove && sleep infinity
+                image: busybox:99.99.99
+                name: worker
+                resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+              restartPolicy: Always
+              terminationGracePeriodSeconds: 30
+            replicas: 2
+            roleName: worker
+        headlessServiceConfig:
+          publishNotReadyAddresses: true
+        terminationDelay: 4h0m0s
+    status:
+      availableReplicas: 0
+      currentGenerationHash: 56dc65cb858dd4667658
+      replicas: 1
+      updatedReplicas: 0
+  phases:
+  - Pending
+  resourceVersion: "1623"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: grove.io/v1alpha1
+    kind: PodCliqueSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:51:21Z"
+      finalizers:
+      - grove.io/podcliqueset.grove.io
+      generation: 1
+      name: karta-e2e-grove-initializing
+      namespace: test-sqdss
+      uid: 81c2ca27-30cd-47b8-91d5-eecd060ac94a
+    spec:
+      replicas: 1
+      template:
+        cliqueStartupType: CliqueStartupTypeAnyOrder
+        cliques:
+        - name: worker
+          spec:
+            minAvailable: 2
+            podSpec:
+              containers:
+              - command:
+                - /bin/sh
+                - -c
+                - echo karta-e2e-grove && sleep infinity
+                image: busybox:99.99.99
+                name: worker
+                resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+              restartPolicy: Always
+              terminationGracePeriodSeconds: 30
+            replicas: 2
+            roleName: worker
+        headlessServiceConfig:
+          publishNotReadyAddresses: true
+        terminationDelay: 4h0m0s
+    status:
+      availableReplicas: 0
+      currentGenerationHash: 56dc65cb858dd4667658
+      observedGeneration: 1
+      replicas: 1
+      updatedReplicas: 0
+  phases:
+  - Pending
+  resourceVersion: "1642"
+  state: Pending
+flow: pending
+kartaFile: docs/catalog/grove-io-podcliqueset-v1alpha1.yaml
+kartaName: grove-io-podcliqueset-v1alpha1
+operator: grove
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 6
+  phases:
+  - Pending
+version: v0.1.0-alpha.10-rc1
+want: Pending

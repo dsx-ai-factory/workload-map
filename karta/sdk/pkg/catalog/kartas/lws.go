@@ -10,6 +10,10 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
+const lwsCurrentStatus = `.metadata.deletionTimestamp == null
+    and (.status.observedGeneration == null or .metadata.generation == null
+        or .status.observedGeneration == .metadata.generation)`
+
 // LWS returns the built-in Karta for the LeaderWorkerSet workload
 // (leaderworkerset.x-k8s.io/v1).
 func LWS() *v1alpha1.Karta {
@@ -29,29 +33,52 @@ func LWS() *v1alpha1.Karta {
 							MessageFieldName: ptr.To("message"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							// The operator toggles Progressing: True while reconciling toward the desired
-							// groups (startup and scale-up), False once settled. Available may not exist yet
-							// at startup, so the matcher reads only the condition the operator guarantees.
-							Initializing: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
-								{Type: "Progressing", Status: ptr.To("True")},
+							Pending: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: `.metadata.deletionTimestamp == null and (.spec.replicas // 1) > 0
+    and ((any(.status.conditions[]?; .type == "Available" and .status == "False") and
+          any(.status.conditions[]?; .type == "Progressing" and .status == "False") and
+          any(.status.conditions[]?; .type == "UpdateInProgress" and .status == "False")) | not)
+    and ((` + lwsCurrentStatus + ` and (.status.readyReplicas // 0) < (.spec.replicas // 1)
+        and (.status.readyReplicas != null or any(.status.conditions[]?;
+            (.type == "Progressing" or .type == "UpdateInProgress") and .status == "True")))
+        or ((.metadata.generation // 0) > 0 and
+            ((.status == null or .status == {}) or
+             (.status.observedGeneration != null and .status.observedGeneration < .metadata.generation))))`,
+								ExpectedResult: "true",
 							}}},
-							// Available=True is the operator's authoritative all-groups-ready signal and it
-							// holds through a scale-down while the replica counters lag. The definition does
-							// not extract reason, so the old reason-constrained matcher could never fire.
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: lwsCurrentStatus + ` and any(.status.conditions[]?;
+    (.type == "Progressing" or .type == "UpdateInProgress") and .status == "True")`,
+								ExpectedResult: "true",
+							}}},
 							Running: []v1alpha1.StatusMatcher{
-								{ByConditions: []v1alpha1.ExpectedCondition{
-									{Type: "Available", Status: ptr.To("True")},
-								}},
+								{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Available", Status: ptr.To("True")}},
+									ByExpression: &v1alpha1.ExpressionMatcher{
+										Expression: lwsCurrentStatus + ` and (.spec.replicas // 1) > 0
+    and (.status.replicas // 0) >= (.spec.replicas // 1)
+    and (.status.readyReplicas // 0) >= (.spec.replicas // 1)`,
+										ExpectedResult: "true",
+									},
+								},
 								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     "(.status.replicas // 0) > 0 and .status.readyReplicas == .status.replicas and .status.updatedReplicas == .status.replicas",
+									// Compare with desired groups, so stale counts cannot satisfy a scale-up.
+									Expression: lwsCurrentStatus + ` and (.spec.replicas // 1) > 0
+    and (.status.replicas // 0) >= (.spec.replicas // 1)
+    and (.status.readyReplicas // 0) >= (.spec.replicas // 1)`,
 									ExpectedResult: "true",
 								}},
 							},
-							Failed: []v1alpha1.StatusMatcher{{ByConditions: []v1alpha1.ExpectedCondition{
-								{Type: "Available", Status: ptr.To("False")},
-								{Type: "Progressing", Status: ptr.To("False")},
-								{Type: "UpdateInProgress", Status: ptr.To("False")},
-							}}},
+							Failed: []v1alpha1.StatusMatcher{{
+								ByConditions: []v1alpha1.ExpectedCondition{
+									{Type: "Available", Status: ptr.To("False")},
+									{Type: "Progressing", Status: ptr.To("False")},
+									{Type: "UpdateInProgress", Status: ptr.To("False")},
+								},
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     lwsCurrentStatus,
+									ExpectedResult: "true",
+								},
+							}},
 						},
 					},
 				},

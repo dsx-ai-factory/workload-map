@@ -101,7 +101,7 @@ status resolves to `Undefined`.
           reasonFieldName: reason
           messageFieldName: message
         statusMappings:
-          initializing:
+          pending:
             - byExpression:
                 expression: (.status.active // 0) > 0 and (.status.ready // 0) == 0
                 expectedResult: "true"

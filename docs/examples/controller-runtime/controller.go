@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -26,7 +27,7 @@ import (
 )
 
 // Annotation keys written back to every reconciled workload. The controller
-// never references a CRD-specific field path to compute these values — Karta
+// never references a CRD-specific field path to compute these values. Karta
 // resolves them from the structure definition stored in the cluster.
 const (
 	annotationStatus   = "karta/status"
@@ -105,7 +106,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 		}
 		return reconcile.Result{}, fmt.Errorf("get %s %s: %w", r.GVK.Kind, req.NamespacedName, err)
 	}
-	previousStatus := obj.GetAnnotations()[annotationStatus]
+	previousStatuses := obj.GetAnnotations()[annotationStatus]
 
 	// Step 2: the single Karta entry point for all read and write operations.
 	factory := resource.NewComponentFactoryFromObject(karta, obj)
@@ -155,19 +156,19 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 		return reconcile.Result{}, fmt.Errorf("update %s %s: %w", r.GVK.Kind, req.NamespacedName, err)
 	}
 
-	// Emit a status event only on a real transition between two known statuses.
-	// Undefined moments are skipped (their status key was omitted), so this never reports phantom changes.
-	if newStatus := summary[annotationStatus]; newStatus != "" {
-		if previousStatus == "" {
+	// Emit an event when the known status set changes. An observation without
+	// matches leaves the last known set intact.
+	if newStatuses := summary[annotationStatus]; newStatuses != "" {
+		if previousStatuses == "" {
 			r.Recorder.Eventf(obj, nil, corev1.EventTypeNormal, "StatusRecorded", "Inspect",
-				"Recorded initial workload status: %s (replicas=%s cpu=%s memory=%s gpu=%s)",
-				newStatus, summary[annotationReplicas],
+				"Recorded initial workload statuses: %s (replicas=%s cpu=%s memory=%s gpu=%s)",
+				newStatuses, summary[annotationReplicas],
 				summary[annotationCPU], summary[annotationMemory], summary[annotationGPU])
 		}
-		if previousStatus != "" && newStatus != previousStatus {
+		if previousStatuses != "" && newStatuses != previousStatuses {
 			r.Recorder.Eventf(obj, nil, corev1.EventTypeNormal, "StatusChanged", "Inspect",
-				"Workload status changed: %s -> %s (replicas=%s cpu=%s memory=%s gpu=%s)",
-				previousStatus, newStatus, summary[annotationReplicas],
+				"Workload statuses changed: %s -> %s (replicas=%s cpu=%s memory=%s gpu=%s)",
+				previousStatuses, newStatuses, summary[annotationReplicas],
 				summary[annotationCPU], summary[annotationMemory], summary[annotationGPU])
 		}
 	}
@@ -200,11 +201,6 @@ func inspect(ctx context.Context, factory *resource.ComponentFactory, components
 	status, err := root.GetStatus(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get status: %w", err)
-	}
-
-	matched := make(map[v1alpha1.ResourceStatus]bool, len(status.MatchedStatuses))
-	for _, s := range status.MatchedStatuses {
-		matched[s] = true
 	}
 
 	replicas := int32(0)
@@ -247,37 +243,25 @@ func inspect(ctx context.Context, factory *resource.ComponentFactory, components
 		annotationMemory:   mem.String(),
 		annotationGPU:      gpu.String(),
 	}
-	// Record a single canonical status. When no mapping matches (an undefined
-	// moment between real states) the status key is omitted, so the controller
-	// keeps the last known status instead of flapping through "Undefined".
-	if canonical := canonicalStatus(matched); canonical != "" {
-		summary[annotationStatus] = canonical
+	// Keep every known match. With no evidence, omit this key so the existing
+	// annotation remains the last known set rather than flapping to Undefined.
+	if matched := formatMatchedStatuses(status.MatchedStatuses); matched != "" {
+		summary[annotationStatus] = matched
 	}
 	return summary, nil
 }
 
-// statusPriority orders Karta statuses from most to least significant. A
-// workload can match several mappings at once; the controller reports only the
-// highest-priority one so callers see a single, stable phase.
-var statusPriority = []v1alpha1.ResourceStatus{
-	v1alpha1.FailedStatus,
-	v1alpha1.CompletedStatus,
-	v1alpha1.RunningStatus,
-	v1alpha1.InitializingStatus,
-	v1alpha1.SuspendedStatus,
-	v1alpha1.SuspendingStatus,
-	v1alpha1.DegradedStatus,
-}
-
-// canonicalStatus returns the highest-priority matched status, or "" when none
-// matched.
-func canonicalStatus(matched map[v1alpha1.ResourceStatus]bool) string {
-	for _, s := range statusPriority {
-		if matched[s] {
-			return string(s)
+// formatMatchedStatuses orders a set for stable annotations and events without
+// giving any status precedence over another.
+func formatMatchedStatuses(statuses []v1alpha1.ResourceStatus) string {
+	matched := make([]string, 0, len(statuses))
+	for _, status := range statuses {
+		if status != "" && status != v1alpha1.UndefinedStatus {
+			matched = append(matched, string(status))
 		}
 	}
-	return ""
+	slices.Sort(matched)
+	return strings.Join(slices.Compact(matched), ", ")
 }
 
 // applyAnnotations writes the summary onto the object and reports whether any

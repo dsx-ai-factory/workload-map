@@ -1,0 +1,2066 @@
+{
+  "uid": "dsx-example-structure",
+  "id": null,
+  "title": "DSX | Workload Structure",
+  "description": "Follow observed workload phases and explore current workload, component, instance, replica-group and Pod attribution with optional resource measurements.",
+  "tags": [
+    "dsx",
+    "examples"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "dsx",
+        "examples"
+      ],
+      "targetBlank": false,
+      "title": "DSX examples",
+      "type": "dashboards"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "options": [],
+        "refresh": 1
+      },
+      {
+        "name": "exporter_job",
+        "label": "Exporter job",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values({__name__=~\"dsx_workload_.*|dsx_exporter_observation_valid\"}, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values({__name__=~\"dsx_workload_.*|dsx_exporter_observation_valid\"}, job)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "options": [],
+        "regex": ""
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values({__name__=~\"dsx_workload_.*|dsx_exporter_observation_valid\", job=~\"${exporter_job:regex}\"}, namespace)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values({__name__=~\"dsx_workload_.*|dsx_exporter_observation_valid\", job=~\"${exporter_job:regex}\"}, namespace)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "allValue": ".*"
+      },
+      {
+        "name": "workload_uid",
+        "label": "Workload",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "query_result(label_join(last_over_time(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\"}[$__range]), \"selection\", \" / \", \"workload_name\", \"workload_uid\"))",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "query_result(label_join(last_over_time(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\"}[$__range]), \"selection\", \" / \", \"workload_name\", \"workload_uid\"))",
+        "refresh": 2,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "options": [],
+        "regex": "/selection=\"(?<text>[^\"]+)\".*workload_uid=\"(?<value>[^\"]+)\"/"
+      },
+      {
+        "name": "cadvisor_job",
+        "label": "cAdvisor job (optional)",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values(container_cpu_usage_seconds_total, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values(container_cpu_usage_seconds_total, job)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "options": [],
+        "regex": ""
+      },
+      {
+        "name": "dcgm_job",
+        "label": "DCGM job (optional)",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_DEV_FB_USED\"}, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_DEV_FB_USED\"}, job)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "options": [],
+        "regex": ""
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "",
+      "description": "",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable"
+        },
+        "overrides": []
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Select a workload. The graph shows measurements at the end of the selected time range. Completed or deleted Pods may have no current measurements. When collected, earlier GPU, VRAM, CPU and RAM samples remain in the resource history below."
+      },
+      "transparent": true
+    },
+    {
+      "id": 8,
+      "title": "",
+      "description": "",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 24,
+        "h": 3
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable"
+        },
+        "overrides": []
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Graph: orange = workload, blue = component, purple = instance, gray = replica group, green = Pod. Inside each node: GPU utilization / VRAM used (GB). Click for CPU and RAM. Blank values mean no accepted measurement, not zero. To inspect an earlier graph snapshot, set the time range end to a time when the workload was running."
+      },
+      "transparent": true
+    },
+    {
+      "id": 4,
+      "title": "Workload structure | GPU, memory and CPU",
+      "description": "Published attribution, not ownerReferences or desired replicas. Node labels show names and types. Inside each node: maximum measured GPU utilization and GPU memory (VRAM) used in GB. Click a node for CPU cores, RAM consumption (container working-set memory) and identity details. Resource measurements are optional. Missing or rejected telemetry stays unavailable; nodes remain visible. VRAM totals count each UUID/MIG entity once per node. They describe device memory use, not per-process allocation. Solid edges show attribution; dashed edges show logical replica-group membership. Colors identify object types, not health.",
+      "type": "nodeGraph",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 25
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "N/A"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mainstat"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "GPU max utilization"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "secondarystat"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "VRAM used (GB)"
+              },
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "detail__cpu_cores"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "CPU cores (5m)"
+              },
+              {
+                "id": "unit",
+                "value": "cores"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "detail__memory_mib"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "RAM used (MiB, working set)"
+              },
+              {
+                "id": "unit",
+                "value": "mbytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "detail__workload_uid"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Workload UID"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "detail__pod_uid"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Pod UID"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "detail__namespace"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Namespace"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "detail__component"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Component"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "detail__component_instance"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Component instance"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "detail__replica_group"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Replica group"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "layoutAlgorithm": "layered",
+        "zoomMode": "cooperative",
+        "nodes": {
+          "mainStatUnit": "%",
+          "secondaryStatUnit": "GB vram"
+        },
+        "edges": {}
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace((label_replace(label_replace(label_replace(label_replace(label_replace(label_join(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"id\", \"|\", \"namespace\", \"workload_uid\"), \"id\", \"workload|$1\", \"id\", \"(.*)\"), \"title\", \"$1\", \"workload_name\", \"(.+)\"), \"subtitle\", \"Workload\", \"\", \".*\"), \"color\", \"#FF9830\", \"\", \".*\"), \"detail__workload_uid\", \"$1\", \"workload_uid\", \"(.+)\")) or (label_replace(label_replace(label_replace(label_replace(label_replace(label_join(group by (job, namespace, workload_name, workload_uid, component) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"id\", \"component|$1\", \"id\", \"(.*)\"), \"title\", \"$1\", \"component\", \"(.+)\"), \"subtitle\", \"Component\", \"\", \".*\"), \"color\", \"#5794F2\", \"\", \".*\"), \"detail__workload_uid\", \"$1\", \"workload_uid\", \"(.+)\")) or (label_replace(label_replace(label_replace(label_replace(label_replace(label_join(group by (job, namespace, workload_name, workload_uid, component, component_instance) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"id\", \"instance|$1\", \"id\", \"(.*)\"), \"title\", \"$1\", \"component_instance\", \"(.+)\"), \"subtitle\", \"Instance\", \"\", \".*\"), \"color\", \"#B877D9\", \"\", \".*\"), \"detail__workload_uid\", \"$1\", \"workload_uid\", \"(.+)\")) or (label_replace(label_replace(label_replace(label_replace(label_replace(label_join(group by (job, namespace, workload_name, workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"id\", \"group|$1\", \"id\", \"(.*)\"), \"title\", \"$1\", \"replica_group_id\", \"(.+)\"), \"subtitle\", \"Group\", \"\", \".*\"), \"color\", \"#8e8e8e\", \"\", \".*\"), \"detail__workload_uid\", \"$1\", \"workload_uid\", \"(.+)\")) or (label_replace(label_replace(label_replace(label_replace(label_replace(label_join((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")), \"id\", \"|\", \"namespace\", \"pod_uid\"), \"id\", \"pod|$1\", \"id\", \"(.*)\"), \"title\", \"$1\", \"pod_name\", \"(.+)\"), \"subtitle\", \"Pod\", \"\", \".*\"), \"color\", \"#73BF69\", \"\", \".*\"), \"detail__workload_uid\", \"$1\", \"workload_uid\", \"(.+)\")), \"detail__namespace\", \"$1\", \"namespace\", \"(.+)\"), \"detail__pod_uid\", \"$1\", \"pod_uid\", \"(.+)\"), \"detail__component\", \"$1\", \"component\", \"(.+)\"), \"detail__component_instance\", \"$1\", \"component_instance\", \"(.+)\"), \"detail__replica_group\", \"$1\", \"replica_group_id\", \"(.+)\")",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "nodes",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join(group by (job, namespace, workload_name, workload_uid, component) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"source\", \"|\", \"namespace\", \"workload_uid\"), \"source\", \"workload|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"target\", \"component|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Component attribution\", \"\", \".*\"), \"color\", \"#5794F2\", \"\", \".*\")) or (label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join(group by (job, namespace, workload_name, workload_uid, component, component_instance) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\", component!=\"\", component!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"source\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"source\", \"component|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"target\", \"instance|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Instance attribution\", \"\", \".*\"), \"color\", \"#5794F2\", \"\", \".*\")) or (label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join(group by (job, namespace, workload_name, workload_uid, component, component_instance) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\", component=~\"|<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"source\", \"|\", \"namespace\", \"workload_uid\"), \"source\", \"workload|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"target\", \"instance|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Instance attribution\", \"\", \".*\"), \"color\", \"#5794F2\", \"\", \".*\")) or (label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))), \"source\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"source\", \"instance|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"pod_uid\"), \"target\", \"pod|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Pod attribution\", \"\", \".*\"), \"color\", \"#5794F2\", \"\", \".*\")) or (label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance=~\"|<unknown>\", component!=\"\", component!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))), \"source\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"source\", \"component|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"pod_uid\"), \"target\", \"pod|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Pod attribution\", \"\", \".*\"), \"color\", \"#5794F2\", \"\", \".*\")) or (label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance=~\"|<unknown>\", component=~\"|<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))), \"source\", \"|\", \"namespace\", \"workload_uid\"), \"source\", \"workload|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"pod_uid\"), \"target\", \"pod|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Pod attribution\", \"\", \".*\"), \"color\", \"#5794F2\", \"\", \".*\")) or (label_replace(label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join(group by (job, namespace, workload_name, workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\", component_instance!=\"\", component_instance!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"source\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"source\", \"instance|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"target\", \"group|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Logical replica group\", \"\", \".*\"), \"color\", \"#8e8e8e\", \"\", \".*\"), \"strokeDasharray\", \"5,4\", \"\", \".*\")) or (label_replace(label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join(group by (job, namespace, workload_name, workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\", component_instance=~\"|<unknown>\", component!=\"\", component!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"source\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"source\", \"component|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"target\", \"group|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Logical replica group\", \"\", \".*\"), \"color\", \"#8e8e8e\", \"\", \".*\"), \"strokeDasharray\", \"5,4\", \"\", \".*\")) or (label_replace(label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join(group by (job, namespace, workload_name, workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\", component_instance=~\"|<unknown>\", component=~\"|<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"source\", \"|\", \"namespace\", \"workload_uid\"), \"source\", \"workload|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"target\", \"group|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Logical replica group\", \"\", \".*\"), \"color\", \"#8e8e8e\", \"\", \".*\"), \"strokeDasharray\", \"5,4\", \"\", \".*\")) or (label_replace(label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_join((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) and on (job, namespace, pod_name, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))), \"source\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"source\", \"group|$1\", \"source\", \"(.*)\"), \"target\", \"|\", \"namespace\", \"pod_uid\"), \"target\", \"pod|$1\", \"target\", \"(.*)\"), \"id\", \" -> \", \"source\", \"target\"), \"mainstat\", \"Group membership\", \"\", \".*\"), \"color\", \"#8e8e8e\", \"\", \".*\"), \"strokeDasharray\", \"5,4\", \"\", \".*\"))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "edges",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (id) ((label_replace(label_join(max by (namespace, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})), \"id\", \"|\", \"namespace\", \"workload_uid\"), \"id\", \"workload|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(max by (namespace, workload_uid, component) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"id\", \"component|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(max by (namespace, workload_uid, component, component_instance) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"id\", \"instance|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(max by (namespace, workload_uid, component, component_instance, replica_group_id) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"id\", \"group|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(max by (namespace, pod_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"pod_uid\"), \"id\", \"pod|$1\", \"id\", \"(.*)\"))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "gpu",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (id) ((label_replace(label_join(sum by (namespace, workload_uid) ((max by (namespace, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) == min by (namespace, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})))), \"id\", \"|\", \"namespace\", \"workload_uid\"), \"id\", \"workload|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, workload_uid, component) ((max by (namespace, workload_uid, component, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))) == min by (namespace, workload_uid, component, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"id\", \"component|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, workload_uid, component, component_instance) ((max by (namespace, workload_uid, component, component_instance, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))) == min by (namespace, workload_uid, component, component_instance, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"id\", \"instance|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, workload_uid, component, component_instance, replica_group_id) ((max by (namespace, workload_uid, component, component_instance, replica_group_id, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))) == min by (namespace, workload_uid, component, component_instance, replica_group_id, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"id\", \"group|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, pod_uid) ((max by (namespace, pod_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))) == min by (namespace, pod_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_uid, component, component_instance, replica_group_id) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))))), \"id\", \"|\", \"namespace\", \"pod_uid\"), \"id\", \"pod|$1\", \"id\", \"(.*)\"))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "framebuffer",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (id) ((label_replace(label_join(sum by (namespace, workload_uid) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})), \"id\", \"|\", \"namespace\", \"workload_uid\"), \"id\", \"workload|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, workload_uid, component) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"id\", \"component|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, workload_uid, component, component_instance) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"id\", \"instance|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, workload_uid, component, component_instance, replica_group_id) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"id\", \"group|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, pod_uid) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"pod_uid\"), \"id\", \"pod|$1\", \"id\", \"(.*)\"))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "cpu",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (id) ((label_replace(label_join(sum by (namespace, workload_uid) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})), \"id\", \"|\", \"namespace\", \"workload_uid\"), \"id\", \"workload|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, workload_uid, component) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"id\", \"component|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, workload_uid, component, component_instance) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"id\", \"instance|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, workload_uid, component, component_instance, replica_group_id) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"id\", \"group|$1\", \"id\", \"(.*)\")) or (label_replace(label_join(sum by (namespace, pod_uid) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_uid, component, component_instance, replica_group_id, pod_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")))), \"id\", \"|\", \"namespace\", \"pod_uid\"), \"id\", \"pod|$1\", \"id\", \"(.*)\"))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "memory",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "((label_join((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")), \"layout_path\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\", \"pod_name\", \"pod_uid\")) or (label_replace(label_join((dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}) unless on (job, namespace, workload_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))), \"layout_path\", \"|\", \"namespace\", \"workload_uid\"), \"layout_path\", \"root|$1\", \"layout_path\", \"(.*)\"))) * 0 + scalar(count((label_join((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\")), \"layout_path\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\", \"pod_name\", \"pod_uid\")) or (label_replace(label_join((dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}) unless on (job, namespace, workload_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))), \"layout_path\", \"|\", \"namespace\", \"workload_uid\"), \"layout_path\", \"root|$1\", \"layout_path\", \"(.*)\"))) - 1) * 120",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "layoutLeaves",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "((label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) * 0 + 0) * 180, \"layout_path\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\", \"pod_name\", \"pod_uid\"), \"id\", \"|\", \"namespace\", \"workload_uid\"), \"id\", \"workload|$1\", \"id\", \"(.*)\"), \"layout_offset\", \"0\", \"\", \".*\")) or (label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) * 0 + 1) * 180, \"layout_path\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\", \"pod_name\", \"pod_uid\"), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\"), \"id\", \"component|$1\", \"id\", \"(.*)\"), \"layout_offset\", \"0\", \"\", \".*\")) or (label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) * 0 + (1 + scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)))) * 180, \"layout_path\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\", \"pod_name\", \"pod_uid\"), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\"), \"id\", \"instance|$1\", \"id\", \"(.*)\"), \"layout_offset\", \"0\", \"\", \".*\")) or (label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) * 0 + (1 + scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)))) * 180, \"layout_path\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\", \"pod_name\", \"pod_uid\"), \"id\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\"), \"id\", \"group|$1\", \"id\", \"(.*)\"), \"layout_offset\", \"120\", \"\", \".*\")) or (label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) * 0 + (1 + scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)))) * 180, \"layout_path\", \"|\", \"namespace\", \"workload_uid\", \"component\", \"component_instance\", \"replica_group_id\", \"pod_name\", \"pod_uid\"), \"id\", \"|\", \"namespace\", \"pod_uid\"), \"id\", \"pod|$1\", \"id\", \"(.*)\"), \"layout_offset\", \"0\", \"\", \".*\")) or (label_replace(label_replace(label_join((label_replace(label_join((dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}) unless on (job, namespace, workload_uid) ((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))), \"layout_path\", \"|\", \"namespace\", \"workload_uid\"), \"layout_path\", \"root|$1\", \"layout_path\", \"(.*)\")) * 0, \"id\", \"|\", \"namespace\", \"workload_uid\"), \"id\", \"workload|$1\", \"id\", \"(.*)\"), \"layout_offset\", \"0\", \"\", \".*\"))) - (scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)) * (1 + scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component!=\"\", component!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", component_instance!=\"\", component_instance!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\", replica_group_id!=\"\", replica_group_id!=\"<unknown>\"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}, \"pod_uid\", \"$1\", \"workload_uid\", \"(.+)\"))) > bool 0) or vector(0)))) * 90",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "layoutAncestors",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "sortBy",
+          "filter": {
+            "id": "byRefId",
+            "options": "layoutLeaves"
+          },
+          "options": {
+            "sort": [
+              {
+                "field": "layout_path",
+                "desc": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "layoutLeaves"
+          },
+          "options": {
+            "mode": "index",
+            "timeSeries": false,
+            "index": {
+              "asPercentile": false
+            },
+            "alias": "leafIndex",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "layoutLeaves"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "leafIndex"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "240"
+              }
+            },
+            "alias": "leafSlot",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "layoutLeaves"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "leafSlot"
+                }
+              },
+              "operator": "-",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #layoutLeaves"
+                }
+              }
+            },
+            "alias": "leafX",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "filter": {
+            "id": "byRefId",
+            "options": "layoutLeaves"
+          },
+          "options": {
+            "include": {
+              "names": [
+                "layout_path",
+                "leafX"
+              ]
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "layoutAncestors"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #layoutAncestors"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1"
+              }
+            },
+            "alias": "levelY",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "filter": {
+            "id": "byRefId",
+            "options": "layoutAncestors"
+          },
+          "options": {
+            "conversions": [
+              {
+                "targetField": "layout_offset",
+                "destinationType": "number"
+              }
+            ]
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "filter": {
+            "id": "byRefId",
+            "options": "layoutAncestors"
+          },
+          "options": {
+            "include": {
+              "names": [
+                "layout_path",
+                "id",
+                "levelY",
+                "layout_offset"
+              ]
+            }
+          }
+        },
+        {
+          "id": "joinByField",
+          "filter": {
+            "id": "byRefId",
+            "options": "layoutLeaves|layoutAncestors"
+          },
+          "options": {
+            "byField": "layout_path",
+            "mode": "outerTabular"
+          }
+        },
+        {
+          "id": "groupBy",
+          "filter": {
+            "id": "byRefId",
+            "options": "/^joinByField-/"
+          },
+          "options": {
+            "fields": {
+              "id": {
+                "operation": "groupby",
+                "aggregations": []
+              },
+              "leafX": {
+                "operation": "aggregate",
+                "aggregations": [
+                  "mean"
+                ]
+              },
+              "levelY": {
+                "operation": "aggregate",
+                "aggregations": [
+                  "last"
+                ]
+              },
+              "layout_offset": {
+                "operation": "aggregate",
+                "aggregations": [
+                  "last"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "/^joinByField-/"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "leafX (mean)"
+                }
+              },
+              "operator": "+",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "layout_offset (last)"
+                }
+              }
+            },
+            "alias": "fixedX",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "/^joinByField-/"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "levelY (last)"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1"
+              }
+            },
+            "alias": "fixedY",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "filter": {
+            "id": "byRefId",
+            "options": "/^joinByField-/"
+          },
+          "options": {
+            "include": {
+              "names": [
+                "id",
+                "fixedX",
+                "fixedY"
+              ]
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "nodes"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "fixed": "50"
+              },
+              "operator": "+",
+              "right": {
+                "fixed": "0"
+              }
+            },
+            "alias": "nodeRadius",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "gpu"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #gpu"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1"
+              }
+            },
+            "alias": "gpuUtilization",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "framebuffer"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #framebuffer"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "fixed": "1000000000"
+              }
+            },
+            "alias": "secondarystat",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "framebuffer"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "fixed": "1"
+              },
+              "operator": "+",
+              "right": {
+                "fixed": "0"
+              }
+            },
+            "alias": "statDecimals",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "configFromData",
+          "filter": {
+            "id": "byRefId",
+            "options": "framebuffer"
+          },
+          "options": {
+            "configRefId": "framebuffer",
+            "applyTo": {
+              "id": "byName",
+              "options": "secondarystat"
+            },
+            "mappings": [
+              {
+                "fieldName": "statDecimals",
+                "handlerKey": "decimals",
+                "reducerId": "lastNotNull"
+              }
+            ]
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "cpu"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #cpu"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1"
+              }
+            },
+            "alias": "detail__cpu_cores",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "memory"
+          },
+          "options": {
+            "mode": "binary",
+            "timeSeries": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #memory"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "fixed": "1048576"
+              }
+            },
+            "alias": "detail__memory_mib",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "filter": {
+            "id": "byRefId",
+            "options": "memory"
+          },
+          "options": {
+            "conversions": [
+              {
+                "targetField": "detail__memory_mib",
+                "destinationType": "string"
+              }
+            ]
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(id|title|subtitle|mainstat|gpuUtilization|secondarystat|source|target|nodeRadius|fixedX|fixedY|color|strokeDasharray|detail__.*)$"
+            }
+          }
+        },
+        {
+          "id": "joinByField",
+          "filter": {
+            "id": "byRefId",
+            "options": "/^(nodes|gpu|framebuffer|cpu|memory|joinByField-.*)$/"
+          },
+          "options": {
+            "byField": "id",
+            "mode": "outerTabular"
+          }
+        },
+        {
+          "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "/^(joinByField-.*|nodes)$/"
+          },
+          "options": {
+            "mode": "reduceRow",
+            "timeSeries": false,
+            "reduce": {
+              "include": [
+                "gpuUtilization"
+              ],
+              "reducer": "lastNotNull"
+            },
+            "alias": "mainstat",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "organize",
+          "filter": {
+            "id": "byRefId",
+            "options": "/^(joinByField-.*|nodes)$/"
+          },
+          "options": {
+            "excludeByName": {
+              "gpuUtilization": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "mainstat": "GPU max utilization",
+              "secondarystat": "VRAM used (GB)",
+              "detail__cpu_cores": "CPU cores (5m)",
+              "detail__memory_mib": "RAM used (MiB, working set)",
+              "detail__workload_uid": "Workload UID",
+              "detail__pod_uid": "Pod UID",
+              "detail__namespace": "Namespace",
+              "detail__component": "Component",
+              "detail__component_instance": "Component instance",
+              "detail__replica_group": "Replica group",
+              "color": "Object type"
+            }
+          }
+        },
+        {
+          "id": "filterByRefId",
+          "options": {
+            "exclude": "layoutLeaves|layoutAncestors"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Selected workload",
+      "description": "Published identities remain when status or age is unavailable. Age requires agreement across reporting replicas. Published definition describes emitted metadata. Phase summary requires all nine agreed flags and available scrapes. See raw samples for invalid observations and disagreements.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 15,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Age"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Published definition"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "No selected definition"
+                      },
+                      "1": {
+                        "text": "Selected"
+                      },
+                      "2": {
+                        "text": "Status unavailable"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Phase summary"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "No matching phase"
+                      },
+                      "1": {
+                        "text": "One or more matches"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Workload UID"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Age"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 75
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Published definition"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 155
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Phase summary"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(time() - (min by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}) == max by (job, namespace, workload_name, workload_uid) (dsx_workload_created_timestamp_seconds{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"}))) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "B",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(((group by (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", karta!=\"\"}) or on (job, namespace, workload_name, workload_uid) (0 * group by (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", karta=\"\"}))) unless on (job, namespace, workload_name, workload_uid) (count by (job, namespace, workload_name, workload_uid) (group by (job, namespace, workload_name, workload_uid, karta) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) > 1)) or on (job, namespace, workload_name, workload_uid) (2 * (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"} unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})))) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "C",
+          "legendFormat": "__auto"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(max by (job, namespace, workload_name, workload_uid) (((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)) and on (job, namespace, workload_name, workload_uid) (count by (job, namespace, workload_name, workload_uid) (((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)) == 9)) and on (job, namespace, workload_name, workload_uid) (dsx:workload:observed{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "D",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "Value #A": true
+            },
+            "renameByName": {
+              "namespace": "Namespace",
+              "workload_name": "Workload",
+              "workload_uid": "Workload UID",
+              "Value #B": "Age",
+              "Value #C": "Published definition",
+              "Value #D": "Phase summary"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "workload_name": 1,
+              "workload_uid": 2,
+              "Value #B": 3,
+              "Value #C": 4,
+              "Value #D": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Independent phases",
+      "description": "Each agreed phase remains 0 or 1. Several can match. No values are supplied when scrape collection is unavailable or status replicas disagree.",
+      "type": "stat",
+      "gridPos": {
+        "x": 15,
+        "y": 31,
+        "w": 9,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "decimals": 0,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "No",
+                  "color": "text"
+                },
+                "1": {
+                  "text": "Yes",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "{{phase}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Phase history | independent definition matches",
+      "description": "Each row shows one definition expression, not a mutually exclusive lifecycle stage. For example, a definition mapped to Created=True can still match Initializing after Completed. This chart preserves those reported flags. Gray intervals mean not matching. Hover for sampled interval times. Gaps mean unavailable, invalid or disagreeing samples.",
+      "type": "state-timeline",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "decimals": 0,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": " ",
+                  "color": "dark-gray"
+                },
+                "1": {
+                  "text": "Matching",
+                  "color": "blue"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "fillOpacity": 75,
+            "lineWidth": 0,
+            "spanNulls": false,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Running"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": " ",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Running",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Initializing"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": " ",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Initializing",
+                        "color": "yellow"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Resuming"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": " ",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Resuming",
+                        "color": "yellow"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Suspending"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": " ",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Suspending",
+                        "color": "yellow"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Failed"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": " ",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Failed",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Degraded"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": " ",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Degraded",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Completed"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": " ",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Completed",
+                        "color": "cyan"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Suspended"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": " ",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Suspended",
+                        "color": "light-gray"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Undefined"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": " ",
+                        "color": "dark-gray"
+                      },
+                      "1": {
+                        "text": "Undefined",
+                        "color": "light-gray"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "alignValue": "center",
+        "rowHeight": 0.8,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "((min by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}) == max by (job, namespace, workload_name, workload_uid, phase) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) unless on (job, namespace, workload_name, workload_uid) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid!=\"true\"}) unless on (job, namespace, workload_name, workload_uid, phase) (count by (job, namespace, workload_name, workload_uid, phase) (group by (job, namespace, workload_name, workload_uid, phase, workload_group, workload_version, workload_kind, owner_resolution, karta, karta_source, observation_valid, team) (dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"})) != 1)) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{phase}}"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Maximum measured device utilization, not allocated capacity or idleness. Requires DCGM namespace, nonempty pod_uid and UUID. Out-of-range samples and conflicting device streams are rejected. Open a workload for component and Pod attribution. Samples are historical. Gaps after completion do not mean zero usage.",
+      "fieldConfig": {
+        "defaults": {
+          "max": 100,
+          "min": 0,
+          "unit": "percent",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false,
+            "lineInterpolation": "linear"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 46,
+        "w": 12,
+        "h": 7
+      },
+      "id": 9,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{workload_name}}"
+        }
+      ],
+      "title": "GPU utilization history",
+      "type": "timeseries",
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "interval": "15s",
+      "maxDataPoints": 5760
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "VRAM (GPU framebuffer memory) reported by distinct matched GPU entities. Shared-device rows within a workload count once; conflicting readings are excluded. MiB are converted to bytes. This is device memory, not per-process allocation. Only the selected workload UID is shown. Missing samples remain gaps. Samples are historical. Gaps after completion do not mean zero usage.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "noValue": "Unavailable",
+          "unit": "suffix:GB VRAM"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 46,
+        "w": 12,
+        "h": 7
+      },
+      "id": 10,
+      "interval": "15s",
+      "maxDataPoints": 5760,
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "((sum by (namespace, workload_name, workload_uid) ((max by (namespace, workload_name, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"})) == min by (namespace, workload_name, workload_uid, UUID, GPU_I_ID, GPU_CI_ID) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_FB_USED{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\"})) >= 0) * 1048576) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}))))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)) / 1000000000",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{workload_name}}"
+        }
+      ],
+      "title": "VRAM used history",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Five-minute average CPU cores. One selected cAdvisor job; identical streams collapse and ambiguous container identities are rejected. Pod-name joins can cross name reuse and apply current attribution to the rate window. Only the selected workload UID is shown. Missing samples remain gaps. Samples are historical. Gaps after completion do not mean zero usage.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "noValue": "Unavailable",
+          "unit": "suffix:mCPU"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 12,
+        "h": 7
+      },
+      "id": 11,
+      "interval": "15s",
+      "maxDataPoints": 5760,
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "1000 * (sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])) == min by (namespace, pod, container, id) (rate(container_cpu_usage_seconds_total{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}[5m])))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{workload_name}}"
+        }
+      ],
+      "title": "CPU usage history",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "cAdvisor working-set bytes. Missing streams remain unavailable. Pod-name joins cannot establish continuity across Pod replacement. Only the selected workload UID is shown. Missing samples remain gaps. Samples are historical. Gaps after completion do not mean zero usage.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "noValue": "Unavailable",
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 53,
+        "w": 12,
+        "h": 7
+      },
+      "id": 12,
+      "interval": "15s",
+      "maxDataPoints": 5760,
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (namespace, workload_name, workload_uid) (label_replace(((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) and on (namespace, pod, container) (count by (namespace, pod, container) ((max by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}) == min by (namespace, pod, container, id) (container_memory_working_set_bytes{job=~\"${cadvisor_job:regex}\", namespace=~\"${namespace:regex}\", pod!=\"\", container!=\"\", container!=\"POD\"}))) == 1), \"pod_name\", \"$1\", \"pod\", \"(.+)\") * on (namespace, pod_name) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${cadvisor_job:regex}\"}) == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{workload_name}}"
+        }
+      ],
+      "title": "RAM working-set history",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "id": 5,
+      "title": "Exact accepted Pod attribution",
+      "description": "Every label from the conflict-checked recording rule is retained. Only observation_valid=true rows are shown. This table includes a standalone Pod even when its graph uses the root node. Blank labels are not inferred.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 24,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", observation_valid=\"true\"}",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "namespace": 0,
+              "pod_name": 1,
+              "pod_uid": 2,
+              "workload_name": 3,
+              "workload_uid": 4,
+              "component": 5,
+              "component_instance": 6,
+              "replica_group_id": 7,
+              "owner_resolution": 8,
+              "team": 9,
+              "observation_valid": 10,
+              "job": 11,
+              "workload_group": 12,
+              "workload_version": 13,
+              "workload_kind": 14,
+              "__name__": 15,
+              "Time": 16,
+              "Value": 17
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Raw status, creation and failure evidence",
+      "description": "Unaggregated target rows expose disagreement, validity and failure reasons. Creation values are Unix seconds; status values are independent phase flags. Scrape success does not prove reevaluation.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 69,
+        "w": 24,
+        "h": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "dsx_workload_status{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"} or dsx_workload_created_timestamp_seconds{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\"} or dsx_exporter_observation_valid{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_uid=~\"${workload_uid:regex}\", scope=\"workload\"}",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": []
+    }
+  ]
+}

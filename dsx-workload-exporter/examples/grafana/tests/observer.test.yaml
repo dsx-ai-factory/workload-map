@@ -1,0 +1,625 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+rule_files:
+  - ../recording-rules.yaml
+evaluation_interval: 15s
+tests:
+  - name: Every summary requires fresh samples and a successful selected observer scrape
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1 1 0 1x8'
+      - series: 'up{job="other-observer"}'
+        values: '1x11'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x11'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '1x4 _ _ _ _ _ _ _'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment"}'
+        values: '2x4 _ _ _ _ _ _ _'
+    promql_expr_test:
+      # dashboard-expression: workload-overview.json 302 A
+      - expr: &gpu_workload_count |-
+          (count((((((max by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) unless on (namespace, workload_uid) (count by (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) != 1)) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) >= 0) > 0) or on () (0 * count((((((max by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) unless on (namespace, workload_uid) (count by (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) != 1)) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) >= 0))))
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      # dashboard-expression: workload-overview.json 303 A
+      - expr: &assigned_gpu_count |-
+          sum((((((max by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) unless on (namespace, workload_uid) (count by (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind) ((workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_assigned_devices{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) != 1)) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) >= 0))
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 2
+      # dashboard-expression: workload-overview.json 304 A
+      - expr: &active_count |-
+          (count((((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1) unless on (namespace, workload_uid) (count by (namespace, workload_uid) (((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1)) != 1)) and on (namespace, workload_uid, state, reason) workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!="", state="active"} == 1) or on () (0 * count((((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1) unless on (namespace, workload_uid) (count by (namespace, workload_uid) (((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1)) != 1)))))
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      # dashboard-expression: workload-overview.json 305 A
+      - expr: &low_activity_count |-
+          (count((((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1) unless on (namespace, workload_uid) (count by (namespace, workload_uid) (((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1)) != 1)) and on (namespace, workload_uid, state, reason) workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!="", state="low_activity"} == 1) or on () (0 * count((((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1) unless on (namespace, workload_uid) (count by (namespace, workload_uid) (((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1)) != 1)))))
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      # dashboard-expression: workload-overview.json 310 A
+      - expr: &unknown_count |-
+          (count((((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1) unless on (namespace, workload_uid) (count by (namespace, workload_uid) (((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1)) != 1)) and on (namespace, workload_uid, state, reason) workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!="", state="unknown"} == 1) or on () (0 * count((((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1) unless on (namespace, workload_uid) (count by (namespace, workload_uid) (((((max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) == min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45)))) unless on (namespace, workload_uid) (max by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))) != min by (namespace, workload, workload_uid, workload_kind, state, reason) ((workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""} and (time() - timestamp(workload_gpu_observer_state{job=~"observer", namespace=~"ns", workload=~".*", workload_uid!=""}) < 45))))) and on () (min(up{job=~"observer"}) == 1) and on (namespace, workload_uid) (dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_name=~".*"})) == 1)) != 1)))))
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *gpu_workload_count
+        eval_time: 30s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 30s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 30s
+        exp_samples: []
+      - expr: *low_activity_count
+        eval_time: 30s
+        exp_samples: []
+      - expr: *unknown_count
+        eval_time: 30s
+        exp_samples: []
+      - expr: *gpu_workload_count
+        eval_time: 45s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *assigned_gpu_count
+        eval_time: 45s
+        exp_samples:
+          - labels: '{}'
+            value: 2
+      - expr: *active_count
+        eval_time: 45s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *low_activity_count
+        eval_time: 45s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *unknown_count
+        eval_time: 45s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *gpu_workload_count
+        eval_time: 105s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 105s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 105s
+        exp_samples: []
+      - expr: *low_activity_count
+        eval_time: 105s
+        exp_samples: []
+      - expr: *unknown_count
+        eval_time: 105s
+        exp_samples: []
+
+  - name: An absent observer does not become zero activity
+    interval: 15s
+    input_series:
+      - series: 'up{job="other-observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples: []
+
+  - name: A successful scrape without workload observations does not become zero
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples: []
+
+  - name: Zero active workloads requires an accepted state
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '0x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="low_activity",reason="measured"}'
+        values: '1x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: Conflicting states and allocation metadata are rejected per workload UID
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="unknown",reason="allocation_pending"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Job"}'
+        values: '2x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment"}'
+        values: '3x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples: []
+
+  - name: An old Active sample cannot override a fresh Low activity state
+    interval: 1m
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '1 _ _'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="low_activity",reason="measured"}'
+        values: '_ _ 1'
+    promql_expr_test:
+      - expr: *active_count
+        eval_time: 2m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *low_activity_count
+        eval_time: 2m
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *unknown_count
+        eval_time: 2m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: A pending allocation does not hide accepted GPU workloads or activity
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="active",workload_uid="active"}'
+        values: '10x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="pending",workload_uid="pending"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="active",workload_uid="active",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="active",workload_uid="active",workload_kind="Deployment"}'
+        values: '2x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="pending",workload_uid="pending",workload_kind="Deployment",state="unknown",reason="allocation_pending"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="pending",workload_uid="pending",workload_kind="Deployment"}'
+        values: '-1x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 2
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+
+  - name: All unknown states show no confirmed activity and do not fabricate allocations
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="unknown",reason="allocation_pending"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment"}'
+        values: '-1x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+
+  - name: An explicit zero allocation establishes CPU-only GPU and device zeros
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="no_gpu",reason="no_gpu"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment"}'
+        values: '0x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: A No GPUs state alone does not invent an allocation measurement
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="no_gpu",reason="no_gpu"}'
+        values: '1x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: Observer workloads outside the selected DSX identities are excluded
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="unpublished",workload_uid="unpublished",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="unpublished",workload_uid="unpublished",workload_kind="Deployment"}'
+        values: '2x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples: []
+
+  - name: A conflicted peer does not hide an accepted workload or count as Unknown
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="accepted",workload_uid="accepted"}'
+        values: '10x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="conflict",workload_uid="conflict"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="accepted",workload_uid="accepted",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="accepted",workload_uid="accepted",workload_kind="Deployment"}'
+        values: '2x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="conflict",workload_uid="conflict",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="conflict",workload_uid="conflict",workload_kind="Deployment",state="unknown",reason="allocation_pending"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="conflict",workload_uid="conflict",workload_kind="Job"}'
+        values: '2x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="conflict",workload_uid="conflict",workload_kind="Deployment"}'
+        values: '3x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 2
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: Disagreeing replicas are rejected instead of accepting the maximum
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="active",reason="measured",instance="a"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="active",reason="measured",instance="b"}'
+        values: '0x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",instance="a"}'
+        values: '2x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",instance="b"}'
+        values: '3x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples: []
+
+  - name: Identical replicas count each workload UID and allocation only once
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="active",reason="measured",instance="a"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="active",reason="measured",instance="b"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",instance="a"}'
+        values: '2x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",instance="b"}'
+        values: '2x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 2
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: One down selected observer replica leaves all summary cards unavailable
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer",instance="a"}'
+        values: '1x2'
+      - series: 'up{job="observer",instance="b"}'
+        values: '0x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="root",workload_uid="root"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="root",workload_uid="root",workload_kind="Deployment"}'
+        values: '2x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples: []
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples: []
+
+  - name: Accepted allocations remain countable when a peer activity state is Unknown
+    interval: 15s
+    input_series:
+      - series: 'up{job="observer"}'
+        values: '1x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="active",workload_uid="active"}'
+        values: '10x2'
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter",namespace="ns",workload_name="unknown",workload_uid="unknown"}'
+        values: '10x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="active",workload_uid="active",workload_kind="Deployment",state="active",reason="measured"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="active",workload_uid="active",workload_kind="Deployment"}'
+        values: '2x2'
+      - series: 'workload_gpu_observer_state{job="observer",namespace="ns",workload="unknown",workload_uid="unknown",workload_kind="Deployment",state="unknown",reason="telemetry_missing"}'
+        values: '1x2'
+      - series: 'workload_gpu_observer_assigned_devices{job="observer",namespace="ns",workload="unknown",workload_uid="unknown",workload_kind="Deployment"}'
+        values: '3x2'
+    promql_expr_test:
+      - expr: *gpu_workload_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 2
+      - expr: *assigned_gpu_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 5
+      - expr: *active_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: *low_activity_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: *unknown_count
+        eval_time: 0s
+        exp_samples:
+          - labels: '{}'
+            value: 1

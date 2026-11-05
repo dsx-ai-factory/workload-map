@@ -136,14 +136,11 @@ func verifyInstalled(candidate candidate, plan updatePlan, path string) error {
 		}
 		values[name] = version
 	}
-	expected := maps.Clone(candidate.Versions)
-	if expected == nil {
-		expected = make(map[string]string)
-	}
-	if plan.Group == "knative" {
-		expected["kourier"] = candidate.Defaults["KOURIER_VERSION"]
-	}
+	expected := make(map[string]string, len(candidate.Versions))
+	maps.Copy(expected, candidate.Versions)
 	switch plan.Group {
+	case "knative":
+		expected["kourier"] = candidate.Defaults["KOURIER_VERSION"]
 	case "cert-manager", "fake-gpu-operator", "kai-scheduler":
 		if len(plan.Pins) != 1 {
 			return fmt.Errorf("expected one infrastructure pin for %q", plan.Group)

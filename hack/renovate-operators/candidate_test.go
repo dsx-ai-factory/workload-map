@@ -4,6 +4,7 @@
 package main
 
 import (
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -145,6 +146,7 @@ func TestVerifyInstalled(t *testing.T) {
 		plan      updatePlan
 		content   string
 	}{
+		{"nilVersions", candidate{Defaults: map[string]string{"KOURIER_VERSION": "knative-v1.16.0"}}, updatePlan{Group: "knative"}, "kourier=knative-v1.16.0\n"},
 		{"workload", candidate{Versions: map[string]string{"jobset": "v0.13.0"}}, updatePlan{Group: "jobset"}, "jobset=v0.13.0\n"},
 		{"composite", candidate{Versions: map[string]string{"kubeflow": "v1.9.0+mpiv0.8.2"}}, updatePlan{Group: "kubeflow"}, "kubeflow=v1.9.0+mpiv0.8.2\n"},
 		{"kourier", candidate{Versions: map[string]string{"knative": "knative-v1.15.2"}, Defaults: map[string]string{"KOURIER_VERSION": "knative-v1.16.0"}}, updatePlan{Group: "knative"}, "knative=knative-v1.15.2\nkourier=knative-v1.16.0\n"},
@@ -155,8 +157,12 @@ func TestVerifyInstalled(t *testing.T) {
 			if err := os.WriteFile(path, []byte(test.content), 0o644); err != nil {
 				t.Fatal(err)
 			}
+			original := maps.Clone(test.candidate.Versions)
 			if err := verifyInstalled(test.candidate, test.plan, path); err != nil {
 				t.Fatalf("verifyInstalled() = %v, want nil", err)
+			}
+			if !reflect.DeepEqual(test.candidate.Versions, original) {
+				t.Fatalf("candidate versions changed: got %v, want %v", test.candidate.Versions, original)
 			}
 		})
 	}

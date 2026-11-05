@@ -43,6 +43,87 @@ lets a maintainer trigger or retry one.
 Every commit carries a `Signed-off-by` trailer for the bot identity, so the DCO
 check passes.
 
+## Operator updates and recordings
+
+`Renovate operators` runs separately every Sunday at 04:00 UTC. It updates the
+operator pins in `hack/e2e/global.env` on `main`. Each operator group gets its
+own job, with at most two jobs running together. The workflow can also run one
+group manually through its `operator` input.
+
+The Go tool in [`hack/renovate-operators`](../hack/renovate-operators/README.md)
+generates Renovate's JSON configuration from the existing `check-updates.sh`
+wrappers. Those wrappers own the release repositories, tag prefixes, channels,
+and retractions. Knative/Kourier and Kubeflow/MPI stay grouped. Trainer v2
+requires an API migration and is excluded. Tool pins, Ray runtime, and Gateway
+API are outside this operator update job.
+
+For each candidate, the same CI job runs these steps:
+
+1. Renovate changes the pins and opens or updates a draft PR. Its body links
+   the CI run and tracking issue.
+2. The Go tool fetches the PR's exact commit and checks that it changes only
+   the selected pins and recording paths.
+3. Create a fresh kind cluster, run the install/verify scripts, check the
+   installed versions, and discover every selected flow through Ginkgo.
+4. Record those flows, reject missing, skipped, failed, or stale fixtures,
+   replay the recordings, and remove the temporary cluster.
+5. Commit the recordings with the bot identity and DCO, then run `make check`
+   on that commit.
+6. Push the tested commit only if the PR branch has not changed, and set the
+   recording status to success. The PR stays a draft; nothing merges automatically.
+
+An unchanged PR head with successful recordings is skipped, even after a
+maintainer marks it ready. A new unverified update returns to draft before
+recording and requires review again.
+
+A recording or validation failure leaves the draft version-bump PR visible
+without a new recording commit. The failed CI run contains the diagnostics.
+Retry it by running the workflow for the same operator group. Logs, JUnit
+reports, installed versions, and image references remain available as Actions
+artifacts for 14 days.
+
+Infrastructure updates also exercise workloads: cert-manager runs KServe and
+Karta's cert-manager webhook tests; Fake GPU Operator runs Grove; KAI runs
+Grove and Dynamo. The infrastructure smoke tests still verify certificate
+issuance, GPU allocation, and scheduling. Recordings keep their workload
+operator version paths; the CI evidence identifies the infrastructure versions.
+Passing these flows proves the tested configuration, not every deployment.
+
+### Repository setup
+
+The upstream workflow reuses `RENOVATE_APP_CLIENT_ID` and
+`RENOVATE_APP_PRIVATE_KEY`. The App needs contents, pull requests and commit
+statuses write access, plus issues read access. Set the repository variable
+`E2E_OPERATOR_TRACKING_ISSUE` to the public, open issue that tracks recording
+updates. The Go tool checks it before starting Renovate.
+
+Forks use `GITHUB_TOKEN` and the `github-actions[bot]` identity. Enable GitHub
+Actions to create pull requests in the fork's Actions settings. Fork schedules
+are disabled, but manual and reusable workflow calls are supported. Their
+`base-branch` input can target a validation branch. Upstream always uses `main`.
+PR creation and recording run in the same job. This also works with the fork's
+`GITHUB_TOKEN`, whose PR events do not start another workflow. The automation
+requires GitHub Actions. Node runs Renovate itself; configuration generation
+and recording orchestration use the Go tool.
+
+### Extending and testing operator automation
+
+Add the operator's pin variables and workload coverage to
+`hack/renovate-operators/config.go`. Release rules still belong in its checker wrapper.
+Add each recorded kind to `test/e2e/cmd/verify-operator-update`; flow names are
+discovered from the suite, so adding a flow does not require another list.
+Test a real update in a fork before enabling or changing its coverage.
+
+```sh
+make test-renovate-operators
+make check
+make lint-shell
+```
+
+`make check` includes the automation module and the Go recording validator.
+The standalone automation module uses only the Go standard library. Its offline
+tests need Go and Git; policy capture also exercises the existing Bash wrappers.
+
 ## Testing a configuration change
 
 ### Dry run

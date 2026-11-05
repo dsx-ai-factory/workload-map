@@ -75,6 +75,9 @@ support or Karta compatibility. It does not change pins or use a cluster.
 See the [checker README](../operator-updates/README.md) for selection rules,
 options, exit codes, and the required checker when adding an operator.
 
+For automatic pin updates with CI recordings, see
+[Operator updates and recordings](../../docs/Dependency%20Updates.md#operator-updates-and-recordings).
+
 ## How up.sh runs an operator
 
 For each selected infrastructure operator, `up.sh` runs `infra/<name>/install.sh`
@@ -119,6 +122,11 @@ smoke verification, and an executable `check-updates.sh`. The update checker
 reports candidate versions; `verify.sh` still proves the installed operator can
 run its smoke workload. Kubernetes builtins and Karta built from this checkout
 have no upstream operator release to check and are exempt.
+
+Register its pin variables and recording coverage in
+`hack/renovate-operators/config.go` and its recorded kinds in
+`test/e2e/cmd/verify-operator-update`. Run
+`make test-renovate-operators` and validate an update in fork CI.
 
 Install side (this directory):
 

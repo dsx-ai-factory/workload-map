@@ -1,0 +1,236 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+name: Renovate operators
+
+on:
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      operator:
+        description: Operator group to update, or all
+        type: string
+        default: all
+      base-branch:
+        description: Base branch for fork validation; upstream always uses main
+        type: string
+        default: main
+  workflow_call:
+    inputs:
+      operator:
+        type: string
+        default: all
+      base-branch:
+        type: string
+        default: main
+    secrets:
+      RENOVATE_APP_CLIENT_ID:
+        required: false
+      RENOVATE_APP_PRIVATE_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Select operator groups
+    if: github.event_name != 'schedule' || github.repository == 'dsx-ai-factory/workload-map'
+    runs-on: ubuntu-latest
+    outputs:
+      groups: ${{ steps.plan.outputs.groups }}
+      base: ${{ steps.plan.outputs.base }}
+      sha: ${{ steps.plan.outputs.sha }}
+    steps:
+      - name: Validate base branch
+        env:
+          BASE: ${{ inputs.base-branch || 'main' }}
+        run: |
+          set -euo pipefail
+          git check-ref-format --branch "$BASE"
+          if [ "$GITHUB_REPOSITORY" = dsx-ai-factory/workload-map ]; then
+            test "$BASE" = main
+            test "$GITHUB_REF" = refs/heads/main
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.base-branch || 'main' }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: hack/renovate-operators/go.mod
+          cache: false
+
+      - name: Build operator automation
+        run: |
+          make build-renovate-operators LOCALBIN="$RUNNER_TEMP/operator-tools"
+          echo "$RUNNER_TEMP/operator-tools" >> "$GITHUB_PATH"
+
+      - name: Select groups and source commit
+        id: plan
+        env:
+          GROUP: ${{ inputs.operator || 'all' }}
+          BASE: ${{ inputs.base-branch || 'main' }}
+        run: |
+          set -euo pipefail
+          groups=$(renovate-operators matrix --operator "$GROUP")
+          {
+            echo "groups=$groups"
+            echo "base=$BASE"
+            echo "sha=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+
+  update:
+    name: Update and record ${{ matrix.operator }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+      statuses: write
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        operator: ${{ fromJSON(needs.plan.outputs.groups) }}
+    concurrency:
+      group: renovate-operator-${{ matrix.operator }}-${{ needs.plan.outputs.base }}
+      cancel-in-progress: false
+    env:
+      # renovate: datasource=npm depName=renovate
+      RENOVATE_VERSION: 44.202.1
+      E2E_UPDATE_GROUP: ${{ matrix.operator }}
+      E2E_UPDATE_BASE_BRANCH: ${{ needs.plan.outputs.base }}
+      E2E_UPDATE_BASE_SHA: ${{ needs.plan.outputs.sha }}
+      E2E_UPDATE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      E2E_OPERATOR_TRACKING_ISSUE: ${{ vars.E2E_OPERATOR_TRACKING_ISSUE }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare evidence directory
+        run: |
+          path="$RUNNER_TEMP/operator-evidence-$E2E_UPDATE_GROUP"
+          mkdir -p "$path"
+          echo "E2E_UPDATE_ARTIFACTS=$path" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: karta/sdk/go.mod
+          cache: true
+          cache-dependency-path: |
+            karta/sdk/go.sum
+            operator/go.sum
+            cli/go.sum
+            test/e2e/go.sum
+            dsx-workload-exporter/go.sum
+
+      - name: Build operator automation
+        run: |
+          make build-renovate-operators LOCALBIN="$RUNNER_TEMP/operator-tools"
+          echo "$RUNNER_TEMP/operator-tools" >> "$GITHUB_PATH"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.11.0"
+          package-manager-cache: false
+
+      - name: Install pinned cluster tools with checksums
+        run: |
+          set -euo pipefail
+          source hack/e2e/global.env
+          tools="$RUNNER_TEMP/operator-tools"
+          mkdir -p "$tools" "$E2E_UPDATE_ARTIFACTS"
+          cd "$tools"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VERSION/kind-linux-amd64" -o kind
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VERSION/kind-linux-amd64.sha256sum" -o kind.sha256
+          read -r digest _ < kind.sha256
+          printf '%s  kind\n' "$digest" | sha256sum --check
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl" -o kubectl
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl.sha256" -o kubectl.sha256
+          digest=$(cat kubectl.sha256)
+          printf '%s  kubectl\n' "$digest" | sha256sum --check
+          archive="helm-$HELM_VERSION-linux-amd64.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 "https://get.helm.sh/$archive" -o "$archive"
+          curl --fail --silent --show-error --location --retry 3 "https://get.helm.sh/$archive.sha256sum" -o helm.sha256
+          read -r digest _ < helm.sha256
+          printf '%s  %s\n' "$digest" "$archive" | sha256sum --check
+          tar -xzf "$archive" linux-amd64/helm
+          mv linux-amd64/helm helm
+          chmod +x kind kubectl helm
+
+      - name: Install pinned Renovate
+        run: |
+          npm install --prefix "$RUNNER_TEMP/renovate-cli" --no-audit --no-fund "renovate@$RENOVATE_VERSION"
+          echo "$RUNNER_TEMP/renovate-cli/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Validate operator configuration
+        run: |
+          make test-renovate-operators
+          renovate-operators config --operator "$E2E_UPDATE_GROUP" \
+            --base-branch "$E2E_UPDATE_BASE_BRANCH" --output "$E2E_UPDATE_ARTIFACTS/renovate.json"
+          renovate-config-validator "$E2E_UPDATE_ARTIFACTS/renovate.json"
+
+      # Mint after tool setup so the one-hour token covers the recording and push.
+      - name: Mint GitHub App token
+        if: github.repository == 'dsx-ai-factory/workload-map'
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: read
+          permission-statuses: write
+
+      - name: Resolve bot identity
+        id: identity
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          if [ -n "$APP_SLUG" ]; then
+            login="${APP_SLUG}[bot]"
+            id=$(gh api "users/$login" --jq .id)
+            echo "author=$login <$id+$login@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+          else
+            echo 'author=github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open draft PR, record and commit after validation
+        timeout-minutes: 50
+        env:
+          RENOVATE_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          RENOVATE_GIT_AUTHOR: ${{ steps.identity.outputs.author }}
+        run: renovate-operators run
+
+      - name: Ensure the temporary cluster is removed
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/renovate-${E2E_UPDATE_GROUP}-kubeconfig"
+          if command -v kind >/dev/null 2>&1; then
+            kind delete cluster --name "renovate-${E2E_UPDATE_GROUP}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          fi
+
+      - name: Upload recording evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: operator-${{ matrix.operator }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.E2E_UPDATE_ARTIFACTS }}
+          if-no-files-found: warn
+          retention-days: 14

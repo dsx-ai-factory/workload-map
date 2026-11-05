@@ -22,12 +22,12 @@ GO_LDFLAGS  := -X $(VERSION_PKG).version=$(VERSION)
 LDFLAGS     := -ldflags "$(GO_LDFLAGS)"
 
 # The component inventory every aggregate fans out over.
-COMPONENTS := lib cli operator exporter karta-wasm release-helper operator-updates
+COMPONENTS := lib cli operator exporter karta-wasm release-helper operator-updates renovate-operators
 
 # Every Go module in the repo. The tidy target fans out over this rather than
 # COMPONENTS because an untidy manifest in a module that ships no
 # binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
-GO_MODULES := karta/sdk cli karta-wasm operator dsx-workload-exporter dsx-workload-exporter/test/integration test/e2e hack/imagelock hack/operator-updates \
+GO_MODULES := karta/sdk cli karta-wasm operator dsx-workload-exporter dsx-workload-exporter/test/integration test/e2e hack/imagelock hack/operator-updates hack/renovate-operators \
 	docs/examples/quickstart docs/examples/controller-runtime \
 	hack/e2e/operators/nim/image
 
@@ -128,11 +128,11 @@ clean: ## Remove build outputs, coverage profiles, and release and plugin artifa
 		echo "refusing to clean $$dir: not a directory inside $(PROJECT_DIR)" >&2; \
 		exit 1; \
 	done
-	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64" "$(LOCALBIN)/dsx-workload-exporter" "$(LOCALBIN)/operator-updates"
+	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64" "$(LOCALBIN)/dsx-workload-exporter" "$(LOCALBIN)/operator-updates" "$(LOCALBIN)/renovate-operators"
 	rm -fv "$(LOCALBIN)"/*-tidy.mod "$(LOCALBIN)"/*-tidy.sum "$(LOCALBIN)"/*-license.mod "$(LOCALBIN)"/*-license.sum "$(LOCALBIN)"/*deps.json
 	rm -fv operator/cover-unit.out operator/cover-integration.out
 	rm -fv karta-wasm/karta.wasm karta-wasm/wasm_exec.js
-	rm -fv hack/imagelock/imagelock hack/release/release hack/operator-updates/operator-updates
+	rm -fv hack/imagelock/imagelock hack/release/release hack/operator-updates/operator-updates hack/renovate-operators/renovate-operators
 	rm -fv "$(PROJECT_DIR)"/karta-*.tgz
 	rm -rfv "$(DIST_DIR)" "$(IMAGE_LOCK_OUT_DIR)" headlamp-plugin/dist "$(PROJECT_DIR)/.artifacts"
 
@@ -190,7 +190,7 @@ lint-lib: golangci-lint ## Lint the library module (set VERBOSE=1 for -v)
 .PHONY: test-lib
 test-lib: lib-generate-mocks ## Run the library tests, plus the offline e2e recorder tests
 	cd karta/sdk && go test ./...
-	cd test/e2e && go test ./recorder/...
+	cd test/e2e && go test ./recorder/... ./cmd/verify-operator-update/...
 
 # The library is the one published module, so a replace in it would break every
 # consumer's `go get`. The other modules carry one on purpose.
@@ -296,6 +296,40 @@ modules-check-operator-updates: ## Verify operator update checker module metadat
 
 .PHONY: check-operator-updates
 check-operator-updates: fmt-check-operator-updates vet-operator-updates lint-operator-updates modules-check-operator-updates test-operator-updates ## Full operator update checker presubmit
+
+##@ Operator update automation (nested module)
+
+.PHONY: fmt-renovate-operators
+fmt-renovate-operators: ## Format the operator update automation
+	cd hack/renovate-operators && go fmt ./...
+
+.PHONY: fmt-check-renovate-operators
+fmt-check-renovate-operators: ## Check operator update automation formatting
+	@set -e; \
+	cd hack/renovate-operators; \
+	dirs="$$(go list -f '{{.Dir}}' ./...)"; \
+	unformatted="$$(gofmt -l $$dirs)"; \
+	test -z "$$unformatted" || { echo "go fmt required:"; echo "$$unformatted"; exit 1; }
+
+.PHONY: vet-renovate-operators
+vet-renovate-operators: ## Vet the operator update automation
+	cd hack/renovate-operators && go vet ./...
+
+.PHONY: lint-renovate-operators
+lint-renovate-operators: golangci-lint ## Lint the operator update automation
+	cd hack/renovate-operators && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+
+.PHONY: test-renovate-operators
+test-renovate-operators: ## Test operator recording and publication guards offline
+	cd hack/renovate-operators && go test ./...
+
+.PHONY: modules-check-renovate-operators
+modules-check-renovate-operators: ## Verify operator update automation module metadata
+	cd hack/renovate-operators && go mod tidy -diff
+	cd hack/renovate-operators && go mod verify
+
+.PHONY: check-renovate-operators
+check-renovate-operators: fmt-check-renovate-operators vet-renovate-operators lint-renovate-operators modules-check-renovate-operators test-renovate-operators ## Full operator update automation presubmit
 
 ##@ CLI
 
@@ -734,6 +768,8 @@ E2E_KUBECONFIG := KUBECONFIG=$(HOME)/.kube/kind-$(CLUSTER_NAME).kubeconfig
 endif
 # Overall go-test timeout for the online suite; override for a quick subset, e.g. E2E_TIMEOUT=10m.
 E2E_TIMEOUT ?= 30m
+# Optional JUnit evidence for automated operator update validation.
+E2E_JUNIT_REPORT ?=
 
 # Select cases by operator with the same WORKLOADS list as e2e-up: record-e2e WORKLOADS="batch-job"
 # records just the batch-job case (a comma is OR in ginkgo label filters). E2E_LABELS overrides it
@@ -792,6 +828,10 @@ build-operator-updates: $(LOCALBIN) ## Build the operator update checker into bi
 .PHONY: test-e2e-updates
 test-e2e-updates: test-operator-updates ## Test operator update detection offline (also covered by make check)
 
+.PHONY: build-renovate-operators
+build-renovate-operators: $(LOCALBIN) ## Build the operator update automation into bin/
+	cd hack/renovate-operators && go build -o "$(abspath $(LOCALBIN))/renovate-operators" .
+
 .PHONY: e2e-down
 e2e-down: ## Tear down the e2e cluster (set CLUSTER_NAME for a named one)
 	CLUSTER_NAME=$(CLUSTER_NAME) ./hack/e2e/down.sh
@@ -803,7 +843,7 @@ record-e2e: ## Record the fixtures against the current cluster - kind from e2e-u
 	@if [ "$(strip $(WORKLOADS))" = "none" ]; then \
 		echo "record-e2e: WORKLOADS=none selects no cases"; exit 2; fi
 	cd test/e2e && go test -count=1 ./recorder
-	cd test/e2e && CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) go test -count=1 -v -timeout $(E2E_TIMEOUT) ./flows $(if $(E2E_FOCUS)$(E2E_LABELS),-args $(if $(E2E_FOCUS),-ginkgo.focus="$(E2E_FOCUS)") $(if $(E2E_LABELS),-ginkgo.label-filter="$(E2E_LABELS)"))
+	cd test/e2e && CLUSTER_NAME=$(CLUSTER_NAME) $(E2E_KUBECONFIG) go test -count=1 -v -timeout $(E2E_TIMEOUT) ./flows $(if $(E2E_FOCUS)$(E2E_LABELS)$(E2E_JUNIT_REPORT),-args $(if $(E2E_JUNIT_REPORT),-ginkgo.junit-report="$(E2E_JUNIT_REPORT)") $(if $(E2E_FOCUS),-ginkgo.focus="$(E2E_FOCUS)") $(if $(E2E_LABELS),-ginkgo.label-filter="$(E2E_LABELS)"))
 
 .PHONY: verify-recordings
 verify-recordings: ## Fail if any recorded fixture ended with succeeded false (re-record it clean before pushing)

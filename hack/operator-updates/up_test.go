@@ -122,7 +122,7 @@ func TestInfrastructureProvisioning(t *testing.T) {
 		{
 			name: "cert manager before kserve", workload: "kserve",
 			components: []string{"infra/cert-manager", "infra/fake-gpu-operator", "operators/knative", "operators/kserve", "karta-operator"},
-			versions:   []string{"cert-manager=v9.1.0", "fake-gpu-operator=9.2.0", "knative=knative-v9.6.0", "kserve=v9.7.0"},
+			versions:   []string{"cert-manager=v9.1.0", "fake-gpu-operator=9.2.0", "knative=knative-v9.6.0", "kourier=knative-v9.6.1", "kserve=v9.7.0"},
 		},
 	}
 	for _, tc := range cases {
@@ -163,6 +163,16 @@ func TestInfrastructureProvisioningErrors(t *testing.T) {
 			name: "first infra failure clears stale versions", workload: "none", env: []string{"CERT_MANAGER=true"}, failStep: "infra/cert-manager/install",
 			events: []string{"infra/cert-manager/install"},
 		},
+		{
+			name: "knative install failure records neither pin", workload: "knative", failStep: "operators/knative/install",
+			events:   []string{"infra/fake-gpu-operator/install", "infra/fake-gpu-operator/verify", "operators/knative/install"},
+			versions: []string{"fake-gpu-operator=9.2.0"},
+		},
+		{
+			name: "knative verify failure records neither pin", workload: "knative", failStep: "operators/knative/verify",
+			events:   []string{"infra/fake-gpu-operator/install", "infra/fake-gpu-operator/verify", "operators/knative/install", "operators/knative/verify"},
+			versions: []string{"fake-gpu-operator=9.2.0"},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -188,6 +198,9 @@ func assertProvisionedComponents(t *testing.T, result provisionResult, events, v
 	}
 	for _, version := range versions {
 		name, pin, _ := strings.Cut(version, "=")
+		if name == "kourier" {
+			continue // Kourier shares Knative's install/verify summary row.
+		}
 		if !strings.Contains(result.summary, "| :white_check_mark: | "+name+" | "+pin+" |") {
 			t.Errorf("successful component %s missing from summary:\n%s", version, result.summary)
 		}
@@ -207,7 +220,7 @@ func runProvision(t *testing.T, args []string, env ...string) provisionResult {
 		"CLUSTER_NAME=karta-e2e", "KUBECONFIG="+filepath.Join(fixture.root, "kubeconfig"), "GO_VERSION=1.26.8",
 		"KARTA_WEBHOOK_MODE=auto", "CERT_MANAGER=auto", "GITHUB_ACTIONS=", "GITHUB_STEP_SUMMARY="+filepath.Join(fixture.root, "summary"),
 		"CERT_MANAGER_VERSION=v9.1.0", "FAKE_GPU_VERSION=9.2.0", "KAI_SCHEDULER_VERSION=v9.3.0", "GROVE_VERSION=v9.4.0",
-		"DYNAMO_VERSION=9.5.0", "KNATIVE_VERSION=knative-v9.6.0", "KSERVE_VERSION=v9.7.0",
+		"DYNAMO_VERSION=9.5.0", "KNATIVE_VERSION=knative-v9.6.0", "KOURIER_VERSION=knative-v9.6.1", "KSERVE_VERSION=v9.7.0",
 		"E2E_TEST_EVENTS="+filepath.Join(fixture.root, "events"), "E2E_TEST_TOOLS="+filepath.Join(fixture.root, "tools"), "E2E_TEST_FAIL_STEP=",
 	)
 	cmd.Env = append(cmd.Env, env...)

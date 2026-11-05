@@ -166,6 +166,10 @@ run_operator() {
   # The e2e flows file each recording under the installed operator version. Per cluster,
   # like the kubeconfig, so parallel clusters with different versions cannot mix.
   echo "${name}=${ver}" >> "${OPERATORS_DIR}/.installed-versions-${CLUSTER_NAME}"
+  # Kourier has its own pin but shares Knative's install and smoke verification.
+  if [ "${name}" = knative ]; then
+    echo "kourier=${KOURIER_VERSION}" >> "${OPERATORS_DIR}/.installed-versions-${CLUSTER_NAME}"
+  fi
 }
 
 main() {

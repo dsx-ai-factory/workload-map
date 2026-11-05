@@ -8,8 +8,8 @@ Date: 2026-08-18
 Evals: 1, 2, 3 from `evals/evals.json` (3 runs each per configuration, 18 runs total)
 
 These figures measure the skill as it was on that date, before step 8 (the
-catalog entry and recorded flow) and the later rules. The current skill has not
-been re-run.
+catalog entry and recorded flow) and the later rules. Evals 1 and 2 were re-run
+on the current skill; see the re-run section below.
 
 Each eval prompt was run by an agent with the skill available and by a baseline
 agent without it. Both configurations had full repository access. Every produced
@@ -65,6 +65,151 @@ results count (2)`. Neither reasoned it out in advance.
 Eval 4 was added to `evals.json` for Volcano Job, which is absent from
 `docs/catalog/`, to replace the content-discrimination role eval 2 can no longer
 serve. It has not been run, and its expectations carry no measured counts.
+
+Eval 5 covers a user with a cluster but no checkout, the case the skill
+handles through `kli`, installed with Homebrew, and the public karta-verify
+module. Its results are in the eval 5 section below.
+
+The skill later made step 8 ship every definition in this repository as a
+catalog entry with a recorded flow. Evals 1 and 4 now expect that entry, the
+reverse of the "definition only" expectation graded above, and evals 1, 2 and
+4 run karta-verify from `karta/sdk/`. The tables above grade the earlier
+wording; the re-run below grades the current one.
+
+## Evals 1 and 2, re-run
+
+Model: claude-opus-5-5
+Date: 2026-10-29
+Runs: 3 per configuration per eval, 12 in total
+
+Setup. Each run had its own git worktree of this repository at the skill
+version under test. Runs with the skill were given the path to `SKILL.md`;
+runs without it had `skills/add-workload-type/` removed. No run could read the
+repository on GitHub. A run that needed a cluster created its own kind
+cluster. Each run logged every command with its exit code, and grading used
+those logs and the committed tree.
+
+| Expectation | Eval | With skill | Without |
+|-------------|------|------------|---------|
+| Ships a catalog entry: builder, generated sample, operator install, recorded flow | 1 | 3/3 | 3/3 |
+| Predictions written before the run, exercised with `--strict` | 1 | 3/3 | 1/3 |
+| Validated with karta-verify from `karta/sdk/` | 1 | 3/3 | 3/3 |
+| Suspend guarded, and a recorded flow reaches Suspended | 1 | 3/3 | 3/3 |
+| Real phases, null-safe, plain or documented read-only paths | 1 | 3/3 | 2/3 |
+| karta-verify from `karta/sdk/` with predictions and `--strict` | 2 | 3/3 | 3/3 |
+| Spec and scale paths are plain | 2 | 3/3 | 0/3 |
+| Names the shipped entry, adds no second builder or flow | 2 | 2/3 | 3/3 |
+
+What changed since 2026-08-18. Runs without the skill now do most of what
+only skill-guided runs did then. All three eval 1 baselines shipped a catalog
+builder, an operator install and a recorded flow, with a suspend-guarded
+Running rule; all three eval 2 baselines ran karta-verify with predictions.
+The repository now teaches this itself: `AGENTS.md` requires a recorded flow
+for every catalog entry, and the harness README describes karta-verify.
+
+What still separates the configurations:
+
+- Predictions. Every skill-guided eval 1 run wrote predictions and ran
+  `--strict` against live CRs and recorded frames; one baseline did, once.
+  Two skill-guided runs caught the same bug this way: a Workflow that uses
+  `workflowTemplateRef` crashed the read on the missing `.spec.templates`.
+- Scope on an existing entry. Every skill-guided eval 2 run audited the
+  shipped CronJob entry against the skill and fixed it: the scale path
+  `.spec.jobTemplate.spec.parallelism // 1` became plain, the builder gained a
+  comment on what the controller writes, and the flow predicates were made
+  exclusive. Baselines checked the entry and stopped; one noticed the
+  predicate overlap and left it. One skill-guided run added a new resume flow,
+  which the no-duplicate expectation counts as a miss.
+
+Tokens and time. Clean runs only, as means:
+
+| Eval | With skill | Without |
+|------|------------|---------|
+| 1 | 302,385 tokens, 2,564s (2 runs) | 227,563 tokens, 1,666s (1 run) |
+| 2 | not measured | 77,098 tokens, 270s (3 runs) |
+
+Skill-guided runs cost more on both evals, the reverse of 2026-08-18, because
+they do more: more flows and live checks on eval 1, and a repair of the
+existing entry on eval 2.
+
+Limits of this run:
+
+- A lapsed login stopped five runs midway; each resumed with its context
+  intact. Their tokens and time are not comparable and are left out above.
+  One more eval 1 baseline ran overnight, so its time is left out.
+- The first runs shared one Docker VM (4 CPUs, 8 GB) with up to five kind
+  clusters. One skill-guided eval 1 run could not record its flow until the
+  host was quiet and was then resumed to record it; one skill-guided eval 2
+  run never got a cluster and left its fixtures unrecorded. Later eval 1 runs
+  ran one at a time.
+- Triggering was not measured: skill-guided runs were given the skill's path.
+- The run prompt asked every run for what it left unverified, so the eval 2
+  unproven-parts expectation was not measured and keeps its 2026-08-18 count.
+- One skill-guided eval 1 run installed shellcheck with Homebrew, so the
+  baseline after it could run `make lint-shell`; earlier runs could not.
+
+## Eval 5, no checkout
+
+Model: claude-opus-5-5
+Date: 2026-10-26
+Runs: 3 per configuration, 9 in total
+
+Configurations: the skill with the no-checkout section (new), the skill
+before it (previous), and no skill, given only the project URL (none).
+
+Setup. Each run had its own TrainJob CRD in its own API group, a running CR
+with status, and three pods owned by it, on a local kind cluster with Karta
+installed and no other Karta objects. No controller ran, so only the Running
+state was live; other states were tested on edited copies of the CR. Each run
+installed tools only inside its workspace and logged every command with its
+exit code. Grading used those logs and the cluster state after the run.
+
+| Expectation | New | Previous | None |
+|-------------|-----|----------|------|
+| kli from a release archive checked against `checksums.txt`, or Homebrew | 3/3 | 2/3 | 3/3 |
+| Sample from `kli definitions` or a raw URL, not a checkout | 3/3 | 3/3 | 3/3 |
+| Catalog read with `kli definitions --kubeconfig /dev/null` (added later) | 3/3 | 0/3 | 0/3 |
+| `kli validate` before apply, exit code reported | 3/3 | 2/3 | 3/3 |
+| karta-verify from the public module at a tag, `--workload` and `--predict` | 3/3 | 3/3 | 3/3 |
+| Applied, then checked with `kli get` and `kli describe` (pre-check not graded) | 3/3 | 2/3 | 3/3 |
+
+| Configuration | Tokens (mean) | Time (mean) |
+|---------------|---------------|-------------|
+| New | 122,511 | 289s |
+| Previous | 124,858 | 350s |
+| None | 129,783 | 651s |
+
+Every run produced a definition that the operator marked Ready and that `kli`
+read as Running, with each pod under its role. The definitions agree on the
+tree, the selectors, the scale path, and the suspend action; they differ in
+whether the frames between a suspend and the next reconcile read Suspending.
+
+What separates the configurations:
+
+- All three new runs read the catalog with `kli definitions --kubeconfig
+  /dev/null`. No other run did: every one fetched its sample by raw URL, and
+  the one that ran `kli definitions` did so only after applying, to list its
+  own Karta.
+- One previous run never installed `kli` and so also missed the install,
+  validate, and live check rows. It validated with karta-verify alone and checked the cluster only
+  through the Karta's own conditions.
+- Runs without the skill took twice as long: they first read the repository
+  README, the CLI Guide, and the skill files on GitHub.
+
+Limits of this run:
+
+- Two of the three runs without the skill found `skills/add-workload-type`
+  on GitHub and followed it. That copy is the previous skill, so those runs
+  measure the previous skill fetched by URL, not a run with no guidance.
+- The test rules forbade reading Karta objects a run did not create, which
+  conflicts with the step 8 check over all Kartas. Runs used a name lookup and
+  a server-side dry run instead, which the one-Karta-per-kind webhook rejects
+  when another Karta covers the kind. That expectation therefore has no
+  measured count.
+- Eval 5 discriminates weakly: a capable model finds `kli` from the README.
+  The catalog read with `kli definitions` is the only consistent difference;
+  it was added as an expectation after this run and graded from the same
+  logs.
 
 ## Per-eval breakdown
 
@@ -146,11 +291,13 @@ figures above for both configurations.
 ## Reproducing
 
 1. Run the eval 1, 2 and 3 prompts from `evals/evals.json` with and without the
-   skill available, 3 runs each. Eval 4 is documented but was not run and is not
-   part of these figures.
+   skill available, 3 runs each. Eval 4 is documented but was not run. Evals
+   1 and 2 were re-run with the setup in the re-run section, and eval 5 ran
+   separately, with three configurations; its setup is in the eval 5 section.
 2. Grade each run against its `expectations` list.
 3. Validate every produced definition, and exercise it against a real CR with
-   predictions written before the run:
+   predictions written before the run, from `karta/sdk/` (for eval 5, with
+   the public-module form in `SKILL.md` in place of `./hack/karta-verify`):
 
    ```sh
    go run ./hack/karta-verify --karta <definition> \

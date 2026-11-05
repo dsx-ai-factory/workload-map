@@ -109,7 +109,7 @@ and recording orchestration use the Go tool.
 ### Extending and testing operator automation
 
 Add the operator's pin variables and workload coverage to
-`hack/renovate-operators/plan.go`. Release rules still belong in its checker wrapper.
+`hack/renovate-operators/config.go`. Release rules still belong in its checker wrapper.
 Add each recorded kind to `test/e2e/cmd/verify-operator-update`; flow names are
 discovered from the suite, so adding a flow does not require another list.
 Test a real update in a fork before enabling or changing its coverage.

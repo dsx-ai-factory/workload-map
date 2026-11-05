@@ -124,7 +124,7 @@ run its smoke workload. Kubernetes builtins and Karta built from this checkout
 have no upstream operator release to check and are exempt.
 
 Register its pin variables and recording coverage in
-`hack/renovate-operators/plan.go` and its recorded kinds in
+`hack/renovate-operators/config.go` and its recorded kinds in
 `test/e2e/cmd/verify-operator-update`. Run
 `make test-renovate-operators` and validate an update in fork CI.
 

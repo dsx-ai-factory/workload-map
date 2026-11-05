@@ -31,7 +31,7 @@ var (
 	ciRunPattern = regexp.MustCompile(`^[0-9]+$`)
 )
 
-func optionsFromEnvironment(ctx context.Context, publish bool) (updateOptions, error) {
+func optionsFromEnvironment(ctx context.Context) (updateOptions, error) {
 	var opts updateOptions
 	if os.Getenv("GITHUB_ACTIONS") != "true" {
 		return opts, errors.New("operator updates run in GitHub Actions")
@@ -41,12 +41,10 @@ func optionsFromEnvironment(ctx context.Context, publish bool) (updateOptions, e
 		"E2E_UPDATE_BASE_SHA": &opts.BaseSHA, "E2E_UPDATE_ARTIFACTS": &opts.Artifacts,
 		"E2E_UPDATE_RUN_URL": &opts.RunURL, "GITHUB_RUN_ID": &opts.RunID,
 		"GITHUB_RUN_ATTEMPT": &opts.RunAttempt, "RUNNER_TEMP": &opts.RunnerTemp,
-		"GITHUB_REPOSITORY": &opts.Repository,
-	}
-	if publish {
-		required["RENOVATE_GIT_AUTHOR"] = &opts.Author
-		required["E2E_OPERATOR_TRACKING_ISSUE"] = &opts.TrackingIssue
-		required["RENOVATE_TOKEN"] = &opts.Token
+		"GITHUB_REPOSITORY":           &opts.Repository,
+		"RENOVATE_GIT_AUTHOR":         &opts.Author,
+		"E2E_OPERATOR_TRACKING_ISSUE": &opts.TrackingIssue,
+		"RENOVATE_TOKEN":              &opts.Token,
 	}
 	for name, value := range required {
 		*value = os.Getenv(name)
@@ -64,7 +62,7 @@ func optionsFromEnvironment(ctx context.Context, publish bool) (updateOptions, e
 		return opts, err
 	}
 	if opts.Group == "all" {
-		return opts, errors.New("run and record require one operator group")
+		return opts, errors.New("run requires one operator group")
 	}
 	root, err := gitOutput(ctx, ".", "rev-parse", "--show-toplevel")
 	if err != nil {

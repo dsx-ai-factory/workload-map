@@ -13,20 +13,19 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
+	if err := run(ctx, os.Args[1:], os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if os.Getenv("E2E_UPDATE_CAPTURE") == "true" {
 		return json.NewEncoder(stdout).Encode(args)
 	}
@@ -35,34 +34,20 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		return fmt.Errorf("find executable: %w", err)
 	}
 	if len(args) == 0 {
-		return errors.New("usage: renovate-operators matrix|plan|config|run|record")
+		return errors.New("usage: renovate-operators matrix|config|run")
 	}
 	command := args[0]
 	args = args[1:]
-	if command == "run" || command == "record" {
+	if command == "run" {
 		if len(args) != 0 {
 			return fmt.Errorf("%s takes configuration from the CI environment", command)
 		}
-		opts, err := optionsFromEnvironment(ctx, command == "run")
+		opts, err := optionsFromEnvironment(ctx)
 		if err != nil {
 			return err
 		}
 		exec := executor{dir: opts.Root, env: os.Environ(), stdout: stdout, stderr: stderr}
-		if command == "run" {
-			return runUpdates(ctx, opts, binary, exec)
-		}
-		if err := checkArtifactDirectory(opts.Root, opts.Artifacts); err != nil {
-			return err
-		}
-		var plan updatePlan
-		if err := readJSONFile(filepath.Join(opts.Artifacts, "plan.json"), &plan); err != nil {
-			return err
-		}
-		candidate, err := prepareCandidate(ctx, opts.Root, plan, opts.BaseSHA)
-		if err != nil {
-			return err
-		}
-		return recordUpdate(ctx, opts, plan, candidate, exec)
+		return runUpdates(ctx, opts, binary, exec)
 	}
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -86,7 +71,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 		return json.NewEncoder(stdout).Encode(groups)
 	}
-	if command != "config" && command != "plan" {
+	if command != "config" {
 		return fmt.Errorf("unknown command %q", command)
 	}
 	if *base == "" {
@@ -96,14 +81,11 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if err != nil {
 		return err
 	}
-	var value any = plan
-	if command == "config" {
-		env := environment(os.Environ())
-		env["E2E_UPDATE_BASE_BRANCH"] = *base
-		value, err = renovateConfig(plan, env)
-		if err != nil {
-			return err
-		}
+	env := environment(os.Environ())
+	env["E2E_UPDATE_BASE_BRANCH"] = *base
+	value, err := renovateConfig(plan, env)
+	if err != nil {
+		return err
 	}
 	if *output != "" {
 		return writeJSONFile(*output, value)

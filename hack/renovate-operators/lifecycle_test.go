@@ -31,7 +31,7 @@ func TestRunMatrix(t *testing.T) {
 				t.Setenv("E2E_UPDATE_GROUP", "jobset")
 			}
 			var output, diagnostics bytes.Buffer
-			if err := run(t.Context(), test.args, strings.NewReader(""), &output, &diagnostics); err != nil {
+			if err := run(t.Context(), test.args, &output, &diagnostics); err != nil {
 				t.Fatal(err)
 			}
 			var actual []string
@@ -59,13 +59,13 @@ func TestRunErrors(t *testing.T) {
 		{"unexpectedArgument", []string{"matrix", "jobset"}, "unexpected arguments"},
 		{"unknownOperator", []string{"matrix", "--operator", "../jobset"}, "operator group"},
 		{"runArgument", []string{"run", "jobset"}, "CI environment"},
-		{"recordArgument", []string{"record", "jobset"}, "CI environment"},
+		{"removedPlan", []string{"plan"}, "unknown command"},
 		{"runOutsideCI", []string{"run"}, "GitHub Actions"},
-		{"recordOutsideCI", []string{"record"}, "GitHub Actions"},
+		{"removedRecord", []string{"record"}, "unknown command"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var output, diagnostics bytes.Buffer
-			err := run(t.Context(), test.args, strings.NewReader(""), &output, &diagnostics)
+			err := run(t.Context(), test.args, &output, &diagnostics)
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("run(%v) = %v, want error containing %q", test.args, err, test.want)
 			}
@@ -102,30 +102,22 @@ func TestOptionsFromEnvironment(t *testing.T) {
 	for key, value := range values {
 		t.Setenv(key, value)
 	}
-	for _, publish := range []bool{false, true} {
-		name := "record"
-		if publish {
-			name = "publish"
+	opts, err := optionsFromEnvironment(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Group != "jobset" || opts.BaseSHA != fixture.base || opts.Artifacts != artifacts || opts.Repository != "example/workload-map" {
+		t.Fatalf("unexpected CI options: %+v", opts)
+	}
+	for key := range values {
+		if key == "GITHUB_ACTIONS" {
+			continue
 		}
-		t.Run(name, func(t *testing.T) {
-			opts, err := optionsFromEnvironment(t.Context(), publish)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if opts.Group != "jobset" || opts.BaseSHA != fixture.base || opts.Artifacts != artifacts || opts.Repository != "example/workload-map" {
-				t.Fatalf("unexpected CI options: %+v", opts)
-			}
-			for key := range values {
-				if key == "GITHUB_ACTIONS" || !publish && (key == "RENOVATE_GIT_AUTHOR" || key == "E2E_OPERATOR_TRACKING_ISSUE" || key == "RENOVATE_TOKEN") {
-					continue
-				}
-				t.Run("missing_"+key, func(t *testing.T) {
-					t.Setenv(key, "")
-					_, err := optionsFromEnvironment(t.Context(), publish)
-					if err == nil || !strings.Contains(err.Error(), key) {
-						t.Fatalf("optionsFromEnvironment() = %v, want missing %s", err, key)
-					}
-				})
+		t.Run("missing_"+key, func(t *testing.T) {
+			t.Setenv(key, "")
+			_, err := optionsFromEnvironment(t.Context())
+			if err == nil || !strings.Contains(err.Error(), key) {
+				t.Fatalf("optionsFromEnvironment() = %v, want missing %s", err, key)
 			}
 		})
 	}

@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+rule_files:
+  - ../recording-rules.yaml
+evaluation_interval: 30s
+tests:
+  - name: Selected root without Pods keeps a root layout fallback
+    interval: 1m
+    input_series:
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter", namespace="ns", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+    promql_expr_test:
+      # dashboard-expression: workload-structure.json 4 layoutLeaves
+      - expr: &layout_leaves |-
+          ((label_join((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)")), "layout_path", "|", "namespace", "workload_uid", "component", "component_instance", "replica_group_id", "pod_name", "pod_uid")) or (label_replace(label_join((dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}) unless on (job, namespace, workload_uid) ((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))), "layout_path", "|", "namespace", "workload_uid"), "layout_path", "root|$1", "layout_path", "(.*)"))) * 0 + scalar(count((label_join((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)")), "layout_path", "|", "namespace", "workload_uid", "component", "component_instance", "replica_group_id", "pod_name", "pod_uid")) or (label_replace(label_join((dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}) unless on (job, namespace, workload_uid) ((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))), "layout_path", "|", "namespace", "workload_uid"), "layout_path", "root|$1", "layout_path", "(.*)"))) - 1) * 120
+        eval_time: 1m
+        exp_samples:
+          - labels: '{job="exporter", layout_path="root|ns|multi", namespace="ns", workload_name="root", workload_uid="multi"}'
+            value: 0
+      # dashboard-expression: workload-structure.json 4 layoutAncestors
+      - expr: &layout_ancestors |-
+          ((label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) * 0 + 0) * 180, "layout_path", "|", "namespace", "workload_uid", "component", "component_instance", "replica_group_id", "pod_name", "pod_uid"), "id", "|", "namespace", "workload_uid"), "id", "workload|$1", "id", "(.*)"), "layout_offset", "0", "", ".*")) or (label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", component!="", component!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) * 0 + 1) * 180, "layout_path", "|", "namespace", "workload_uid", "component", "component_instance", "replica_group_id", "pod_name", "pod_uid"), "id", "|", "namespace", "workload_uid", "component"), "id", "component|$1", "id", "(.*)"), "layout_offset", "0", "", ".*")) or (label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", component_instance!="", component_instance!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) * 0 + (1 + scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", component!="", component!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)))) * 180, "layout_path", "|", "namespace", "workload_uid", "component", "component_instance", "replica_group_id", "pod_name", "pod_uid"), "id", "|", "namespace", "workload_uid", "component", "component_instance"), "id", "instance|$1", "id", "(.*)"), "layout_offset", "0", "", ".*")) or (label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", replica_group_id!="", replica_group_id!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) * 0 + (1 + scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", component!="", component!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", component_instance!="", component_instance!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)))) * 180, "layout_path", "|", "namespace", "workload_uid", "component", "component_instance", "replica_group_id", "pod_name", "pod_uid"), "id", "|", "namespace", "workload_uid", "component", "component_instance", "replica_group_id"), "id", "group|$1", "id", "(.*)"), "layout_offset", "120", "", ".*")) or (label_replace(label_replace(label_join(label_join((((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) * 0 + (1 + scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", component!="", component!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", component_instance!="", component_instance!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", replica_group_id!="", replica_group_id!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)))) * 180, "layout_path", "|", "namespace", "workload_uid", "component", "component_instance", "replica_group_id", "pod_name", "pod_uid"), "id", "|", "namespace", "pod_uid"), "id", "pod|$1", "id", "(.*)"), "layout_offset", "0", "", ".*")) or (label_replace(label_replace(label_join((label_replace(label_join((dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}) unless on (job, namespace, workload_uid) ((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))), "layout_path", "|", "namespace", "workload_uid"), "layout_path", "root|$1", "layout_path", "(.*)")) * 0, "id", "|", "namespace", "workload_uid"), "id", "workload|$1", "id", "(.*)"), "layout_offset", "0", "", ".*"))) - (scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)) * (1 + scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", component!="", component!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", component_instance!="", component_instance!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)) + scalar((count((dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true", replica_group_id!="", replica_group_id!="<unknown>"}) unless on (job, namespace, pod_uid) (label_replace(dsx:workload:observed{job=~"exporter", namespace=~"ns", workload_uid=~"multi"}, "pod_uid", "$1", "workload_uid", "(.+)"))) > bool 0) or vector(0)))) * 90
+        eval_time: 1m
+        exp_samples:
+          - labels: '{id="workload|ns|multi", job="exporter", layout_offset="0", layout_path="root|ns|multi", namespace="ns", workload_name="root", workload_uid="multi"}'
+            value: 0
+  - name: Root Pod is excluded from children and keeps only the root fallback
+    interval: 1m
+    input_series:
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter", namespace="ns", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+      - series: 'dsx_workload_pod_info{component="self", component_instance="self", job="exporter", namespace="ns", observation_valid="true", pod_name="multi", pod_uid="multi", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+    promql_expr_test:
+      - expr: *layout_leaves
+        eval_time: 1m
+        exp_samples:
+          - labels: '{job="exporter", layout_path="root|ns|multi", namespace="ns", workload_name="root", workload_uid="multi"}'
+            value: 0
+      - expr: *layout_ancestors
+        eval_time: 1m
+        exp_samples:
+          - labels: '{id="workload|ns|multi", job="exporter", layout_offset="0", layout_path="root|ns|multi", namespace="ns", workload_name="root", workload_uid="multi"}'
+            value: 0
+  - name: Reused group0 stays distinct across components and instances
+    interval: 1m
+    input_series:
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter", namespace="ns", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+      - series: 'dsx_workload_pod_info{component="train", component_instance="i0", job="exporter", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+      - series: 'dsx_workload_pod_info{component="train", component_instance="i0", job="exporter", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+      - series: 'dsx_workload_pod_info{component="train", component_instance="i1", job="exporter", namespace="ns", observation_valid="true", pod_name="p3", pod_uid="p3", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+      - series: 'dsx_workload_pod_info{component="serve", component_instance="i0", job="exporter", namespace="ns", observation_valid="true", pod_name="p4", pod_uid="p4", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+    promql_expr_test:
+      - expr: *layout_leaves
+        eval_time: 1m
+        exp_samples:
+          - labels: '{component="train", component_instance="i0", job="exporter", layout_path="ns|multi|train|i0|group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 360
+          - labels: '{component="train", component_instance="i0", job="exporter", layout_path="ns|multi|train|i0|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 360
+          - labels: '{component="train", component_instance="i1", job="exporter", layout_path="ns|multi|train|i1|group0|p3|p3", namespace="ns", observation_valid="true", pod_name="p3", pod_uid="p3", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 360
+          - labels: '{component="serve", component_instance="i0", job="exporter", layout_path="ns|multi|serve|i0|group0|p4|p4", namespace="ns", observation_valid="true", pod_name="p4", pod_uid="p4", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 360
+      - expr: *layout_ancestors
+        eval_time: 1m
+        exp_samples:
+          - labels: '{component="train", component_instance="i0", id="workload|ns|multi", job="exporter", layout_offset="0", layout_path="ns|multi|train|i0|group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -360
+          - labels: '{component="train", component_instance="i0", id="pod|ns|p1", job="exporter", layout_offset="0", layout_path="ns|multi|train|i0|group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 360
+          - labels: '{component="train", component_instance="i0", id="component|ns|multi|train", job="exporter", layout_offset="0", layout_path="ns|multi|train|i0|group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -180
+          - labels: '{component="train", component_instance="i0", id="instance|ns|multi|train|i0", job="exporter", layout_offset="0", layout_path="ns|multi|train|i0|group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 0
+          - labels: '{component="train", component_instance="i0", id="group|ns|multi|train|i0|group0", job="exporter", layout_offset="120", layout_path="ns|multi|train|i0|group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 180
+          - labels: '{component="train", component_instance="i0", id="workload|ns|multi", job="exporter", layout_offset="0", layout_path="ns|multi|train|i0|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -360
+          - labels: '{component="train", component_instance="i0", id="pod|ns|p2", job="exporter", layout_offset="0", layout_path="ns|multi|train|i0|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 360
+          - labels: '{component="train", component_instance="i0", id="component|ns|multi|train", job="exporter", layout_offset="0", layout_path="ns|multi|train|i0|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -180
+          - labels: '{component="train", component_instance="i0", id="instance|ns|multi|train|i0", job="exporter", layout_offset="0", layout_path="ns|multi|train|i0|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 0
+          - labels: '{component="train", component_instance="i0", id="group|ns|multi|train|i0|group0", job="exporter", layout_offset="120", layout_path="ns|multi|train|i0|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 180
+          - labels: '{component="train", component_instance="i1", id="workload|ns|multi", job="exporter", layout_offset="0", layout_path="ns|multi|train|i1|group0|p3|p3", namespace="ns", observation_valid="true", pod_name="p3", pod_uid="p3", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -360
+          - labels: '{component="train", component_instance="i1", id="pod|ns|p3", job="exporter", layout_offset="0", layout_path="ns|multi|train|i1|group0|p3|p3", namespace="ns", observation_valid="true", pod_name="p3", pod_uid="p3", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 360
+          - labels: '{component="train", component_instance="i1", id="component|ns|multi|train", job="exporter", layout_offset="0", layout_path="ns|multi|train|i1|group0|p3|p3", namespace="ns", observation_valid="true", pod_name="p3", pod_uid="p3", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -180
+          - labels: '{component="train", component_instance="i1", id="instance|ns|multi|train|i1", job="exporter", layout_offset="0", layout_path="ns|multi|train|i1|group0|p3|p3", namespace="ns", observation_valid="true", pod_name="p3", pod_uid="p3", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 0
+          - labels: '{component="train", component_instance="i1", id="group|ns|multi|train|i1|group0", job="exporter", layout_offset="120", layout_path="ns|multi|train|i1|group0|p3|p3", namespace="ns", observation_valid="true", pod_name="p3", pod_uid="p3", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 180
+          - labels: '{component="serve", component_instance="i0", id="workload|ns|multi", job="exporter", layout_offset="0", layout_path="ns|multi|serve|i0|group0|p4|p4", namespace="ns", observation_valid="true", pod_name="p4", pod_uid="p4", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -360
+          - labels: '{component="serve", component_instance="i0", id="pod|ns|p4", job="exporter", layout_offset="0", layout_path="ns|multi|serve|i0|group0|p4|p4", namespace="ns", observation_valid="true", pod_name="p4", pod_uid="p4", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 360
+          - labels: '{component="serve", component_instance="i0", id="component|ns|multi|serve", job="exporter", layout_offset="0", layout_path="ns|multi|serve|i0|group0|p4|p4", namespace="ns", observation_valid="true", pod_name="p4", pod_uid="p4", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -180
+          - labels: '{component="serve", component_instance="i0", id="instance|ns|multi|serve|i0", job="exporter", layout_offset="0", layout_path="ns|multi|serve|i0|group0|p4|p4", namespace="ns", observation_valid="true", pod_name="p4", pod_uid="p4", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 0
+          - labels: '{component="serve", component_instance="i0", id="group|ns|multi|serve|i0|group0", job="exporter", layout_offset="120", layout_path="ns|multi|serve|i0|group0|p4|p4", namespace="ns", observation_valid="true", pod_name="p4", pod_uid="p4", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 180
+  - name: Missing and unknown levels compact to root group and Pod
+    interval: 1m
+    input_series:
+      - series: 'dsx_workload_created_timestamp_seconds{job="exporter", namespace="ns", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+      - series: 'dsx_workload_pod_info{job="exporter", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+      - series: 'dsx_workload_pod_info{component="<unknown>", component_instance="<unknown>", job="exporter", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+        values: 1x1
+    promql_expr_test:
+      - expr: *layout_leaves
+        eval_time: 1m
+        exp_samples:
+          - labels: '{job="exporter", layout_path="ns|multi|||group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 120
+          - labels: '{component="<unknown>", component_instance="<unknown>", job="exporter", layout_path="ns|multi|<unknown>|<unknown>|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 120
+      - expr: *layout_ancestors
+        eval_time: 1m
+        exp_samples:
+          - labels: '{id="workload|ns|multi", job="exporter", layout_offset="0", layout_path="ns|multi|||group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -180
+          - labels: '{id="pod|ns|p1", job="exporter", layout_offset="0", layout_path="ns|multi|||group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 180
+          - labels: '{id="group|ns|multi|||group0", job="exporter", layout_offset="120", layout_path="ns|multi|||group0|p1|p1", namespace="ns", observation_valid="true", pod_name="p1", pod_uid="p1", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 0
+          - labels: '{component="<unknown>", component_instance="<unknown>", id="workload|ns|multi", job="exporter", layout_offset="0", layout_path="ns|multi|<unknown>|<unknown>|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: -180
+          - labels: '{component="<unknown>", component_instance="<unknown>", id="pod|ns|p2", job="exporter", layout_offset="0", layout_path="ns|multi|<unknown>|<unknown>|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 180
+          - labels: '{component="<unknown>", component_instance="<unknown>", id="group|ns|multi|<unknown>|<unknown>|group0", job="exporter", layout_offset="120", layout_path="ns|multi|<unknown>|<unknown>|group0|p2|p2", namespace="ns", observation_valid="true", pod_name="p2", pod_uid="p2", replica_group_id="group0", workload_name="root", workload_uid="multi"}'
+            value: 0

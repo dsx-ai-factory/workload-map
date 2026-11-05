@@ -27,7 +27,8 @@ history and collection failures. Expand the detail sections when needed.
 ## Inside one workload
 
 [Import Workload Structure](workload-structure.json). Select one workload by UID.
-Follow its components, instances, groups and Pods in the graph. Nodes show maximum
+Read the graph from top to bottom: workload, components, instances, groups, then
+Pods. Empty levels are skipped. Use zoom and pan for larger trees. Nodes show maximum
 measured GPU utilization and GPU memory used. Graph VRAM values use GB (decimal
 gigabytes). Click a node for CPU, RAM consumption and identity details. RAM is
 container working-set memory, shown in MiB. Grafana opens these details on click, not hover.

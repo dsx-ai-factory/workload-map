@@ -134,10 +134,13 @@ def check_fixture_expressions():
                     break
                 block.append(value.strip())
             entries.append((*match.groups(), " ".join(block)))
-    assert len(entries) == 16, "Expected core, node-resource, shared-device and observer fixtures"
+    assert len(entries) == 18, "Expected core, node-resource, layout, shared-device and observer fixtures"
     assert {(filename, panel_id, ref_id) for filename, panel_id, ref_id, _ in entries} >= {
         ("workload-overview.json", str(panel_id), "A") for panel_id in (302, 303, 304, 305, 310)
     }, "Every observer summary card needs a bound query fixture"
+    assert {(filename, panel_id, ref_id) for filename, panel_id, ref_id, _ in entries} >= {
+        ("workload-structure.json", "4", ref_id) for ref_id in ("layoutLeaves", "layoutAncestors")
+    }, "Both layout queries need a bound fixture"
     for filename, panel_id, ref_id, expression in entries:
         dashboard = json.loads((ROOT / filename).read_text())
         panel = next(obj for obj in objects(dashboard) if obj.get("id") == int(panel_id))

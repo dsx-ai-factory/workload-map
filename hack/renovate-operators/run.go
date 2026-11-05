@@ -220,11 +220,14 @@ func recordPullRequest(ctx context.Context, opts updateOptions, plan updatePlan,
 		delete(env, key)
 	}
 	record.env = environmentList(env)
-	if err := recordUpdate(ctx, opts, record); err != nil {
+	if err := checkArtifactDirectory(opts.Root, opts.Artifacts); err != nil {
 		return err
 	}
-	var candidate candidate
-	if err := readJSONFile(filepath.Join(opts.Artifacts, "candidate.json"), &candidate); err != nil {
+	candidate, err := prepareCandidate(ctx, opts.Root, plan, opts.BaseSHA)
+	if err != nil {
+		return err
+	}
+	if err := recordUpdate(ctx, opts, plan, candidate, record); err != nil {
 		return err
 	}
 	if err := commitRecordings(ctx, opts, candidate, record); err != nil {

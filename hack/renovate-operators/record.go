@@ -14,18 +14,7 @@ import (
 	"time"
 )
 
-func recordUpdate(ctx context.Context, opts updateOptions, exec executor) (result error) {
-	if err := checkArtifactDirectory(opts.Root, opts.Artifacts); err != nil {
-		return err
-	}
-	var plan updatePlan
-	if err := readJSONFile(filepath.Join(opts.Artifacts, "plan.json"), &plan); err != nil {
-		return err
-	}
-	candidate, err := prepareCandidate(ctx, opts.Root, plan, opts.BaseSHA)
-	if err != nil {
-		return err
-	}
+func recordUpdate(ctx context.Context, opts updateOptions, plan updatePlan, candidate candidate, exec executor) (result error) {
 	if err := writeJSONFile(filepath.Join(opts.Artifacts, "candidate.json"), candidate); err != nil {
 		return err
 	}

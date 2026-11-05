@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 )
 
@@ -50,7 +51,18 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		if command == "run" {
 			return runUpdates(ctx, opts, binary, exec)
 		}
-		return recordUpdate(ctx, opts, exec)
+		if err := checkArtifactDirectory(opts.Root, opts.Artifacts); err != nil {
+			return err
+		}
+		var plan updatePlan
+		if err := readJSONFile(filepath.Join(opts.Artifacts, "plan.json"), &plan); err != nil {
+			return err
+		}
+		candidate, err := prepareCandidate(ctx, opts.Root, plan, opts.BaseSHA)
+		if err != nil {
+			return err
+		}
+		return recordUpdate(ctx, opts, plan, candidate, exec)
 	}
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(stderr)

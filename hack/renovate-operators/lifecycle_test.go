@@ -168,9 +168,6 @@ func TestRecordPullRequestLifecycle(t *testing.T) {
 			if err := os.Mkdir(artifacts, 0o755); err != nil {
 				t.Fatal(err)
 			}
-			if err := writeJSONFile(filepath.Join(artifacts, "plan.json"), plan); err != nil {
-				t.Fatal(err)
-			}
 			installTestCommands(t, map[string]string{
 				"git": `#!/bin/sh
 set -eu
@@ -240,10 +237,25 @@ if [ "$1" = run ] && [ "$TEST_FAIL_STAGE" = verify ]; then exit 1; fi
 				t.Setenv(variable, "caller-override")
 			}
 			opts := updateOptions{Root: fixture.root, Group: "example", BaseSHA: fixture.base, Artifacts: artifacts, RunnerTemp: temp, RunID: "1", RunAttempt: "2", RunURL: "https://example.com/run", Author: verificationAuthor, Repository: "example/repo"}
+			expected, err := prepareCandidate(t.Context(), fixture.root, plan, fixture.base)
+			if err != nil {
+				t.Fatal(err)
+			}
 			var output, diagnostics bytes.Buffer
 			err = recordPullRequest(t.Context(), opts, plan, head, executor{dir: fixture.root, env: os.Environ(), stdout: &output, stderr: &diagnostics})
 			if test.want == "" && err != nil || test.want != "" && (err == nil || !strings.Contains(err.Error(), test.want)) {
 				t.Fatalf("recordPullRequest() = %v, want %q\nstdout: %s\nstderr: %s", err, test.want, output.String(), diagnostics.String())
+			}
+			data, readErr := os.ReadFile(filepath.Join(artifacts, "candidate.json"))
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			var recorded candidate
+			if err := json.Unmarshal(data, &recorded); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(recorded, expected) {
+				t.Fatalf("candidate evidence = %#v, want %#v", recorded, expected)
 			}
 			calls, readErr := os.ReadFile(filepath.Join(artifacts, "commands.log"))
 			if readErr != nil {
@@ -287,7 +299,7 @@ if [ "$1" = run ] && [ "$TEST_FAIL_STAGE" = verify ]; then exit 1; fi
 			if test.want != "" {
 				return
 			}
-			data, err := os.ReadFile(filepath.Join(fixture.root, verificationRecording))
+			data, err = os.ReadFile(filepath.Join(fixture.root, verificationRecording))
 			if err != nil {
 				t.Fatal(err)
 			}

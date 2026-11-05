@@ -231,6 +231,13 @@ If Prometheus Operator and its ServiceMonitor CRD are already installed, enable
 exporter's namespace, selecting its Service and named `metrics` port. It does
 not install Prometheus Operator, Prometheus or their CRDs.
 
+The ServiceMonitor sets `honorLabels: true`. The exporter's `namespace` label is
+the workload's namespace, and it must not be replaced by the namespace of the
+exporter Pod. Without it, Prometheus moves the value to `exported_namespace`.
+Series without their own `namespace`, such as Go runtime metrics, keep the
+exporter Pod's namespace. If you write your own ServiceMonitor or scrape
+configuration, set the same option.
+
 Prometheus must select the ServiceMonitor's namespace and labels through
 `serviceMonitorNamespaceSelector` and `serviceMonitorSelector`. For example,
 if its selector requires `release: prometheus`, use:

@@ -19,6 +19,9 @@ spec:
   endpoints:
     - port: metrics
       path: /metrics
+      # The exporter's namespace label names the workload's namespace. Without this,
+      # Prometheus renames it to exported_namespace and sets the exporter's own.
+      honorLabels: true
       {{- with $monitor.interval }}
       interval: {{ . | quote }}
       {{- end }}

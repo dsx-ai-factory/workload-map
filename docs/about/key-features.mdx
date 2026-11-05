@@ -1,0 +1,73 @@
+---
+title: Key Features of Workload Map
+sidebar-title: Key Features
+description: Learn about the key features of NVIDIA Workload Map, including declarative workload definitions, a common status vocabulary, a catalog of pre-built definitions, and the kli CLI.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+Workload Map offers the following key features, grouped by what they help you do.
+
+## Describe and Read Workloads
+
+| Feature | Description |
+| --- | --- |
+| Describe any workload type | A declarative definition maps the pod specifications, scaling parameters, and status fields of a workload with JQ path expressions. You do not write per-type code. |
+| One API to read and change workloads | The Go library extracts pod templates, replica counts, status, and metadata. It also updates pod specs, labels, and annotations through the same calls for every workload type. |
+| Pod attribution | The library traverses the workload hierarchy to identify the pods of each component and group them. |
+| Workload tree | The full hierarchy of a workload, with its structure, scale, specs, and status. The CLI and the Headlamp plugin render the same tree. |
+
+## Common Status Vocabulary
+
+The native conditions of each workload map to one set of statuses. The suspend and resume statuses let a definition describe workloads that can be paused.
+
+| Group | Statuses |
+| --- | --- |
+| Starting and running | Initializing, Running |
+| Finished | Completed, Failed |
+| Needs attention | Degraded, Undefined |
+| Pausing | Suspending, Suspended, Resuming |
+
+## Scheduling
+
+| Feature | Description |
+| --- | --- |
+| Gang scheduling instructions | A definition can tell a scheduler how to group the pods of a workload. KAI Scheduler uses these instructions as a fallback for workload types that have no native plugin. |
+
+## Definitions
+
+| Feature | Description |
+| --- | --- |
+| Catalog of pre-built definitions | The catalog includes 23 tested definitions for common workload types, such as JobSet, PyTorchJob, MPIJob, RayCluster, LeaderWorkerSet, KServe, NVIDIA NIM, NVIDIA Dynamo, and Grove. |
+| Definition validation | The library, the `kli validate` command, and the operator admission webhook check a definition. The webhook also rejects a second definition for the same group, version, and kind. |
+
+## Run and Visualize
+
+| Feature | Description |
+| --- | --- |
+| Operator and Helm chart | The operator validates definitions on admission and upgrades the CRD through a Helm chart hook. A FIPS 140-3 mode is available for the operator. |
+| Headlamp plugin | A workloads page in Headlamp shows any workload type through the Workload Map engine. The engine runs in the browser as WebAssembly, so no server-side component is needed. |
+
+## Developer Tools
+
+Workload Map provides the following tools for developers.
+
+### CLI Tools
+
+The `kli` command-line tool inspects workloads through their definitions. It supports table, JSON, and YAML output and shell completion. It has four commands.
+
+| Command | Description |
+| --- | --- |
+| `get` | Lists workloads. |
+| `describe` | Shows the resolved structure and status of a workload, or of a manifest that you have not yet submitted. |
+| `definitions` | Lists the definitions from the built-in catalog and the cluster, or outputs one definition by name. |
+| `validate` | Checks a definition file. |
+
+### APIs and SDKs
+
+| Component | Description |
+| --- | --- |
+| Go library | The `karta/sdk` module evaluates definitions, extracts and updates workload information, and builds the workload tree. |
+| Karta CRD | The `Karta` custom resource kind in the `run.ai/v1alpha1` API group stores the definition of a workload type in a cluster. |
+| WebAssembly engine | The `karta-wasm` module compiles the engine to WebAssembly so that it can run in a browser. |

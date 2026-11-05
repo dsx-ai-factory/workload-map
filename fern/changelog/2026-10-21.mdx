@@ -1,0 +1,44 @@
+---
+tags: ["cli","headlamp-plugin","catalog","operator","fips","breaking-change"]
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+## Workload Map v0.3
+
+Workload Map v0.3 adds the `kli` CLI, a Headlamp plugin, and a generated catalog of 23 workload definitions. It also adds an admission webhook, a CRD upgrade hook in the Helm chart, and FIPS 140-3 runtime support for the operator. A recorded end-to-end test suite now replays offline. The CRD schema is unchanged.
+
+<Warning title="Breaking change from version 0.3">
+
+The Go library moved into a nested module, so Go consumers must update their import paths. Upgrading the old module path to v0.3 fails to build.
+
+</Warning>
+
+### Breaking Changes
+
+- The Go library is now the `karta/sdk` module, published as `github.com/dsx-ai-factory/workload-map/karta/sdk`. Change your `require` line and rewrite imports from `github.com/dsx-ai-factory/workload-map/pkg/...` to `github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/...`.
+- The chart and the operator image are now published under `ghcr.io/dsx-ai-factory/workload-map/` instead of `ghcr.io/run-ai/karta/`. Update any pinned automation.
+- The `docs/samples/` directory is replaced by `docs/catalog/`, which is generated from the Go definitions. File names now follow the group, version, and kind of the workload, such as `leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml`. Update links to the old sample paths.
+
+### New Features
+
+- **CLI:** The `kli` CLI inspects workloads through any definition with the `get`, `describe`, `definitions`, and `validate` commands. It supports table, JSON, and YAML output, shell completion, a config file, and distinguishable exit codes. It is released as signed archives and a Homebrew cask.
+- **Headlamp plugin:** A workloads page for Headlamp resolves any workload type through the Workload Map engine compiled to WebAssembly, with no server-side component.
+- **Catalog:** Definitions are now Go code in `pkg/catalog`, generated into `docs/catalog/`. The catalog ships 23 definitions, including KServe `LLMInferenceService` and the SIG Agent Sandbox, which supports suspend and resume.
+- **Admission webhook:** The operator validates definitions on admission, stamps group, version, and kind labels, and rejects a second definition for the same group, version, and kind. The root component kind is immutable.
+- **CRD upgrade hook:** The Helm chart upgrades the CRD through a hook.
+- **FIPS 140-3:** The operator image links the Go FIPS 140-3 cryptographic module, and `global.fipsMode` selects the runtime mode.
+- **End-to-end testing:** Every catalog definition ships with a recorded flow against the real controller, and the recordings replay offline in CI as a regression suite.
+
+### Bug Fixes
+
+- Parse numeric strings when extracting scale.
+- Compare the result of a `byExpression` status mapping to the expected value directly.
+- Make the workloads table filters work in the Headlamp plugin.
+
+### Compatibility
+
+- Kubernetes: Built against `k8s.io/api` v0.37.1. End-to-end tests run on kind v1.34.0, and controller tests run on envtest 1.31.0.
+- Go: 1.27.3 or later.
+- Helm: 3.14 or later.

@@ -292,17 +292,23 @@ it with the group interval. This is device busy time apportioned equally, not
 allocated time.
 
 While these rules are in use, add `gpu_uuid=""` to the selectors in sections 3
-and 4 so a reservation Pod is not attributed as a tenant workload. A consumer Pod
-that has terminated but still exists keeps its group label and would be paid a
-share; an optional fourth rule, `name: pod_phase`,
-`metrics: [dsx_workload_pod_info]`, `sources: [pod]`,
-`expression: has(object.status) && has(object.status.phase) ? object.status.phase : ""`,
-lets the rule set exclude Succeeded and Failed Pods. For several clusters in one backend, use the cluster-aware variant in the
-same directory, which carries `cluster` in every matching key. Multi-device
-fractional Pods carry one `runai-gpu-group/<id>` label per device, and MIG
-devices have their own identity; both are out of scope here. A sharing stack that
-exposes its own Pod-to-device series, keyed by Pod UID and GPU UUID, can replace
-the reservation Pod step: join it on `UUID`, then on `pod_uid`.
+and 4. That keeps a reservation Pod from being attributed as a tenant workload.
+
+A consumer Pod that has terminated but still exists keeps its group label, so it
+would be paid a share. An optional fourth label rule excludes Succeeded and
+Failed Pods: `name: pod_phase`, `metrics: [dsx_workload_pod_info]`,
+`sources: [pod]`, and the expression
+`has(object.status) && has(object.status.phase) ? object.status.phase : ""`.
+
+For several clusters in one backend, use the cluster-aware variant in the same
+directory. It carries `cluster` in every matching key.
+
+Two shapes are out of scope here. Multi-device fractional Pods carry one
+`runai-gpu-group/<id>` label per device, and MIG devices have their own identity.
+
+A sharing stack that exposes its own Pod-to-device series, keyed by Pod UID and
+GPU UUID, can replace the reservation Pod step: join it on `UUID`, then on
+`pod_uid`.
 
 ## 4. Low observed GPU activity over five minutes
 

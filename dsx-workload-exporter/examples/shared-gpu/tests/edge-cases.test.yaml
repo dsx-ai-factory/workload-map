@@ -1,0 +1,552 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Edge cases: one group value on two nodes, ambiguous device and group pairs, missing,
+# invalid or index-only reservation rows, churn with and without staleness markers,
+# duplicate scrapes, and conservation of device time in hourly sums.
+
+rule_files:
+  - ../shared-gpu-rules.yaml
+evaluation_interval: 30s
+
+tests:
+  - name: one gpu_group value on two nodes is two sharing groups, each attributed on its own node
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-n1",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-bbbb",gpu="0",Hostname="node-2",namespace="kai-resource-reservation",pod="gpu-reservation-n2",pod_uid="res-2"}'
+        values: '60x12'
+      # The scheduler reused the group value: one reservation Pod per node, each on its own device.
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-n1",pod_uid="res-1",workload_name="gpu-reservation-n1",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-n2",pod_uid="res-2",workload_name="gpu-reservation-n2",workload_version="v1",workload_kind="Pod",workload_uid="res-2",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-2",gpu_uuid="GPU-bbbb"}'
+        values: '1x12'
+      # One consumer on node-1 and two on node-2, all with the same group value.
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-1",pod_uid="r-1",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-2"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-2",pod_uid="r-2",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-2"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_device:group
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_device:group{UUID="GPU-aaaa",gpu_group="g-1",node="node-1"}'
+            value: 1
+          - labels: 'dsx:shared_gpu_device:group{UUID="GPU-bbbb",gpu_group="g-1",node="node-2"}'
+            value: 1
+      - expr: dsx:shared_gpu_device:ambiguous
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-1"}'
+            value: 1
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-2"}'
+            value: 2
+      # Each consumer receives the device of its own node: 40 alone on node-1, 60 split in two on node-2.
+      - expr: dsx:shared_gpu_util:equal_share
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 40
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-bbbb",namespace="team-b",pod_name="runner-1",pod_uid="r-1",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-2"}'
+            value: 30
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-bbbb",namespace="team-b",pod_name="runner-2",pod_uid="r-2",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-2"}'
+            value: 30
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 2m
+        exp_samples: []
+
+  - name: two reservation rows for one gpu_group and node are quarantined and the other group keeps working
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-old",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-bbbb",gpu="1",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-new",pod_uid="res-2"}'
+        values: '80x12'
+      # A reservation swap caught mid-way: the old and the new reservation Pod of the group
+      # are both present on the node, each naming a different device.
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-old",pod_uid="res-1",workload_name="gpu-reservation-old",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-new",pod_uid="res-2",workload_name="gpu-reservation-new",workload_version="v1",workload_kind="Pod",workload_uid="res-2",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-bbbb"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-cccc",gpu="1",Hostname="node-3",namespace="kai-resource-reservation",pod="gpu-reservation-n3",pod_uid="res-3"}'
+        values: '10x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-n3",pod_uid="res-3",workload_name="gpu-reservation-n3",workload_version="v1",workload_kind="Pod",workload_uid="res-3",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-9",node="node-3",gpu_uuid="GPU-cccc"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-c",pod_name="solo-0",pod_uid="s-0",workload_name="solo",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="solo-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-9",node="node-3"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_device:group
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_device:group{UUID="GPU-cccc",gpu_group="g-9",node="node-3"}'
+            value: 1
+      - expr: dsx:shared_gpu_device:ambiguous
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_device:ambiguous{UUID="GPU-aaaa",gpu_group="g-1",node="node-1"}'
+            value: 1
+          - labels: 'dsx:shared_gpu_device:ambiguous{UUID="GPU-bbbb",gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_util:by_consumer
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:by_consumer{UUID="GPU-cccc",namespace="team-c",pod_name="solo-0",pod_uid="s-0",workload_name="solo",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="solo-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-9",node="node-3"}'
+            value: 10
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:unmapped_consumers{gpu_group="g-1",node="node-1"}'
+            value: 1
+
+  - name: one device under two groups during a reservation swap is quarantined
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-new",pod_uid="res-2"}'
+        values: '40x12'
+      # Old reservation row still valid for minutes 0 to 3, then a staleness marker.
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-old",pod_uid="res-1",workload_name="gpu-reservation-old",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x3 stale'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-new",pod_uid="res-2",workload_name="gpu-reservation-new",workload_version="v1",workload_kind="Pod",workload_uid="res-2",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-2",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-2",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_device:ambiguous
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_device:ambiguous{UUID="GPU-aaaa",gpu_group="g-1",node="node-1"}'
+            value: 1
+          - labels: 'dsx:shared_gpu_device:ambiguous{UUID="GPU-aaaa",gpu_group="g-2",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_util:by_consumer
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:unmapped_consumers{gpu_group="g-2",node="node-1"}'
+            value: 1
+      # After the old row goes stale the device is attributed to the new group.
+      - expr: dsx:shared_gpu_device:ambiguous
+        eval_time: 5m
+        exp_samples: []
+      - expr: dsx:shared_gpu_util:equal_share
+        eval_time: 5m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-2",node="node-1"}'
+            value: 40
+
+  - name: a consumer with unknown component keeps its share and the device value is conserved
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="helper-0",pod_uid="h-0",workload_name="helper",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="helper-1",owner_resolution="resolved",component="<unknown>",component_instance="<unknown>",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-1"}'
+            value: 2
+      - expr: sum by (UUID) (dsx:shared_gpu_util:equal_share)
+        eval_time: 2m
+        exp_samples:
+          - labels: '{UUID="GPU-aaaa"}'
+            value: 40
+      - expr: dsx:shared_gpu_util:equal_share{component="<unknown>"}
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",namespace="team-b",pod_name="helper-0",pod_uid="h-0",workload_name="helper",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="helper-1",owner_resolution="resolved",component="<unknown>",component_instance="<unknown>",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 20
+
+  - name: consumers without a reservation row are reported as unmapped
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_util:by_consumer
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_device:unattributed
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:unmapped_consumers{gpu_group="g-1",node="node-1"}'
+            value: 1
+
+  - name: an invalid reservation row leaves the group reported as unmapped
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="false",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_device:candidate
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:unmapped_consumers{gpu_group="g-1",node="node-1"}'
+            value: 1
+
+  - name: a mapped device without a DCGM series is reported as unmeasured
+    interval: 1m
+    input_series:
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_util:by_consumer
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_device:unmeasured
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_device:unmeasured{UUID="GPU-aaaa",gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_device:unattributed
+        eval_time: 2m
+        exp_samples: []
+
+  - name: duplicate DCGM scrapes collapse to one UUID row and churn without a marker lingers for the lookback
+    interval: 1m
+    input_series:
+      # Two scrapes of the same device, slightly different sample values.
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",instance="10.0.0.1:9400",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x4 _x8'
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",instance="10.0.0.9:9400",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '45x4 _x8'
+      # After the reboot the device comes back on another index with a new scrape target.
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="3",Hostname="node-1",instance="10.0.0.2:9400",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '_x5 0x7'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      # Only UUID survives on the device side; the consumer row supplies every other label.
+      - expr: dsx:shared_gpu_util:device
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:device{UUID="GPU-aaaa",gpu_group="g-1",node="node-1"}'
+            value: 45
+      - expr: dsx:shared_gpu_util:by_consumer
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:by_consumer{UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 45
+      # Minute 8: new series says 0, old samples from minute 4 still inside the 5m lookback.
+      - expr: dsx:shared_gpu_util:device
+        eval_time: 8m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:device{UUID="GPU-aaaa",gpu_group="g-1",node="node-1"}'
+            value: 45
+      # Minute 10: old samples are outside the lookback, the new series alone counts.
+      - expr: dsx:shared_gpu_util:device
+        eval_time: 10m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:device{UUID="GPU-aaaa",gpu_group="g-1",node="node-1"}'
+            value: 0
+
+  - name: a terminated consumer with a pod_phase label no longer dilutes the running one
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa",pod_phase="Running"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1",pod_phase="Running"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="batch-0",pod_uid="b-0",workload_name="batch",workload_group="batch",workload_version="v1",workload_kind="Job",workload_uid="job-1",owner_resolution="resolved",component="job",observation_valid="true",gpu_group="g-1",node="node-1",pod_phase="Succeeded"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_util:equal_share
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1",pod_phase="Running"}'
+            value: 40
+
+  - name: churn windows, with and without staleness markers
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x14'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x14'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x14'
+      # Leaves at minute 4 and the scrape writes a staleness marker (the normal case).
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-1",pod_uid="r-1",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x4 stale'
+      # Leaves at minute 4 with no marker (exporter target vanished): lookback keeps it.
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-2",pod_uid="r-2",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x4'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 4m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-1"}'
+            value: 3
+      # Minute 5: the marked series is gone, the unmarked one still counts.
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 5m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-1"}'
+            value: 2
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 8m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-1"}'
+            value: 2
+      # Minute 9: the minute-4 sample is exactly 5m old and falls outside the left-open lookback.
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 9m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_util:equal_share{pod_name="runner-0"}
+        eval_time: 8m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 20
+      - expr: dsx:shared_gpu_util:equal_share{pod_name="runner-0"}
+        eval_time: 9m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 40
+
+  - name: a deleted reservation Pod leaves its consumers unmapped until they leave too
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x4 stale'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x6 stale'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_util:by_consumer
+        eval_time: 5m
+        exp_samples: []
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 5m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:unmapped_consumers{gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 7m
+        exp_samples: []
+
+  - name: hourly GPU-hours from equal_share with staleness markers is conserved
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x60'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x60'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x60'
+      # Second consumer leaves at minute 30 with a staleness marker.
+      - series: 'dsx_workload_pod_info{namespace="team-c",pod_name="short-0",pod_uid="s-0",workload_name="short",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="short-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x30 stale'
+    promql_expr_test:
+      # 120 samples at 30s in (0, 60m]. GPU-hours = sum / 100 percent / 120 samples per hour.
+      # The input is scraped every 1m, so the leaving Pod is still visible to one extra
+      # 30s evaluation: short-0 gets 61 samples at 20 (1220), runner-0 gets 61 at 20 and
+      # 59 at 40 (3580). That one-sample lag is the scrape interval, not the lookback.
+      - expr: |
+          sum by (namespace, workload_name, workload_uid) (
+            sum_over_time(dsx:shared_gpu_util:equal_share[1h])
+          ) / 12000
+        eval_time: 60m
+        exp_samples:
+          - labels: '{namespace="team-b",workload_name="runner-pool",workload_uid="pool-1"}'
+            value: 0.29833333333333334
+          - labels: '{namespace="team-c",workload_name="short",workload_uid="short-1"}'
+            value: 0.10166666666666667
+      # Device time over the hour: 40 percent for 60 min = 0.4 GPU-hours. Shares add up.
+      - expr: sum(sum_over_time(dsx:shared_gpu_util:equal_share[1h])) / 12000
+        eval_time: 60m
+        exp_samples:
+          - labels: '{}'
+            value: 0.4
+
+  - name: without a staleness marker a departed consumer keeps earning for the lookback, twice under a subquery
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x60'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x60'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x60'
+      # Leaves at minute 30, no marker.
+      - series: 'dsx_workload_pod_info{namespace="team-c",pod_name="short-0",pod_uid="s-0",workload_name="short",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="short-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x30'
+    promql_expr_test:
+      # Raw range: the rule keeps producing rows while the input is inside its lookback
+      # (minutes 30.5 to 34.5): 69 samples at 20 instead of 60.
+      - expr: sum_over_time(dsx:shared_gpu_util:equal_share{pod_name="short-0"}[1h])
+        eval_time: 60m
+        exp_samples:
+          - labels: '{UUID="GPU-aaaa",namespace="team-c",pod_name="short-0",pod_uid="s-0",workload_name="short",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="short-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 1380
+      # Subquery: no second lookback stacks on top. The rule manager writes a staleness
+      # marker for a series that leaves the rule output, so the subquery sees the same
+      # 69 samples as the raw range. Only the input-side ghost remains.
+      - expr: sum_over_time(dsx:shared_gpu_util:equal_share{pod_name="short-0"}[1h:30s])
+        eval_time: 60m
+        exp_samples:
+          - labels: '{UUID="GPU-aaaa",namespace="team-c",pod_name="short-0",pod_uid="s-0",workload_name="short",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="short-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 1380
+      # The device total is still conserved under the raw range: the ghost share is taken
+      # from the remaining consumer, not invented.
+      - expr: sum(sum_over_time(dsx:shared_gpu_util:equal_share[1h])) / 12000
+        eval_time: 60m
+        exp_samples:
+          - labels: '{}'
+            value: 0.4
+
+  - name: whole-GPU queries are unchanged for Pods that never had the sharing labels
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-bbbb",gpu="1",Hostname="node-1",namespace="team-a",pod="train-0",pod_uid="train-1"}'
+        values: '90x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-a",pod_name="train-0",pod_uid="train-1",workload_name="train",workload_group="batch",workload_version="v1",workload_kind="Job",workload_uid="job-1",owner_resolution="resolved",component="job",observation_valid="true",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      # Section 3 without the extra selector attributes the device to the reservation Pod as a workload.
+      - expr: |
+          DCGM_FI_DEV_GPU_UTIL{namespace!="",pod_uid!=""}
+          * on (namespace, pod_uid)
+            group_left (workload_group, workload_version, workload_kind, workload_name, workload_uid,
+                        owner_resolution, component, component_instance, replica_group_id)
+            dsx:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>"}
+        eval_time: 2m
+        exp_samples:
+          - labels: '{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_version="v1",workload_kind="Pod",workload_name="gpu-reservation-1a2b3c4d",workload_uid="res-1",owner_resolution="resolved",component="pod"}'
+            value: 40
+          - labels: '{UUID="GPU-bbbb",gpu="1",Hostname="node-1",namespace="team-a",pod="train-0",pod_uid="train-1",workload_group="batch",workload_version="v1",workload_kind="Job",workload_name="train",workload_uid="job-1",owner_resolution="resolved",component="job"}'
+            value: 90
+      # With gpu_uuid="" the reservation row is excluded and the whole-GPU Pod is unchanged.
+      - expr: |
+          DCGM_FI_DEV_GPU_UTIL{namespace!="",pod_uid!=""}
+          * on (namespace, pod_uid)
+            group_left (workload_group, workload_version, workload_kind, workload_name, workload_uid,
+                        owner_resolution, component, component_instance, replica_group_id)
+            dsx:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>",gpu_uuid=""}
+        eval_time: 2m
+        exp_samples:
+          - labels: '{UUID="GPU-bbbb",gpu="1",Hostname="node-1",namespace="team-a",pod="train-0",pod_uid="train-1",workload_group="batch",workload_version="v1",workload_kind="Job",workload_name="train",workload_uid="job-1",owner_resolution="resolved",component="job"}'
+            value: 90
+      # Section 4 shape (status join omitted): the max_over_time path behaves the same way.
+      - expr: |
+          max by (namespace, workload_group, workload_version, workload_kind, workload_name, workload_uid,
+                  owner_resolution, component, component_instance, replica_group_id) (
+            max_over_time(DCGM_FI_DEV_GPU_UTIL{namespace!="",pod_uid!=""}[5m])
+            * on (namespace, pod_uid)
+              group_left (workload_group, workload_version, workload_kind, workload_name, workload_uid,
+                          owner_resolution, component, component_instance, replica_group_id)
+              dsx:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>",gpu_uuid=""}
+          )
+        eval_time: 6m
+        exp_samples:
+          - labels: '{namespace="team-a",workload_group="batch",workload_version="v1",workload_kind="Job",workload_name="train",workload_uid="job-1",owner_resolution="resolved",component="job"}'
+            value: 90
+      # A consumer row matches gpu_uuid="" but has no DCGM row with its pod_uid: nothing to join.
+      - expr: |
+          DCGM_FI_DEV_GPU_UTIL{namespace!="",pod_uid!=""}
+          * on (namespace, pod_uid)
+            group_left (workload_name)
+            dsx:pod_attribution:unique{observation_valid="true",gpu_uuid="",gpu_group!=""}
+        eval_time: 2m
+        exp_samples: []
+
+  - name: an explicitly empty gpu_uuid label from any source is dropped at ingestion and still matches gpu_uuid=""
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      # A source that emits an explicit gpu_uuid="" label: ingestion drops the empty
+      # label, so the consumer selector gpu_uuid="" still matches.
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid=""}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:pod_attribution:unique{pod_name="runner-0"}
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:pod_attribution:unique{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_util:equal_share
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 40
+
+  - name: a reservation row whose annotation is a device index, not a UUID, leaves the group unmapped
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="3",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      # The annotation holds the device index instead of the UUID: no candidate row is produced
+      # and the row is not a consumer either.
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="3"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_device:candidate
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_device:ambiguous
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_util:by_consumer
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:unmapped_consumers{gpu_group="g-1",node="node-1"}'
+            value: 1

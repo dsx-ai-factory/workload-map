@@ -73,8 +73,8 @@ func ExampleComponent_GetScale() {
 	if err != nil {
 		panic(err)
 	}
-	if scale, ok := scales[""]; ok && scale.Replicas == nil {
-		fmt.Println("missing replicas field: scale available, replicas unset")
+	if scale, ok := scales[""]; !ok || scale.Replicas != nil {
+		panic("expected a scale entry with unset replicas for .spec.missing")
 	}
 
 	// A malformed JQ expression is returned as a typed execution error.

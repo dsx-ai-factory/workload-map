@@ -292,7 +292,9 @@ it with the group interval. This is device busy time apportioned equally, not
 allocated time.
 
 While these rules are in use, add `gpu_uuid=""` to the selectors in sections 3
-and 4. That keeps a reservation Pod from being attributed as a tenant workload.
+and 4, and exclude the reservation namespace by name as well. A reservation Pod
+carries no UUID until its annotation appears, so the namespace term is what keeps
+it from being attributed as a tenant workload in the meantime.
 
 A consumer Pod that has terminated but still exists keeps its group label, so it
 would be paid a share. An optional fourth label rule excludes Succeeded and
@@ -319,13 +321,18 @@ replicas and workload failures observed in the window.
 
 Reservation Pods may hold GPUs at low activity by design. Exclude them from tenant
 idleness decisions through the [selection settings](configuration.md#selection),
-or add `gpu_uuid=""` to the selector below once the section 3a rules are in use.
+or, once the section 3a rules are in use, add `gpu_uuid=""` to the selector below
+together with a namespace exclusion for the reservation namespace
+(`kai-resource-reservation` by default). The namespace term matters because a
+reservation Pod carries no UUID until its annotation appears.
 Either way, this query does not see the consumers of a shared device. Their DCGM
 series carry the reservation Pod's identity, so the Pod UID join never reaches them.
 To test shared consumers, replace the `DCGM_FI_DEV_GPU_UTIL` join inside the first
-`max by` with `max_over_time(dsx:shared_gpu_util:by_consumer[5m])` and keep the
-status guards. That series repeats the device value for every consumer and carries
-the consumer's attribution labels. A low value means the whole device was quiet.
+`max by` with `max_over_time(dsx:shared_gpu_util:by_consumer[5m]) and
+dsx:shared_gpu_util:by_consumer`, and keep the status guards. The `and` keeps only
+consumers whose mapping is current, so a stale sample cannot outlive its mapping.
+That series repeats the device value for every consumer and carries the consumer's
+attribution labels. A low value means the whole device was quiet.
 Do not use `dsx:shared_gpu_util:equal_share` for idleness; the split understates
 activity. Filtering Pods also limits how much of the workload the query observes.
 

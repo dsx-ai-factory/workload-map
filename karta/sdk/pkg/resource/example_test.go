@@ -49,8 +49,8 @@ func ExampleComponent_GetScale() {
 		fmt.Println("no scale definition: scaling not supported")
 	}
 
-	// A configured path that does not match the workload still produces a scale
-	// entry; its Replicas value is nil because the field is absent.
+	// With the configured .spec.missing expression, GetScale returns a scale
+	// entry whose Replicas value is nil because that workload field is absent.
 	withMissingReplicas := &v1alpha1.Karta{
 		Spec: v1alpha1.KartaSpec{
 			StructureDefinition: v1alpha1.StructureDefinition{

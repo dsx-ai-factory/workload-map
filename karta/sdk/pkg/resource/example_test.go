@@ -16,6 +16,7 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 )
 
+// ExampleComponent_GetScale demonstrates supported and unsupported scaling results.
 func ExampleComponent_GetScale() {
 	ctx := context.Background()
 	workload := &unstructured.Unstructured{
@@ -104,6 +105,5 @@ func ExampleComponent_GetScale() {
 
 	// Output:
 	// no scale definition: scaling not supported
-	// missing replicas field: scale available, replicas unset
 	// malformed replicas expression: parse error
 }

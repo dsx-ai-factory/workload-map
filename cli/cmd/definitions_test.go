@@ -220,16 +220,29 @@ var _ = Describe("kli definitions", func() {
 			Expect(decodeKartas(yamlOut)).To(Equal(decodeKartas(jsonOut)))
 		})
 
-		It("rejects wide, which the root enum accepts for other commands", func() {
-			_, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide"})
-			Expect(exitStatus(err)).To(Equal(ExitUsage))
-			// The flag lists what this command renders, so wide never parses here.
-			Expect(err.Error()).To(ContainSubstring("must be one of table, json, yaml"))
+		It("adds API versions to wide table output", func() {
+			stdout, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide"})
+			Expect(err).NotTo(HaveOccurred())
+
+			header := strings.Fields(strings.SplitN(stdout, "\n", 2)[0])
+			Expect(header).To(Equal([]string{"NAME", "KIND", "APIVERSION", "ORIGIN", "COMPONENTS"}))
+			Expect(stdout).To(ContainSubstring("apps/v1"))
+
+			var coreRow []string
+			for _, line := range strings.Split(stdout, "\n") {
+				fields := strings.Fields(line)
+				if len(fields) > 0 && fields[0] == "core-pod-v1" {
+					coreRow = fields
+					break
+				}
+			}
+			Expect(coreRow).To(HaveLen(5))
+			Expect(coreRow[2]).To(Equal("v1"))
 		})
 
 		It("rejects an unsupported format before reading the cluster", func() {
 			getter := &countingGetter{RESTClientGetter: noClusterGetter()}
-			_, _, err := runDefinitions(getter, []string{"-o", "wide"})
+			_, _, err := runDefinitions(getter, []string{"-o", "unsupported"})
 			Expect(exitStatus(err)).To(Equal(ExitUsage))
 			// A format the command cannot render must cost no round trip.
 			Expect(getter.calls).To(BeZero())
@@ -335,6 +348,7 @@ var _ = Describe("definitionRows over a merged resolver", func() {
 		Expect(definitionRows(resolver.List())).To(Equal([]definitionRow{{
 			Name:       "cluster-pytorch",
 			Kind:       "PyTorchJob",
+			APIVersion: "kubeflow.org/v1",
 			Origin:     string(definitions.OriginCluster),
 			Components: []string{"pytorchjob", "runner"},
 		}}))

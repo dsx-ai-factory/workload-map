@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# Cluster-aware variant of shared-gpu-rules.yaml for backends that hold several
+# clusters. Every input carries a cluster label (see "Several clusters in one backend"
+# in queries.md) and cluster is part of every on() and by() list. The required labels
+# on dsx_workload_pod_info are gpu_group, gpu_uuid and node; pod_phase is optional.
+# shared-gpu-rules.yaml explains what each rule does.
+
+groups:
+  - name: dsx-shared-gpu-attribution
+    interval: 30s
+    rules:
+      - record: dsx:pod_attribution:unique
+        expr: |
+          max by (cluster, namespace, pod_name, pod_uid, workload_name, workload_group, workload_version,
+                  workload_kind, workload_uid, owner_resolution, component, component_instance,
+                  replica_group_id, observation_valid, gpu_group, gpu_uuid, node, pod_phase) (
+            dsx_workload_pod_info
+          )
+          and on (cluster, namespace, pod_name)
+          (count by (cluster, namespace, pod_name) (
+            group by (cluster, namespace, pod_name, pod_uid, workload_name, workload_group, workload_version,
+                      workload_kind, workload_uid, owner_resolution, component, component_instance,
+                      replica_group_id, observation_valid, gpu_group, gpu_uuid, node, pod_phase) (
+              dsx_workload_pod_info
+            )
+          ) == 1)
+
+      - record: dsx:shared_gpu_device:candidate
+        expr: |
+          max by (cluster, UUID, gpu_group, node) (
+            label_replace(
+              dsx:pod_attribution:unique{observation_valid="true",gpu_group!="",gpu_uuid=~"GPU-.+"},
+              "UUID", "$1", "gpu_uuid", "(GPU-.+)"
+            )
+          )
+
+      - record: dsx:shared_gpu_device:group
+        expr: |
+          dsx:shared_gpu_device:candidate
+          and on (cluster, gpu_group, node)
+            (count by (cluster, gpu_group, node) (dsx:shared_gpu_device:candidate) == 1)
+          and on (cluster, UUID)
+            (count by (cluster, UUID) (dsx:shared_gpu_device:candidate) == 1)
+
+      - record: dsx:shared_gpu_device:ambiguous
+        expr: |
+          dsx:shared_gpu_device:candidate
+          unless on (cluster, UUID, gpu_group, node)
+            dsx:shared_gpu_device:group
+
+      - record: dsx:shared_gpu_group:consumers
+        expr: |
+          count by (cluster, gpu_group, node) (
+            dsx:pod_attribution:unique{observation_valid="true",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
+          )
+
+      - record: dsx:shared_gpu_util:device
+        expr: |
+          max by (cluster, UUID) (DCGM_FI_DEV_GPU_UTIL)
+          * on (cluster, UUID) group_left (gpu_group, node)
+            dsx:shared_gpu_device:group
+
+      - record: dsx:shared_gpu_util:by_consumer
+        expr: |
+          dsx:shared_gpu_util:device
+          * on (cluster, gpu_group, node) group_right (UUID)
+            dsx:pod_attribution:unique{observation_valid="true",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
+
+      - record: dsx:shared_gpu_util:equal_share
+        expr: |
+          dsx:shared_gpu_util:by_consumer
+          / on (cluster, gpu_group, node) group_left
+            dsx:shared_gpu_group:consumers
+
+      - record: dsx:shared_gpu_device:unattributed
+        expr: |
+          dsx:shared_gpu_device:group
+          unless on (cluster, gpu_group, node)
+            dsx:shared_gpu_group:consumers
+
+      - record: dsx:shared_gpu_group:unmapped_consumers
+        expr: |
+          dsx:shared_gpu_group:consumers
+          unless on (cluster, gpu_group, node)
+            dsx:shared_gpu_device:group
+
+      - record: dsx:shared_gpu_device:unmeasured
+        expr: |
+          dsx:shared_gpu_device:group
+          unless on (cluster, UUID)
+            dsx:shared_gpu_util:device

@@ -319,9 +319,15 @@ replicas and workload failures observed in the window.
 
 Reservation Pods may hold GPUs at low activity by design. Exclude them from tenant
 idleness decisions through the [selection settings](configuration.md#selection),
-or attribute their devices to the consumers with section 3a and add `gpu_uuid=""`
-to the selector below. Filtering Pods also limits how much of the workload the
-query observes.
+or add `gpu_uuid=""` to the selector below once the section 3a rules are in use.
+Either way, this query does not see the consumers of a shared device. Their DCGM
+series carry the reservation Pod's identity, so the Pod UID join never reaches them.
+To test shared consumers, replace the `DCGM_FI_DEV_GPU_UTIL` join inside the first
+`max by` with `max_over_time(dsx:shared_gpu_util:by_consumer[5m])` and keep the
+status guards. That series repeats the device value for every consumer and carries
+the consumer's attribution labels. A low value means the whole device was quiet.
+Do not use `dsx:shared_gpu_util:equal_share` for idleness; the split understates
+activity. Filtering Pods also limits how much of the workload the query observes.
 
 ```promql
 (

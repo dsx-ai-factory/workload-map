@@ -180,18 +180,25 @@ served below a URL subpath. Live playground checks also cover completed-workload
 history and all three activity filters. Screenshots show playground workloads
 with real cAdvisor CPU/memory and simulated GPU data.
 
-On 2026-11-07, a physical A100 run used upstream exporter `90ad091244b0` and
-native DCGM. All 69 panel queries succeeded during active, quiet and recovered
-activity. Workload, component and Pod values matched native readings of 97%,
-0% and 97%, joined by the exact Pod UID. CUDA completed successfully, and DSX
-reported Completed. The separate observer reported Active, Low activity after
-its observation window, then Active again. Discovery diagnostics remained
-visible for unavailable resource types.
+On 2026-11-07 UTC, A100 checks used Kubernetes 1.35.9, upstream exporter
+`90ad091244b0`, DCGM Exporter 4.8.4 and DRA driver 0.5.0. The completed modes
+below verified CUDA execution, exact Pod UID
+attribution, native activity, allocation release and all 69 panel queries.
 
-PromQL fixtures cover full-GPU percent and MIG profiling ratios, DRA samples
-with Pod UIDs, claim-only rejection and conflicting measurements. The A100 run
-did not exercise MIG or DRA allocation. Fixtures do not establish hardware or
-allocation support.
+| Mode | Hardware checks |
+| --- | --- |
+| Device-plugin full GPU | Verified. |
+| DRA full GPU | Verified, including claim/device identity and queued-consumer handoff. |
+| Device-plugin static MIG | Verified with two `3g.20gb` partitions, preserved MIG instance IDs, correct workload maximum and VRAM sum. |
+| DRA static MIG | Not completed. Scheduler/API failure prevented CUDA execution. |
+
+The separate observer completed Active -> Low activity -> Active in both
+full-GPU modes. Static MIG sustained Low activity was not verified because
+input timeouts reset its observation window. DCGM and the observer poll
+independently, so transition samples can differ.
+
+PromQL fixtures cover MIG ratios, missing profiling, claim-only rejection and
+conflicting measurements. They do not establish hardware or allocation support.
 
 From this directory:
 

@@ -1,0 +1,183 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+rule_files:
+- ../recording-rules.yaml
+evaluation_interval: 30s
+tests:
+- name: Full GPU and native DRA MIG activity keep entity units and reject ambiguous readings
+  interval: 1m
+  input_series:
+  - series: up{job="exporter"}
+    values: '1x4'
+  - series: up{job="dcgm"}
+    values: '1x2 0 1'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="full",pod_uid="full",workload_name="root",workload_uid="multi",component="full",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="active",pod_uid="active",workload_name="root",workload_uid="multi",component="active",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="quiet",pod_uid="quiet",workload_name="root",workload_uid="multi",component="quiet",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="high",pod_uid="high",workload_name="root",workload_uid="multi",component="high",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="negative",pod_uid="negative",workload_name="root",workload_uid="multi",component="negative",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="conflict",pod_uid="conflict",workload_name="root",workload_uid="multi",component="conflict",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="claimonly",pod_uid="claimonly",workload_name="root",workload_uid="multi",component="claimonly",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="nouuid",pod_uid="nouuid",workload_name="root",workload_uid="multi",component="nouuid",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="noinstance",pod_uid="noinstance",workload_name="root",workload_uid="multi",component="noinstance",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="nan",pod_uid="nan",workload_name="root",workload_uid="multi",component="nan",component_instance="i0",observation_valid="true"}
+    values: '1x4'
+  - series: DCGM_FI_DEV_GPU_UTIL{job="dcgm",namespace="ns",pod_uid="full",UUID="gpu-full",gpu="0",dra_claim_name="full-claim",dra_device_name="gpu-0",dra_claim_namespace="ns",dra_driver_name="gpu.nvidia.com",dra_pool_name="pool-a"}
+    values: '37 0 50 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",namespace="ns",pod_uid="full",UUID="gpu-full",gpu="0"}
+    values: '0.99x2 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",instance="a",namespace="ns",pod_uid="active",UUID="gpu-mig",gpu="1",GPU_I_ID="1",GPU_CI_ID="0",dra_claim_name="active-claim",dra_device_name="mig-1",dra_mig_device_uuid="MIG-active",dra_mig_profile="3g.20gb",dra_claim_namespace="ns",dra_driver_name="gpu.nvidia.com",dra_pool_name="pool-a"}
+    values: '0.8 0 1 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",instance="b",namespace="ns",pod_uid="active",UUID="gpu-mig",gpu="1",GPU_I_ID="1",GPU_CI_ID="0",dra_claim_name="active-claim",dra_device_name="mig-1",dra_mig_device_uuid="MIG-active",dra_mig_profile="3g.20gb",dra_claim_namespace="ns",dra_driver_name="gpu.nvidia.com",dra_pool_name="pool-a"}
+    values: '0.8 0 1 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",namespace="ns",pod_uid="active",UUID="gpu-mig",gpu="1",GPU_I_ID="1",GPU_CI_ID="1"}
+    values: '0.3 0 0.4 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",namespace="ns",pod_uid="quiet",UUID="gpu-mig",gpu="1",GPU_I_ID="2",GPU_CI_ID="0",dra_claim_name="quiet-claim",dra_device_name="mig-2",dra_mig_device_uuid="MIG-quiet",dra_mig_profile="3g.20gb",dra_claim_namespace="ns",dra_driver_name="gpu.nvidia.com",dra_pool_name="pool-a"}
+    values: '0x2 stale'
+  - series: DCGM_FI_DEV_GPU_UTIL{job="dcgm",namespace="ns",pod_uid="active",UUID="gpu-mig",gpu="1",GPU_I_ID=""}
+    values: '99x2 stale'
+  - series: DCGM_FI_DEV_GPU_UTIL{job="dcgm",namespace="ns",pod_uid="quiet",UUID="gpu-mig",gpu="1",GPU_I_ID=""}
+    values: '99x2 stale'
+  - series: DCGM_FI_DEV_GPU_UTIL{job="dcgm",namespace="ns",pod_uid="active",UUID="gpu-mig",gpu="1",GPU_I_ID="1"}
+    values: '99x2 stale'
+  - series: DCGM_FI_DEV_GPU_UTIL{job="dcgm",namespace="ns",pod_uid="quiet",UUID="gpu-mig",gpu="1",GPU_I_ID="2"}
+    values: '99x2 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",namespace="ns",pod_uid="high",UUID="gpu-high",GPU_I_ID="1",GPU_CI_ID="0"}
+    values: '1.01x2 stale'
+  - series: DCGM_FI_DEV_GPU_UTIL{job="dcgm",namespace="ns",pod_uid="high",UUID="gpu-high"}
+    values: '99x2 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",namespace="ns",pod_uid="negative",UUID="gpu-negative",GPU_I_ID="1",GPU_CI_ID="0"}
+    values: '-0.01x2 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",namespace="ns",pod_uid="nan",UUID="gpu-nan",GPU_I_ID="1",GPU_CI_ID="0"}
+    values: 'NaN NaN NaN stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",instance="a",namespace="ns",pod_uid="conflict",UUID="gpu-conflict",GPU_I_ID="1",GPU_CI_ID="0"}
+    values: '0.4x2 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",instance="b",namespace="ns",pod_uid="conflict",UUID="gpu-conflict",GPU_I_ID="1",GPU_CI_ID="0"}
+    values: '0.5x2 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",namespace="ns",pod="claimonly",UUID="gpu-claimonly",GPU_I_ID="1",GPU_CI_ID="0",dra_claim_name="claimonly-claim",dra_device_name="mig-3",dra_claim_namespace="ns",dra_driver_name="gpu.nvidia.com",dra_pool_name="pool-a"}
+    values: '0.99x2 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",namespace="ns",pod_uid="nouuid",GPU_I_ID="1",GPU_CI_ID="0"}
+    values: '0.99x2 stale'
+  - series: DCGM_FI_PROF_GR_ENGINE_ACTIVE{job="dcgm",namespace="ns",pod_uid="noinstance",UUID="gpu-noinstance",GPU_CI_ID="0"}
+    values: '0.99x2 stale'
+  promql_expr_test:
+  # dashboard-expression: workload-overview.json 24 A
+  - expr: &components |-
+      (max by (namespace, workload_name, workload_uid, component, component_instance) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""})))) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""})))) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid, component, component_instance) (dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_name=~".*", observation_valid="true", component=~".*", component_instance=~".*"}))) and on () (min(up{job=~"exporter"}) == 1) and on () (min(up{job=~"dcgm"}) == 1)
+    eval_time: 0m
+    exp_samples:
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi",component="full",component_instance="i0"}'
+      value: 37
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi",component="active",component_instance="i0"}'
+      value: 80
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi",component="quiet",component_instance="i0"}'
+      value: 0
+  - expr: *components
+    eval_time: 1m
+    exp_samples:
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi",component="full",component_instance="i0"}'
+      value: 0
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi",component="active",component_instance="i0"}'
+      value: 0
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi",component="quiet",component_instance="i0"}'
+      value: 0
+  - expr: *components
+    eval_time: 2m
+    exp_samples:
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi",component="full",component_instance="i0"}'
+      value: 50
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi",component="active",component_instance="i0"}'
+      value: 100
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi",component="quiet",component_instance="i0"}'
+      value: 0
+  - expr: *components
+    eval_time: 3m
+    exp_samples: []
+  - expr: *components
+    eval_time: 4m
+    exp_samples: []
+  # dashboard-expression: workload-structure.json 9 A
+  - expr: &history |-
+      (max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID!=""}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID!=""})))) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID!=""}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", GPU_I_ID!=""})))) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_uid=~"multi", observation_valid="true"}))) and on () (min(up{job=~"exporter"}) == 1) and on () (min(up{job=~"dcgm"}) == 1)
+    eval_time: 0m
+    exp_samples:
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi"}'
+      value: 80
+  - expr: *history
+    eval_time: 1m
+    exp_samples:
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi"}'
+      value: 0
+  - expr: *history
+    eval_time: 2m
+    exp_samples:
+    - labels: '{namespace="ns",workload_name="root",workload_uid="multi"}'
+      value: 100
+  - expr: *history
+    eval_time: 3m
+    exp_samples: []
+  - expr: *history
+    eval_time: 4m
+    exp_samples: []
+  # dashboard-expression: workload-overview.json 801 A
+  - expr: &count |-
+      count((max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""})))) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID=""} unless on (namespace, pod_uid, UUID) {__name__=~"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED", job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~"dcgm", namespace=~"ns", pod_uid!="", UUID!="", UUID=~".*", GPU_I_ID!=""})))) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~"exporter", namespace=~"ns", workload_name=~".*", observation_valid="true"}))) and on () (min(up{job=~"exporter"}) == 1) and on () (min(up{job=~"dcgm"}) == 1))
+    eval_time: 0m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: *count
+    eval_time: 1m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: *count
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: *count
+    eval_time: 3m
+    exp_samples: []
+  - expr: *count
+    eval_time: 4m
+    exp_samples: []
+- name: Missing MIG profiling cannot fall back to parent utilization
+  interval: 1m
+  input_series:
+  - series: up{job="exporter"}
+    values: '1'
+  - series: up{job="dcgm"}
+    values: '1'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="active",pod_uid="active",workload_name="root",workload_uid="multi",component="active",component_instance="i0",observation_valid="true"}
+    values: '1'
+  - series: dsx_workload_pod_info{job="exporter",namespace="ns",pod_name="quiet",pod_uid="quiet",workload_name="root",workload_uid="multi",component="quiet",component_instance="i0",observation_valid="true"}
+    values: '1'
+  - series: DCGM_FI_DEV_GPU_UTIL{job="dcgm",namespace="ns",pod_uid="active",UUID="gpu-mig",gpu="0"}
+    values: '99'
+  - series: DCGM_FI_DEV_GPU_UTIL{job="dcgm",namespace="ns",pod_uid="active",UUID="gpu-mig",gpu="0",GPU_I_ID="1",GPU_CI_ID="0"}
+    values: '99'
+  - series: DCGM_FI_DEV_GPU_UTIL{job="dcgm",namespace="ns",pod_uid="quiet",UUID="gpu-mig",gpu="0"}
+    values: '99'
+  - series: DCGM_FI_DEV_FB_USED{job="dcgm",namespace="ns",pod_uid="quiet",UUID="gpu-mig",gpu="0",GPU_I_ID="2"}
+    values: '256'
+  promql_expr_test:
+  - expr: *components
+    eval_time: 0m
+    exp_samples: []
+  - expr: *history
+    eval_time: 0m
+    exp_samples: []
+  - expr: *count
+    eval_time: 0m
+    exp_samples: []

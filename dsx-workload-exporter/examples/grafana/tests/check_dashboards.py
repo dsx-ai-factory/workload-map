@@ -60,7 +60,9 @@ def check(filename, uid):
             assert variable["datasource"] == DATASOURCE, (filename, variable["name"])
     if filename != "metric-samples.json":
         assert variables["namespace"]["multi"] is True, filename
+        assert "DCGM_FI_PROF_GR_ENGINE_ACTIVE" in variables["dcgm_job"]["definition"], filename
     if filename == "workload-overview.json":
+        assert "DCGM_FI_PROF_GR_ENGINE_ACTIVE" in variables["gpu_device"]["definition"], filename
         activity_view = variables["activity_view"]
         assert activity_view["type"] == "custom", filename
         assert not activity_view.get("multi") and not activity_view.get("includeAll"), filename
@@ -134,7 +136,7 @@ def check_fixture_expressions():
                     break
                 block.append(value.strip())
             entries.append((*match.groups(), " ".join(block)))
-    assert len(entries) == 18, "Expected core, node-resource, layout, shared-device and observer fixtures"
+    assert len(entries) == 21, "Expected core, node-resource, layout, GPU activity, shared-device and observer fixtures"
     assert {(filename, panel_id, ref_id) for filename, panel_id, ref_id, _ in entries} >= {
         ("workload-overview.json", str(panel_id), "A") for panel_id in (302, 303, 304, 305, 310)
     }, "Every observer summary card needs a bound query fixture"

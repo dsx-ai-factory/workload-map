@@ -29,7 +29,7 @@ history and collection failures. Expand the detail sections when needed.
 [Import Workload Structure](workload-structure.json). Select one workload by UID.
 Read the graph from top to bottom: workload, components, instances, groups, then
 Pods. Empty levels are skipped. Use zoom and pan for larger trees. Nodes show maximum
-measured GPU utilization and GPU memory used. Graph VRAM values use GB (decimal
+measured GPU activity and GPU memory used. Graph VRAM values use GB (decimal
 gigabytes). Click a node for CPU, RAM consumption and identity details. RAM is
 container working-set memory, shown in MiB. Grafana opens these details on click, not hover.
 Status and phase history follow the graph. GPU, VRAM, CPU and RAM history remain
@@ -102,13 +102,29 @@ clusters, adapt the rules and joins as described in
 | Source | Required labels | Meaning |
 | --- | --- | --- |
 | cAdvisor | Workload `namespace`, `pod` and `container` | CPU cores averaged over five minutes; working-set memory in bytes |
-| DCGM Exporter | Workload `namespace`, nonempty `pod_uid` and GPU device identity | Maximum measured GPU utilization; framebuffer use converted from MiB to bytes |
+| DCGM Exporter | Workload `namespace`, nonempty `pod_uid` and GPU device identity | Maximum measured GPU activity; framebuffer use converted from MiB to bytes |
 
 Enable DCGM's Pod UID mapping as described in the
 [GPU query guide](../../../docs/dsx-workload-exporter/queries.md#3-gpu-measurements-by-pod-uid).
 Use one external source job and one measurement stream per container or GPU
 entity after source deduplication. cAdvisor joins retain their
 [Pod-name reuse and rate-window limits](../../../docs/dsx-workload-exporter/queries.md#2-cpu-and-memory-by-component-instance-and-group).
+
+Full GPUs use `DCGM_FI_DEV_GPU_UTIL` in percent. MIG instances use
+`DCGM_FI_PROF_GR_ENGINE_ACTIVE`, a ratio multiplied by 100 for display.
+These measure different forms of activity. Configure DCGM to collect the
+profiling metric on hardware that supports it. MIG samples need `GPU_I_ID`;
+`GPU_CI_ID` is retained when DCGM reports compute-instance measurements.
+A parent GPU utilization row is excluded when the same Pod and physical UUID
+have MIG activity or framebuffer samples. Missing profiling samples are not
+replaced with parent utilization or zero.
+See [DCGM entity labels and metric support](https://docs.nvidia.com/datacenter/dcgm/latest/reference/dcgm-exporter-metrics.html).
+
+DRA measurements use the same Pod UID join when DCGM supplies workload
+`namespace` and `pod_uid`. Claim labels alone are insufficient. These dashboards
+do not resolve ResourceClaims or verify allocated device counts. They exclude
+claim-only samples without a Pod UID. Shared claims and GPU sharing do not
+establish per-process usage or complete workload telemetry here.
 
 VRAM use is GPU framebuffer memory reported by the matched GPU devices. Shared device
 rows count once within each graph node or workload, including MIG entity identity.
@@ -121,8 +137,8 @@ rejected mappings remain unavailable.
 
 Active, Low activity and Warming come from a separate observer's
 `workload_gpu_observer_*` metrics. Neither DSX nor DCGM Exporter supplies these
-states. The observer is not installed by these examples. Without it, activity
-panels stay unavailable; GPU utilization, VRAM and the DSX panels still work.
+states. The observer is not installed by these examples. Without it, observer
+panels stay unavailable; measured GPU activity, VRAM and the DSX panels still work.
 
 The activity panels require a successful observer scrape and samples newer than
 45 seconds. The observer must label samples with `namespace`, `workload`,
@@ -162,8 +178,20 @@ Tested with Grafana 13.2.4, Prometheus/promtool 3.14.0 and Kubernetes 1.34.0 on
 Kind, including imports, panel queries, graph details, workload links and Grafana
 served below a URL subpath. Live playground checks also cover completed-workload
 history and all three activity filters. Screenshots show playground workloads
-with real cAdvisor CPU/memory and simulated GPU data. Physical GPU collection
-was not tested.
+with real cAdvisor CPU/memory and simulated GPU data.
+
+On 2026-11-07, a physical A100 run used upstream exporter `90ad091244b0` and
+native DCGM. All 69 panel queries succeeded during active, quiet and recovered
+activity. Workload, component and Pod values matched native readings of 97%,
+0% and 97%, joined by the exact Pod UID. CUDA completed successfully, and DSX
+reported Completed. The separate observer reported Active, Low activity after
+its observation window, then Active again. Discovery diagnostics remained
+visible for unavailable resource types.
+
+PromQL fixtures cover full-GPU percent and MIG profiling ratios, DRA samples
+with Pod UIDs, claim-only rejection and conflicting measurements. The A100 run
+did not exercise MIG or DRA allocation. Fixtures do not establish hardware or
+allocation support.
 
 From this directory:
 

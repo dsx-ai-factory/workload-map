@@ -213,10 +213,10 @@
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_DEV_FB_USED\"}, job)",
+          "query": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\"}, job)",
           "refId": "StandardVariableQuery"
         },
-        "definition": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_DEV_FB_USED\"}, job)",
+        "definition": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\"}, job)",
         "refresh": 1,
         "sort": 1,
         "multi": false,
@@ -234,10 +234,10 @@
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\"}, UUID)",
+          "query": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\"}, UUID)",
           "refId": "StandardVariableQuery"
         },
-        "definition": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\"}, UUID)",
+        "definition": "label_values({__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\"}, UUID)",
         "refresh": 2,
         "sort": 1,
         "multi": true,
@@ -336,7 +336,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Workload UIDs with accepted measured GPU utilization. This is not a count of requested or allocated GPUs. Maximum measured device utilization, not allocated capacity or idleness. Requires DCGM namespace, nonempty pod_uid and UUID. Out-of-range samples and conflicting device streams are rejected. Open a workload for component and Pod attribution.",
+      "description": "Workload UIDs with accepted measured GPU activity. This is not a count of requested or allocated GPUs. Maximum measured GPU activity. Full GPUs use GPU_UTIL percent; MIG instances use GR_ENGINE_ACTIVE multiplied by 100. These are different activity measures. Requires DCGM namespace, nonempty pod_uid and UUID. MIG rows retain GPU_I_ID and any GPU_CI_ID. Out-of-range samples and conflicting device streams are rejected. This is not allocated capacity or idleness.",
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
@@ -368,7 +368,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "count((max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_name=~\"${workload:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1))",
+          "expr": "count((max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"})))) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"})))) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_name=~\"${workload:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -384,7 +384,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Maximum measured device utilization, not allocated capacity or idleness. Requires DCGM namespace, nonempty pod_uid and UUID. Out-of-range samples and conflicting device streams are rejected. Open a workload for component and Pod attribution.",
+      "description": "Maximum measured GPU activity. Full GPUs use GPU_UTIL percent; MIG instances use GR_ENGINE_ACTIVE multiplied by 100. These are different activity measures. Requires DCGM namespace, nonempty pod_uid and UUID. MIG rows retain GPU_I_ID and any GPU_CI_ID. Out-of-range samples and conflicting device streams are rejected. This is not allocated capacity or idleness.",
       "fieldConfig": {
         "defaults": {
           "max": 100,
@@ -408,7 +408,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_name=~\"${workload:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
+          "expr": "(max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"})))) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"})))) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_name=~\"${workload:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -416,7 +416,7 @@
           "legendFormat": "{{namespace}} / {{workload_name}} / {{workload_uid}}"
         }
       ],
-      "title": "GPU utilization by workload / maximum measured device",
+      "title": "GPU activity by workload / maximum measured device",
       "type": "timeseries"
     },
     {
@@ -1414,8 +1414,8 @@
     },
     {
       "id": 10,
-      "title": "GPU utilization by workload",
-      "description": "Maximum measured device utilization, not allocated capacity or idleness. Requires DCGM namespace, nonempty pod_uid and UUID. Out-of-range samples and conflicting device streams are rejected. Open a workload for component and Pod attribution.",
+      "title": "GPU activity by workload",
+      "description": "Maximum measured GPU activity. Full GPUs use GPU_UTIL percent; MIG instances use GR_ENGINE_ACTIVE multiplied by 100. These are different activity measures. Requires DCGM namespace, nonempty pod_uid and UUID. MIG rows retain GPU_I_ID and any GPU_CI_ID. Out-of-range samples and conflicting device streams are rejected. This is not allocated capacity or idleness.",
       "type": "table",
       "gridPos": {
         "x": 0,
@@ -1562,7 +1562,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_name=~\"${workload:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
+          "expr": "(max by (namespace, workload_name, workload_uid) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"})))) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"})))) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_name=~\"${workload:regex}\", observation_valid=\"true\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
           "format": "table",
           "instant": true,
           "range": false,
@@ -3918,7 +3918,7 @@
     },
     {
       "id": 309,
-      "title": "GPU COMPONENTS / expand for component utilization and memory",
+      "title": "GPU COMPONENTS / expand for component activity and memory",
       "type": "row",
       "collapsed": true,
       "panels": [
@@ -3927,7 +3927,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "Maximum measured device utilization, not allocated capacity or idleness. Requires DCGM namespace, nonempty pod_uid and UUID. Out-of-range samples and conflicting device streams are rejected. Open a workload for component and Pod attribution. Component and instance filters apply. Replica groups are summed within a component instance.",
+          "description": "Maximum measured GPU activity. Full GPUs use GPU_UTIL percent; MIG instances use GR_ENGINE_ACTIVE multiplied by 100. These are different activity measures. Requires DCGM namespace, nonempty pod_uid and UUID. MIG rows retain GPU_I_ID and any GPU_CI_ID. Out-of-range samples and conflicting device streams are rejected. This is not allocated capacity or idleness. Component and instance filters apply. Replica groups are combined within a component instance.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3990,7 +3990,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "(max by (namespace, workload_name, workload_uid, component, component_instance) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"})) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"}) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\"})) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid, component, component_instance) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_name=~\"${workload:regex}\", observation_valid=\"true\", component=~\"${component:regex}\", component_instance=~\"${component_instance:regex}\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
+              "expr": "(max by (namespace, workload_name, workload_uid, component, component_instance) ((((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"})))) >= 0) and ((max by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}))) == min by (namespace, pod_uid, UUID, gpu, GPU_I_ID, GPU_CI_ID) (((DCGM_FI_DEV_GPU_UTIL{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID=\"\"} unless on (namespace, pod_uid, UUID) {__name__=~\"DCGM_FI_DEV_GPU_UTIL|DCGM_FI_PROF_GR_ENGINE_ACTIVE|DCGM_FI_DEV_FB_USED\", job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"}) or (100 * DCGM_FI_PROF_GR_ENGINE_ACTIVE{job=~\"${dcgm_job:regex}\", namespace=~\"${namespace:regex}\", pod_uid!=\"\", UUID!=\"\", UUID=~\"${gpu_device:regex}\", GPU_I_ID!=\"\"})))) <= 100)) * on (namespace, pod_uid) group_left (workload_name, workload_uid, component, component_instance) (dsx:pod_attribution:unique{job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}\", workload_name=~\"${workload:regex}\", observation_valid=\"true\", component=~\"${component:regex}\", component_instance=~\"${component_instance:regex}\"}))) and on () (min(up{job=~\"${exporter_job:regex}\"}) == 1) and on () (min(up{job=~\"${dcgm_job:regex}\"}) == 1)",
               "format": "time_series",
               "instant": false,
               "range": true,
@@ -3998,7 +3998,7 @@
               "legendFormat": "{{namespace}} / {{workload_name}} / {{component}} / {{component_instance}} / {{workload_uid}}"
             }
           ],
-          "title": "Maximum GPU utilization by component",
+          "title": "Maximum GPU activity by component",
           "transparent": false,
           "type": "timeseries"
         },

@@ -36,6 +36,7 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	By("verifying the dedicated Kind cluster context")
 	cluster := os.Getenv("EXPORTER_E2E_CLUSTER")
 	if cluster == "" {
 		cluster = "dsx-exporter-e2e"
@@ -43,9 +44,12 @@ var _ = BeforeSuite(func() {
 	expected := "kind-" + cluster
 	current := strings.TrimSpace(command("", "config", "current-context"))
 	Expect(current).To(Equal(expected), "refusing context %q, expected dedicated %q", current, expected)
+
+	By("removing stale exporter workload fixtures")
 	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "exporter-workloads-denied", "--ignore-not-found", "--wait=true", "--timeout=60s")
 	command("", "delete", "karta", "exporter-e2e-deployment", "--ignore-not-found")
 
+	By("creating the two shard-labeled workload namespaces")
 	for _, shard := range []string{"a", "b"} {
 		ns := "exporter-workloads-" + shard
 		apply(fmt.Sprintf(`apiVersion: v1

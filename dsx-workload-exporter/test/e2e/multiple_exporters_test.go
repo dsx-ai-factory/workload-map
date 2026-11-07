@@ -28,11 +28,11 @@ spec:
       command: [sh, -c, 'sleep 3600']
 `)
 		By("waiting for the Pod to run and report Running")
-		waitContainer("shard-probe", "work", false)
-		phase("shard-probe", "Running")
+		waitForRunningContainer("shard-probe", "work", false)
+		waitForWorkloadPhases("shard-probe", "Running")
 
 		By("verifying that only exporter A collects the namespace")
-		eventually("namespace initially collected only by A", func() bool { return namespaceMetricsCollectedOnlyBy("a", "b") })
+		eventually("namespace initially collected only by A", func() bool { return hasNamespaceMetricsOnlyOn("a", "b") })
 		DeferCleanup(func() {
 			command("", "label", "namespace", namespace, "exporter-e2e-shard=a", "--overwrite")
 		})
@@ -40,17 +40,17 @@ spec:
 		By("relabeling the namespace for exporter B")
 		command("", "label", "namespace", namespace, "exporter-e2e-shard=b", "--overwrite")
 		By("verifying all four metric families move to B and remain stable")
-		eventually("namespace moves from A to B", func() bool { return namespaceMetricsCollectedOnlyBy("b", "a") })
-		Consistently(func() bool { return namespaceMetricsCollectedOnlyBy("b", "a") }, 3*time.Second, 250*time.Millisecond).
+		eventually("namespace moves from A to B", func() bool { return hasNamespaceMetricsOnlyOn("b", "a") })
+		Consistently(func() bool { return hasNamespaceMetricsOnlyOn("b", "a") }, 3*time.Second, 250*time.Millisecond).
 			Should(BeTrue(), "namespace handoff did not remain consistent")
 		By("relabeling the namespace for exporter A")
 		command("", "label", "namespace", namespace, "exporter-e2e-shard=a", "--overwrite")
 		By("verifying all four metric families return to A")
-		eventually("namespace returns from B to A", func() bool { return namespaceMetricsCollectedOnlyBy("a", "b") })
+		eventually("namespace returns from B to A", func() bool { return hasNamespaceMetricsOnlyOn("a", "b") })
 	})
 })
 
-func namespaceMetricsCollectedOnlyBy(destination, source string) bool {
+func hasNamespaceMetricsOnlyOn(destination, source string) bool {
 	dst, src := metrics(destination), metrics(source)
 	for _, family := range workloadFamilies {
 		if len(matching(src, family, map[string]string{"namespace": namespace})) != 0 {

@@ -30,11 +30,6 @@ var workloadFamilies = []string{"dsx_workload_pod_info", "dsx_workload_status", 
 
 var setupCompleted bool
 
-func TestE2E(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "DSX Workload Exporter E2E Suite")
-}
-
 var _ = BeforeSuite(func() {
 	By("verifying the dedicated Kind cluster context")
 	cluster := os.Getenv("EXPORTER_E2E_CLUSTER")
@@ -69,6 +64,11 @@ var _ = ReportAfterSuite("clean up successful suite fixtures", func(report Repor
 	}
 	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "--ignore-not-found", "--wait=false")
 })
+
+func TestE2E(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "DSX Workload Exporter E2E Suite")
+}
 
 func command(input string, args ...string) string {
 	GinkgoHelper()
@@ -183,7 +183,7 @@ func waitForMetrics(description, shard string, check func(map[string]*dto.Metric
 	})
 }
 
-func phase(name string, want ...string) {
+func waitForWorkloadPhases(name string, want ...string) {
 	GinkgoHelper()
 	waitForMetrics(name+" phases "+strings.Join(want, ","), "a", func(fs map[string]*dto.MetricFamily) bool {
 		return hasPhases(fs, map[string]string{"namespace": namespace, "workload_name": name, "observation_valid": "true"}, want...)
@@ -218,7 +218,7 @@ func hasPhases(fs map[string]*dto.MetricFamily, labels map[string]string, want .
 	return true
 }
 
-func waitContainer(pod, container string, init bool) {
+func waitForRunningContainer(pod, container string, init bool) {
 	GinkgoHelper()
 	eventually(pod+" container "+container+" running", func() bool {
 		var object corev1.Pod
@@ -229,11 +229,11 @@ func waitContainer(pod, container string, init bool) {
 		if init {
 			statuses = object.Status.InitContainerStatuses
 		}
-		return containerRunning(statuses, container)
+		return isContainerRunning(statuses, container)
 	})
 }
 
-func containerRunning(statuses []corev1.ContainerStatus, name string) bool {
+func isContainerRunning(statuses []corev1.ContainerStatus, name string) bool {
 	for _, status := range statuses {
 		if status.Name == name && status.State.Running != nil {
 			return true

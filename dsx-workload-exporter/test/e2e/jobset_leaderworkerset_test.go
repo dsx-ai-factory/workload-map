@@ -107,7 +107,7 @@ func waitForJobSetPods() (operatorWorkload, corev1.PodList) {
 		}
 		for _, pod := range pods.Items {
 			owner := metav1.GetControllerOf(&pod)
-			if owner == nil || owner.Kind != "Job" || !containerRunning(pod.Status.ContainerStatuses, "work") {
+			if owner == nil || owner.Kind != "Job" || !isContainerRunning(pod.Status.ContainerStatuses, "work") {
 				return false
 			}
 			found := false
@@ -267,7 +267,7 @@ func waitForLeaderWorkerGroups(root operatorWorkload, replicas int32, retained, 
 				component = "leader"
 			}
 			group := pod.Labels["leaderworkerset.sigs.k8s.io/group-index"]
-			if pod.DeletionTimestamp != nil || !containerRunning(pod.Status.ContainerStatuses, "work") {
+			if pod.DeletionTimestamp != nil || !isContainerRunning(pod.Status.ContainerStatuses, "work") {
 				return false
 			}
 			if !hasOperatorPod(fs, current, pod, component, "", group) {

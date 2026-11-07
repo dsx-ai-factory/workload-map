@@ -20,13 +20,15 @@ is not changed. Set `EXPORTER_E2E_CLUSTER` to choose another isolated cluster na
 
 The suite uses Ginkgo/Gomega under `<module>/test/e2e`, like the operator.
 Start with the file for the behavior being tested. Each scenario contains its
-own `It` body.
+own `It` body. Tests submit a workload or change, wait for the expected state,
+then verify the exported metrics. `By` steps describe these actions in the test
+log, including successful runs.
 
 | File | What it contains |
 | --- | --- |
-| `workloads_test.go` | Pod and Job lifecycles, dynamic Karta definitions, permission failure and recovery. |
-| `operators_test.go` | JobSet components and completion; LeaderWorkerSet groups and scale-down. |
-| `namespace_test.go` | Moving a populated namespace between exporter shards. |
+| `pod_job_deployment_test.go` | Pod and Job lifecycles, dynamic Karta definitions, permission failure and recovery. |
+| `jobset_leaderworkerset_test.go` | JobSet components and completion; LeaderWorkerSet groups and scale-down. |
+| `multiple_exporters_test.go` | Moving a populated namespace between exporter shards. |
 | `suite_test.go` | Suite entry point, setup, cleanup, Kubernetes commands and metric helpers. |
 
 All eight specs run serially because they share exporter installations. The five

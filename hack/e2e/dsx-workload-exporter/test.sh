@@ -29,4 +29,4 @@ collect() {
 }
 trap collect EXIT
 cd "$ROOT/dsx-workload-exporter"
-go test -tags e2e -count=1 -v -timeout 6m ./test/e2e/... 2>&1 | tee "$ARTIFACTS/tests.log"
+go test -tags e2e -count=1 -v -timeout 6m ./test/e2e/... -ginkgo.v 2>&1 | tee "$ARTIFACTS/tests.log"

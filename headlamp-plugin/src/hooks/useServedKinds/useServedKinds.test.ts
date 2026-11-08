@@ -296,6 +296,101 @@ describe('useServedKinds', () => {
     expect(appsCalls).toHaveLength(1);
   });
 
+  // A group installed after the first /apis read must still be discovered.
+  it('re-reads /apis for a group requested after the page loaded', async () => {
+    let groups = [{ versions: [{ groupVersion: 'apps/v1' }] }];
+    request.mockImplementation((path: string) => {
+      switch (path) {
+        case '/apis':
+          return Promise.resolve({ groups });
+        case '/apis/apps/v1':
+          return Promise.resolve({
+            resources: [{ name: 'deployments', kind: 'Deployment', namespaced: true }],
+          });
+        case '/apis/example.org/v1':
+          return Promise.resolve({
+            resources: [{ name: 'tasks', kind: 'Task', namespaced: true }],
+          });
+        default:
+          return Promise.reject(new Error(`unexpected request: ${path}`));
+      }
+    });
+    const task = { group: 'example.org', version: 'v1', kind: 'Task' };
+
+    const { result, rerender } = renderHook(({ kinds }) => useServedKinds('cluster-a', kinds), {
+      initialProps: { kinds: [apps] as ({ group: string; version: string; kind: string } | undefined)[] },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    groups = [...groups, { versions: [{ groupVersion: 'example.org/v1' }] }];
+    rerender({ kinds: [apps, task] });
+
+    await waitFor(() =>
+      expect(result.current.served?.get(servedKindKey('example.org', 'v1', 'Task'))).toEqual({
+        plural: 'tasks',
+        namespaced: true,
+      })
+    );
+    expect(request.mock.calls.filter(call => call[0] === '/apis')).toHaveLength(2);
+  });
+
+  it('does not re-read /apis for a group that is still absent', async () => {
+    mockDiscovery();
+
+    const { result, rerender } = renderHook(({ kinds }) => useServedKinds('cluster-a', kinds), {
+      initialProps: { kinds: [apps, rayJob] as ({ group: string; version: string; kind: string } | undefined)[] },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    rerender({ kinds: [apps, rayJob, pod] });
+    await waitFor(() => expect(result.current.served?.has(servedKindKey('', 'v1', 'Pod'))).toBe(true));
+
+    // Nothing newly requested can be missing, so /apis is not read again.
+    expect(request.mock.calls.filter(call => call[0] === '/apis')).toHaveLength(1);
+  });
+
+  it('asks about an absent group again once its answer has expired', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      let groups = [{ versions: [{ groupVersion: 'apps/v1' }] }];
+      request.mockImplementation((path: string) => {
+        switch (path) {
+          case '/apis':
+            return Promise.resolve({ groups });
+          case '/apis/apps/v1':
+            return Promise.resolve({
+              resources: [{ name: 'deployments', kind: 'Deployment', namespaced: true }],
+            });
+          case '/apis/ray.io/v1':
+            return Promise.resolve({
+              resources: [{ name: 'rayjobs', kind: 'RayJob', namespaced: true }],
+            });
+          default:
+            return Promise.reject(new Error(`unexpected request: ${path}`));
+        }
+      });
+
+      const { result, rerender } = renderHook(({ kinds }) => useServedKinds('cluster-a', kinds), {
+        initialProps: { kinds: [apps, rayJob] as ({ group: string; version: string; kind: string } | undefined)[] },
+      });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.served?.has(servedKindKey('ray.io', 'v1', 'RayJob'))).toBe(false);
+
+      // ray.io is now installed and the earlier answer has expired.
+      groups = [...groups, { versions: [{ groupVersion: 'ray.io/v1' }] }];
+      vi.setSystemTime(Date.now() + 60_000);
+      rerender({ kinds: [apps, rayJob, pod] });
+
+      await waitFor(() =>
+        expect(result.current.served?.get(servedKindKey('ray.io', 'v1', 'RayJob'))?.plural).toBe(
+          'rayjobs'
+        )
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // A cached rejection would answer every later wave with the old failure, so
   // one hiccup would leave discovery dead for the life of the page.
   it('asks again after /apis fails, rather than caching the failure', async () => {

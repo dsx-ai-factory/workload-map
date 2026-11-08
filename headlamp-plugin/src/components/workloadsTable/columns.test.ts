@@ -121,6 +121,20 @@ describe('buildWorkloadColumns', () => {
 
   // The accessor is negated so that ascending is newest first. Sorting it
   // descending would put the oldest workload on top.
+  // Headlamp skips re-rendering a cell whose accessor value is unchanged.
+  it('changes the status value when only the evaluation error changes', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    const value = (row: Record<string, unknown>) => (status.accessorFn as any)(row);
+
+    const pending = value({ phases: [] });
+    const failed = value({ phases: [], statusError: 'engine unavailable' });
+    const recovered = value({ phases: [] });
+
+    expect(failed).not.toBe(pending);
+    expect(recovered).toBe(pending);
+    expect(value({ phases: ['Running'] })).not.toBe(pending);
+  });
+
   it('sorts status by worst phase rather than alphabetically', () => {
     const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
     const compare = (a: string[], b: string[]) =>

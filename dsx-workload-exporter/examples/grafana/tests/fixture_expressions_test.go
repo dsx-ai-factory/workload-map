@@ -10,9 +10,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"testing"
 
-	"github.com/stretchr/testify/require"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -37,52 +37,8 @@ var fixtureVariables = map[string]string{
 	"activity_view": "4", "__range_s": "300", "__interval": "30s", "__rate_interval": "5m", "__to": "90000",
 }
 
-func TestFixtureExpressions(t *testing.T) {
-	dashboards := make(map[string]dashboard)
-	for filename := range dashboardUIDs {
-		dashboards[filename] = readDashboard(t, filename)
-	}
-	paths, err := filepath.Glob("*.test.yaml")
-	require.NoError(t, err)
-	require.NotEmpty(t, paths, "PromQL fixtures are missing")
-	seen := make(map[fixtureKey]string)
-	for _, path := range paths {
-		t.Run(path, func(t *testing.T) {
-			data, err := os.ReadFile(path)
-			require.NoError(t, err)
-			bindings, err := fixtureBindings(data)
-			require.NoError(t, err)
-			for _, binding := range bindings {
-				key := binding.key
-				require.NotContains(t, seen, key, "%s:%d: duplicate fixture marker; first seen at %s", path, binding.line, seen[key])
-				seen[key] = fmt.Sprintf("%s:%d", path, binding.line)
-				t.Run(fmt.Sprintf("%s/panel-%d/%s", key.dashboard, key.panel, key.ref), func(t *testing.T) {
-					require.Contains(t, dashboards, key.dashboard, "unknown dashboard in fixture marker")
-					var expressions []string
-					for _, obj := range dashboards[key.dashboard].objects {
-						if obj["id"] != float64(key.panel) {
-							continue
-						}
-						for _, target := range objects(obj["targets"]) {
-							if target["refId"] == key.ref {
-								expression, ok := target["expr"].(string)
-								require.True(t, ok, "target needs a PromQL expression")
-								expressions = append(expressions, expression)
-							}
-						}
-					}
-					require.Len(t, expressions, 1, "marker must identify exactly one dashboard query")
-					actual := fixtureExpression(expressions[0])
-					require.Equal(t, strings.Join(strings.Fields(binding.expression), " "), strings.Join(strings.Fields(actual), " "), "fixture query drift at %s:%d", path, binding.line)
-				})
-			}
-		})
-	}
-	var keys []fixtureKey
-	for key := range seen {
-		keys = append(keys, key)
-	}
-	require.ElementsMatch(t, []fixtureKey{
+var _ = Describe("Fixture expressions", func() {
+	expectedKeys := []fixtureKey{
 		{"workload-overview.json", 3, "A"},
 		{"workload-overview.json", 4, "B"},
 		{"workload-overview.json", 10, "A"},
@@ -104,8 +60,101 @@ func TestFixtureExpressions(t *testing.T) {
 		{"workload-structure.json", 4, "layoutLeaves"},
 		{"workload-structure.json", 4, "layoutAncestors"},
 		{"workload-structure.json", 9, "A"},
-	}, keys, "preserve all 21 core, resource, layout, GPU activity and observer query bindings")
-}
+	}
+	var bindings map[fixtureKey]fixtureBinding
+	var locations map[fixtureKey]string
+
+	BeforeEach(func() {
+		paths, err := filepath.Glob("*.test.yaml")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(paths).NotTo(BeEmpty(), "PromQL fixtures are missing")
+		bindings = make(map[fixtureKey]fixtureBinding)
+		locations = make(map[fixtureKey]string)
+		for _, path := range paths {
+			data, err := os.ReadFile(path)
+			Expect(err).NotTo(HaveOccurred(), "read fixture %s", path)
+			parsed, err := fixtureBindings(data)
+			Expect(err).NotTo(HaveOccurred(), "parse fixture %s", path)
+			for _, binding := range parsed {
+				key := binding.key
+				Expect(bindings).NotTo(HaveKey(key), "%s:%d: duplicate fixture marker; first seen at %s", path, binding.line, locations[key])
+				Expect(dashboardUIDs).To(HaveKey(key.dashboard), "unknown dashboard in fixture marker at %s:%d", path, binding.line)
+				bindings[key] = binding
+				locations[key] = fmt.Sprintf("%s:%d", path, binding.line)
+			}
+		}
+	})
+
+	It("preserves all 21 core, resource, layout, GPU activity and observer query bindings", func() {
+		var keys []fixtureKey
+		for key := range bindings {
+			keys = append(keys, key)
+		}
+		Expect(keys).To(ConsistOf(expectedKeys))
+	})
+
+	for _, key := range expectedKeys {
+		It(fmt.Sprintf("matches %s/panel-%d/%s", key.dashboard, key.panel, key.ref), func() {
+			Expect(bindings).To(HaveKey(key), "dashboard query needs a fixture binding")
+			var expressions []string
+			for _, obj := range readDashboard(key.dashboard).objects {
+				if obj["id"] != float64(key.panel) {
+					continue
+				}
+				for _, target := range objects(obj["targets"]) {
+					if target["refId"] == key.ref {
+						expression, ok := target["expr"].(string)
+						Expect(ok).To(BeTrue(), "target needs a PromQL expression")
+						expressions = append(expressions, expression)
+					}
+				}
+			}
+			Expect(expressions).To(HaveLen(1), "marker must identify exactly one dashboard query")
+			actual := fixtureExpression(expressions[0])
+			Expect(strings.Join(strings.Fields(actual), " ")).To(Equal(strings.Join(strings.Fields(bindings[key].expression), " ")), "fixture query drift at %s", locations[key])
+		})
+	}
+})
+
+var _ = Describe("Fixture bindings YAML", func() {
+	It("resolves marked aliases without binding unmarked aliases", func() {
+		data := []byte(`tests:
+  - promql_expr_test:
+      # dashboard-expression: workload-overview.json 3 A
+      - expr: &query |-
+          sum(
+            up{job="exporter"}
+          )
+      - expr: *query
+      # dashboard-expression: workload-structure.json 3 A
+      - expr: *query
+`)
+		bindings, err := fixtureBindings(data)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(bindings).To(HaveLen(2), "unmarked aliases do not create bindings")
+		Expect(bindings[0].key).To(Equal(fixtureKey{"workload-overview.json", 3, "A"}))
+		Expect(bindings[1].key).To(Equal(fixtureKey{"workload-structure.json", 3, "A"}))
+		Expect(bindings[0].expression).To(Equal("sum(\n  up{job=\"exporter\"}\n)"))
+		Expect(bindings[1].expression).To(Equal(bindings[0].expression), "YAML aliases must resolve to their expression")
+	})
+
+	DescribeTable("rejects invalid markers", func(data string) {
+		_, err := fixtureBindings([]byte(data))
+		Expect(err).To(HaveOccurred())
+	},
+		Entry("missing expression", "# dashboard-expression: workload-overview.json 3 A\n- eval_time: 0s\n"),
+		Entry("invalid marker", "# dashboard-expression: workload-overview.json wrong A\n- expr: up\n"),
+		Entry("two markers", "# dashboard-expression: workload-overview.json 3 A\n# dashboard-expression: workload-overview.json 4 A\n- expr: up\n"),
+		Entry("misplaced marker", "- expr: up # dashboard-expression: workload-overview.json 3 A\n"),
+	)
+})
+
+var _ = Describe("Fixture expression variables", func() {
+	It("substitutes supported Grafana variables without changing label replacements or longer names", func() {
+		expression := `${__to:date:seconds} ${__to} $namespace ${namespace} ${namespace:regex} ${activity_view:raw} $1 $__interval $__interval_ms ${namespace:unknown}`
+		Expect(fixtureExpression(expression)).To(Equal(`90 90000 ns ns ns 4 $1 30s $__interval_ms ${namespace:unknown}`))
+	})
+})
 
 func fixtureBindings(data []byte) ([]fixtureBinding, error) {
 	var document yaml.Node
@@ -165,45 +214,4 @@ func fixtureExpression(expression string) string {
 		}
 		return reference
 	})
-}
-
-func TestFixtureBindingsYAML(t *testing.T) {
-	data := []byte(`tests:
-  - promql_expr_test:
-      # dashboard-expression: workload-overview.json 3 A
-      - expr: &query |-
-          sum(
-            up{job="exporter"}
-          )
-      - expr: *query
-      # dashboard-expression: workload-structure.json 3 A
-      - expr: *query
-`)
-	bindings, err := fixtureBindings(data)
-	require.NoError(t, err)
-	require.Len(t, bindings, 2, "unmarked aliases do not create bindings")
-	require.Equal(t, fixtureKey{"workload-overview.json", 3, "A"}, bindings[0].key)
-	require.Equal(t, fixtureKey{"workload-structure.json", 3, "A"}, bindings[1].key)
-	require.Equal(t, "sum(\n  up{job=\"exporter\"}\n)", bindings[0].expression)
-	require.Equal(t, bindings[0].expression, bindings[1].expression, "YAML aliases must resolve to their expression")
-
-	for _, tt := range []struct {
-		name string
-		data string
-	}{
-		{"missing expression", "# dashboard-expression: workload-overview.json 3 A\n- eval_time: 0s\n"},
-		{"invalid marker", "# dashboard-expression: workload-overview.json wrong A\n- expr: up\n"},
-		{"two markers", "# dashboard-expression: workload-overview.json 3 A\n# dashboard-expression: workload-overview.json 4 A\n- expr: up\n"},
-		{"misplaced marker", "- expr: up # dashboard-expression: workload-overview.json 3 A\n"},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := fixtureBindings([]byte(tt.data))
-			require.Error(t, err)
-		})
-	}
-}
-
-func TestFixtureExpressionVariables(t *testing.T) {
-	expression := `${__to:date:seconds} ${__to} $namespace ${namespace} ${namespace:regex} ${activity_view:raw} $1 $__interval $__interval_ms ${namespace:unknown}`
-	require.Equal(t, `90 90000 ns ns ns 4 $1 30s $__interval_ms ${namespace:unknown}`, fixtureExpression(expression), "substitute supported Grafana variables without changing label replacements or longer names")
 }

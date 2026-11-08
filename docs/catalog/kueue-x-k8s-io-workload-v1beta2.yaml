@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+kind: Karta
+apiVersion: run.ai/v1alpha1
+metadata:
+  name: kueue-x-k8s-io-workload-v1beta2
+spec:
+  structureDefinition:
+    rootComponent:
+      name: workload
+      kind:
+        group: kueue.x-k8s.io
+        version: v1beta2
+        kind: Workload
+      statusDefinition:
+        conditionsDefinition:
+          path: .status.conditions // []
+          typeFieldName: type
+          statusFieldName: status
+          messageFieldName: message
+          reasonFieldName: reason
+        statusMappings:
+          initializing:
+            - byConditions:
+                - type: Admitted
+                  status: "False"
+              byExpression:
+                expression: .spec.active != false and ((.status.conditions // []) | any(.type == "Finished" and .status == "True") | not)
+                expectedResult: "true"
+          running:
+            - byConditions:
+                - type: Admitted
+                  status: "True"
+                - type: PodsReady
+                  status: "True"
+              byExpression:
+                expression: .spec.active != false and ((.status.conditions // []) | any((.type == "Finished" or .type == "Evicted" or .type == "WaitingForReplacementPods") and .status == "True") | not)
+                expectedResult: "true"
+          failed:
+            - byConditions:
+                - type: Finished
+                  status: "True"
+                  reason: Failed
+            - byConditions:
+                - type: Finished
+                  status: "True"
+                  reason: FailedToStart
+          suspended:
+            - byExpression:
+                expression: .spec.active == false and ((.status.conditions // []) | any(.type == "Finished" and .status == "True") | not) and (((.status.conditions // []) | any(.type == "QuotaReserved" and .status == "True")) | not)
+                expectedResult: "true"
+          suspending:
+            - byExpression:
+                expression: .spec.active == false and ((.status.conditions // []) | any(.type == "Finished" and .status == "True") | not) and ((.status.conditions // []) | any(.type == "QuotaReserved" and .status == "True"))
+                expectedResult: "true"
+  optimizationInstructions: {}

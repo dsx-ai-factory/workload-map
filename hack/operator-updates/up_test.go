@@ -32,7 +32,7 @@ type provisionResult struct {
 }
 
 func TestInfrastructureInstallPlan(t *testing.T) {
-	all := "lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox"
+	all := "lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue"
 	cases := []struct {
 		name      string
 		workloads []string
@@ -44,6 +44,7 @@ func TestInfrastructureInstallPlan(t *testing.T) {
 		{name: "all", workloads: []string{"all"}, infra: "cert-manager fake-gpu-operator kai-scheduler", plan: all},
 		{name: "none", workloads: []string{"none"}, infra: "fake-gpu-operator", plan: "(none)"},
 		{name: "jobset", workloads: []string{"jobset"}, infra: "fake-gpu-operator", plan: "jobset"},
+		{name: "kueue", workloads: []string{"kueue"}, infra: "fake-gpu-operator", plan: "kueue"},
 		{name: "grove", workloads: []string{"grove"}, infra: "fake-gpu-operator kai-scheduler", plan: "grove"},
 		{name: "dynamo dependency", workloads: []string{"dynamo"}, infra: "fake-gpu-operator kai-scheduler", plan: "grove dynamo"},
 		{name: "kserve dependency", workloads: []string{"kserve"}, infra: "cert-manager fake-gpu-operator", plan: "knative kserve"},
@@ -113,6 +114,11 @@ func TestInfrastructureProvisioning(t *testing.T) {
 		{
 			name: "base only", workload: "none", components: []string{"infra/fake-gpu-operator", "karta-operator"},
 			versions: []string{"fake-gpu-operator=9.2.0"},
+		},
+		{
+			name: "Kueue uses the effective pin", workload: "kueue", env: []string{"KUEUE_VERSION=v0.20.6"},
+			components: []string{"infra/fake-gpu-operator", "operators/kueue", "karta-operator"},
+			versions:   []string{"fake-gpu-operator=9.2.0", "kueue=v0.20.6"},
 		},
 		{
 			name: "all infra before grove and dynamo", workload: "dynamo", env: []string{"CERT_MANAGER=true"},

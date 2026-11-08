@@ -28,9 +28,18 @@ running inside long-lived Pods.
 
 ## Install the definition
 
-The built-in catalog supports `kueue.x-k8s.io/v1beta2/Workload`. The local e2e
-environment pins Kueue v0.20.5, whose CRD does not serve v1beta1. The CLI loads
-the catalog automatically.
+The built-in catalog includes `kueue.x-k8s.io/v1beta2/Workload` with
+`spec.experimental: true`. CLI, Headlamp and exporter consumers exclude it by
+default. Installing the Karta in the cluster does not enable it in those consumers.
+The SDK keeps it available through `catalog.Get` and `catalog.List`.
+
+Enable it in the CLI with `kli --enable-experimental`. For the exporter, set
+`exporter.kartaDefinitionSource.enableExperimental: true` in Helm values. See
+the [CLI guide](CLI%20Guide.md) and
+[exporter configuration](dsx-workload-exporter/configuration.md) for details.
+Headlamp has its own [plugin setting](../headlamp-plugin/README.md#experimental-definitions).
+
+The local e2e environment pins Kueue v0.20.5, whose CRD does not serve v1beta1.
 
 The Helm chart installs Karta's controller and CRD. Apply the YAML when using
 cluster Karta definitions:

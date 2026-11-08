@@ -47,6 +47,7 @@ reads it at startup.
 | `genericLabelEvaluationLimits.maxResultBytes` | `1024` | Maximum returned string size. |
 | `kartaDefinitionSource.catalog.enabled` | `true` | Load bundled definitions. |
 | `kartaDefinitionSource.cluster.enabled` | `true` | Watch cluster Karta definitions. |
+| `kartaDefinitionSource.enableExperimental` | `false` | Allow definitions with `spec.experimental: true` from either source. |
 | Each source's `include`, `exclude` | `[]` | Definition-name filters. |
 
 The exporter uses one replica and its own ServiceAccount. Global
@@ -127,6 +128,14 @@ names; exclusions win. A selected cluster Karta overrides the catalog for the
 same group/kind. Cluster ties use oldest creation time, then name. Catalog ties
 use Kubernetes version priority, then name. A source or selected-definition
 error is not absence and does not trigger fallback.
+
+Experimental definitions are excluded from both sources by default. Set
+`exporter.kartaDefinitionSource.enableExperimental: true` to allow them. An
+explicit `include` does not bypass this setting. The gate applies before version
+and source selection. An excluded experimental cluster Karta can therefore reveal
+a stable cluster or catalog definition. Exclusion is not a source failure.
+Changing a cluster Karta's `spec.experimental` flag refreshes selection and
+requeues affected workloads. Definitions that omit the flag are stable.
 
 Both sources are enabled by default. Set a source's `enabled` to `false` to
 disable it. Cluster watching requires the Karta CRD, even when no Karta objects

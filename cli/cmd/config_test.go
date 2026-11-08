@@ -21,7 +21,7 @@ var _ = Describe("config loading", func() {
 		dir = GinkgoT().TempDir()
 		DeferCleanup(os.Setenv, "HOME", os.Getenv("HOME"))
 		Expect(os.Setenv("HOME", GinkgoT().TempDir())).To(Succeed())
-		for _, key := range []string{"KARTA_CONFIG", "KARTA_OUTPUT"} {
+		for _, key := range []string{"KARTA_CONFIG", "KARTA_OUTPUT", "KARTA_ENABLE_EXPERIMENTAL"} {
 			DeferCleanup(os.Setenv, key, os.Getenv(key))
 			Expect(os.Unsetenv(key)).To(Succeed())
 		}
@@ -153,6 +153,37 @@ var _ = Describe("config loading", func() {
 			Expect(c.Output).To(Equal("table"))
 		})
 	})
+
+	DescribeTable("experimental definition precedence",
+		func(file, env, flag string, want bool) {
+			var args []string
+			if file != "" {
+				path := filepath.Join(dir, "config.yaml")
+				writeFile(path, "enable-experimental: "+file+"\n")
+				args = append(args, "--config", path)
+			}
+			if env != "" {
+				Expect(os.Setenv("KARTA_ENABLE_EXPERIMENTAL", env)).To(Succeed())
+			}
+			if flag != "" {
+				args = append(args, "--enable-experimental="+flag)
+			}
+			root := NewRootCommand()
+			root.AddCommand(&cobra.Command{Use: "noop", RunE: func(cmd *cobra.Command, _ []string) error {
+				Expect(experimentalEnabled(cmd)).To(Equal(want))
+				return nil
+			}})
+			root.SetArgs(append(args, "noop"))
+			Expect(root.Execute()).To(Succeed())
+			Expect(config.EnableExperimental).To(Equal(want))
+		},
+		Entry("disabled by default", "", "", "", false),
+		Entry("config enables", "true", "", "", true),
+		Entry("environment enables without a config file", "", "true", "", true),
+		Entry("environment overrides config", "true", "false", "", false),
+		Entry("flag overrides environment", "false", "false", "true", true),
+		Entry("explicit false overrides true preferences", "true", "true", "false", false),
+	)
 
 })
 

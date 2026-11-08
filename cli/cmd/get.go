@@ -292,7 +292,7 @@ func resolveLookup(cmd *cobra.Command, opts *getOptions) (lookup, []string, erro
 		return lookup{}, nil, fmt.Errorf("resolve namespace: %w", err)
 	}
 
-	resolver, loadWarnings := loadDefinitions(cmd.Context(), access)
+	resolver, loadWarnings := loadDefinitions(cmd.Context(), access, experimentalEnabled(cmd))
 	warnings := warningMessages(loadWarnings)
 	if len(resolver.List()) == 0 {
 		return lookup{}, warnings, exitError{code: ExitNotFound, err: errNoDefinitions}

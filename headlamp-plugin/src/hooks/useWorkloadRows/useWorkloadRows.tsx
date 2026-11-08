@@ -92,9 +92,25 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
     [scopedKey]
   );
 
-  const onState = useCallback((cluster: string, state: ClusterState) => {
-    setClusterStates(prev => ({ ...prev, [cluster]: state }));
-  }, []);
+  const onState = useCallback(
+    (cluster: string, state: ClusterState) => {
+      setClusterStates(prev => ({ ...prev, [cluster]: state }));
+      // Removed definitions must lose their rows and errors. Otherwise,
+      // enabling them again could show stale results before their list returns.
+      const expected = new Set(state.expectedKinds.map(name => scopedKey(cluster, name)));
+      const keep = <T,>(entries: Record<string, T>) => {
+        const kept = Object.fromEntries(
+          Object.entries(entries).filter(
+            ([key]) => !key.startsWith(`${cluster}/`) || expected.has(key)
+          )
+        );
+        return Object.keys(kept).length === Object.keys(entries).length ? entries : kept;
+      };
+      setRowsByKey(keep);
+      setErrorsByKey(keep);
+    },
+    [scopedKey]
+  );
 
   // Entries die with the cluster and selection that produced them. Scoping the
   // keys stops one selection reading another's, but returning to an earlier

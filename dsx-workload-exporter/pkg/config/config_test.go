@@ -220,6 +220,18 @@ var _ = Describe("Karta definition sources", func() {
 		}))
 	})
 
+	DescribeTable("loads experimental opt-in for both sources",
+		func(content string, enabled bool) {
+			cfg, err := loadConfig(content, nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.KartaDefinitionSource.EnableExperimental).To(Equal(enabled))
+			Expect(cfg.KartaDefinitionSource.InventoryConfig().EnableExperimental).To(Equal(enabled))
+		},
+		Entry("omitted", "", false),
+		Entry("enabled", "kartaDefinitionSource:\n  enableExperimental: true\n", true),
+		Entry("disabled", "kartaDefinitionSource:\n  enableExperimental: false\n", false),
+	)
+
 	DescribeTable("preserves explicit source settings",
 		func(content string, catalogEnabled, clusterEnabled bool) {
 			cfg, err := loadConfig(content, nil)
@@ -233,7 +245,7 @@ var _ = Describe("Karta definition sources", func() {
 		Entry("filters without enabled flags", "kartaDefinitionSource:\n  catalog:\n    include: [batch-job-v1]\n  cluster:\n    exclude: [team-job]\n", true, true),
 	)
 
-	It("selects every catalog definition when the file only enables the catalog", func() {
+	It("keeps catalog name filters empty when the file only enables the catalog", func() {
 		cfg, err := loadConfig("kartaDefinitionSource:\n  catalog:\n    enabled: true\n", nil)
 		Expect(err).NotTo(HaveOccurred())
 

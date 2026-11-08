@@ -5,6 +5,7 @@ apiVersion: run.ai/v1alpha1
 metadata:
   name: kueue-x-k8s-io-workload-v1beta2
 spec:
+  experimental: true
   structureDefinition:
     rootComponent:
       name: workload

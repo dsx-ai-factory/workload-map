@@ -89,12 +89,14 @@ var _ = Describe("chart label configuration", func() {
 
 var _ = Describe("chart definition source configuration", func() {
 	for _, tc := range []struct {
-		name    string
-		values  string
-		catalog bool
+		name         string
+		values       string
+		catalog      bool
+		experimental bool
 	}{
 		{name: "defaults", catalog: true},
 		{name: "catalog disabled", values: "exporter:\n  kartaDefinitionSource:\n    catalog:\n      enabled: false\n"},
+		{name: "experimental enabled", values: "exporter:\n  kartaDefinitionSource:\n    enableExperimental: true\n", catalog: true, experimental: true},
 	} {
 		It("loads definition sources with "+tc.name, func() {
 			out := renderExporterChart(GinkgoT(), tc.values)
@@ -111,6 +113,7 @@ var _ = Describe("chart definition source configuration", func() {
 				Expect(err).To(Succeed())
 				Expect(cfg.KartaDefinitionSource.Catalog.Enabled).To(Equal(tc.catalog))
 				Expect(cfg.KartaDefinitionSource.Cluster.Enabled).To(BeTrue())
+				Expect(cfg.KartaDefinitionSource.EnableExperimental).To(Equal(tc.experimental))
 				return
 			}
 			Fail("exporter config not found")

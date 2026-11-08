@@ -75,6 +75,11 @@ spec:
 `kind` is the workload's full GVK. Always provide all three of group, version,
 and kind. (The one exception is the core `Pod` kind, which has an empty group.)
 
+For a definition that needs an explicit opt-in, set `spec.experimental: true`.
+It stays available in the SDK and catalog. The CLI, Headlamp and exporter exclude
+it until their experimental setting is enabled, even if it is installed in the
+cluster. Omitted or `false` keeps the normal behavior.
+
 ## Step 3: Map the status
 
 `statusDefinition` translates the workload's own conditions or phases into

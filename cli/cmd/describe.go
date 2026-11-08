@@ -260,7 +260,7 @@ func describeManifest(
 
 	// Read best-effort: an unreachable cluster degrades to the embedded catalog,
 	// which is what lets file mode work with no cluster at all.
-	resolver, loadWarnings := loadDefinitions(ctx, clusterAccess())
+	resolver, loadWarnings := loadDefinitions(ctx, clusterAccess(), experimentalEnabled(cmd))
 	warnings := warningMessages(loadWarnings)
 
 	gvk := obj.GroupVersionKind()

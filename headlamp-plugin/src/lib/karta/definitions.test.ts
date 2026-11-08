@@ -49,6 +49,41 @@ describe('rootGVKKey', () => {
 });
 
 describe('mergeDefinitions', () => {
+  it('excludes experimental definitions from both sources by default', () => {
+    const catalogDeployment = karta('catalog-deployment', deploymentGVK);
+    const clusterJob = karta('cluster-job', jobGVK);
+    catalogDeployment.spec.experimental = true;
+    clusterJob.spec.experimental = true;
+
+    expect(mergeDefinitions([catalogDeployment], [clusterJob])).toEqual([]);
+  });
+
+  it('includes experimental definitions from both sources when enabled', () => {
+    const catalogDeployment = karta('catalog-deployment', deploymentGVK);
+    const clusterJob = karta('cluster-job', jobGVK);
+    catalogDeployment.spec.experimental = true;
+    clusterJob.spec.experimental = true;
+
+    expect(mergeDefinitions([catalogDeployment], [clusterJob], true)).toEqual([
+      { karta: catalogDeployment, origin: 'catalog' },
+      { karta: clusterJob, origin: 'cluster' },
+    ]);
+  });
+
+  it('keeps a stable catalog definition when its cluster override is experimental', () => {
+    const catalogDeployment = karta('catalog-deployment', deploymentGVK);
+    const clusterDeployment = karta('cluster-deployment', deploymentGVK);
+    catalogDeployment.spec.experimental = false;
+    clusterDeployment.spec.experimental = true;
+
+    expect(mergeDefinitions([catalogDeployment], [clusterDeployment])).toEqual([
+      { karta: catalogDeployment, origin: 'catalog' },
+    ]);
+    expect(mergeDefinitions([catalogDeployment], [clusterDeployment], true)).toEqual([
+      { karta: clusterDeployment, origin: 'cluster' },
+    ]);
+  });
+
   it('returns catalog-only entries when there are no cluster kartas', () => {
     const catalog = [karta('catalog-deployment', deploymentGVK)];
 

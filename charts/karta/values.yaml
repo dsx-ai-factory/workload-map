@@ -99,6 +99,9 @@ exporter:
   # the catalog's batch-job-v1; also excluding batch-job-v1 leaves Jobs with
   # no definition. Disabling the catalog also removes this fallback.
   kartaDefinitionSource:
+    # Allow spec.experimental definitions from either source. Includes do not
+    # override this gate. Stable definitions remain enabled by default.
+    enableExperimental: false
     # Definitions built into the exporter, named as in docs/catalog, for
     # example batch-job-v1. Unknown names fail startup.
     catalog:

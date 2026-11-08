@@ -29,6 +29,7 @@ func KueueWorkload() *v1alpha1.Karta {
 		TypeMeta:   metav1.TypeMeta{APIVersion: "run.ai/v1alpha1", Kind: "Karta"},
 		ObjectMeta: metav1.ObjectMeta{Name: "kueue-x-k8s-io-workload-v1beta2"},
 		Spec: v1alpha1.KartaSpec{
+			Experimental: true,
 			StructureDefinition: v1alpha1.StructureDefinition{
 				RootComponent: v1alpha1.ComponentDefinition{
 					Name: "workload",

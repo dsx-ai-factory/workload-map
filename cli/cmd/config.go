@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -23,7 +24,8 @@ const (
 )
 
 type Config struct {
-	Output string `mapstructure:"output" yaml:"output" json:"output"`
+	Output             string `mapstructure:"output" yaml:"output" json:"output"`
+	EnableExperimental bool   `mapstructure:"enable-experimental" yaml:"enable-experimental" json:"enable-experimental"`
 }
 
 // config is the single source of truth set by PersistentPreRunE before each RunE.
@@ -88,6 +90,12 @@ func buildConfig(cmd *cobra.Command) (*Config, error) {
 			return nil, err
 		}
 	}
+	experimental := cmd.Flags().Lookup(flagEnableExperimental)
+	if experimental != nil {
+		if err := v.BindPFlag(flagEnableExperimental, experimental); err != nil {
+			return nil, err
+		}
+	}
 
 	var cfg Config
 	if err := v.UnmarshalExact(&cfg); err != nil {
@@ -102,6 +110,11 @@ func buildConfig(cmd *cobra.Command) (*Config, error) {
 			if !slices.Contains(NewOutputFlag(true).Allowed(), cfg.Output) {
 				return nil, usageError(cmd, fmt.Errorf("output: %w", err))
 			}
+		}
+	}
+	if experimental != nil {
+		if err := experimental.Value.Set(strconv.FormatBool(cfg.EnableExperimental)); err != nil {
+			return nil, err
 		}
 	}
 	return &cfg, nil

@@ -3,9 +3,10 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-const { registerRoute, registerSidebarEntry, getKartaWasm } = vi.hoisted(() => ({
+const { registerRoute, registerSidebarEntry, registerPluginSettings, getKartaWasm } = vi.hoisted(() => ({
   registerRoute: vi.fn(),
   registerSidebarEntry: vi.fn(),
+  registerPluginSettings: vi.fn(),
   getKartaWasm: vi.fn(() => Promise.resolve({})),
 }));
 
@@ -30,6 +31,7 @@ vi.mock('@kinvolk/headlamp-plugin/lib', async importOriginal => ({
   ...(await importOriginal<Record<string, unknown>>()),
   registerRoute,
   registerSidebarEntry,
+  registerPluginSettings,
 }));
 // The module production imports, not the barrel: useKartaWasm and kartaUtil
 // both reach for lib/karta/karta directly, so mocking the barrel would watch a
@@ -54,5 +56,9 @@ describe('plugin registration', () => {
     expect(registerSidebarEntry).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'karta-workloads', url: '/karta/workloads' })
     );
+  });
+
+  it('registers settings with Headlamp saving enabled', () => {
+    expect(registerPluginSettings).toHaveBeenCalledWith('karta', expect.any(Function), true);
   });
 });

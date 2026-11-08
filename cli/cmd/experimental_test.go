@@ -22,7 +22,7 @@ import (
 
 func TestDefinitionsExperimentalOptIn(t *testing.T) {
 	isolateConfig(t)
-	t.Setenv("KARTA_ENABLE_EXPERIMENTAL", "")
+	t.Setenv("KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS", "")
 	t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "absent"))
 	cluster := kartas.Jobset()
 	cluster.Name = "experimental-cluster-jobset"
@@ -44,7 +44,7 @@ func TestDefinitionsExperimentalOptIn(t *testing.T) {
 		for _, enabled := range []bool{false, true} {
 			args := []string{"--server", server.URL, "-o", format}
 			if enabled {
-				args = append(args, "--enable-experimental")
+				args = append(args, "--catalog-experimental-definitions")
 			}
 			out, errOut, code := runCmd(t, "definitions", args...)
 			if code != 0 || errOut != "" {
@@ -65,7 +65,7 @@ func TestDefinitionsExperimentalOptIn(t *testing.T) {
 		if out, _, code := runCmd(t, "definitions", "--server", server.URL, name); code == 0 || out != "" {
 			t.Errorf("explicit name %s bypassed opt-in: exit %d, stdout %s", name, code, out)
 		}
-		if _, errOut, code := runCmd(t, "definitions", "--server", server.URL, name, "--enable-experimental"); code != 0 {
+		if _, errOut, code := runCmd(t, "definitions", "--server", server.URL, name, "--catalog-experimental-definitions"); code != 0 {
 			t.Errorf("enabled explicit name %s: exit %d, stderr %s", name, code, errOut)
 		}
 	}
@@ -73,7 +73,7 @@ func TestDefinitionsExperimentalOptIn(t *testing.T) {
 
 func TestExperimentalWorkloadCommands(t *testing.T) {
 	isolateConfig(t)
-	t.Setenv("KARTA_ENABLE_EXPERIMENTAL", "")
+	t.Setenv("KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS", "")
 	gvk := catalog.RootKey(kartas.KueueWorkload())
 	gvr := gvk.GroupVersion().WithResource("workloads")
 	workload := object(gvk, "queued-training", nil)
@@ -92,7 +92,7 @@ func TestExperimentalWorkloadCommands(t *testing.T) {
 			client.ClearActions()
 			args := slices.Clone(tc.args)
 			if enabled {
-				args = append(args, "--enable-experimental")
+				args = append(args, "--catalog-experimental-definitions")
 			}
 			out, errOut, code := runCmd(t, tc.command, args...)
 			if enabled && code != 0 {
@@ -117,7 +117,7 @@ func TestExperimentalWorkloadCommands(t *testing.T) {
 
 func TestExperimentalManifestOptIn(t *testing.T) {
 	isolateConfig(t)
-	t.Setenv("KARTA_ENABLE_EXPERIMENTAL", "")
+	t.Setenv("KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS", "")
 	noCluster(t)
 	// Another version exercises the fallback through ByRootKind too.
 	for _, version := range []string{"v1beta2", "v1beta1"} {
@@ -125,7 +125,7 @@ func TestExperimentalManifestOptIn(t *testing.T) {
 		if out, _, code := runDescribeCmd(t, "-f", path); code == 0 || out != "" {
 			t.Errorf("%s manifest bypassed opt-in: exit %d, stdout %s", version, code, out)
 		}
-		out, errOut, code := runDescribeCmd(t, "-f", path, "--enable-experimental")
+		out, errOut, code := runDescribeCmd(t, "-f", path, "--catalog-experimental-definitions")
 		if code != 0 || !strings.Contains(out, "queued-training") {
 			t.Errorf("%s enabled manifest: exit %d, stdout %s, stderr %s", version, code, out, errOut)
 		}
@@ -134,10 +134,10 @@ func TestExperimentalManifestOptIn(t *testing.T) {
 
 func TestExperimentalCompletionPreferences(t *testing.T) {
 	isolateConfig(t)
-	t.Setenv("KARTA_ENABLE_EXPERIMENTAL", "")
+	t.Setenv("KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS", "")
 	fakeCluster(t)
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("enable-experimental: true\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("catalog-experimental-definitions: true\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
@@ -147,14 +147,14 @@ func TestExperimentalCompletionPreferences(t *testing.T) {
 		want bool
 	}{
 		{"default", "", nil, false},
-		{"flag", "", []string{"--enable-experimental"}, true},
+		{"flag", "", []string{"--catalog-experimental-definitions"}, true},
 		{"config", "", []string{"--config", path}, true},
 		{"environment", "true", nil, true},
 		{"environment overrides config", "false", []string{"--config", path}, false},
-		{"explicit false", "true", []string{"--config", path, "--enable-experimental=false"}, false},
+		{"explicit false", "true", []string{"--config", path, "--catalog-experimental-definitions=false"}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("KARTA_ENABLE_EXPERIMENTAL", tc.env)
+			t.Setenv("KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS", tc.env)
 			args := append([]string{"get"}, tc.args...)
 			got := complete(t, append(args, "work")...)
 			if slices.Contains(got, "workload") != tc.want {

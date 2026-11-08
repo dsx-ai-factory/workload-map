@@ -56,17 +56,17 @@ Definitions with `spec.experimental: true` are excluded by default. This applies
 to the built-in catalog and cluster definitions, including listings, workload
 resolution, `describe -f`, `get --all-types`, and shell completion.
 
-Use `--enable-experimental` to include them:
+Use `--catalog-experimental-definitions` to include them:
 
 ```bash
-kli definitions --enable-experimental
-kli get workload --enable-experimental
+kli definitions --catalog-experimental-definitions
+kli get workload --catalog-experimental-definitions
 ```
 
-To save the preference, set `KARTA_ENABLE_EXPERIMENTAL=true` or add
-`enable-experimental: true` to `~/.karta/config.yaml`. An explicit flag takes
-precedence over the environment, then the config file, then the default.
-`--enable-experimental=false` disables a saved opt-in.
+To save the preference, set `KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS=true` or add
+`catalog-experimental-definitions: true` to `~/.karta/config.yaml`. An explicit
+flag takes precedence over the environment, then the config file, then the default.
+`--catalog-experimental-definitions=false` disables a saved opt-in.
 
 Naming an experimental definition or workload type still requires the opt-in.
 An excluded cluster definition does not override a stable catalog definition.

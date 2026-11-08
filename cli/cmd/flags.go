@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	flagConfig             = "config"
-	flagOutput             = "output"
-	flagEnableExperimental = "enable-experimental"
+	flagConfig                         = "config"
+	flagOutput                         = "output"
+	flagCatalogExperimentalDefinitions = "catalog-experimental-definitions"
 )
 
 var kubeFlags *genericclioptions.ConfigFlags
@@ -46,7 +46,7 @@ func withConfig(cmd *cobra.Command) {
 }
 
 func isExperimentalEnabled(cmd *cobra.Command) bool {
-	enabled, _ := cmd.Flags().GetBool(flagEnableExperimental)
+	enabled, _ := cmd.Flags().GetBool(flagCatalogExperimentalDefinitions)
 	return enabled
 }
 

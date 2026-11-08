@@ -24,8 +24,8 @@ const (
 )
 
 type Config struct {
-	Output             string `mapstructure:"output" yaml:"output" json:"output"`
-	EnableExperimental bool   `mapstructure:"enable-experimental" yaml:"enable-experimental" json:"enable-experimental"`
+	Output                         string `mapstructure:"output" yaml:"output" json:"output"`
+	CatalogExperimentalDefinitions bool   `mapstructure:"catalog-experimental-definitions" yaml:"catalog-experimental-definitions" json:"catalog-experimental-definitions"`
 }
 
 // config is the single source of truth set by PersistentPreRunE before each RunE.
@@ -90,9 +90,9 @@ func buildConfig(cmd *cobra.Command) (*Config, error) {
 			return nil, err
 		}
 	}
-	experimental := cmd.Flags().Lookup(flagEnableExperimental)
+	experimental := cmd.Flags().Lookup(flagCatalogExperimentalDefinitions)
 	if experimental != nil {
-		if err := v.BindPFlag(flagEnableExperimental, experimental); err != nil {
+		if err := v.BindPFlag(flagCatalogExperimentalDefinitions, experimental); err != nil {
 			return nil, err
 		}
 	}
@@ -113,7 +113,7 @@ func buildConfig(cmd *cobra.Command) (*Config, error) {
 		}
 	}
 	if experimental != nil {
-		if err := experimental.Value.Set(strconv.FormatBool(cfg.EnableExperimental)); err != nil {
+		if err := experimental.Value.Set(strconv.FormatBool(cfg.CatalogExperimentalDefinitions)); err != nil {
 			return nil, err
 		}
 	}

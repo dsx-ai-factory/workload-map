@@ -65,7 +65,7 @@ func NewRootCommand() *cobra.Command {
 	cobra.CheckErr(cmd.RegisterFlagCompletionFunc("namespace", completeNamespaces))
 	withOutput(cmd, cmd.PersistentFlags(), true)
 	withConfig(cmd)
-	cmd.PersistentFlags().Bool(flagEnableExperimental, false, "Include experimental Karta definitions")
+	cmd.PersistentFlags().Bool(flagCatalogExperimentalDefinitions, false, "Include experimental Karta definitions")
 
 	cmd.AddCommand(newGetCommand())
 	cmd.AddCommand(newDescribeCommand())

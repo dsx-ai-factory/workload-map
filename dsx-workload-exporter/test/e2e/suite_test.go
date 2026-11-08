@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +23,25 @@ import (
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type operatorWorkload struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Status            struct {
+		Replicas             int32              `json:"replicas"`
+		ReadyReplicas        int32              `json:"readyReplicas"`
+		UpdatedReplicas      int32              `json:"updatedReplicas"`
+		Conditions           []metav1.Condition `json:"conditions"`
+		ReplicatedJobsStatus []struct {
+			Name   string `json:"name"`
+			Active int32  `json:"active"`
+			Ready  int32  `json:"ready"`
+			Failed int32  `json:"failed"`
+		} `json:"replicatedJobsStatus"`
+	} `json:"status"`
+}
 
 const namespace = "exporter-workloads-a"
 
@@ -92,6 +111,13 @@ func kubectl(input string, args ...string) (string, error) {
 func apply(yaml string) {
 	GinkgoHelper()
 	command(yaml, "apply", "-f", "-")
+}
+
+func applyFixture(name string) {
+	GinkgoHelper()
+	body, err := os.ReadFile("testdata/" + name + ".yaml")
+	Expect(err).NotTo(HaveOccurred())
+	apply(string(body))
 }
 
 func readObject(dst any, args ...string) bool {
@@ -216,6 +242,48 @@ func hasPhases(fs map[string]*dto.MetricFamily, labels map[string]string, want .
 		}
 	}
 	return true
+}
+
+func conditionStatuses(root operatorWorkload) map[string]metav1.ConditionStatus {
+	conditions := map[string]metav1.ConditionStatus{}
+	for _, condition := range root.Status.Conditions {
+		conditions[condition.Type] = condition.Status
+	}
+	return conditions
+}
+
+func hasOperatorStatus(fs map[string]*dto.MetricFamily, root operatorWorkload, karta string, phases ...string) bool {
+	apiVersion := strings.SplitN(root.APIVersion, "/", 2)
+	labels := map[string]string{
+		"namespace": namespace, "workload_name": root.Name, "workload_uid": string(root.UID),
+		"workload_group": apiVersion[0], "workload_version": apiVersion[1], "workload_kind": root.Kind,
+		"owner_resolution": "resolved", "observation_valid": "true", "karta_source": "catalog", "karta": karta, "team": "root-team",
+	}
+	if root.Kind == "LeaderWorkerSet" {
+		labels["root_replicas"] = strconv.Itoa(int(root.Status.Replicas))
+	}
+	if !hasPhases(fs, labels, phases...) {
+		return false
+	}
+	for _, row := range matching(fs, "dsx_workload_status", map[string]string{"workload_uid": string(root.UID)}) {
+		if _, exists := labelValue(row, "pod_team"); exists {
+			return false
+		}
+	}
+	created := matching(fs, "dsx_workload_created_timestamp_seconds", map[string]string{"workload_uid": string(root.UID)})
+	return hasSingleGauge(created, float64(root.CreationTimestamp.Unix())) &&
+		len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"scope": "workload", "workload_uid": string(root.UID)})) == 0
+}
+
+func hasOperatorPod(fs map[string]*dto.MetricFamily, root operatorWorkload, pod corev1.Pod, component, instance, group string) bool {
+	apiVersion := strings.SplitN(root.APIVersion, "/", 2)
+	rows := matching(fs, "dsx_workload_pod_info", map[string]string{
+		"namespace": namespace, "workload_name": root.Name, "workload_uid": string(root.UID),
+		"workload_group": apiVersion[0], "workload_version": apiVersion[1], "workload_kind": root.Kind,
+		"pod_name": pod.Name, "pod_uid": string(pod.UID), "component": component, "component_instance": instance, "replica_group_id": group,
+		"owner_resolution": "resolved", "observation_valid": "true", "team": "root-team", "pod_team": "pod-team",
+	})
+	return hasSingleGauge(rows, 1)
 }
 
 func waitForRunningContainer(pod, container string, init bool) {

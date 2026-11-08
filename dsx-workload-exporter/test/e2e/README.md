@@ -26,14 +26,18 @@ log, including successful runs.
 
 | File | What it contains |
 | --- | --- |
-| `pod_job_deployment_test.go` | Pod and Job lifecycles, dynamic Karta definitions, permission failure and recovery. |
-| `jobset_leaderworkerset_test.go` | JobSet components and completion; LeaderWorkerSet groups and scale-down. |
+| `pod_test.go` | Standalone Pod lifecycle, failure and metric cleanup. |
+| `job_test.go` | Job lifecycle, permission failure and recovery. |
+| `deployment_test.go` | Zero-Pod Deployment, live Karta changes and ReplicaSet ownership. |
+| `jobset_test.go` | JobSet components, completion and metric cleanup. |
+| `leaderworkerset_test.go` | LeaderWorkerSet groups and scale-down. |
 | `multiple_exporters_test.go` | Moving a populated namespace between exporter shards. |
 | `suite_test.go` | Suite entry point, setup, cleanup, Kubernetes commands and metric helpers. |
 
-All eight specs run serially because they share exporter installations. The five
-native workload specs also run in order: permission coverage reuses the lifecycle
-Job. Shared namespaces are retained if any spec fails.
+All eight specs run serially because they share exporter installations. The two
+Job specs run in order: permission coverage reuses the completed lifecycle Job.
+Pod lifecycle and failure also run in order. Workload groups can run in any order.
+Shared namespaces are retained if any spec fails.
 
 Tests fetch `/metrics` through the exporter Service proxy and parse it with
 `expfmt`. Checks compare metric names, labels and gauge values. Retries wait 250ms

@@ -149,7 +149,7 @@ var _ = Describe("chart exporter ServiceMonitor", func() {
 			name:     "enabled with inherited scrape settings",
 			args:     []string{"--set", "exporter.serviceMonitor.enabled=true"},
 			enabled:  true,
-			endpoint: map[string]any{"port": "metrics", "path": "/metrics"},
+			endpoint: map[string]any{"port": "metrics", "path": "/metrics", "honorLabels": true},
 		},
 		{
 			name: "enabled with overrides",
@@ -165,7 +165,7 @@ var _ = Describe("chart exporter ServiceMonitor", func() {
 			args:     []string{"--set", "fullnameOverride=custom"},
 			enabled:  true,
 			override: "custom-",
-			endpoint: map[string]any{"port": "metrics", "path": "/metrics", "interval": "30s", "scrapeTimeout": "10s"},
+			endpoint: map[string]any{"port": "metrics", "path": "/metrics", "honorLabels": true, "interval": "30s", "scrapeTimeout": "10s"},
 		},
 	} {
 		It(tc.name, func() {

@@ -47,7 +47,7 @@ CONTROLLER_TOOLS_VERSION    ?= v0.23.0
 GO_LICENCE_DETECTOR_VERSION ?= v0.11.1
 ENVTEST_VERSION             ?= release-0.23
 # renovate: datasource=go depName=github.com/goreleaser/goreleaser/v2
-GORELEASER_VERSION          ?= v2.19.0
+GORELEASER_VERSION          ?= v2.20.0
 # renovate: datasource=github-releases depName=prometheus/prometheus
 PROMTOOL_VERSION            ?= v3.14.0
 # Kubernetes control-plane (apiserver, etcd, kubectl) version envtest downloads.

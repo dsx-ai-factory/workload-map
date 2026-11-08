@@ -11,12 +11,7 @@ If you believe you have found a security vulnerability, please do not open a pub
 
 ## Supported Versions
 
-Security fixes are applied to the latest released minor version. While Karta is pre-1.0, only the most recent release receives security updates. End-of-life branches do not receive security updates. See [Support](SUPPORT.md) for the support policy.
-
-| Version | Supported |
-|---|---|
-| Latest release | Yes |
-| Older releases | No |
+Security fixes are issued for the supported versions listed in [Support](SUPPORT.md). End-of-life versions do not receive security updates.
 
 ## Reporting a Vulnerability
 

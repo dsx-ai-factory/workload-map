@@ -7,16 +7,18 @@ Copyright (c) 2026 NVIDIA Corporation
 
 ## Supported Versions
 
-Karta is pre-1.0. We maintain the latest released minor version line, which is released from its release branch (for example `v0.3`). See [RELEASE.md](RELEASE.md) for how versions and release branches are cut.
+Karta is pre-1.0. We maintain the three most recent released minor version lines. Each line is released from its release branch. See [RELEASE.md](RELEASE.md) for how versions and release branches are cut.
 
-| Version | Status |
-|---|---|
-| Latest released minor | Supported |
-| Older minors | Not supported |
+| Version | Branch | Status |
+|---|---|---|
+| 0.3.x | `v0.3` | Supported |
+| 0.2.x | `v0.2` | Supported |
+| 0.1.x | `v0.1` | Supported |
+| Older | | Not supported |
 
 Bug reports and pull requests against unsupported versions are not accepted, except for critical security issues, which are handled privately through NVIDIA PSIRT (see [Security](SECURITY.md)).
 
-When a new minor version ships, the previous one stops receiving fixes.
+When a new minor version ships, this table is updated and the oldest line stops receiving fixes.
 
 ## Where to Get Help
 

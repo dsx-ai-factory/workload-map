@@ -109,9 +109,9 @@ var _ = Describe("Kueue Workload lifecycle", Ordered, Label("kueue"), func() {
 			AddState(kartav1alpha1.InitializingStatus, AllOf(active, CondFalse("Admitted"), CondNotTrue("Finished"))).
 			AddState(kartav1alpha1.RunningStatus, AllOf(active, CondTrue("Admitted"), CondTrue("PodsReady"),
 				CondNotTrue("Finished"), CondNotTrue("Evicted"), CondNotTrue("WaitingForReplacementPods"))).
-			AddState(kartav1alpha1.SuspendingStatus, AllOf(inactive, CondTrue("QuotaReserved"), CondNotTrue("Finished"))).
 			AddState(kartav1alpha1.SuspendedStatus, AllOf(inactive, CondNotTrue("QuotaReserved"), CondNotTrue("Finished"))).
-			AddState(kartav1alpha1.FailedStatus, CondReason("Finished", "Failed"))
+			AddState(kartav1alpha1.FailedStatus, CondReason("Finished", "Failed")).
+			AddState(kartav1alpha1.CompletedStatus, CondReason("Finished", "Succeeded"))
 	})
 
 	It("pending", func(ctx SpecContext) {
@@ -153,7 +153,6 @@ var _ = Describe("Kueue Workload lifecycle", Ordered, Label("kueue"), func() {
 			recorder.Reaches(kartav1alpha1.RunningStatus).Do(&recorder.Action{
 				Type: recorder.ActionSuspend, Patch: []byte(`{"spec":{"active":false}}`),
 			}),
-			recorder.Reaches(kartav1alpha1.SuspendingStatus),
 			recorder.Reaches(kartav1alpha1.SuspendedStatus),
 		).Observe(ctx, workload)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
@@ -200,15 +199,20 @@ var _ = Describe("Kueue Workload lifecycle", Ordered, Label("kueue"), func() {
 		expectKueueStatus(ctx, workload, kartav1alpha1.FailedStatus)
 	})
 
-	It("keeps a successful Job Undefined", func(ctx SpecContext) {
+	It("completed Job", func(ctx SpecContext) {
 		job, workload := createKueueJob(ctx, "job_completed.yaml")
-		Eventually(func(g Gomega) {
-			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(job), job)).To(Succeed())
-			g.Expect(CondTrue("Complete")(job)).To(BeTrue())
-			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(workload), workload)).To(Succeed())
-			g.Expect(CondReason("Finished", "Succeeded")(workload)).To(BeTrue())
-		}, 3*time.Minute, time.Second).Should(Succeed())
-		expectKueueStatus(ctx, workload, kartav1alpha1.UndefinedStatus)
+		out, err := recorder.NewFlow(rec, "job-completed", "").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.CompletedStatus),
+		).Observe(ctx, workload)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(job), job)).To(Succeed())
+		Expect(CondTrue("Complete")(job)).To(BeTrue())
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(workload), workload)).To(Succeed())
+		Expect(CondReason("Finished", "Succeeded")(workload)).To(BeTrue())
+		expectKueueStatus(ctx, workload, kartav1alpha1.CompletedStatus)
 	})
 })
 

@@ -37,6 +37,11 @@ spec:
               byExpression:
                 expression: .spec.active != false and ((.status.conditions // []) | any((.type == "Finished" or .type == "Evicted" or .type == "WaitingForReplacementPods") and .status == "True") | not)
                 expectedResult: "true"
+          completed:
+            - byConditions:
+                - type: Finished
+                  status: "True"
+                  reason: Succeeded
           failed:
             - byConditions:
                 - type: Finished
@@ -49,9 +54,5 @@ spec:
           suspended:
             - byExpression:
                 expression: .spec.active == false and ((.status.conditions // []) | any(.type == "Finished" and .status == "True") | not) and (((.status.conditions // []) | any(.type == "QuotaReserved" and .status == "True")) | not)
-                expectedResult: "true"
-          suspending:
-            - byExpression:
-                expression: .spec.active == false and ((.status.conditions // []) | any(.type == "Finished" and .status == "True") | not) and ((.status.conditions // []) | any(.type == "QuotaReserved" and .status == "True"))
                 expectedResult: "true"
   optimizationInstructions: {}

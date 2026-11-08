@@ -71,11 +71,18 @@ var _ = Describe("Kueue Workload status", func() {
 			{"type": "PodsReady", "status": "True"},
 			{"type": "WaitingForReplacementPods", "status": "True"},
 		}, v1alpha1.UndefinedStatus),
+		Entry("finished successful workload", nil, []map[string]any{
+			{"type": "Finished", "status": "True", "reason": "Succeeded"},
+		}, v1alpha1.CompletedStatus),
+		Entry("success reason before completion", nil, []map[string]any{
+			{"type": "Admitted", "status": "False"},
+			{"type": "Finished", "status": "False", "reason": "Succeeded"},
+		}, v1alpha1.InitializingStatus),
 		Entry("finished mixed Pod group with stale readiness", nil, []map[string]any{
 			{"type": "Admitted", "status": "True"},
 			{"type": "PodsReady", "status": "True"},
 			{"type": "Finished", "status": "True", "reason": "Succeeded", "message": "Pods succeeded: 1/3."},
-		}, v1alpha1.UndefinedStatus),
+		}, v1alpha1.CompletedStatus),
 		Entry("finished after quota was released", nil, []map[string]any{
 			{"type": "Admitted", "status": "False"},
 			{"type": "Finished", "status": "True", "reason": "Failed"},
@@ -105,12 +112,12 @@ var _ = Describe("Kueue Workload status", func() {
 		Entry("inactive before admission with reserved quota", ptr.To(false), []map[string]any{
 			{"type": "Admitted", "status": "False"},
 			{"type": "QuotaReserved", "status": "True"},
-		}, v1alpha1.SuspendingStatus),
+		}, v1alpha1.UndefinedStatus),
 		Entry("inactive with reserved quota and stale readiness", ptr.To(false), []map[string]any{
 			{"type": "Admitted", "status": "True"},
 			{"type": "PodsReady", "status": "True"},
 			{"type": "QuotaReserved", "status": "True"},
-		}, v1alpha1.SuspendingStatus),
+		}, v1alpha1.UndefinedStatus),
 		Entry("inactive after quota release with stale readiness", ptr.To(false), []map[string]any{
 			{"type": "Admitted", "status": "True"},
 			{"type": "PodsReady", "status": "True"},
@@ -126,7 +133,7 @@ var _ = Describe("Kueue Workload status", func() {
 			{"type": "PodsReady", "status": "True"},
 			{"type": "QuotaReserved", "status": "True"},
 			{"type": "Finished", "status": "True", "reason": "Succeeded"},
-		}, v1alpha1.UndefinedStatus),
+		}, v1alpha1.CompletedStatus),
 		Entry("inactive unknown terminal reason after quota release", ptr.To(false), []map[string]any{
 			{"type": "Admitted", "status": "False"},
 			{"type": "QuotaReserved", "status": "False"},

@@ -4,22 +4,22 @@ events:
     apiVersion: kueue.x-k8s.io/v1beta2
     kind: Workload
     metadata:
-      creationTimestamp: "2026-11-08T11:02:08Z"
+      creationTimestamp: "2026-11-08T15:18:35Z"
       finalizers:
       - kueue.x-k8s.io/resource-in-use
       generation: 2
       labels:
-        kueue.x-k8s.io/job-uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      name: job-karta-e2e-kueue-job-6eb3f
-      namespace: test-n86nx
+        kueue.x-k8s.io/job-uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      name: job-karta-e2e-kueue-job-a518c
+      namespace: test-w4b4w
       ownerReferences:
       - apiVersion: batch/v1
         blockOwnerDeletion: true
         controller: true
         kind: Job
         name: karta-e2e-kueue-job
-        uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      uid: 0bb50a06-663e-403f-8db9-c69d995ca453
+        uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      uid: 203a352e-ec1b-4131-869a-0f696d8790b7
     spec:
       active: false
       podSets:
@@ -57,33 +57,33 @@ events:
       priority: 0
       queueName: karta-e2e-kueue
     status:
-      accumulatedPastExecutionTimeSeconds: 3
+      accumulatedPastExecutionTimeSeconds: 4
       conditions:
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload is deactivated
         observedGeneration: 2
         reason: Deactivated
         status: "False"
         type: QuotaReserved
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload is deactivated
         observedGeneration: 2
         reason: Deactivated
         status: "True"
         type: Evicted
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload has no reservation
         observedGeneration: 2
         reason: NoReservation
         status: "False"
         type: Admitted
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload is deactivated
         observedGeneration: 2
         reason: Deactivated
         status: "False"
         type: Requeued
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: Not all pods are ready or succeeded
         observedGeneration: 2
         reason: WaitForStart
@@ -96,7 +96,7 @@ events:
           underlyingCause: ""
   phases:
   - Suspended
-  resourceVersion: "1906"
+  resourceVersion: "1557"
   state: Suspended
 - action:
     name: Resume
@@ -112,22 +112,22 @@ events:
     apiVersion: kueue.x-k8s.io/v1beta2
     kind: Workload
     metadata:
-      creationTimestamp: "2026-11-08T11:02:08Z"
+      creationTimestamp: "2026-11-08T15:18:35Z"
       finalizers:
       - kueue.x-k8s.io/resource-in-use
       generation: 3
       labels:
-        kueue.x-k8s.io/job-uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      name: job-karta-e2e-kueue-job-6eb3f
-      namespace: test-n86nx
+        kueue.x-k8s.io/job-uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      name: job-karta-e2e-kueue-job-a518c
+      namespace: test-w4b4w
       ownerReferences:
       - apiVersion: batch/v1
         blockOwnerDeletion: true
         controller: true
         kind: Job
         name: karta-e2e-kueue-job
-        uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      uid: 0bb50a06-663e-403f-8db9-c69d995ca453
+        uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      uid: 203a352e-ec1b-4131-869a-0f696d8790b7
     spec:
       active: true
       podSets:
@@ -165,33 +165,33 @@ events:
       priority: 0
       queueName: karta-e2e-kueue
     status:
-      accumulatedPastExecutionTimeSeconds: 3
+      accumulatedPastExecutionTimeSeconds: 4
       conditions:
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload is deactivated
         observedGeneration: 2
         reason: Deactivated
         status: "False"
         type: QuotaReserved
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload is deactivated
         observedGeneration: 2
         reason: Deactivated
         status: "True"
         type: Evicted
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload has no reservation
         observedGeneration: 2
         reason: NoReservation
         status: "False"
         type: Admitted
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload is deactivated
         observedGeneration: 2
         reason: Deactivated
         status: "False"
         type: Requeued
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: Not all pods are ready or succeeded
         observedGeneration: 2
         reason: WaitForStart
@@ -204,29 +204,29 @@ events:
           underlyingCause: ""
   phases:
   - Initializing
-  resourceVersion: "1918"
+  resourceVersion: "1570"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: kueue.x-k8s.io/v1beta2
     kind: Workload
     metadata:
-      creationTimestamp: "2026-11-08T11:02:08Z"
+      creationTimestamp: "2026-11-08T15:18:35Z"
       finalizers:
       - kueue.x-k8s.io/resource-in-use
       generation: 3
       labels:
-        kueue.x-k8s.io/job-uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      name: job-karta-e2e-kueue-job-6eb3f
-      namespace: test-n86nx
+        kueue.x-k8s.io/job-uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      name: job-karta-e2e-kueue-job-a518c
+      namespace: test-w4b4w
       ownerReferences:
       - apiVersion: batch/v1
         blockOwnerDeletion: true
         controller: true
         kind: Job
         name: karta-e2e-kueue-job
-        uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      uid: 0bb50a06-663e-403f-8db9-c69d995ca453
+        uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      uid: 203a352e-ec1b-4131-869a-0f696d8790b7
     spec:
       active: true
       podSets:
@@ -264,33 +264,33 @@ events:
       priority: 0
       queueName: karta-e2e-kueue
     status:
-      accumulatedPastExecutionTimeSeconds: 3
+      accumulatedPastExecutionTimeSeconds: 4
       conditions:
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload is deactivated
         observedGeneration: 2
         reason: Deactivated
         status: "False"
         type: QuotaReserved
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload is deactivated
         observedGeneration: 2
         reason: Deactivated
         status: "True"
         type: Evicted
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload has no reservation
         observedGeneration: 2
         reason: NoReservation
         status: "False"
         type: Admitted
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: The workload was reactivated
         observedGeneration: 3
         reason: Reactivated
         status: "True"
         type: Requeued
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: Not all pods are ready or succeeded
         observedGeneration: 2
         reason: WaitForStart
@@ -303,29 +303,29 @@ events:
           underlyingCause: ""
   phases:
   - Initializing
-  resourceVersion: "1919"
+  resourceVersion: "1571"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: kueue.x-k8s.io/v1beta2
     kind: Workload
     metadata:
-      creationTimestamp: "2026-11-08T11:02:08Z"
+      creationTimestamp: "2026-11-08T15:18:35Z"
       finalizers:
       - kueue.x-k8s.io/resource-in-use
       generation: 3
       labels:
-        kueue.x-k8s.io/job-uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      name: job-karta-e2e-kueue-job-6eb3f
-      namespace: test-n86nx
+        kueue.x-k8s.io/job-uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      name: job-karta-e2e-kueue-job-a518c
+      namespace: test-w4b4w
       ownerReferences:
       - apiVersion: batch/v1
         blockOwnerDeletion: true
         controller: true
         kind: Job
         name: karta-e2e-kueue-job
-        uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      uid: 0bb50a06-663e-403f-8db9-c69d995ca453
+        uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      uid: 203a352e-ec1b-4131-869a-0f696d8790b7
     spec:
       active: true
       podSets:
@@ -363,33 +363,33 @@ events:
       priority: 0
       queueName: karta-e2e-kueue
     status:
-      accumulatedPastExecutionTimeSeconds: 3
+      accumulatedPastExecutionTimeSeconds: 4
       conditions:
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: Workload is pending evaluation in the scheduling queue
         observedGeneration: 3
         reason: PendingEvaluation
         status: "False"
         type: QuotaReserved
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload is deactivated
         observedGeneration: 2
         reason: Deactivated
         status: "True"
         type: Evicted
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: The workload has no reservation
         observedGeneration: 3
         reason: NoReservation
         status: "False"
         type: Admitted
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: The workload was reactivated
         observedGeneration: 3
         reason: Reactivated
         status: "True"
         type: Requeued
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: Not all pods are ready or succeeded
         observedGeneration: 2
         reason: WaitForStart
@@ -402,29 +402,29 @@ events:
           underlyingCause: ""
   phases:
   - Initializing
-  resourceVersion: "1920"
+  resourceVersion: "1572"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: kueue.x-k8s.io/v1beta2
     kind: Workload
     metadata:
-      creationTimestamp: "2026-11-08T11:02:08Z"
+      creationTimestamp: "2026-11-08T15:18:35Z"
       finalizers:
       - kueue.x-k8s.io/resource-in-use
       generation: 3
       labels:
-        kueue.x-k8s.io/job-uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      name: job-karta-e2e-kueue-job-6eb3f
-      namespace: test-n86nx
+        kueue.x-k8s.io/job-uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      name: job-karta-e2e-kueue-job-a518c
+      namespace: test-w4b4w
       ownerReferences:
       - apiVersion: batch/v1
         blockOwnerDeletion: true
         controller: true
         kind: Job
         name: karta-e2e-kueue-job
-        uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      uid: 0bb50a06-663e-403f-8db9-c69d995ca453
+        uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      uid: 203a352e-ec1b-4131-869a-0f696d8790b7
     spec:
       active: true
       podSets:
@@ -462,7 +462,7 @@ events:
       priority: 0
       queueName: karta-e2e-kueue
     status:
-      accumulatedPastExecutionTimeSeconds: 3
+      accumulatedPastExecutionTimeSeconds: 4
       admission:
         clusterQueue: karta-e2e-kueue
         podSetAssignments:
@@ -475,31 +475,31 @@ events:
             cpu: 50m
             memory: 32Mi
       conditions:
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: Quota reserved in ClusterQueue karta-e2e-kueue
         observedGeneration: 3
         reason: QuotaReserved
         status: "True"
         type: QuotaReserved
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: 'Previously: The workload is deactivated'
         observedGeneration: 3
         reason: QuotaReserved
         status: "False"
         type: Evicted
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: The workload is admitted
         observedGeneration: 3
         reason: Admitted
         status: "True"
         type: Admitted
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: The workload was reactivated
         observedGeneration: 3
         reason: Reactivated
         status: "True"
         type: Requeued
-      - lastTransitionTime: "2026-11-08T11:02:11Z"
+      - lastTransitionTime: "2026-11-08T15:18:39Z"
         message: Not all pods are ready or succeeded
         observedGeneration: 2
         reason: WaitForStart
@@ -512,29 +512,29 @@ events:
           underlyingCause: ""
   phases:
   - Undefined
-  resourceVersion: "1921"
+  resourceVersion: "1573"
   state: Undefined
 - kind: STATE
   object:
     apiVersion: kueue.x-k8s.io/v1beta2
     kind: Workload
     metadata:
-      creationTimestamp: "2026-11-08T11:02:08Z"
+      creationTimestamp: "2026-11-08T15:18:35Z"
       finalizers:
       - kueue.x-k8s.io/resource-in-use
       generation: 3
       labels:
-        kueue.x-k8s.io/job-uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      name: job-karta-e2e-kueue-job-6eb3f
-      namespace: test-n86nx
+        kueue.x-k8s.io/job-uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      name: job-karta-e2e-kueue-job-a518c
+      namespace: test-w4b4w
       ownerReferences:
       - apiVersion: batch/v1
         blockOwnerDeletion: true
         controller: true
         kind: Job
         name: karta-e2e-kueue-job
-        uid: 0efed95d-a713-4e23-afb2-604ed7a771a3
-      uid: 0bb50a06-663e-403f-8db9-c69d995ca453
+        uid: 7339616f-3969-4f64-8246-d304db40ca1b
+      uid: 203a352e-ec1b-4131-869a-0f696d8790b7
     spec:
       active: true
       podSets:
@@ -572,7 +572,7 @@ events:
       priority: 0
       queueName: karta-e2e-kueue
     status:
-      accumulatedPastExecutionTimeSeconds: 3
+      accumulatedPastExecutionTimeSeconds: 4
       admission:
         clusterQueue: karta-e2e-kueue
         podSetAssignments:
@@ -585,31 +585,31 @@ events:
             cpu: 50m
             memory: 32Mi
       conditions:
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: Quota reserved in ClusterQueue karta-e2e-kueue
         observedGeneration: 3
         reason: QuotaReserved
         status: "True"
         type: QuotaReserved
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: 'Previously: The workload is deactivated'
         observedGeneration: 3
         reason: QuotaReserved
         status: "False"
         type: Evicted
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: The workload is admitted
         observedGeneration: 3
         reason: Admitted
         status: "True"
         type: Admitted
-      - lastTransitionTime: "2026-11-08T11:02:15Z"
+      - lastTransitionTime: "2026-11-08T15:18:42Z"
         message: The workload was reactivated
         observedGeneration: 3
         reason: Reactivated
         status: "True"
         type: Requeued
-      - lastTransitionTime: "2026-11-08T11:02:17Z"
+      - lastTransitionTime: "2026-11-08T15:18:45Z"
         message: All pods reached readiness and the workload is running
         observedGeneration: 3
         reason: Started
@@ -622,7 +622,7 @@ events:
           underlyingCause: ""
   phases:
   - Running
-  resourceVersion: "1945"
+  resourceVersion: "1599"
   state: Running
 flow: job-resumed
 kartaFile: docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml

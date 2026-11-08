@@ -15,11 +15,9 @@ import (
 // workload-level readiness feature. Admission alone does not mean that Pods
 // have started. Missing readiness remains Undefined.
 //
-// Finished/Succeeded is deliberately unmapped: a Pod group can report Succeeded even
-// when some Pods failed, and a task inside long-lived Pods can finish while
-// the Workload remains running. The original conditions remain available.
+// Completed follows Kueue's Finished/Succeeded condition. For Pod groups this
+// means the group finished, not that every Pod or application task succeeded.
 // Failed maps only explicit execution or permanent start failures.
-// FailedToStart is source-verified but has no live recording.
 // Workload podSets describe admission requests. They are not mutable templates
 // for the Pods, and the Workload does not own those Pods.
 func KueueWorkload() *v1alpha1.Karta {
@@ -60,18 +58,15 @@ func KueueWorkload() *v1alpha1.Karta {
 									ExpectedResult: "true",
 								},
 							}},
-							Suspending: []v1alpha1.StatusMatcher{{
-								ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     `.spec.active == false and ` + unfinished + ` and ` + reserved,
-									ExpectedResult: "true",
-								},
-							}},
 							Suspended: []v1alpha1.StatusMatcher{{
 								ByExpression: &v1alpha1.ExpressionMatcher{
 									Expression:     `.spec.active == false and ` + unfinished + ` and (` + reserved + ` | not)`,
 									ExpectedResult: "true",
 								},
 							}},
+							Completed: []v1alpha1.StatusMatcher{
+								{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Finished", Status: ptr.To("True"), Reason: ptr.To("Succeeded")}}},
+							},
 							Failed: []v1alpha1.StatusMatcher{
 								{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Finished", Status: ptr.To("True"), Reason: ptr.To("Failed")}}},
 								{ByConditions: []v1alpha1.ExpectedCondition{{Type: "Finished", Status: ptr.To("True"), Reason: ptr.To("FailedToStart")}}},

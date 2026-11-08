@@ -36,10 +36,10 @@ for shard in a b; do
     --namespace "exporter-e2e-$shard" --create-namespace \
     -f "$ROOT/hack/e2e/dsx-workload-exporter/values.yaml" \
     --set "exporter.namespaceSelector.matchLabels.exporter-e2e-shard=$shard" \
-    --wait --timeout 3m
-  # A reused cluster must pick up the rebuilt image with the same local tag.
+    --timeout 3m
+  # Restart before waiting so old unready Pods cannot block the rebuilt image.
   if "$installed"; then
     kubectl -n "exporter-e2e-$shard" rollout restart deployment/dsx-workload-exporter
-    kubectl -n "exporter-e2e-$shard" rollout status deployment/dsx-workload-exporter --timeout=180s
   fi
+  kubectl -n "exporter-e2e-$shard" rollout status deployment/dsx-workload-exporter --timeout=180s
 done

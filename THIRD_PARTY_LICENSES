@@ -423,7 +423,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/google/cel-go
 - Name: github.com/google/cel-go
-- Version: v0.29.2
+- Version: v0.30.0
 - License: Apache-2.0
 
 ### github.com/prometheus/client_golang

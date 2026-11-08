@@ -3,6 +3,7 @@
 
 import { K8s } from '@kinvolk/headlamp-plugin/lib';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { gvkKey } from '../../../lib/karta/gvkKey';
 import { useKartaDefinitions } from '../../useKartaDefinitions/useKartaDefinitions';
 import { servedKindKey, useServedKinds } from '../../useServedKinds/useServedKinds';
 import { KindFetcher } from '../KindFetcher/KindFetcher';
@@ -28,7 +29,7 @@ export interface ClusterFetcherProps {
   // Bumped to retry the catalog, which is read through the engine.
   attempt?: number;
   onRows: (cluster: string, key: string, rows: WorkloadRow[]) => void;
-  onError: (cluster: string, key: string, error: Error) => void;
+  onError: (cluster: string, key: string, error: Error | null) => void;
   onState: (cluster: string, state: ClusterState) => void;
 }
 
@@ -106,7 +107,7 @@ export function ClusterFetcher({
       const kind = definition.rootKind;
       const groupVersion = kind.group ? `${kind.group}/${kind.version}` : kind.version;
       if (failedGroupVersions.has(groupVersion)) {
-        failures[definition.karta.metadata.name] = new Error(
+        failures[gvkKey(definition.rootKind)] = new Error(
           `discovery failed for ${groupVersion}`
         );
       }
@@ -117,9 +118,12 @@ export function ClusterFetcher({
   // useKartaDefinitions rebuilds its objects every render, so the derived
   // values do too. The effect keys off their content, and reads the objects
   // through refs, or reporting state would loop.
-  const expectedKinds = fetchable.map(({ definition }) => definition.karta.metadata.name);
-  const expectedKey = [...expectedKinds].sort().join(',');
-  const failuresKey = Object.keys(discoveryFailures).sort().join(',');
+  // Keyed by kind, not Karta name: a cluster Karta can reuse a catalog Karta's
+  // name for a different kind, and the two would share one entry.
+  const expectedKinds = fetchable.map(({ definition }) => gvkKey(definition.rootKind));
+  // Keys contain commas, so they are joined by something that cannot occur.
+  const expectedKey = [...expectedKinds].sort().join('\n');
+  const failuresKey = Object.keys(discoveryFailures).sort().join('\n');
   const latest = useRef({ expectedKinds, discoveryFailures });
   latest.current = { expectedKinds, discoveryFailures };
 
@@ -148,7 +152,7 @@ export function ClusterFetcher({
     [cluster, onRows]
   );
   const handleError = useCallback(
-    (key: string, kindError: Error) => onError(cluster, key, kindError),
+    (key: string, kindError: Error | null) => onError(cluster, key, kindError),
     [cluster, onError]
   );
 
@@ -156,7 +160,7 @@ export function ClusterFetcher({
     <>
       {fetchable.map(({ definition, plural, namespaced }) => (
         <KindFetcher
-          key={definition.karta.metadata.name}
+          key={gvkKey(definition.rootKind)}
           definition={definition}
           cluster={cluster}
           plural={plural}

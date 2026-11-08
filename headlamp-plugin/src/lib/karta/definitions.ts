@@ -2,6 +2,7 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { K8s } from '@kinvolk/headlamp-plugin/lib';
+import { gvkKey } from './gvkKey';
 import type { GroupVersionKind, Karta } from './karta.types';
 
 export type DefinitionOrigin = 'catalog' | 'cluster';
@@ -40,11 +41,9 @@ function namedRootKind(karta: Karta): GroupVersionKind | null {
   return kind;
 }
 
-// rootGVKKey mirrors pkg/catalog.RootKey's key shape, so a cluster CR and a
-// catalog entry describing the same workload kind collide on the same key.
 export function rootGVKKey(karta: Karta): string | null {
   const kind = namedRootKind(karta);
-  return kind && `${kind.group}/${kind.version}, Kind=${kind.kind}`;
+  return kind && gvkKey(kind);
 }
 
 // mergeDefinitions indexes catalogKartas by their root GVK, then lets

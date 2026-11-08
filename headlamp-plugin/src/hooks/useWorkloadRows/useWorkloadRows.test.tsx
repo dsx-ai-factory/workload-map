@@ -11,6 +11,11 @@ interface ClusterPlan {
   warning?: Error | null;
   kinds?: string[];
   failing?: string[];
+  // Kinds that report rows and an error together, as a list does when one
+  // namespace is readable and another is forbidden.
+  partial?: string[];
+  // Kinds whose list failed and then recovered.
+  recovered?: string[];
   pending?: string[];
   discoveryFailures?: Record<string, Error>;
 }
@@ -53,6 +58,13 @@ vi.mock('./ClusterFetcher/ClusterFetcher', () => ({
       for (const kind of kinds) {
         if (plan.failing?.includes(kind)) {
           onError(cluster, kind, new Error(`${kind} failed to list`));
+        } else if (plan.partial?.includes(kind)) {
+          onRows(cluster, kind, [{ id: `${cluster}/${kind}`, name: kind }]);
+          onError(cluster, kind, new Error(`${kind} forbidden in team-b`));
+        } else if (plan.recovered?.includes(kind)) {
+          onError(cluster, kind, new Error(`${kind} failed to list`));
+          onError(cluster, kind, null);
+          onRows(cluster, kind, [{ id: `${cluster}/${kind}`, name: kind }]);
         } else if (!plan.pending?.includes(kind)) {
           onRows(cluster, kind, [{ id: `${cluster}/${kind}`, name: kind }]);
         }
@@ -195,6 +207,31 @@ describe('useWorkloadRows', () => {
     );
     expect(harness.current.error).toBeNull();
     expect(harness.current.rows).toEqual([{ id: 'cluster-a/deployment', name: 'deployment' }]);
+  });
+
+  // Receiving some rows does not mean every namespace succeeded, so the rows
+  // stay in the table and the error is reported beside them.
+  it('keeps the rows of a kind that listed one namespace and failed another', async () => {
+    plans['cluster-a'] = { kinds: ['deployment'], partial: ['deployment'] };
+
+    const harness = renderHarness();
+
+    await waitFor(() => expect(harness.current.loading).toBe(false));
+    expect(harness.current.rows).toEqual([{ id: 'cluster-a/deployment', name: 'deployment' }]);
+    expect(harness.current.errorsByKind['cluster-a/deployment']?.message).toBe(
+      'deployment forbidden in team-b'
+    );
+    expect(harness.current.error).toBeNull();
+  });
+
+  it('drops a kind error once the fetcher reports the list recovered', async () => {
+    plans['cluster-a'] = { kinds: ['deployment'], recovered: ['deployment'] };
+
+    const harness = renderHarness();
+
+    await waitFor(() => expect(harness.current.loading).toBe(false));
+    expect(harness.current.rows).toEqual([{ id: 'cluster-a/deployment', name: 'deployment' }]);
+    expect(harness.current.errorsByKind).toEqual({});
   });
 
   it('reports a kind whose group discovery failed, naming its cluster', async () => {

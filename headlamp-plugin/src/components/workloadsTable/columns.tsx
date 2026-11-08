@@ -75,7 +75,9 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       filterSelectOptions: KARTA_PHASES,
       filterFn: (row, _columnId, filterValue: string[]) =>
         filterValue.length === 0 || filterValue.some(phase => row.original.phases.includes(phase)),
-      Cell: ({ row }) => <StatusPhaseChips phases={row.original.phases} />,
+      Cell: ({ row }) => (
+        <StatusPhaseChips phases={row.original.phases} error={row.original.statusError} />
+      ),
       gridTemplate: 'auto',
     },
     {

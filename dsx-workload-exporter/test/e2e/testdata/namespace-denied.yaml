@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: exporter-workloads-denied
+  labels: {exporter-e2e-shard: a}

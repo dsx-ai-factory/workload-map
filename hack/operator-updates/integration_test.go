@@ -503,7 +503,7 @@ func (h scriptHarness) run(t *testing.T, test scriptCase) scriptResult {
 		"KAI_SCHEDULER_VERSION=v0.15.2", "LWS_VERSION=v1.0.0", "KUBERAY_VERSION=1.0.0",
 		"KUBEFLOW_VERSION=v1.0.0", "MPI_OPERATOR_VERSION=v1.0.0", "KSERVE_VERSION=v1.0.0",
 		"MILVUS_OPERATOR_VERSION=1.0.0", "GROVE_VERSION=v0.1.0-alpha.1", "DYNAMO_VERSION=1.0.0",
-		"NIM_OPERATOR_VERSION=v1.0.0", "AGENT_SANDBOX_VERSION=v1.0.0", "GOPROXY=off", "GOSUMDB=off")
+		"NIM_OPERATOR_VERSION=v1.0.0", "AGENT_SANDBOX_VERSION=v1.0.0", "KUEUE_VERSION=v0.20.5", "GOPROXY=off", "GOSUMDB=off")
 	for name, value := range test.pins {
 		env = append(env, name+"="+value)
 	}

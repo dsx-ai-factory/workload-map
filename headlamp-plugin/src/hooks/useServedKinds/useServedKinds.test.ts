@@ -365,6 +365,80 @@ describe('useServedKinds', () => {
     expect(result.current.served?.has(servedKindKey('apps', 'v1', 'Deployment'))).toBe(true);
   });
 
+  it('falls back to the last good discovery on every failed refresh', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let apisFails = false;
+      request.mockImplementation((path: string) => {
+        switch (path) {
+          case '/apis':
+            return apisFails
+              ? Promise.reject(new Error('apis down'))
+              : Promise.resolve({ groups: [{ versions: [{ groupVersion: 'apps/v1' }] }] });
+          case '/apis/apps/v1':
+            return Promise.resolve({
+              resources: [{ name: 'deployments', kind: 'Deployment', namespaced: true }],
+            });
+          default:
+            return Promise.reject(new Error(`unexpected request: ${path}`));
+        }
+      });
+
+      const { result } = renderHook(() => useServedKinds('cluster-a', [apps, rayJob]));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      apisFails = true;
+      const apisCalls = () => request.mock.calls.filter(call => call[0] === '/apis').length;
+      for (const attempt of [2, 3]) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(31_000);
+        });
+        await waitFor(() => expect(apisCalls()).toBeGreaterThanOrEqual(attempt));
+        await waitFor(() => expect(result.current.failedGroupVersions.has('ray.io/v1')).toBe(true));
+        expect(result.current.error).toBeNull();
+        expect(result.current.served?.has(servedKindKey('apps', 'v1', 'Deployment'))).toBe(true);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('clears a failure once a later /apis answer shows the group is absent', async () => {
+    let apisFails = false;
+    request.mockImplementation((path: string) => {
+      switch (path) {
+        case '/apis':
+          return apisFails
+            ? Promise.reject(new Error('apis down'))
+            : Promise.resolve({ groups: [{ versions: [{ groupVersion: 'apps/v1' }] }] });
+        case '/apis/apps/v1':
+          return Promise.resolve({
+            resources: [{ name: 'deployments', kind: 'Deployment', namespaced: true }],
+          });
+        case '/api/v1':
+          return Promise.resolve({ resources: [{ name: 'pods', kind: 'Pod', namespaced: true }] });
+        default:
+          return Promise.reject(new Error(`unexpected request: ${path}`));
+      }
+    });
+    const task = { group: 'example.org', version: 'v1', kind: 'Task' };
+
+    const { result, rerender } = renderHook(({ kinds }) => useServedKinds('cluster-a', kinds), {
+      initialProps: { kinds: [apps] as ({ group: string; version: string; kind: string } | undefined)[] },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    apisFails = true;
+    rerender({ kinds: [apps, task] });
+    await waitFor(() => expect(result.current.failedGroupVersions.has('example.org/v1')).toBe(true));
+
+    apisFails = false;
+    rerender({ kinds: [apps, task, pod] });
+    await waitFor(() => expect(result.current.served?.has(servedKindKey('', 'v1', 'Pod'))).toBe(true));
+
+    expect(result.current.failedGroupVersions.size).toBe(0);
+  });
+
   it('does not re-read /apis for a group that is still absent', async () => {
     mockDiscovery();
 
@@ -401,20 +475,70 @@ describe('useServedKinds', () => {
         }
       });
 
-      const { result } = renderHook(() => useServedKinds('cluster-a', [apps, rayJob]));
+      const loadings: boolean[] = [];
+      const { result } = renderHook(() => {
+        const value = useServedKinds('cluster-a', [apps, rayJob]);
+        loadings.push(value.loading);
+        return value;
+      });
       await waitFor(() => expect(result.current.loading).toBe(false));
       expect(result.current.served?.has(servedKindKey('ray.io', 'v1', 'RayJob'))).toBe(false);
 
       groups = [...groups, { versions: [{ groupVersion: 'ray.io/v1' }] }];
+      const settled = loadings.length;
       await act(async () => {
         await vi.advanceTimersByTimeAsync(31_000);
       });
+      expect(loadings.slice(settled)).not.toContain(true);
 
       await waitFor(() =>
         expect(result.current.served?.get(servedKindKey('ray.io', 'v1', 'RayJob'))?.plural).toBe(
           'rayjobs'
         )
       );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps requests bounded while a listed group keeps failing its resource request', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let groups = [{ versions: [{ groupVersion: 'apps/v1' }] }];
+      request.mockImplementation((path: string) => {
+        switch (path) {
+          case '/apis':
+            return Promise.resolve({ groups });
+          case '/apis/apps/v1':
+            return Promise.resolve({
+              resources: [{ name: 'deployments', kind: 'Deployment', namespaced: true }],
+            });
+          default:
+            return Promise.reject(new Error(`unavailable: ${path}`));
+        }
+      });
+
+      const { result } = renderHook(() => useServedKinds('cluster-a', [apps, rayJob]));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      groups = [...groups, { versions: [{ groupVersion: 'ray.io/v1' }] }];
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(31_000);
+      });
+      // Small steps, so a retry with no delay would show as a burst of requests.
+      for (let i = 0; i < 100; i++) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1);
+        });
+      }
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(40_000);
+      });
+
+      const rayCalls = request.mock.calls.filter(call => call[0] === '/apis/ray.io/v1').length;
+      expect(rayCalls).toBeGreaterThan(1);
+      expect(rayCalls).toBeLessThanOrEqual(6);
+      expect(result.current.failedGroupVersions.has('ray.io/v1')).toBe(true);
     } finally {
       vi.useRealTimers();
     }

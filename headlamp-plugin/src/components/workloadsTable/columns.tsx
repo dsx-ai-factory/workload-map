@@ -65,7 +65,8 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       id: 'status',
       header: 'Status',
       // Headlamp skips cells whose value is unchanged, and phases stay [] across a failure.
-      accessorFn: row => JSON.stringify([row.phases, row.statusError ?? null]),
+      accessorFn: row =>
+        JSON.stringify(row.statusError === undefined ? row.phases : [row.phases, row.statusError]),
       // Sorted by the worst phase, so the order matches what the chips show.
       // The accessor joins them, which would otherwise sort alphabetically.
       sortingFn: (a, b) =>

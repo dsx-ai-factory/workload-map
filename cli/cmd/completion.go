@@ -99,7 +99,7 @@ func completeNamespaces(cmd *cobra.Command, _ []string, prefix string) ([]string
 // kubectl users type, matching prefix. A kind covered at several group versions
 // would be rejected as ambiguous, so it is offered in each qualified form instead.
 func completeTypes(cmd *cobra.Command, prefix string) []string {
-	resolver, _ := loadDefinitions(cmd.Context(), clusterAccess(), experimentalEnabled(cmd))
+	resolver, _ := loadDefinitions(cmd.Context(), clusterAccess(), isExperimentalEnabled(cmd))
 
 	byKind := map[string][]schema.GroupVersionKind{}
 	for _, def := range resolver.List() {

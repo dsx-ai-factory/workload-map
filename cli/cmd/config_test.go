@@ -170,7 +170,7 @@ var _ = Describe("config loading", func() {
 			}
 			root := NewRootCommand()
 			root.AddCommand(&cobra.Command{Use: "noop", RunE: func(cmd *cobra.Command, _ []string) error {
-				Expect(experimentalEnabled(cmd)).To(Equal(want))
+				Expect(isExperimentalEnabled(cmd)).To(Equal(want))
 				return nil
 			}})
 			root.SetArgs(append(args, "noop"))

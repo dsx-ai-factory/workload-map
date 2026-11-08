@@ -116,7 +116,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			resolver, warnings := loadDefinitions(cmd.Context(), rcg, experimentalEnabled(cmd))
+			resolver, warnings := loadDefinitions(cmd.Context(), rcg, isExperimentalEnabled(cmd))
 			// Warnings go out last, after the table and before main reports any
 			// error, so a long table cannot scroll them out of view.
 			defer func() {

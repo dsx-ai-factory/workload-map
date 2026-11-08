@@ -45,7 +45,7 @@ func withConfig(cmd *cobra.Command) {
 		"Path to the config file (default $KARTA_CONFIG or $HOME/.karta/config.yaml)")
 }
 
-func experimentalEnabled(cmd *cobra.Command) bool {
+func isExperimentalEnabled(cmd *cobra.Command) bool {
 	enabled, _ := cmd.Flags().GetBool(flagEnableExperimental)
 	return enabled
 }

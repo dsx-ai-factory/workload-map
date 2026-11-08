@@ -129,9 +129,16 @@ same group/kind. Cluster ties use oldest creation time, then name. Catalog ties
 use Kubernetes version priority, then name. A source or selected-definition
 error is not absence and does not trigger fallback.
 
-Experimental definitions are excluded from both sources by default. Set
-`exporter.kartaDefinitionSource.enableExperimental: true` to allow them. An
-explicit `include` does not bypass this setting. The gate applies before version
+Experimental definitions are excluded from both sources by default. To allow
+them, add this to the Helm values file:
+
+```yaml
+exporter:
+  kartaDefinitionSource:
+    enableExperimental: true
+```
+
+An explicit `include` does not bypass this setting. The gate applies before version
 and source selection. An excluded experimental cluster Karta can therefore reveal
 a stable cluster or catalog definition. Exclusion is not a source failure.
 Changing a cluster Karta's `spec.experimental` flag refreshes selection and

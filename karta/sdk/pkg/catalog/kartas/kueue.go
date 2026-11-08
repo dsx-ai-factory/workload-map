@@ -20,6 +20,8 @@ import (
 // Failed maps only explicit execution or permanent start failures.
 // Workload podSets describe admission requests. They are not mutable templates
 // for the Pods, and the Workload does not own those Pods.
+// Suspend deactivates and evicts the Workload. Resume allows admission again;
+// recreating deleted Pods requires their controller. Finished work is not restarted.
 func KueueWorkload() *v1alpha1.Karta {
 	const unfinished = `((.status.conditions // []) | any(.type == "Finished" and .status == "True") | not)`
 	const reserved = `((.status.conditions // []) | any(.type == "QuotaReserved" and .status == "True"))`
@@ -32,6 +34,10 @@ func KueueWorkload() *v1alpha1.Karta {
 				RootComponent: v1alpha1.ComponentDefinition{
 					Name: "workload",
 					Kind: &v1alpha1.GroupVersionKind{Group: "kueue.x-k8s.io", Version: "v1beta2", Kind: "Workload"},
+					SuspendDefinition: &v1alpha1.SuspendDefinition{
+						SuspendActions: []v1alpha1.SuspendAction{{Path: ".spec.active", Value: "false"}},
+						ResumeActions:  []v1alpha1.SuspendAction{{Path: ".spec.active", Value: "true"}},
+					},
 					StatusDefinition: &v1alpha1.StatusDefinition{
 						ConditionsDefinition: &v1alpha1.ConditionsDefinition{
 							Path:             ".status.conditions // []",

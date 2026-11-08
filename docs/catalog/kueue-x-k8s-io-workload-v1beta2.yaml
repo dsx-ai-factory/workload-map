@@ -55,4 +55,11 @@ spec:
             - byExpression:
                 expression: .spec.active == false and ((.status.conditions // []) | any(.type == "Finished" and .status == "True") | not) and (((.status.conditions // []) | any(.type == "QuotaReserved" and .status == "True")) | not)
                 expectedResult: "true"
+      suspendDefinition:
+        suspendActions:
+          - path: .spec.active
+            value: "false"
+        resumeActions:
+          - path: .spec.active
+            value: "true"
   optimizationInstructions: {}

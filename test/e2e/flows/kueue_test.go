@@ -146,13 +146,11 @@ var _ = Describe("Kueue Workload lifecycle", Ordered, Label("kueue"), func() {
 		Expect(err).To(Succeed())
 	})
 
-	It("deactivates and reactivates a running Job", func(ctx SpecContext) {
+	It("suspends and resumes a running Job", func(ctx SpecContext) {
 		job, workload := createKueueJob(ctx, "job.yaml")
 		waitForKueueJobExecution(ctx, job, workload)
 		out, err := recorder.NewFlow(rec, "job-suspended", "").Through(
-			recorder.Reaches(kartav1alpha1.RunningStatus).Do(&recorder.Action{
-				Type: recorder.ActionSuspend, Patch: []byte(`{"spec":{"active":false}}`),
-			}),
+			recorder.Reaches(kartav1alpha1.RunningStatus).Do(kueueLifecycleAction(ctx, workload, recorder.ActionSuspend)),
 			recorder.Reaches(kartav1alpha1.SuspendedStatus),
 		).Observe(ctx, workload)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
@@ -172,9 +170,7 @@ var _ = Describe("Kueue Workload lifecycle", Ordered, Label("kueue"), func() {
 		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(workload), workload)).To(Succeed())
 		expectKueueStatus(ctx, workload, kartav1alpha1.SuspendedStatus)
 		out, err = recorder.NewFlow(rec, "job-resumed", "").Through(
-			recorder.Reaches(kartav1alpha1.SuspendedStatus).Do(&recorder.Action{
-				Type: recorder.ActionResume, Patch: []byte(`{"spec":{"active":true}}`),
-			}),
+			recorder.Reaches(kartav1alpha1.SuspendedStatus).Do(kueueLifecycleAction(ctx, workload, recorder.ActionResume)),
 			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
 			recorder.Reaches(kartav1alpha1.RunningStatus),
 		).Observe(ctx, workload)
@@ -247,6 +243,28 @@ func createKueueJob(ctx SpecContext, manifest string) (*unstructured.Unstructure
 		g.Expect(workload).NotTo(BeNil(), "Kueue must create a Workload owned by the Job")
 	}, time.Minute, time.Second).Should(Succeed())
 	return job, workload
+}
+
+func kueueLifecycleAction(ctx SpecContext, workload *unstructured.Unstructured, actionType recorder.ActionType) *recorder.Action {
+	definition, err := catalog.Get(workload.GroupVersionKind())
+	Expect(err).NotTo(HaveOccurred())
+	factory := resource.NewComponentFactoryFromObject(definition, workload.DeepCopy())
+	root, err := factory.GetRootComponent()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(root.HasSuspendDefinition()).To(BeTrue())
+	switch actionType {
+	case recorder.ActionSuspend:
+		Expect(root.Suspend(ctx)).To(Succeed())
+	case recorder.ActionResume:
+		Expect(root.Resume(ctx)).To(Succeed())
+	default:
+		Fail("unsupported Kueue lifecycle action: " + string(actionType))
+	}
+	updated, err := factory.GetResource()
+	Expect(err).NotTo(HaveOccurred())
+	patch, err := client.MergeFrom(workload).Data(updated)
+	Expect(err).NotTo(HaveOccurred())
+	return &recorder.Action{Type: actionType, Patch: patch}
 }
 
 func expectKueueStatus(ctx SpecContext, workload *unstructured.Unstructured, want kartav1alpha1.ResourceStatus) {

@@ -4,6 +4,8 @@
 package catalog
 
 import (
+	"encoding/json"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -13,6 +15,55 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 )
+
+var _ = Describe("Kueue Workload operations", func() {
+	DescribeTable("changes only active through suspend and resume",
+		func(ctx SpecContext, active *bool) {
+			object := &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "kueue.x-k8s.io/v1beta2",
+				"kind":       "Workload",
+				"metadata":   map[string]any{"name": "training", "namespace": "default"},
+				"spec": map[string]any{
+					"queueName": "training",
+					"podSets":   []any{map[string]any{"name": "main", "count": int64(1)}},
+				},
+				"status": map[string]any{
+					"conditions": []any{map[string]any{"type": "Admitted", "status": "True"}},
+				},
+			}}
+			if active != nil {
+				Expect(unstructured.SetNestedField(object.Object, *active, "spec", "active")).To(Succeed())
+			}
+			definition, err := Get(object.GroupVersionKind())
+			Expect(err).NotTo(HaveOccurred())
+			factory := resource.NewComponentFactoryFromObject(definition, object.DeepCopy())
+			root, err := factory.GetRootComponent()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(root.HasSuspendDefinition()).To(BeTrue())
+
+			// Repeating either operation must preserve all other fields.
+			for _, wantActive := range []bool{false, false, true, true} {
+				if wantActive {
+					Expect(root.Resume(ctx)).To(Succeed())
+				} else {
+					Expect(root.Suspend(ctx)).To(Succeed())
+				}
+				updated, err := factory.GetResource()
+				Expect(err).NotTo(HaveOccurred())
+				expected := object.DeepCopy()
+				Expect(unstructured.SetNestedField(expected.Object, wantActive, "spec", "active")).To(Succeed())
+				actualJSON, err := json.Marshal(updated)
+				Expect(err).NotTo(HaveOccurred())
+				expectedJSON, err := json.Marshal(expected)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(actualJSON).To(MatchJSON(expectedJSON))
+			}
+		},
+		Entry("default active", nil),
+		Entry("already active", ptr.To(true)),
+		Entry("already inactive", ptr.To(false)),
+	)
+})
 
 var _ = Describe("Kueue Workload status", func() {
 	DescribeTable("reads admission and readiness without inferring execution success",

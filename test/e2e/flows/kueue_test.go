@@ -110,7 +110,9 @@ var _ = Describe("Kueue Workload lifecycle", Ordered, Label("kueue"), func() {
 			AddState(kartav1alpha1.RunningStatus, AllOf(active, CondTrue("Admitted"), CondTrue("PodsReady"),
 				CondNotTrue("Finished"), CondNotTrue("Evicted"), CondNotTrue("WaitingForReplacementPods"))).
 			AddState(kartav1alpha1.SuspendedStatus, AllOf(inactive, CondNotTrue("QuotaReserved"), CondNotTrue("Finished"))).
-			AddState(kartav1alpha1.FailedStatus, CondReason("Finished", "Failed")).
+			AddState(kartav1alpha1.FailedStatus, func(u *unstructured.Unstructured) bool {
+				return CondReason("Finished", "Failed")(u) || CondReason("Finished", "FailedToStart")(u)
+			}).
 			AddState(kartav1alpha1.CompletedStatus, CondReason("Finished", "Succeeded"))
 	})
 

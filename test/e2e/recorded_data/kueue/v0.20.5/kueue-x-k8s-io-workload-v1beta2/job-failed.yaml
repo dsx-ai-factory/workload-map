@@ -1,0 +1,209 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      creationTimestamp: "2026-11-08T11:02:20Z"
+      finalizers:
+      - kueue.x-k8s.io/resource-in-use
+      generation: 1
+      labels:
+        kueue.x-k8s.io/job-uid: e861799c-b179-4c42-b0a2-0bbe669d7a67
+      name: job-karta-e2e-kueue-failed-f3294
+      namespace: test-n86nx
+      ownerReferences:
+      - apiVersion: batch/v1
+        blockOwnerDeletion: true
+        controller: true
+        kind: Job
+        name: karta-e2e-kueue-failed
+        uid: e861799c-b179-4c42-b0a2-0bbe669d7a67
+      uid: 4448fcbf-57c0-4ff5-9271-d47e804c0449
+    spec:
+      active: true
+      podSets:
+      - count: 1
+        name: main
+        template:
+          metadata:
+            labels:
+              batch.kubernetes.io/job-name: karta-e2e-kueue-failed
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - exit 1
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            restartPolicy: Never
+            schedulerName: default-scheduler
+            securityContext: {}
+            terminationGracePeriodSeconds: 1
+        topologyRequest:
+          podIndexLabel: batch.kubernetes.io/job-completion-index
+      priority: 0
+      queueName: karta-e2e-kueue
+    status:
+      admission:
+        clusterQueue: karta-e2e-kueue
+        podSetAssignments:
+        - count: 1
+          flavors:
+            cpu: karta-e2e-kueue
+            memory: karta-e2e-kueue
+          name: main
+          resourceUsage:
+            cpu: 50m
+            memory: 32Mi
+      conditions:
+      - lastTransitionTime: "2026-11-08T11:02:20Z"
+        message: Not all pods are ready or succeeded
+        observedGeneration: 1
+        reason: WaitForStart
+        status: "False"
+        type: PodsReady
+      - lastTransitionTime: "2026-11-08T11:02:20Z"
+        message: Quota reserved in ClusterQueue karta-e2e-kueue
+        observedGeneration: 1
+        reason: QuotaReserved
+        status: "True"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T11:02:20Z"
+        message: The workload is admitted
+        observedGeneration: 1
+        reason: Admitted
+        status: "True"
+        type: Admitted
+  phases:
+  - Undefined
+  resourceVersion: "1973"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      creationTimestamp: "2026-11-08T11:02:20Z"
+      finalizers:
+      - kueue.x-k8s.io/resource-in-use
+      generation: 1
+      labels:
+        kueue.x-k8s.io/job-uid: e861799c-b179-4c42-b0a2-0bbe669d7a67
+      name: job-karta-e2e-kueue-failed-f3294
+      namespace: test-n86nx
+      ownerReferences:
+      - apiVersion: batch/v1
+        blockOwnerDeletion: true
+        controller: true
+        kind: Job
+        name: karta-e2e-kueue-failed
+        uid: e861799c-b179-4c42-b0a2-0bbe669d7a67
+      uid: 4448fcbf-57c0-4ff5-9271-d47e804c0449
+    spec:
+      active: true
+      podSets:
+      - count: 1
+        name: main
+        template:
+          metadata:
+            labels:
+              batch.kubernetes.io/job-name: karta-e2e-kueue-failed
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - exit 1
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            restartPolicy: Never
+            schedulerName: default-scheduler
+            securityContext: {}
+            terminationGracePeriodSeconds: 1
+        topologyRequest:
+          podIndexLabel: batch.kubernetes.io/job-completion-index
+      priority: 0
+      queueName: karta-e2e-kueue
+    status:
+      admission:
+        clusterQueue: karta-e2e-kueue
+        podSetAssignments:
+        - count: 1
+          flavors:
+            cpu: karta-e2e-kueue
+            memory: karta-e2e-kueue
+          name: main
+          resourceUsage:
+            cpu: 50m
+            memory: 32Mi
+      conditions:
+      - lastTransitionTime: "2026-11-08T11:02:20Z"
+        message: Quota reserved in ClusterQueue karta-e2e-kueue
+        observedGeneration: 1
+        reason: QuotaReserved
+        status: "True"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T11:02:20Z"
+        message: The workload is admitted
+        observedGeneration: 1
+        reason: Admitted
+        status: "True"
+        type: Admitted
+      - lastTransitionTime: "2026-11-08T11:02:24Z"
+        message: Job has reached the specified backoff limit
+        observedGeneration: 1
+        reason: Failed
+        status: "True"
+        type: Finished
+      - lastTransitionTime: "2026-11-08T11:02:20Z"
+        message: Not all pods are ready or succeeded
+        observedGeneration: 1
+        reason: WaitForStart
+        status: "False"
+        type: PodsReady
+  phases:
+  - Failed
+  resourceVersion: "2005"
+  state: Failed
+flow: job-failed
+kartaFile: docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml
+kartaName: kueue-x-k8s-io-workload-v1beta2
+operator: kueue
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 1
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Failed
+version: v0.20.5
+want: Failed

@@ -54,7 +54,7 @@ describe('mergeDefinitions', () => {
 
     const merged = mergeDefinitions(catalog, []);
 
-    expect(merged).toEqual([{ karta: catalog[0], origin: 'catalog' }]);
+    expect(merged).toEqual([{ karta: catalog[0], origin: 'catalog', rootKind: deploymentGVK }]);
   });
 
   it('lets a cluster karta override a catalog entry for the same GVK', () => {
@@ -63,7 +63,7 @@ describe('mergeDefinitions', () => {
 
     const merged = mergeDefinitions([catalogDeployment], [clusterDeployment]);
 
-    expect(merged).toEqual([{ karta: clusterDeployment, origin: 'cluster' }]);
+    expect(merged).toEqual([{ karta: clusterDeployment, origin: 'cluster', rootKind: deploymentGVK }]);
   });
 
   it('skips a spec-less Karta instead of failing the whole merge', () => {
@@ -73,7 +73,7 @@ describe('mergeDefinitions', () => {
     const merged = mergeDefinitions([], [specless as Karta, clusterDeployment]);
 
     // One incomplete object must not take the valid definitions down with it.
-    expect(merged).toEqual([{ karta: clusterDeployment, origin: 'cluster' }]);
+    expect(merged).toEqual([{ karta: clusterDeployment, origin: 'cluster', rootKind: deploymentGVK }]);
   });
 
   it('leaves out definitions with no root GVK rather than letting them collide', () => {
@@ -83,7 +83,7 @@ describe('mergeDefinitions', () => {
 
     const merged = mergeDefinitions([firstRootless, secondRootless], [clusterDeployment]);
 
-    expect(merged).toEqual([{ karta: clusterDeployment, origin: 'cluster' }]);
+    expect(merged).toEqual([{ karta: clusterDeployment, origin: 'cluster', rootKind: deploymentGVK }]);
   });
 
   it('keeps non-colliding catalog and cluster entries side by side', () => {
@@ -94,8 +94,8 @@ describe('mergeDefinitions', () => {
 
     expect(merged).toEqual(
       expect.arrayContaining([
-        { karta: catalogJob, origin: 'catalog' },
-        { karta: clusterDeployment, origin: 'cluster' },
+        { karta: catalogJob, origin: 'catalog', rootKind: jobGVK },
+        { karta: clusterDeployment, origin: 'cluster', rootKind: deploymentGVK },
       ])
     );
     expect(merged).toHaveLength(2);

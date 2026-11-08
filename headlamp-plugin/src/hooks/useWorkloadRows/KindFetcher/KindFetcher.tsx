@@ -48,8 +48,7 @@ export function KindFetcher({
   onError,
 }: KindFetcherProps) {
   const key = definition.karta.metadata.name;
-  // Validated definitions always have a root kind.
-  const kind = definition.karta.spec.structureDefinition.rootComponent.kind!;
+  const kind = definition.rootKind;
 
   const ResourceClass = useMemo(
     () =>

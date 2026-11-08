@@ -33,6 +33,7 @@ function definition(resourceVersion?: string): Definition {
       spec: { structureDefinition: { rootComponent: { kind: deploymentGVK } } },
     },
     origin: 'catalog',
+    rootKind: deploymentGVK,
   };
 }
 
@@ -325,7 +326,7 @@ describe('KindFetcher', () => {
     render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={vi.fn()} />);
 
     await waitFor(() => expect(onRows).toHaveBeenCalled());
-    expect(onRows.mock.calls.at(-1)?.[1]).toEqual([expect.objectContaining({ name: 'root' })]);
+    expect(onRows.mock.calls.slice(-1)[0]?.[1]).toEqual([expect.objectContaining({ name: 'root' })]);
     // The skipped workload costs no WASM call.
     await waitFor(() => expect(evaluatePhases).toHaveBeenCalledTimes(1));
   });
@@ -342,7 +343,7 @@ describe('KindFetcher', () => {
     render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={vi.fn()} />);
 
     await waitFor(() => expect(onRows).toHaveBeenCalled());
-    expect(onRows.mock.calls.at(-1)?.[1]).toHaveLength(1);
+    expect(onRows.mock.calls.slice(-1)[0]?.[1]).toHaveLength(1);
   });
 
   it('surfaces the list error without calling evaluatePhases', () => {

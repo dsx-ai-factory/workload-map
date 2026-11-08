@@ -8,9 +8,7 @@ export interface Karta {
   metadata: { name: string; resourceVersion?: string };
   // Optional at every level because the CRD requires none of it: a Karta
   // applied while the validating webhook is down can be missing spec
-  // entirely. Note this only documents the shape, it does not enforce it --
-  // the plugin's tsconfig leaves strictNullChecks off, so readers get the
-  // warning but the compiler will not.
+  // entirely. Readers must use optional chaining.
   spec?: {
     structureDefinition?: {
       rootComponent?: {

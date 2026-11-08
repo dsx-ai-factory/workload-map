@@ -49,8 +49,8 @@ describe('WorkloadsPage', () => {
 
     render(<WorkloadsPage />);
 
-    expect(workloadsTableProps.at(-1)?.rows).toHaveLength(1);
-    expect(workloadsTableProps.at(-1)?.errorMessage).toBeUndefined();
+    expect(workloadsTableProps.slice(-1)[0]?.rows).toHaveLength(1);
+    expect(workloadsTableProps.slice(-1)[0]?.errorMessage).toBeUndefined();
   });
 
   // Headlamp's Table hides every row whenever errorMessage is set, so only a
@@ -60,7 +60,7 @@ describe('WorkloadsPage', () => {
 
     render(<WorkloadsPage />);
 
-    expect(workloadsTableProps.at(-1)?.errorMessage).toBe('every cluster unreachable');
+    expect(workloadsTableProps.slice(-1)[0]?.errorMessage).toBe('every cluster unreachable');
   });
 
   // Names, namespaces and ages are metadata: only the status column needs the
@@ -86,8 +86,8 @@ describe('WorkloadsPage', () => {
     render(<WorkloadsPage />);
 
     expect(screen.getByText(/Status unavailable: wasm load failed/)).toBeDefined();
-    expect(workloadsTableProps.at(-1)?.errorMessage).toBeUndefined();
-    expect(workloadsTableProps.at(-1)?.rows).toHaveLength(1);
+    expect(workloadsTableProps.slice(-1)[0]?.errorMessage).toBeUndefined();
+    expect(workloadsTableProps.slice(-1)[0]?.rows).toHaveLength(1);
   });
 
   it('reports a failing kind beside the table rather than in place of it', () => {
@@ -100,7 +100,7 @@ describe('WorkloadsPage', () => {
 
     expect(screen.getByText(/Unable to list cluster-a\/rayjob/)).toBeDefined();
     expect(screen.getByTestId('table')).toBeDefined();
-    expect(workloadsTableProps.at(-1)?.errorMessage).toBeUndefined();
+    expect(workloadsTableProps.slice(-1)[0]?.errorMessage).toBeUndefined();
   });
 
   // A cluster that still produced rows explains nothing about a kind that

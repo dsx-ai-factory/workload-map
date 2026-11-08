@@ -62,7 +62,7 @@ describe('listCatalog', () => {
     const catalog = await listCatalog();
 
     expect(catalog.length).toBeGreaterThan(0);
-    expect(catalog.some(k => k.spec.structureDefinition.rootComponent.kind?.kind === 'Pod')).toBe(
+    expect(catalog.some(k => k.spec?.structureDefinition?.rootComponent?.kind?.kind === 'Pod')).toBe(
       true,
     );
   });
@@ -73,7 +73,7 @@ describe('against the built-in Pod definition', () => {
 
   beforeAll(async () => {
     const catalog = await listCatalog();
-    const found = catalog.find(k => k.spec.structureDefinition.rootComponent.kind?.kind === 'Pod');
+    const found = catalog.find(k => k.spec?.structureDefinition?.rootComponent?.kind?.kind === 'Pod');
     if (!found) {
       throw new Error('expected the embedded catalog to contain the built-in Pod definition');
     }

@@ -55,7 +55,7 @@ export function ClusterFetcher({
     error: discoveryError,
   } = useServedKinds(
     cluster,
-    definitions.map(definition => definition.karta.spec?.structureDefinition?.rootComponent?.kind)
+    definitions.map(definition => definition.rootKind)
   );
 
   // An empty intersection must not reach useList: it builds one request per
@@ -75,8 +75,8 @@ export function ClusterFetcher({
     }
     let hidden = 0;
     const list = definitions.flatMap(definition => {
-      const kind = definition.karta.spec?.structureDefinition?.rootComponent?.kind;
-      const servedKind = kind && served.get(servedKindKey(kind.group, kind.version, kind.kind));
+      const { group, version, kind } = definition.rootKind;
+      const servedKind = served.get(servedKindKey(group, version, kind));
       if (!servedKind) {
         return [];
       }
@@ -103,10 +103,7 @@ export function ClusterFetcher({
   const discoveryFailures = useMemo(() => {
     const failures: Record<string, Error> = {};
     for (const definition of definitions) {
-      const kind = definition.karta.spec?.structureDefinition?.rootComponent?.kind;
-      if (!kind) {
-        continue;
-      }
+      const kind = definition.rootKind;
       const groupVersion = kind.group ? `${kind.group}/${kind.version}` : kind.version;
       if (failedGroupVersions.has(groupVersion)) {
         failures[definition.karta.metadata.name] = new Error(

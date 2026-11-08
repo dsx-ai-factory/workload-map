@@ -323,7 +323,7 @@ describe('useWorkloadRows', () => {
 
     // Called again with a new attempt, which is what re-runs the load.
     expect(useKartaWasm.mock.calls.length).toBeGreaterThan(attemptsBefore);
-    expect(useKartaWasm.mock.calls.at(-1)?.[0]).toBe(1);
+    expect(useKartaWasm.mock.calls.slice(-1)[0]?.[0]).toBe(1);
   });
 
   // listCatalog reads through the engine, so a failed load knocks out every

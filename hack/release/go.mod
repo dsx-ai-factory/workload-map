@@ -3,7 +3,7 @@ module github.com/dsx-ai-factory/workload-map/hack/release
 go 1.27.3
 
 require (
-	github.com/onsi/ginkgo/v2 v2.33.1
+	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
 	golang.org/x/mod v0.42.0
 )

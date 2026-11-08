@@ -503,7 +503,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Optional separate GPU activity observer; not supplied by DSX. Requires the selected observer job to be up and samples younger than 45 seconds. Counts cover accepted observations and can be partial. Missing, stale or conflicting evidence is excluded; no accepted evidence leaves the card unavailable. Workload UID joins apply; component and GPU-device filters do not apply. Sums accepted nonnegative assigned-device counts. A zero requires an accepted assigned-device count of zero.",
+      "description": "Optional separate GPU activity observer; not supplied by DSX. Requires the selected observer job to be up and samples younger than 45 seconds. Counts cover accepted observations and can be partial. Missing, stale or conflicting evidence is excluded; no accepted evidence leaves the card unavailable. Workload UID joins apply; component and GPU-device filters do not apply. Sums accepted nonnegative assigned-device counts. A zero requires an accepted assigned-device count of zero. Each allocated MIG partition counts as one device.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -561,7 +561,7 @@
           "legendFormat": "{{workload_name}} / {{workload_uid}}"
         }
       ],
-      "title": "Observed assigned GPUs",
+      "title": "Observed assigned GPU devices",
       "type": "stat"
     },
     {

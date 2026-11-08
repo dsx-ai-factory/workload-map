@@ -91,6 +91,9 @@ type definitionFilter struct {
 	set     bool
 }
 
+// loadDefinitions is a variable so tests can supply a definition set.
+var loadDefinitions = definitions.Load
+
 // newDefinitionsCommand builds the "kli definitions" command. The client getter
 // is a parameter so a test can inject a fake without mutating package state.
 func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Command {
@@ -116,7 +119,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			resolver, warnings := loadDefinitions(cmd.Context(), rcg, isExperimentalEnabled(cmd))
+			resolver, warnings := loadDefinitionsForCommand(cmd, rcg)
 			// Warnings go out last, after the table and before main reports any
 			// error, so a long table cannot scroll them out of view.
 			defer func() {
@@ -162,6 +165,10 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 	cmd.Flags().IntVar(&componentLimit, flagComponentLimit, defaultComponentLimit, usageDefinitionsComponentLimit)
 
 	return cmd
+}
+
+func loadDefinitionsForCommand(cmd *cobra.Command, access genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	return loadDefinitions(cmd.Context(), access, isExperimentalEnabled(cmd))
 }
 
 // definitionFilterFrom rejects a combination that addresses nothing: a kind

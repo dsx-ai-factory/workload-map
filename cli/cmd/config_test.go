@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cobra"
 
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
 )
 
@@ -170,7 +171,14 @@ var _ = Describe("config loading", func() {
 			}
 			root := NewRootCommand()
 			root.AddCommand(&cobra.Command{Use: "noop", RunE: func(cmd *cobra.Command, _ []string) error {
-				Expect(isExperimentalEnabled(cmd)).To(Equal(want))
+				resolver, warnings := loadDefinitionsForCommand(cmd, noClusterGetter())
+				Expect(warnings).To(BeEmpty())
+				_, err := resolver.ByName("kueue-x-k8s-io-workload-v1beta2")
+				if want {
+					Expect(err).NotTo(HaveOccurred())
+				} else {
+					Expect(err).To(MatchError(definitions.ErrNameNotFound))
+				}
 				return nil
 			}})
 			root.SetArgs(append(args, "noop"))

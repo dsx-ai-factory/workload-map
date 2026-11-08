@@ -204,10 +204,12 @@ was not tested.
 PromQL fixtures cover MIG ratios, missing profiling, claim-only rejection and
 conflicting measurements. They do not establish hardware or allocation support.
 
-From this directory:
+From the repository root:
 
 ```sh
-python3 tests/check_dashboards.py
-promtool check rules --lint-fatal recording-rules.yaml alerting-rules.yaml
-promtool test rules tests/*.test.yaml
+make test-exporter-dashboards
 ```
+
+This also runs in `make check`. Go tests validate the dashboard imports and bind
+the query fixtures to the shipped panels. A pinned, checksum-verified `promtool`
+checks the rules and evaluates the PromQL fixtures. No cluster is required.

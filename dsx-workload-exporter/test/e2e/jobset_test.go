@@ -20,7 +20,43 @@ var _ = Describe("JobSet", Serial, func() {
 		submitWorkload("jobset")
 
 		By("waiting for running Pods with live Job-to-JobSet owner UID chains")
-		root, pods := waitForJobSetPods()
+		var root operatorWorkload
+		var pods corev1.PodList
+		var jobs batchv1.JobList
+		eventually("JobSet has three running Pods owned through three Jobs", func() bool {
+			if !readObject(&root, "jobset", "component-jobs") {
+				return false
+			}
+			if !readObject(&pods, "pods", "-l", "exporter-e2e-case=jobset") {
+				return false
+			}
+			if len(pods.Items) != 3 {
+				return false
+			}
+			if !readObject(&jobs, "jobs", "-l", "jobset.sigs.k8s.io/jobset-name=component-jobs") {
+				return false
+			}
+			if len(jobs.Items) != 3 {
+				return false
+			}
+			for _, pod := range pods.Items {
+				owner := metav1.GetControllerOf(&pod)
+				if owner == nil || owner.Kind != "Job" || !isContainerRunning(pod.Status.ContainerStatuses, "work") {
+					return false
+				}
+				found := false
+				for _, job := range jobs.Items {
+					jobOwner := metav1.GetControllerOf(&job)
+					if job.UID == owner.UID && jobOwner != nil && jobOwner.Kind == "JobSet" && jobOwner.UID == root.UID {
+						found = true
+					}
+				}
+				if !found {
+					return false
+				}
+			}
+			return true
+		})
 
 		By("verifying running JobSet status and component metrics")
 		expectJobSetStatus(root, pods, false)
@@ -34,51 +70,32 @@ var _ = Describe("JobSet", Serial, func() {
 
 		By("deleting the JobSet and verifying descendant metrics disappear")
 		command("", "delete", "jobset", root.Name, "-n", namespace, "--cascade=foreground", "--wait=true", "--timeout=30s")
-		expectJobSetDeleted(root, pods)
-	})
-})
-
-func waitForJobSetPods() (operatorWorkload, corev1.PodList) {
-	GinkgoHelper()
-	var root operatorWorkload
-	var pods corev1.PodList
-	var jobs batchv1.JobList
-	eventually("JobSet has three running Pods owned through three Jobs", func() bool {
-		if !readObject(&root, "jobset", "component-jobs") {
-			return false
-		}
-		if !readObject(&pods, "pods", "-l", "exporter-e2e-case=jobset") {
-			return false
-		}
-		if len(pods.Items) != 3 {
-			return false
-		}
-		if !readObject(&jobs, "jobs", "-l", "jobset.sigs.k8s.io/jobset-name=component-jobs") {
-			return false
-		}
-		if len(jobs.Items) != 3 {
-			return false
-		}
-		for _, pod := range pods.Items {
-			owner := metav1.GetControllerOf(&pod)
-			if owner == nil || owner.Kind != "Job" || !isContainerRunning(pod.Status.ContainerStatuses, "work") {
+		eventually("deleted JobSet and descendant metrics removed", func() bool {
+			var remaining corev1.PodList
+			if !readObject(&remaining, "pods", "-l", "exporter-e2e-case=jobset") {
 				return false
 			}
-			found := false
-			for _, job := range jobs.Items {
-				jobOwner := metav1.GetControllerOf(&job)
-				if job.UID == owner.UID && jobOwner != nil && jobOwner.Kind == "JobSet" && jobOwner.UID == root.UID {
-					found = true
+			if len(remaining.Items) != 0 {
+				return false
+			}
+			fs := pollMetrics("a")
+			if fs == nil {
+				return false
+			}
+			for _, family := range workloadFamilies {
+				if len(matching(fs, family, map[string]string{"workload_uid": string(root.UID)})) != 0 {
+					return false
 				}
 			}
-			if !found {
-				return false
+			for _, pod := range pods.Items {
+				if len(matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": string(pod.UID)})) != 0 {
+					return false
+				}
 			}
-		}
-		return true
+			return true
+		})
 	})
-	return root, pods
-}
+})
 
 func expectJobSetStatus(root operatorWorkload, pods corev1.PodList, completed bool) {
 	GinkgoHelper()
@@ -142,33 +159,5 @@ func expectJobSetStatus(root operatorWorkload, pods corev1.PodList, completed bo
 			}
 		}
 		return instances["workers"] == 2 && instances["evaluator"] == 1
-	})
-}
-
-func expectJobSetDeleted(root operatorWorkload, pods corev1.PodList) {
-	GinkgoHelper()
-	eventually("deleted JobSet and descendant metrics removed", func() bool {
-		var remaining corev1.PodList
-		if !readObject(&remaining, "pods", "-l", "exporter-e2e-case=jobset") {
-			return false
-		}
-		if len(remaining.Items) != 0 {
-			return false
-		}
-		fs := pollMetrics("a")
-		if fs == nil {
-			return false
-		}
-		for _, family := range workloadFamilies {
-			if len(matching(fs, family, map[string]string{"workload_uid": string(root.UID)})) != 0 {
-				return false
-			}
-		}
-		for _, pod := range pods.Items {
-			if len(matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": string(pod.UID)})) != 0 {
-				return false
-			}
-		}
-		return true
 	})
 }

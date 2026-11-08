@@ -28,8 +28,27 @@ var _ = Describe("Pod", Serial, Ordered, ContinueOnFailure, func() {
 
 		By("verify Pod identity, phase gauges, creation time and shard isolation")
 		uid := strings.TrimSpace(command("", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.uid}"))
-		expectStandalonePodIdentity(uid)
-		expectStandalonePodMetadata(uid)
+		waitForMetrics("standalone Pod identity", "a", func(fs map[string]*dto.MetricFamily) bool {
+			rows := matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": uid, "workload_uid": uid, "component": "pod"})
+			return hasSingleGauge(rows, 1)
+		})
+		fs := metrics("a")
+		if len(matching(fs, "dsx_workload_status", map[string]string{"workload_uid": uid})) != 9 {
+			Fail("expected nine phase gauges")
+		}
+		created := matching(fs, "dsx_workload_created_timestamp_seconds", map[string]string{"workload_uid": uid})
+		stamp := strings.TrimSpace(command("", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.creationTimestamp}"))
+		at, err := time.Parse(time.RFC3339, stamp)
+		Expect(err).NotTo(HaveOccurred())
+		if !hasSingleGauge(created, float64(at.Unix())) {
+			Fail("creation timestamp differs from API")
+		}
+		if len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"scope": "workload", "workload_uid": uid})) != 0 {
+			Fail("healthy workload must not emit health row")
+		}
+		if len(matching(metrics("b"), "dsx_workload_pod_info", map[string]string{"pod_uid": uid})) != 0 {
+			Fail("Pod leaked to other shard")
+		}
 
 		By("release the work container and wait for Completed")
 		waitForRunningContainer("lifecycle", "work", false)
@@ -38,7 +57,14 @@ var _ = Describe("Pod", Serial, Ordered, ContinueOnFailure, func() {
 
 		By("delete the Pod and wait for its metrics to disappear")
 		command("", "delete", "pod", "lifecycle", "-n", namespace, "--wait=true")
-		expectDeletedPodMetricsRemoved(uid)
+		waitForMetrics("deleted Pod metrics removed", "a", func(fs map[string]*dto.MetricFamily) bool {
+			for _, name := range []string{"dsx_workload_pod_info", "dsx_workload_status", "dsx_workload_created_timestamp_seconds"} {
+				if len(matching(fs, name, map[string]string{"workload_uid": uid})) != 0 {
+					return false
+				}
+			}
+			return true
+		})
 	})
 
 	It("reports Failed for a Pod that exits with an error", func() {
@@ -47,44 +73,3 @@ var _ = Describe("Pod", Serial, Ordered, ContinueOnFailure, func() {
 		waitForWorkloadPhases("failed", "Failed")
 	})
 })
-
-func expectStandalonePodIdentity(uid string) {
-	GinkgoHelper()
-	waitForMetrics("standalone Pod identity", "a", func(fs map[string]*dto.MetricFamily) bool {
-		rows := matching(fs, "dsx_workload_pod_info", map[string]string{"pod_uid": uid, "workload_uid": uid, "component": "pod"})
-		return hasSingleGauge(rows, 1)
-	})
-}
-
-func expectStandalonePodMetadata(uid string) {
-	GinkgoHelper()
-	fs := metrics("a")
-	if len(matching(fs, "dsx_workload_status", map[string]string{"workload_uid": uid})) != 9 {
-		Fail("expected nine phase gauges")
-	}
-	created := matching(fs, "dsx_workload_created_timestamp_seconds", map[string]string{"workload_uid": uid})
-	stamp := strings.TrimSpace(command("", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.creationTimestamp}"))
-	at, err := time.Parse(time.RFC3339, stamp)
-	Expect(err).NotTo(HaveOccurred())
-	if !hasSingleGauge(created, float64(at.Unix())) {
-		Fail("creation timestamp differs from API")
-	}
-	if len(matching(fs, "dsx_exporter_observation_valid", map[string]string{"scope": "workload", "workload_uid": uid})) != 0 {
-		Fail("healthy workload must not emit health row")
-	}
-	if len(matching(metrics("b"), "dsx_workload_pod_info", map[string]string{"pod_uid": uid})) != 0 {
-		Fail("Pod leaked to other shard")
-	}
-}
-
-func expectDeletedPodMetricsRemoved(uid string) {
-	GinkgoHelper()
-	waitForMetrics("deleted Pod metrics removed", "a", func(fs map[string]*dto.MetricFamily) bool {
-		for _, name := range []string{"dsx_workload_pod_info", "dsx_workload_status", "dsx_workload_created_timestamp_seconds"} {
-			if len(matching(fs, name, map[string]string{"workload_uid": uid})) != 0 {
-				return false
-			}
-		}
-		return true
-	})
-}

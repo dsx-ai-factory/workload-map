@@ -473,11 +473,13 @@ fmt-check-exporter: ## Check exporter formatting without modifying files
 .PHONY: vet-exporter
 vet-exporter: ## go vet the exporter and its envtest modules
 	cd dsx-workload-exporter && go vet ./...
+	cd dsx-workload-exporter && go vet -tags e2e ./test/e2e/...
 	cd $(EXPORTER_ENVTEST_DIR) && go vet ./...
 
 .PHONY: lint-exporter
 lint-exporter: golangci-lint ## Lint the exporter and its envtest modules
 	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml --build-tags=e2e ./test/e2e/...
 	cd $(EXPORTER_ENVTEST_DIR) && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
 .PHONY: modules-check-exporter

@@ -18,7 +18,7 @@ import (
 var _ = Describe("Pod", Serial, Ordered, ContinueOnFailure, func() {
 	It("tracks a standalone Pod through initialization, running, completion and deletion", func() {
 		By("submit a Pod held in initialization by a file gate")
-		apply(lifecyclePodManifest)
+		submitWorkload("pod-lifecycle")
 		waitForWorkloadPhases("lifecycle", "Initializing")
 
 		By("release initialization and wait for Running")
@@ -43,45 +43,10 @@ var _ = Describe("Pod", Serial, Ordered, ContinueOnFailure, func() {
 
 	It("reports Failed for a Pod that exits with an error", func() {
 		By("submit a Pod that exits with an error and wait for Failed")
-		apply(failedPodManifest)
+		submitWorkload("pod-failed")
 		waitForWorkloadPhases("failed", "Failed")
 	})
 })
-
-const lifecyclePodManifest = `apiVersion: v1
-kind: Pod
-metadata:
-  name: lifecycle
-  namespace: exporter-workloads-a
-spec:
-  restartPolicy: Never
-  volumes:
-    - name: gates
-      emptyDir: {}
-  initContainers:
-    - name: initialize
-      image: busybox:1.37.0
-      command: [sh, -c, 'until test -f /gates/start; do sleep 0.1; done']
-      volumeMounts: [{name: gates, mountPath: /gates}]
-  containers:
-    - name: work
-      image: busybox:1.37.0
-      command: [sh, -c, 'until test -f /gates/finish; do sleep 0.1; done']
-      volumeMounts: [{name: gates, mountPath: /gates}]
-`
-
-const failedPodManifest = `apiVersion: v1
-kind: Pod
-metadata:
-  name: failed
-  namespace: ` + namespace + `
-spec:
-  restartPolicy: Never
-  containers:
-    - name: fail
-      image: busybox:1.37.0
-      command: [sh, -c, 'exit 1']
-`
 
 func expectStandalonePodIdentity(uid string) {
 	GinkgoHelper()

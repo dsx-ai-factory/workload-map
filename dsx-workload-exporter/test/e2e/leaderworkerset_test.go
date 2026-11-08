@@ -18,7 +18,7 @@ import (
 var _ = Describe("LeaderWorkerSet", Serial, func() {
 	It("exports LeaderWorkerSet groups and retains only group zero after scale down", func() {
 		By("submitting a LeaderWorkerSet with two groups")
-		applyFixture("leaderworkerset")
+		submitWorkload("leaderworkerset")
 		retained := map[types.UID]bool{}
 		removed := map[types.UID]bool{}
 

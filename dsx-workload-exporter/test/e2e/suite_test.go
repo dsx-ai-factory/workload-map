@@ -64,16 +64,7 @@ var _ = BeforeSuite(func() {
 	command("", "delete", "karta", "exporter-e2e-deployment", "--ignore-not-found")
 
 	By("creating the two shard-labeled workload namespaces")
-	for _, shard := range []string{"a", "b"} {
-		ns := "exporter-workloads-" + shard
-		apply(fmt.Sprintf(`apiVersion: v1
-kind: Namespace
-metadata:
-  name: %s
-  labels:
-    exporter-e2e-shard: %s
-`, ns, shard))
-	}
+	submitWorkload("namespaces")
 	setupCompleted = true
 })
 
@@ -108,16 +99,11 @@ func kubectl(input string, args ...string) (string, error) {
 	return string(out), nil
 }
 
-func apply(yaml string) {
-	GinkgoHelper()
-	command(yaml, "apply", "-f", "-")
-}
-
-func applyFixture(name string) {
+func submitWorkload(name string) {
 	GinkgoHelper()
 	body, err := os.ReadFile("testdata/" + name + ".yaml")
 	Expect(err).NotTo(HaveOccurred())
-	apply(string(body))
+	command(string(body), "apply", "-f", "-")
 }
 
 func readObject(dst any, args ...string) bool {

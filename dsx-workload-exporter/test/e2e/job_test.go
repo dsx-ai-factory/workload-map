@@ -21,7 +21,7 @@ import (
 var _ = Describe("Job", Serial, Ordered, ContinueOnFailure, func() {
 	It("tracks a Job and its Pod through initialization, running and completion", func() {
 		By("submit a Job held in initialization by a file gate")
-		apply(slowJobManifest)
+		submitWorkload("job-lifecycle")
 		waitForWorkloadPhases("slow-job", "Initializing")
 
 		By("release Job initialization and wait for Running")
@@ -49,7 +49,7 @@ var _ = Describe("Job", Serial, Ordered, ContinueOnFailure, func() {
 		By("revoke cluster-wide Job access and create a newly watched namespace")
 		restorePatch := revokeClusterJobAccess(roleName)
 		// Existing watches survive revocation. A new namespace forces a new LIST.
-		apply(deniedNamespaceManifest)
+		submitWorkload("namespace-denied")
 		DeferCleanup(func() {
 			if !CurrentSpecReport().Failed() {
 				command("", "delete", "namespace", "exporter-workloads-denied", "--ignore-not-found", "--wait=false")
@@ -63,7 +63,7 @@ var _ = Describe("Job", Serial, Ordered, ContinueOnFailure, func() {
 		})
 
 		By("submit a Job in the denied namespace and verify discovery failure without a guessed root")
-		apply(recoveredJobManifest)
+		submitWorkload("job-recovered")
 		recoveredJobUID := strings.TrimSpace(command("", "get", "job", "recovered", "-n", "exporter-workloads-denied", "-o", "jsonpath={.metadata.uid}"))
 		recoveredPodUID := waitForUnreadableJobOwner(recoveredJobUID)
 
@@ -76,53 +76,6 @@ var _ = Describe("Job", Serial, Ordered, ContinueOnFailure, func() {
 		expectRecoveredJobPublished(recoveredPodUID, recoveredJobUID)
 	})
 })
-
-const slowJobManifest = `apiVersion: batch/v1
-kind: Job
-metadata:
-  name: slow-job
-  namespace: exporter-workloads-a
-spec:
-  template:
-    spec:
-      restartPolicy: Never
-      volumes:
-        - name: gates
-          emptyDir: {}
-      initContainers:
-        - name: initialize
-          image: busybox:1.37.0
-          command: [sh, -c, 'until test -f /gates/start; do sleep 0.1; done']
-          volumeMounts: [{name: gates, mountPath: /gates}]
-      containers:
-        - name: work
-          image: busybox:1.37.0
-          command: [sh, -c, 'until test -f /gates/finish; do sleep 0.1; done']
-          volumeMounts: [{name: gates, mountPath: /gates}]
-`
-
-const deniedNamespaceManifest = `apiVersion: v1
-kind: Namespace
-metadata:
-  name: exporter-workloads-denied
-  labels: {exporter-e2e-shard: a}
-`
-
-const recoveredJobManifest = `apiVersion: batch/v1
-kind: Job
-metadata:
-  name: recovered
-  namespace: exporter-workloads-denied
-spec:
-  template:
-    spec:
-      restartPolicy: Never
-      terminationGracePeriodSeconds: 1
-      containers:
-        - name: work
-          image: busybox:1.37.0
-          command: [sh, -c, 'sleep 3600']
-`
 
 func waitForJobInit() string {
 	GinkgoHelper()

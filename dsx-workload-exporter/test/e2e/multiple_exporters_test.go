@@ -32,7 +32,7 @@ var _ = Describe("Namespace sharding", Serial, func() {
 	It("moves all namespace metrics from exporter A to B and back", func() {
 		By("creating an isolated namespace with a Pod, Job and zero-replica Deployment")
 		command("", "delete", "namespace", handoffNamespace, "--ignore-not-found", "--wait=true", "--timeout=60s")
-		apply(handoffManifests)
+		submitWorkload("namespace-handoff")
 		DeferCleanup(func() {
 			command("", "label", "namespace", handoffNamespace, "exporter-e2e-shard=a", "--overwrite")
 			if !CurrentSpecReport().Failed() {
@@ -66,58 +66,6 @@ var _ = Describe("Namespace sharding", Serial, func() {
 		})
 	})
 })
-
-const handoffManifests = `apiVersion: v1
-kind: Namespace
-metadata:
-  name: exporter-workloads-handoff
-  labels: {exporter-e2e-shard: a}
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: shard-probe
-  namespace: exporter-workloads-handoff
-spec:
-  terminationGracePeriodSeconds: 1
-  containers:
-    - name: work
-      image: busybox:1.37.0
-      command: [sh, -c, 'sleep 3600']
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: shard-job
-  namespace: exporter-workloads-handoff
-spec:
-  template:
-    spec:
-      restartPolicy: Never
-      terminationGracePeriodSeconds: 1
-      containers:
-        - name: work
-          image: busybox:1.37.0
-          command: [sh, -c, 'sleep 3600']
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: shard-deployment
-  namespace: exporter-workloads-handoff
-spec:
-  replicas: 0
-  selector:
-    matchLabels: {app: shard-deployment}
-  template:
-    metadata:
-      labels: {app: shard-deployment}
-    spec:
-      containers:
-        - name: work
-          image: busybox:1.37.0
-          command: [sh, -c, 'sleep 3600']
-`
 
 func waitForHandoffWorkloads() []handoffWorkload {
 	GinkgoHelper()

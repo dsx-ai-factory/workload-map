@@ -12,16 +12,16 @@ import (
 )
 
 var _ = Describe("Deployment", Serial, func() {
-	It("updates a zero-Pod Deployment through Karta add, update, failure, repair and removal without restarting", func() {
-		By("submit a zero-Pod Deployment and verify unknown-phase metrics")
-		apply(emptyDeploymentManifest)
+	It("updates Deployment phase metrics when its Karta definition changes, without restarting the exporter", func() {
+		By("create a Deployment with zero replicas and verify all phase gauges are zero")
+		submitWorkload("deployment")
 		expectUnknownDeploymentMetrics()
 
 		By("record exporter identity and restarts before adding a Karta")
 		before := command("", "get", "pods", "-n", "exporter-e2e-a", "-o", "jsonpath={.items[*].metadata.uid}{.items[*].status.containerStatuses[*].restartCount}")
 
-		By("add a Karta that maps the Deployment to Running")
-		apply(deploymentKartaManifest)
+		By("add a Karta definition and verify the exported status becomes Running")
+		submitWorkload("deployment-karta")
 		DeferCleanup(func() {
 			if !CurrentSpecReport().Failed() {
 				command("", "delete", "karta", "exporter-e2e-deployment", "--ignore-not-found")
@@ -29,7 +29,7 @@ var _ = Describe("Deployment", Serial, func() {
 		})
 		waitForWorkloadPhases("empty", "Running")
 
-		By("update the Karta to map the Deployment to Completed")
+		By("change the Karta mapping and verify the exported status becomes Completed")
 		command("", "patch", "karta", "exporter-e2e-deployment", "--type=merge", "-p", `{"spec":{"structureDefinition":{"rootComponent":{"statusDefinition":{"statusMappings":{"running":[],"completed":[{"byPhase":"ready"}]}}}}}}`)
 		waitForWorkloadPhases("empty", "Completed")
 
@@ -61,43 +61,6 @@ var _ = Describe("Deployment", Serial, func() {
 		expectDeploymentPodResolved()
 	})
 })
-
-const emptyDeploymentManifest = `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: empty
-  namespace: exporter-workloads-a
-  labels: {phase: ready}
-spec:
-  replicas: 0
-  selector:
-    matchLabels: {app: empty}
-  template:
-    metadata:
-      labels: {app: empty}
-    spec:
-      terminationGracePeriodSeconds: 1
-      containers:
-        - name: work
-          image: busybox:1.37.0
-          command: [sh, -c, 'sleep 3600']
-`
-
-const deploymentKartaManifest = `apiVersion: run.ai/v1alpha1
-kind: Karta
-metadata:
-  name: exporter-e2e-deployment
-spec:
-  structureDefinition:
-    rootComponent:
-      name: deployment
-      kind: {group: apps, version: v1, kind: Deployment}
-      statusDefinition:
-        phaseDefinition:
-          path: .metadata.labels.phase
-        statusMappings:
-          running: [{byPhase: ready}]
-`
 
 func expectUnknownDeploymentMetrics() {
 	GinkgoHelper()

@@ -33,6 +33,7 @@ log, including successful runs.
 | `leaderworkerset_test.go` | LeaderWorkerSet groups and scale-down. |
 | `multiple_exporters_test.go` | Moving a populated namespace between exporter shards. |
 | `suite_test.go` | Suite entry point, setup, cleanup, Kubernetes commands and metric helpers. |
+| `testdata/*.yaml` | Workload, namespace and Karta fixtures loaded by `submitWorkload`. |
 
 All eight specs run serially because they share exporter installations. The two
 Job specs run in order: permission coverage reuses the completed lifecycle Job.

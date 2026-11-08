@@ -17,7 +17,7 @@ import (
 var _ = Describe("JobSet", Serial, func() {
 	It("exports JobSet components through completion and removes deleted metrics", func() {
 		By("submitting a JobSet with two workers and one evaluator")
-		applyFixture("jobset")
+		submitWorkload("jobset")
 
 		By("waiting for running Pods with live Job-to-JobSet owner UID chains")
 		root, pods := waitForJobSetPods()

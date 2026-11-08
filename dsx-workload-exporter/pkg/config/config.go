@@ -248,9 +248,19 @@ func (l *Loader) Load() (Config, error) {
 	return cfg, nil
 }
 
-// DefaultConfig selects cluster definitions and bounds API requests and worker concurrency.
+// DefaultConfig selects bundled and cluster definitions and bounds API requests and worker concurrency.
 func DefaultConfig() Config {
-	return Config{Config: labelresolver.Config{Limits: defaultLabelEvaluationLimits}, KartaDefinitionSource: KartaDefinitionSourceConfig{Cluster: DefinitionSourceConfig{Enabled: true}}, RequestTimeout: "30s", Workers: 4, APIQPS: 20, APIBurst: 40}
+	return Config{
+		Config: labelresolver.Config{Limits: defaultLabelEvaluationLimits},
+		KartaDefinitionSource: KartaDefinitionSourceConfig{
+			Catalog: DefinitionSourceConfig{Enabled: true},
+			Cluster: DefinitionSourceConfig{Enabled: true},
+		},
+		RequestTimeout: "30s",
+		Workers:        4,
+		APIQPS:         20,
+		APIBurst:       40,
+	}
 }
 
 // Validate rejects runtime settings before any clients start.

@@ -88,6 +88,35 @@ var _ = Describe("chart label configuration", func() {
 })
 
 var _ = Describe("chart definition source configuration", func() {
+	for _, tc := range []struct {
+		name    string
+		values  string
+		catalog bool
+	}{
+		{name: "defaults", catalog: true},
+		{name: "catalog disabled", values: "exporter:\n  kartaDefinitionSource:\n    catalog:\n      enabled: false\n"},
+	} {
+		It("loads definition sources with "+tc.name, func() {
+			out := renderExporterChart(GinkgoT(), tc.values)
+			for _, raw := range chartDocuments(GinkgoT(), out) {
+				var doc struct {
+					Kind string            `yaml:"kind"`
+					Data map[string]string `yaml:"data"`
+				}
+				Expect(yaml.Unmarshal(raw, &doc)).To(Succeed())
+				if doc.Kind != "ConfigMap" || doc.Data["config.yaml"] == "" {
+					continue
+				}
+				cfg, err := loadConfig(doc.Data["config.yaml"], nil)
+				Expect(err).To(Succeed())
+				Expect(cfg.KartaDefinitionSource.Catalog.Enabled).To(Equal(tc.catalog))
+				Expect(cfg.KartaDefinitionSource.Cluster.Enabled).To(BeTrue())
+				return
+			}
+			Fail("exporter config not found")
+		})
+	}
+
 	It("refuses to render a cluster source enabled flag that is not a boolean", func() {
 		helm, err := exec.LookPath("helm")
 		if err != nil {
@@ -101,6 +130,94 @@ var _ = Describe("chart definition source configuration", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(string(out)).To(ContainSubstring("exporter.kartaDefinitionSource.cluster.enabled must be true or false"))
 	})
+})
+
+var _ = Describe("chart exporter ServiceMonitor", func() {
+	for _, tc := range []struct {
+		name     string
+		values   string
+		args     []string
+		enabled  bool
+		override string
+		endpoint map[string]any
+	}{
+		{name: "disabled by default"},
+		{name: "exporter disabled", args: []string{"--set", "exporter.enabled=false", "--set", "exporter.serviceMonitor.enabled=true"}},
+		{name: "exporter null", args: []string{"--set", "exporter=null"}},
+		{name: "monitor null", args: []string{"--set-json", "exporter.serviceMonitor=null"}},
+		{
+			name:     "enabled with inherited scrape settings",
+			args:     []string{"--set", "exporter.serviceMonitor.enabled=true"},
+			enabled:  true,
+			endpoint: map[string]any{"port": "metrics", "path": "/metrics", "honorLabels": true},
+		},
+		{
+			name: "enabled with overrides",
+			values: `exporter:
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: monitoring
+      app.kubernetes.io/instance: forbidden
+    interval: 30s
+    scrapeTimeout: 10s
+`,
+			args:     []string{"--set", "fullnameOverride=custom"},
+			enabled:  true,
+			override: "custom-",
+			endpoint: map[string]any{"port": "metrics", "path": "/metrics", "honorLabels": true, "interval": "30s", "scrapeTimeout": "10s"},
+		},
+	} {
+		It(tc.name, func() {
+			args := append([]string{"--namespace", "observability"}, tc.args...)
+			out := renderExporterChart(GinkgoT(), tc.values, args...)
+			found := false
+			serviceLabels := map[string]string{}
+			selector := map[string]any{
+				"app.kubernetes.io/name":     "dsx-workload-exporter",
+				"app.kubernetes.io/instance": "install",
+			}
+			for _, raw := range chartDocuments(GinkgoT(), out) {
+				var doc struct {
+					APIVersion string `yaml:"apiVersion"`
+					Kind       string `yaml:"kind"`
+					Metadata   struct {
+						Name      string            `yaml:"name"`
+						Namespace string            `yaml:"namespace"`
+						Labels    map[string]string `yaml:"labels"`
+					} `yaml:"metadata"`
+					Spec map[string]any `yaml:"spec"`
+				}
+				Expect(yaml.Unmarshal(raw, &doc)).To(Succeed())
+				if doc.Metadata.Name != tc.override+"dsx-workload-exporter" {
+					continue
+				}
+				if doc.Kind == "Service" {
+					serviceLabels = doc.Metadata.Labels
+				}
+				if doc.Kind != "ServiceMonitor" {
+					continue
+				}
+				found = true
+				Expect(doc.APIVersion).To(Equal("monitoring.coreos.com/v1"))
+				Expect(doc.Metadata.Namespace).To(Equal("observability"))
+				Expect(doc.Metadata.Labels["app.kubernetes.io/instance"]).To(Equal("install"))
+				if tc.override != "" {
+					Expect(doc.Metadata.Labels["release"]).To(Equal("monitoring"))
+				}
+				Expect(doc.Spec).To(Equal(map[string]any{
+					"selector":  map[string]any{"matchLabels": selector},
+					"endpoints": []any{tc.endpoint},
+				}))
+			}
+			Expect(found).To(Equal(tc.enabled))
+			if tc.enabled {
+				for key, value := range selector {
+					Expect(serviceLabels[key]).To(Equal(value), "ServiceMonitor must select the exporter Service")
+				}
+			}
+		})
+	}
 })
 
 var _ = Describe("chart exporter resources", func() {

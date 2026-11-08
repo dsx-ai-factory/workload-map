@@ -6,6 +6,7 @@ package bootstrap
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	kubediscovery "k8s.io/client-go/discovery"
@@ -39,6 +40,10 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 		return app.Components{}, fmt.Errorf("requestTimeout: %w", err)
 	}
 	kubeConfig = rest.CopyConfig(kubeConfig)
+	if kubeConfig.WarningHandler == nil && kubeConfig.WarningHandlerWithContext == nil {
+		// Namespace watches can receive the same API warning on each connection.
+		kubeConfig.WarningHandler = rest.NewWarningWriter(os.Stderr, rest.WarningWriterOptions{Deduplicate: true})
+	}
 	kubeConfig.QPS = cfg.APIQPS
 	kubeConfig.Burst = cfg.APIBurst
 	kubeConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(cfg.APIQPS, cfg.APIBurst)

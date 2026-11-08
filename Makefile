@@ -22,12 +22,12 @@ GO_LDFLAGS  := -X $(VERSION_PKG).version=$(VERSION)
 LDFLAGS     := -ldflags "$(GO_LDFLAGS)"
 
 # The component inventory every aggregate fans out over.
-COMPONENTS := lib cli operator exporter karta-wasm release-helper
+COMPONENTS := lib cli operator exporter karta-wasm release-helper operator-updates
 
 # Every Go module in the repo. The tidy target fans out over this rather than
 # COMPONENTS because an untidy manifest in a module that ships no
 # binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
-GO_MODULES := karta/sdk cli karta-wasm operator dsx-workload-exporter dsx-workload-exporter/test/integration test/e2e hack/imagelock \
+GO_MODULES := karta/sdk cli karta-wasm operator dsx-workload-exporter dsx-workload-exporter/test/integration test/e2e hack/imagelock hack/operator-updates \
 	docs/examples/quickstart docs/examples/controller-runtime \
 	hack/e2e/operators/nim/image
 
@@ -47,7 +47,7 @@ CONTROLLER_TOOLS_VERSION    ?= v0.23.0
 GO_LICENCE_DETECTOR_VERSION ?= v0.11.1
 ENVTEST_VERSION             ?= release-0.23
 # renovate: datasource=go depName=github.com/goreleaser/goreleaser/v2
-GORELEASER_VERSION          ?= v2.19.0
+GORELEASER_VERSION          ?= v2.20.0
 # Kubernetes control-plane (apiserver, etcd, kubectl) version envtest downloads.
 ENVTEST_K8S_VERSION         ?= 1.31.0
 # Control-plane version for the chart's admission policy tests; MutatingAdmissionPolicy v1 needs 1.36+.
@@ -128,11 +128,11 @@ clean: ## Remove build outputs, coverage profiles, and release and plugin artifa
 		echo "refusing to clean $$dir: not a directory inside $(PROJECT_DIR)" >&2; \
 		exit 1; \
 	done
-	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64" "$(LOCALBIN)/dsx-workload-exporter"
+	rm -fv "$(LOCALBIN)/kli" "$(LOCALBIN)/karta-operator" "$(LOCALBIN)/karta-operator-amd64" "$(LOCALBIN)/karta-operator-arm64" "$(LOCALBIN)/dsx-workload-exporter" "$(LOCALBIN)/operator-updates"
 	rm -fv "$(LOCALBIN)"/*-tidy.mod "$(LOCALBIN)"/*-tidy.sum "$(LOCALBIN)"/*-license.mod "$(LOCALBIN)"/*-license.sum "$(LOCALBIN)"/*deps.json
 	rm -fv operator/cover-unit.out operator/cover-integration.out
 	rm -fv karta-wasm/karta.wasm karta-wasm/wasm_exec.js
-	rm -fv hack/imagelock/imagelock hack/release/release
+	rm -fv hack/imagelock/imagelock hack/release/release hack/operator-updates/operator-updates
 	rm -fv "$(PROJECT_DIR)"/karta-*.tgz
 	rm -rfv "$(DIST_DIR)" "$(IMAGE_LOCK_OUT_DIR)" headlamp-plugin/dist "$(PROJECT_DIR)/.artifacts"
 
@@ -262,6 +262,40 @@ modules-check-release-helper: ## Verify release helper module metadata is tidy a
 
 .PHONY: check-release-helper
 check-release-helper: fmt-check-release-helper vet-release-helper lint-release-helper modules-check-release-helper test-release-helper ## Full release helper presubmit
+
+##@ Operator update checker (nested module)
+
+.PHONY: fmt-operator-updates
+fmt-operator-updates: ## Format the operator update checker
+	cd hack/operator-updates && go fmt ./...
+
+.PHONY: fmt-check-operator-updates
+fmt-check-operator-updates: ## Check operator update checker formatting
+	@set -e; \
+	cd hack/operator-updates; \
+	dirs="$$(go list -f '{{.Dir}}' ./...)"; \
+	unformatted="$$(gofmt -l $$dirs)"; \
+	test -z "$$unformatted" || { echo "go fmt required:"; echo "$$unformatted"; exit 1; }
+
+.PHONY: vet-operator-updates
+vet-operator-updates: ## Vet the operator update checker
+	cd hack/operator-updates && go vet ./...
+
+.PHONY: lint-operator-updates
+lint-operator-updates: golangci-lint ## Lint the operator update checker
+	cd hack/operator-updates && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+
+.PHONY: test-operator-updates
+test-operator-updates: ## Test operator update detection offline
+	cd hack/operator-updates && go test ./...
+
+.PHONY: modules-check-operator-updates
+modules-check-operator-updates: ## Verify operator update checker module metadata
+	cd hack/operator-updates && go mod tidy -diff
+	cd hack/operator-updates && go mod verify
+
+.PHONY: check-operator-updates
+check-operator-updates: fmt-check-operator-updates vet-operator-updates lint-operator-updates modules-check-operator-updates test-operator-updates ## Full operator update checker presubmit
 
 ##@ CLI
 
@@ -760,6 +794,16 @@ exporter-e2e-down: ## Delete the isolated exporter Kind cluster
 build-exporter-e2e: ## Compile exporter E2E tests without a cluster
 	cd dsx-workload-exporter && go test -tags e2e -run '^$$' ./test/e2e/...
 
+.PHONY: e2e-operators-check-latest-supported-versions
+e2e-operators-check-latest-supported-versions: ## Report newer workload and infra operator tags (OPERATORS="jobset infra", UPDATE_FLAGS="--fail-on-update --include-prereleases")
+	@bash ./hack/e2e/check-updates.sh $(UPDATE_FLAGS) $(OPERATORS)
+
+.PHONY: build-operator-updates
+build-operator-updates: $(LOCALBIN) ## Build the operator update checker into bin/
+	cd hack/operator-updates && go build -o "$(abspath $(LOCALBIN))/operator-updates" .
+
+.PHONY: test-e2e-updates
+test-e2e-updates: test-operator-updates ## Test operator update detection offline (also covered by make check)
 
 .PHONY: e2e-down
 e2e-down: ## Tear down the e2e cluster (set CLUSTER_NAME for a named one)
@@ -782,8 +826,11 @@ verify-recordings: ## Fail if any recorded fixture ended with succeeded false (r
 	echo "all recordings succeeded"
 
 # The e2e shell scripts to shellcheck: the provisioner, teardown, the karta-operator
-# scripts, the shared helpers, and every per-operator install.sh/verify.sh.
-E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh \
+# scripts, the shared helpers, and every operator install, verify, and update check.
+E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh hack/e2e/check-updates.sh \
+	hack/e2e/_updates.sh \
+	$(wildcard hack/e2e/infra/*/*.sh) \
+	$(wildcard hack/e2e/operators/*/check-updates.sh) \
 	$(wildcard hack/e2e/dsx-workload-exporter/*.sh) \
 	$(wildcard hack/e2e/karta-operator/*.sh) \
 	hack/e2e/operators/_common.sh \

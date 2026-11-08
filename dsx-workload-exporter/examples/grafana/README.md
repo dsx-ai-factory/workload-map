@@ -180,25 +180,26 @@ served below a URL subpath. Live playground checks also cover completed-workload
 history and all three activity filters. Screenshots show playground workloads
 with real cAdvisor CPU/memory and simulated GPU data.
 
-Hardware checks used one A100, Kubernetes 1.35.9, upstream exporter
-`90ad091244b0`, DCGM Exporter 4.8.4 and DRA driver 0.5.0. Completed modes
-verified CUDA execution, exact Pod UID attribution, native activity, allocation
-release and all 69 panel queries.
+Hardware checks used one A100, Kubernetes 1.35.9, DCGM Exporter 4.8.4 and DRA
+driver 0.5.0. Full-GPU runs used upstream exporter `90ad091244b0`; MIG runs used
+`8370c0b5a720`. Their runtime source trees are identical. All four modes verified
+CUDA execution, exact Pod UID attribution, native activity, allocation release
+and all 69 panel queries.
 
 | Mode | Checked (UTC) | Hardware checks |
 | --- | --- | --- |
 | Device-plugin full GPU | 2026-11-08 | Verified: 13 checks. |
 | DRA full GPU | 2026-11-08 | Verified: 9 probe and 18 cycle/handoff checks, including claim/device identity and queued-consumer handoff. |
-| Device-plugin static MIG | 2026-11-07 | Verified with two `3g.20gb` partitions, preserved MIG instance IDs, correct workload maximum and VRAM sum. |
-| DRA static MIG | 2026-11-07 | Not completed. Scheduler/API failure prevented CUDA execution. |
+| Device-plugin static MIG | 2026-11-08 | Verified: 20 checks with two `3g.20gb` partitions, preserved MIG instance IDs, correct workload maximum and VRAM sum. |
+| DRA static MIG | 2026-11-08 | Verified: 9 probe and 28 cycle/handoff checks, including two separate MIG claims and queued-consumer handoff. |
 
 The 2026-11-08 rerun checked fixed-time Prometheus results, values from both
 recording rules and Grafana datasource responses. It did not include a new browser review.
-The separate observer completed Active -> Low activity -> Active in both
-full-GPU modes. The 2026-11-07 static MIG run did not verify sustained Low
-activity because input timeouts reset its observation window. DCGM and the
-observer poll independently, so transition samples can differ. Dynamic MIG
-repartitioning was not tested.
+The separate observer completed Active -> Low activity -> Active in all four
+modes. Each Low activity result included a full observation window. The
+always-quiet DRA-MIG workload also completed that window. DCGM and the observer
+poll independently, so transition samples can differ. Dynamic MIG repartitioning
+was not tested.
 
 PromQL fixtures cover MIG ratios, missing profiling, claim-only rejection and
 conflicting measurements. They do not establish hardware or allocation support.

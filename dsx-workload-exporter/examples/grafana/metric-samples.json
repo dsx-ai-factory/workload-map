@@ -1,0 +1,213 @@
+{
+  "uid": "dsx-example-metrics",
+  "id": null,
+  "title": "DSX | Metric Samples",
+  "description": "Portable DSX workload exporter example. One cluster per datasource and one exporter scrape job. SPDX-License-Identifier: Apache-2.0; Copyright (c) 2026 NVIDIA Corporation.",
+  "tags": [
+    "dsx",
+    "examples"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "dsx",
+        "examples"
+      ],
+      "targetBlank": false,
+      "title": "DSX examples",
+      "type": "dashboards"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "options": [],
+        "refresh": 1
+      },
+      {
+        "name": "exporter_job",
+        "label": "Exporter job",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values({__name__=~\"dsx_workload_.*|dsx_exporter_observation_valid\"}, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values({__name__=~\"dsx_workload_.*|dsx_exporter_observation_valid\"}, job)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "options": [],
+        "regex": ""
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values({__name__=~\"dsx_workload_.*|dsx_exporter_observation_valid\", job=~\"${exporter_job:regex}\"}, namespace)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values({__name__=~\"dsx_workload_.*|dsx_exporter_observation_valid\", job=~\"${exporter_job:regex}\"}, namespace)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "allValue": ".*"
+      },
+      {
+        "name": "metric",
+        "label": "Metric",
+        "type": "custom",
+        "query": "dsx_workload_pod_info,dsx_workload_status,dsx_workload_created_timestamp_seconds,dsx_exporter_observation_valid",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "dsx_workload_pod_info",
+          "value": "dsx_workload_pod_info"
+        },
+        "options": [
+          {
+            "text": "dsx_workload_pod_info",
+            "value": "dsx_workload_pod_info",
+            "selected": true
+          },
+          {
+            "text": "dsx_workload_status",
+            "value": "dsx_workload_status",
+            "selected": false
+          },
+          {
+            "text": "dsx_workload_created_timestamp_seconds",
+            "value": "dsx_workload_created_timestamp_seconds",
+            "selected": false
+          },
+          {
+            "text": "dsx_exporter_observation_valid",
+            "value": "dsx_exporter_observation_valid",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "",
+      "description": "",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable"
+        },
+        "overrides": []
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Raw exporter output, one row per Prometheus series. Select any of the four DSX metric families. Every label and exporter target is retained; no recording rules are required.\n\nNamespace selection also keeps rows with an empty namespace, including cluster-level discovery/resource diagnostics. `observation_valid` describes collection validity, not application readiness. An absent failure row does not prove health. Metric sample timestamps are not Kubernetes evaluation timestamps."
+      },
+      "transparent": true
+    },
+    {
+      "id": 2,
+      "title": "${metric}",
+      "description": "Raw instant query. Status: independent 0/1 phase flags. Pod info: 1 per mapping. Creation: Unix seconds. Observation validity: 0/1 with scope and reason. Time is the query evaluation time; use Overview for raw sample age.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unavailable",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "{__name__=\"${metric}\", job=~\"${exporter_job:regex}\", namespace=~\"${namespace:regex}|^$\"}",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "__auto"
+        }
+      ],
+      "transformations": []
+    }
+  ]
+}

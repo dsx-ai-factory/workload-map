@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+groups:
+  - name: dsx-dashboard-examples
+    interval: 30s
+    rules:
+      - record: dsx:workload:observed
+        expr: |
+          group by (job, namespace, workload_name, workload_uid) (
+            dsx_workload_status
+            or dsx_workload_created_timestamp_seconds
+            or dsx_workload_pod_info
+            or dsx_exporter_observation_valid{scope="workload",workload_uid!=""}
+          )
+      - record: dsx:pod_attribution:unique
+        expr: |
+          max by (job, namespace, pod_name, pod_uid, workload_name, workload_group,
+                  workload_version, workload_kind, workload_uid, owner_resolution,
+                  component, component_instance, replica_group_id, observation_valid, team) (
+            dsx_workload_pod_info
+          )
+          and on (job, namespace, pod_name)
+          (count by (job, namespace, pod_name) (
+            group by (job, namespace, pod_name, pod_uid, workload_name, workload_group,
+                      workload_version, workload_kind, workload_uid, owner_resolution,
+                      component, component_instance, replica_group_id, observation_valid, team) (
+              dsx_workload_pod_info
+            )
+          ) == 1)

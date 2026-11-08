@@ -8,6 +8,9 @@ instance and group. Prometheus can join these labels with CPU, memory and GPU
 measurements. See the [metric definitions](../docs/keps/0001-metrics-exporter/README.md#metrics)
 and [query examples](../docs/dsx-workload-exporter/queries.md).
 
+The [Grafana examples](examples/grafana/README.md) provide workload overview,
+structure and raw metric dashboards for an existing Prometheus datasource.
+
 Metrics are served at `/metrics` on port 8080. Scrapes read saved results without
 calling Kubernetes.
 

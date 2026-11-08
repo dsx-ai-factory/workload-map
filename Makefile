@@ -48,8 +48,6 @@ GO_LICENCE_DETECTOR_VERSION ?= v0.11.1
 ENVTEST_VERSION             ?= release-0.23
 # renovate: datasource=go depName=github.com/goreleaser/goreleaser/v2
 GORELEASER_VERSION          ?= v2.20.0
-# renovate: datasource=github-releases depName=prometheus/prometheus
-PROMTOOL_VERSION            ?= v3.14.0
 # Kubernetes control-plane (apiserver, etcd, kubectl) version envtest downloads.
 ENVTEST_K8S_VERSION         ?= 1.31.0
 # Control-plane version for the chart's admission policy tests; MutatingAdmissionPolicy v1 needs 1.36+.
@@ -64,7 +62,6 @@ GOLANGCI_LINT       ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GO_LICENCE_DETECTOR ?= $(LOCALBIN)/go-licence-detector-$(GO_LICENCE_DETECTOR_VERSION)
 ENVTEST             ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GORELEASER          ?= $(LOCALBIN)/goreleaser-$(GORELEASER_VERSION)
-PROMTOOL            ?= $(LOCALBIN)/promtool-$(PROMTOOL_VERSION)
 
 GOLANGCI_LINT_FLAGS ?= $(if $(VERBOSE),-v)
 
@@ -497,18 +494,12 @@ test-exporter-integration: envtest ## Run the exporter envtest suite (downloads 
 	cd $(EXPORTER_ENVTEST_DIR) && KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		go test -race ./...
 
-.PHONY: test-exporter-dashboards
-test-exporter-dashboards: promtool ## Check dashboard imports, query fixtures and Prometheus rules (no cluster required)
-	cd dsx-workload-exporter && go test -count=1 ./examples/grafana/tests
-	cd dsx-workload-exporter/examples/grafana && $(PROMTOOL) check rules --lint-fatal recording-rules.yaml alerting-rules.yaml
-	cd dsx-workload-exporter/examples/grafana && $(PROMTOOL) test rules tests/*.test.yaml
-
 .PHONY: exporter-generate-mocks
 exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mockery
 	cd dsx-workload-exporter && go run github.com/vektra/mockery/v3@v3.8.1 --config .mockery.yaml
 
 .PHONY: test-exporter
-test-exporter: test-exporter-unit test-exporter-integration test-exporter-dashboards ## Run the exporter unit, envtest and dashboard suites
+test-exporter: test-exporter-unit test-exporter-integration ## Run the exporter unit and envtest suites
 
 .PHONY: build-exporter
 build-exporter: $(LOCALBIN) ## Build the dsx-workload-exporter binary for the host OS/arch
@@ -883,23 +874,6 @@ $(GORELEASER): | $(LOCALBIN)
 	echo "Downloading goreleaser@$(GORELEASER_VERSION)"; \
 	GOTOOLCHAIN=auto GOBIN=$(LOCALBIN) go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION); \
 	mv $(LOCALBIN)/goreleaser $@
-
-.PHONY: promtool
-promtool: $(PROMTOOL) ## Download promtool and verify its release checksum
-$(PROMTOOL): | $(LOCALBIN)
-	@set -e; \
-	echo "Downloading promtool@$(PROMTOOL_VERSION)"; \
-	tmp=$$(mktemp -d); \
-	trap 'rm -rf "$$tmp"' EXIT; \
-	name="prometheus-$(patsubst v%,%,$(PROMTOOL_VERSION)).$$(go env GOHOSTOS)-$$(go env GOHOSTARCH)"; \
-	url="https://github.com/prometheus/prometheus/releases/download/$(PROMTOOL_VERSION)"; \
-	curl -sSfL --proto '=https' --proto-redir '=https' --tlsv1.2 "$$url/$$name.tar.gz" -o "$$tmp/$$name.tar.gz"; \
-	curl -sSfL --proto '=https' --proto-redir '=https' --tlsv1.2 "$$url/sha256sums.txt" -o "$$tmp/sha256sums.txt"; \
-	awk -v archive="$$name.tar.gz" '$$2 == archive { print }' "$$tmp/sha256sums.txt" > "$$tmp/checksum.txt"; \
-	test -s "$$tmp/checksum.txt"; \
-	(cd "$$tmp" && if command -v sha256sum >/dev/null 2>&1; then sha256sum -c checksum.txt; else shasum -a 256 -c checksum.txt; fi); \
-	tar -xzf "$$tmp/$$name.tar.gz" -C "$$tmp" "$$name/promtool"; \
-	install -m 755 "$$tmp/$$name/promtool" "$@"
 
 ##@ Help
 

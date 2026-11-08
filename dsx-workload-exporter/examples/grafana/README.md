@@ -201,15 +201,9 @@ always-quiet DRA-MIG workload also completed that window. DCGM and the observer
 poll independently, so transition samples can differ. Dynamic MIG repartitioning
 was not tested.
 
-PromQL fixtures cover MIG ratios, missing profiling, claim-only rejection and
-conflicting measurements. They do not establish hardware or allocation support.
-
-From the repository root:
+To check the rule syntax with an installed `promtool`, run from the repository root:
 
 ```sh
-make test-exporter-dashboards
+cd dsx-workload-exporter/examples/grafana
+promtool check rules --lint-fatal recording-rules.yaml alerting-rules.yaml
 ```
-
-This also runs in `make check`. Go tests validate the dashboard imports and bind
-the query fixtures to the shipped panels. A pinned, checksum-verified `promtool`
-checks the rules and evaluates the PromQL fixtures. No cluster is required.

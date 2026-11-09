@@ -36,6 +36,14 @@ func boundRequests(cmd *cobra.Command) {
 // and describe accept. A completion has no channel for an error, so a failure
 // to reach the cluster offers nothing rather than printing.
 func completeWorkloads(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// Cobra skips the root pre-run for completion, but definition visibility
+	// must still follow the same flags, environment and config file.
+	var err error
+	config, err = buildConfig(cmd)
+	if err != nil {
+		cobra.CompDebugln(err.Error(), true)
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 	// Every lookup below reads cmd.Context(), and the __complete process ends
 	// after this one call, so replacing the context is safe.
 	ctx, cancel := context.WithTimeout(cmd.Context(), completionTimeout)
@@ -91,7 +99,7 @@ func completeNamespaces(cmd *cobra.Command, _ []string, prefix string) ([]string
 // kubectl users type, matching prefix. A kind covered at several group versions
 // would be rejected as ambiguous, so it is offered in each qualified form instead.
 func completeTypes(cmd *cobra.Command, prefix string) []string {
-	resolver, _ := loadDefinitions(cmd.Context(), clusterAccess())
+	resolver, _ := loadDefinitionsForCommand(cmd, clusterAccess())
 
 	byKind := map[string][]schema.GroupVersionKind{}
 	for _, def := range resolver.List() {

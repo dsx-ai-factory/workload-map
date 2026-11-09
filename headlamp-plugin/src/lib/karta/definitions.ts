@@ -43,11 +43,20 @@ export function rootGVKKey(karta: Karta): string | null {
 // definition with no root GVK matches no workload, so it is left out rather
 // than merged with every other one under a shared key.
 // Two definitions can claim the same GVK, in which case the last one wins.
-export function mergeDefinitions(catalogKartas: Karta[], clusterKartas: Karta[]): Definition[] {
+export function mergeDefinitions(
+  catalogKartas: Karta[],
+  clusterKartas: Karta[],
+  enableExperimental = false
+): Definition[] {
   const byKey = new Map<string, Definition>();
 
   const index = (kartas: Karta[], origin: DefinitionOrigin) => {
     for (const karta of kartas) {
+      // Filter before merging so an experimental override cannot hide a
+      // stable definition when experimental definitions are disabled.
+      if (karta.spec?.experimental && !enableExperimental) {
+        continue;
+      }
       const key = rootGVKKey(karta);
       if (key !== null) {
         byKey.set(key, { karta, origin });

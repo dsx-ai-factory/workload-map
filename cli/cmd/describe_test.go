@@ -720,7 +720,7 @@ func TestDescribeStructuredNoDefinitionNamesTheTypeToken(t *testing.T) {
 func TestDescribeEmptyDefinitionSetEmitsNoPayload(t *testing.T) {
 	describeCluster(t)
 	restore := loadDefinitions
-	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
 		return definitions.New(nil, nil), nil
 	}
 	t.Cleanup(func() { loadDefinitions = restore })

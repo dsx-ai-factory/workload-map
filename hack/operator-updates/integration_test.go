@@ -169,6 +169,13 @@ func (h scriptHarness) testSuccess(t *testing.T) {
 			wantOutput: []string{"v1.0.5"},
 		},
 		{
+			name: "Kueue uses stable root tags and effective pin", script: "operators/kueue/check-updates.sh",
+			args: []string{"--fail-on-update"}, pins: map[string]string{"KUEUE_VERSION": "v0.20.6"},
+			tags:     map[string][]string{"kubernetes-sigs/kueue": {"v0.20.5", "v0.20.6", "v0.21.0-rc.1", "charts/v9.0.0", "clients/python/v9.0.0"}},
+			wantRows: map[string]string{"kueue": "CURRENT"}, wantRepos: []string{"kubernetes-sigs/kueue"},
+			wantOutput: []string{"v0.20.6"},
+		},
+		{
 			name: "make forwards selectors and prerelease flag", makeTarget: true,
 			args:     []string{"OPERATORS=jobset", "UPDATE_FLAGS=--include-prereleases"},
 			tags:     map[string][]string{jobset: {"v1.0.0", "v1.1.0-rc9", "v1.1.0-rc10"}},
@@ -206,6 +213,13 @@ func (h scriptHarness) testUpdates(t *testing.T) {
 			tags:     map[string][]string{grove: {"v0.1.0-alpha.10", "v0.1.0-alpha.11-rc1"}},
 			wantRows: map[string]string{"grove": "NEW"}, wantRepos: []string{grove},
 			wantOutput: []string{"v0.1.0-alpha.11-rc1"},
+		},
+		{
+			name: "Kueue release candidates require flag", script: "operators/kueue/check-updates.sh",
+			args: []string{"--include-prereleases", "--fail-on-update"}, pins: map[string]string{"KUEUE_VERSION": "v0.20.5"},
+			tags:     map[string][]string{"kubernetes-sigs/kueue": {"v0.20.5", "v0.21.0-rc.1", "charts/v9.0.0"}},
+			wantRows: map[string]string{"kueue": "NEW"}, wantRepos: []string{"kubernetes-sigs/kueue"},
+			wantOutput: []string{"v0.21.0-rc.1", "1 newer tag(s)"},
 		},
 	}, 2)
 }
@@ -296,7 +310,7 @@ func (h scriptHarness) testInventory(t *testing.T) {
 		"kubeflow/trainer": "v", "kubeflow/mpi-operator": "v", "knative/serving": "knative-v",
 		"knative-extensions/net-kourier": "knative-v", "kserve/kserve": "v", "zilliztech/milvus-operator": "milvus-operator-",
 		"ai-dynamo/grove": "v", "ai-dynamo/dynamo": "v", "NVIDIA/k8s-nim-operator": "v",
-		"kubernetes-sigs/agent-sandbox": "v",
+		"kubernetes-sigs/agent-sandbox": "v", "kubernetes-sigs/kueue": "v",
 	}
 	tags := make(map[string][]string, len(prefixes))
 	for repository, prefix := range prefixes {
@@ -489,7 +503,7 @@ func (h scriptHarness) run(t *testing.T, test scriptCase) scriptResult {
 		"KAI_SCHEDULER_VERSION=v0.15.2", "LWS_VERSION=v1.0.0", "KUBERAY_VERSION=1.0.0",
 		"KUBEFLOW_VERSION=v1.0.0", "MPI_OPERATOR_VERSION=v1.0.0", "KSERVE_VERSION=v1.0.0",
 		"MILVUS_OPERATOR_VERSION=1.0.0", "GROVE_VERSION=v0.1.0-alpha.1", "DYNAMO_VERSION=1.0.0",
-		"NIM_OPERATOR_VERSION=v1.0.0", "AGENT_SANDBOX_VERSION=v1.0.0", "GOPROXY=off", "GOSUMDB=off")
+		"NIM_OPERATOR_VERSION=v1.0.0", "AGENT_SANDBOX_VERSION=v1.0.0", "KUEUE_VERSION=v0.20.5", "GOPROXY=off", "GOSUMDB=off")
 	for name, value := range test.pins {
 		env = append(env, name+"="+value)
 	}

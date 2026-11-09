@@ -26,6 +26,19 @@ func catalogDir() string {
 }
 
 var _ = Describe("Get", func() {
+	It("keeps experimental definitions available to SDK callers", func() {
+		gvk := schema.GroupVersionKind{Group: "kueue.x-k8s.io", Version: "v1beta2", Kind: "Workload"}
+		k, err := Get(gvk)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k.Spec.Experimental).To(BeTrue())
+		Expect(List()).To(ContainElement(k))
+
+		k.Spec.Experimental = false
+		again, err := Get(gvk)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(again.Spec.Experimental).To(BeTrue())
+	})
+
 	It("resolves a known workload GVK to its built-in Karta", func() {
 		gvk := schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"}
 

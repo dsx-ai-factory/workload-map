@@ -58,8 +58,9 @@ type Config struct {
 
 // KartaDefinitionSourceConfig selects definitions from the configured sources.
 type KartaDefinitionSourceConfig struct {
-	Catalog DefinitionSourceConfig `yaml:"catalog" json:"catalog"`
-	Cluster DefinitionSourceConfig `yaml:"cluster" json:"cluster"`
+	EnableExperimental bool                   `yaml:"enableExperimental" json:"enableExperimental"`
+	Catalog            DefinitionSourceConfig `yaml:"catalog" json:"catalog"`
+	Cluster            DefinitionSourceConfig `yaml:"cluster" json:"cluster"`
 }
 
 type DefinitionSourceConfig struct {
@@ -314,7 +315,7 @@ func (c KartaDefinitionSourceConfig) InventoryConfig() inventory.Config {
 	convert := func(s DefinitionSourceConfig) inventory.SourceConfig {
 		return inventory.SourceConfig{Enabled: s.Enabled, Include: s.Include, Exclude: s.Exclude}
 	}
-	return inventory.Config{Catalog: convert(c.Catalog), Cluster: convert(c.Cluster)}
+	return inventory.Config{Catalog: convert(c.Catalog), Cluster: convert(c.Cluster), EnableExperimental: c.EnableExperimental}
 }
 
 // value distinguishes an explicit empty flag from an unset one.

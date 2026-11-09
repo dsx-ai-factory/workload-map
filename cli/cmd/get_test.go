@@ -169,7 +169,7 @@ func withLoadWarning(t *testing.T, message string) {
 	t.Helper()
 
 	restore := loadDefinitions
-	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
 		return definitions.New([]*v1alpha1.Karta{kartas.Jobset()}, nil),
 			[]definitions.Warning{{Message: message}}
 	}
@@ -630,7 +630,7 @@ func TestGetReportsCollidingDefinitionsByName(t *testing.T) {
 		return k
 	}
 	restore := loadDefinitions
-	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
 		return definitions.New(nil, []*v1alpha1.Karta{collide("first"), collide("second")}), nil
 	}
 	t.Cleanup(func() { loadDefinitions = restore })

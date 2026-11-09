@@ -50,6 +50,27 @@ eval "$(kli completion bash)"
 
 `kli completion --help` lists the other shells and setup details.
 
+## Experimental definitions
+
+Definitions with `spec.experimental: true` are excluded by default. This applies
+to the built-in catalog and cluster definitions, including listings, workload
+resolution, `describe -f`, `get --all-types`, and shell completion.
+
+Use `--catalog-experimental-definitions` to include them:
+
+```bash
+kli definitions --catalog-experimental-definitions
+kli get workload --catalog-experimental-definitions
+```
+
+To save the preference, set `KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS=true` or add
+`catalog-experimental-definitions: true` to `~/.karta/config.yaml`. An explicit
+flag takes precedence over the environment, then the config file, then the default.
+`--catalog-experimental-definitions=false` disables a saved opt-in.
+
+Naming an experimental definition or workload type still requires the opt-in.
+An excluded cluster definition does not override a stable catalog definition.
+
 ## Install from a clone
 
 In a clone of this repository, make targets build `kli`, install it, and add

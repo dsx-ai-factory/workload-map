@@ -16,6 +16,10 @@ selection. Deleting it selects the next cluster candidate or the catalog.
 `Config` is constructor input. Catalog and cluster sources each have an enable
 flag and definition-name include/exclude lists. Empty includes mean all;
 exclusions win. Selected cluster definitions take precedence over catalog ones.
+`EnableExperimental` defaults to false and excludes `spec.experimental: true`
+from both sources before validation and election. Include lists do not bypass
+this gate. A flag update that excludes a cluster entry removes it and signals
+`Changes`, allowing the next eligible definition to be selected.
 `RequestTimeout` bounds each LIST page. Zero uses the caller's context without
 adding a deadline. Negative values are rejected. Watches use the caller's context
 and remain open independently of the LIST timeout.

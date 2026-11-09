@@ -59,6 +59,15 @@ configure the exporter. `fullnameOverride` changes its resource-name prefix.
 The default worker settings start four Pod workers and four workload workers.
 These counts control queue processing, not the total goroutines or API requests.
 
+`goMemLimit` is a soft limit. As memory nears it, the garbage collector runs
+more often: memory stays under the limit, and the exporter uses more CPU. If the
+live data alone is larger than the limit, the runtime caps garbage collection at
+about half of the CPU and lets memory grow past it. The container is then
+OOM-killed at `resources.limits.memory`. A working set that stays at the limit
+while exporter CPU rises means the live data has outgrown it. Raise
+`resources.limits.memory`; with `auto`, `GOMEMLIMIT` follows. The other 10% of
+the limit covers memory outside the Go runtime.
+
 For an unreleased checkout, set `image.repository` and `image.tag` to an image
 built from that checkout and accessible to cluster nodes. The chart appVersion
 does not guarantee that an exporter image has been published. See

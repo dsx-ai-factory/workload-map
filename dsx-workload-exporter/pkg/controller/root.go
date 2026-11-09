@@ -67,6 +67,7 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 		return err
 	}
 	discoveryResult, err := r.state.deps.Discovery.Get(ctx, refOf(selectedObject))
+	r.state.setOwnerWait(ownerWaiter{key: key, selectedObject: true}, err)
 	isOwnerUnresolved := err == nil && discoveryResult.Workload == nil
 	if isOwnerUnresolved {
 		err = discovery.ErrUnresolvedOwner

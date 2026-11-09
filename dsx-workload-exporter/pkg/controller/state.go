@@ -44,6 +44,10 @@ type controllerState struct {
 	roots        map[types.UID]*rootState
 	podRoots     map[types.UID]types.UID
 	ancestorPods map[types.UID]bool
+	// ownerWaiters holds the jobs whose owner chain stopped at a missing owner, by that
+	// owner's UID. Creating the owner requeues them instead of its whole namespace.
+	ownerWaiters map[types.UID]map[ownerWaiter]struct{}
+	waitingOn    map[ownerWaiter]types.UID
 	// Watched workload objects can discover themselves or an ancestor as root.
 	// A zero outcome keeps the object tracked until discovery succeeds.
 	selectedObjectRoots map[objectJobKey]selectedObjectOutcome
@@ -94,6 +98,8 @@ func newControllerState(objects *objectCache) *controllerState {
 		roots:               map[types.UID]*rootState{},
 		podRoots:            map[types.UID]types.UID{},
 		ancestorPods:        map[types.UID]bool{},
+		ownerWaiters:        map[types.UID]map[ownerWaiter]struct{}{},
+		waitingOn:           map[ownerWaiter]types.UID{},
 		selectedObjectRoots: map[objectJobKey]selectedObjectOutcome{},
 		selectedDefinitions: map[schema.GroupKind]selectedDefinition{},
 		scopes:              map[string]bool{},
@@ -120,6 +126,7 @@ func (r *controllerState) namespaceAdmitted(namespace string) bool {
 func (r *controllerState) unregisterPod(key objectJobKey) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
+	r.clearOwnerWait(ownerWaiter{key: key})
 	if root := r.roots[r.podRoots[key.UID]]; root != nil {
 		delete(root.pods, key.UID)
 		r.workloadQueue.Add(workloadJobKey{RootUID: root.ref.UID})
@@ -327,6 +334,7 @@ func (r *controllerState) excludeSelectedObject(key objectJobKey, workload *disc
 func (r *controllerState) unregisterSelectedObject(key objectJobKey) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
+	r.clearOwnerWait(ownerWaiter{key: key, selectedObject: true})
 	r.removeSelectedObjectMembership(key)
 }
 
@@ -416,6 +424,50 @@ func (r *controllerState) removeRoot(uid types.UID) {
 	}
 	delete(r.roots, uid)
 	r.deps.Publications.RemoveWorkload(uid)
+}
+
+// setOwnerWait records the missing owner a discovery error names, or clears the wait.
+func (r *controllerState) setOwnerWait(waiter ownerWaiter, err error) {
+	var missing *discovery.MissingOwnerError
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	r.clearOwnerWait(waiter)
+	if !errors.As(err, &missing) || missing.Owner.UID == "" {
+		return
+	}
+	waiters := r.ownerWaiters[missing.Owner.UID]
+	if waiters == nil {
+		waiters = map[ownerWaiter]struct{}{}
+		r.ownerWaiters[missing.Owner.UID] = waiters
+	}
+	waiters[waiter] = struct{}{}
+	r.waitingOn[waiter] = missing.Owner.UID
+}
+
+// clearOwnerWait requires the caller to hold stateMu in write mode.
+func (r *controllerState) clearOwnerWait(waiter ownerWaiter) {
+	owner, waiting := r.waitingOn[waiter]
+	if !waiting {
+		return
+	}
+	delete(r.waitingOn, waiter)
+	delete(r.ownerWaiters[owner], waiter)
+	if len(r.ownerWaiters[owner]) == 0 {
+		delete(r.ownerWaiters, owner)
+	}
+}
+
+// enqueueOwnerWaiters requires the caller to hold stateMu in write mode.
+func (r *controllerState) enqueueOwnerWaiters(owner types.UID) {
+	for waiter := range r.ownerWaiters[owner] {
+		delete(r.waitingOn, waiter)
+		if waiter.selectedObject {
+			r.workloadQueue.Add(workloadJobKey{SelectedObject: waiter.key})
+		} else {
+			r.podQueue.Add(waiter.key)
+		}
+	}
+	delete(r.ownerWaiters, owner)
 }
 
 func (r *controllerState) enqueueScopeRefresh(namespace string) {

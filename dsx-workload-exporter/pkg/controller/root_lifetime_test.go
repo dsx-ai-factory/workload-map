@@ -373,3 +373,84 @@ func drainRootLifetimeQueues(t *testing.T, r *Runtime) {
 		}
 	}
 }
+
+// drainOnce processes every queued job once and drops failed ones instead of
+// retrying them, so a job only runs again when an event queues it.
+func drainOnce(t *testing.T, r *Runtime) {
+	t.Helper()
+	for attempts := 0; r.state.podQueue.Len()+r.state.workloadQueue.Len() > 0; attempts++ {
+		require.Less(t, attempts, 100, "queues did not settle")
+		if r.state.podQueue.Len() > 0 {
+			key, _ := r.state.podQueue.Get()
+			_ = r.handlePodInput(context.Background(), key)
+			r.state.podQueue.Done(key)
+		}
+		if r.state.workloadQueue.Len() > 0 {
+			key, _ := r.state.workloadQueue.Get()
+			_ = r.handleWorkloadInput(context.Background(), key)
+			r.state.workloadQueue.Done(key)
+		}
+	}
+}
+
+func TestCreatedOwnerRequeuesOnlyItsWaiters(t *testing.T) {
+	r := newRootLifetimeRuntime(t, Config{})
+	w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "", true)
+	bystander := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "bystander", "bystander")
+	child := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "child", "child")
+	owner := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "owner", "owner")
+	child.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(owner, lifetimeDeploymentGVK)})
+	require.NoError(t, r.state.applyWatchEvent(w, bystander, false))
+	require.NoError(t, r.state.applyWatchEvent(w, child, false))
+	drainOnce(t, r)
+	childKey := objectJobFor(refOf(child))
+	require.Equal(t, owner.GetUID(), r.state.waitingOn[ownerWaiter{key: childKey, selectedObject: true}])
+
+	require.NoError(t, r.state.applyWatchEvent(w, owner, false))
+	require.Zero(t, r.state.podQueue.Len(), "a created owner must not rescan its namespace")
+	require.Equal(t, 2, r.state.workloadQueue.Len(), "only the owner and its waiting child are queued")
+	drainOnce(t, r)
+	require.Empty(t, r.state.waitingOn)
+	require.Empty(t, r.state.ownerWaiters)
+	require.Equal(t, owner.GetUID(), r.state.selectedObjectRoots[childKey].rootUID)
+	require.NotNil(t, r.state.deps.Publications.Workload(owner.GetUID()))
+}
+
+func TestUnregisteredObjectStopsWaitingForItsOwner(t *testing.T) {
+	r := newRootLifetimeRuntime(t, Config{})
+	w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "", true)
+	child := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "child", "child")
+	missing := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "missing", "missing")
+	child.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(missing, lifetimeDeploymentGVK)})
+	require.NoError(t, r.state.applyWatchEvent(w, child, false))
+	drainOnce(t, r)
+	require.Len(t, r.state.waitingOn, 1)
+
+	require.NoError(t, r.state.applyWatchEvent(w, child, true))
+	drainOnce(t, r)
+	require.Empty(t, r.state.waitingOn)
+	require.Empty(t, r.state.ownerWaiters)
+}
+
+func TestCreatedOwnerRequeuesItsWaitingPod(t *testing.T) {
+	r := newRootLifetimeRuntime(t, Config{})
+	ownerWatch := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "", true)
+	podWatch := rootLifetimeWatch(t, r, podGVK, "", true)
+	owner := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "owner", "owner")
+	pod := rootLifetimeObject(podGVK, "ns", "pod", "pod")
+	pod.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(owner, lifetimeDeploymentGVK)})
+	require.NoError(t, r.state.applyWatchEvent(podWatch, pod, false))
+	drainOnce(t, r)
+	podKey := objectJobFor(refOf(pod))
+	require.Equal(t, owner.GetUID(), r.state.waitingOn[ownerWaiter{key: podKey}])
+
+	require.NoError(t, r.state.applyWatchEvent(ownerWatch, owner, false))
+	require.Equal(t, 1, r.state.podQueue.Len())
+	queued, _ := r.state.podQueue.Get()
+	r.state.podQueue.Done(queued)
+	require.Equal(t, podKey, queued, "only the waiting Pod is queued, not a namespace rescan")
+	r.state.podQueue.Add(queued)
+	drainOnce(t, r)
+	require.Empty(t, r.state.waitingOn)
+	require.Equal(t, owner.GetUID(), r.state.podRoots[pod.GetUID()])
+}

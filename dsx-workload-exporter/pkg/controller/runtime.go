@@ -60,6 +60,12 @@ type objectJobKey struct {
 	UID    types.UID
 	Rescan bool
 }
+
+// ownerWaiter is a Pod job, or a selected-object job of the workload queue.
+type ownerWaiter struct {
+	key            objectJobKey
+	selectedObject bool
+}
 type workloadJobKey struct {
 	RootUID        types.UID
 	SelectedObject objectJobKey

@@ -58,6 +58,7 @@ Different keys can run concurrently.
 | Karta create, update or delete | Refresh sources; requeue workloads and Pods when the selected definition, spec or health changes |
 | Namespace labels change (with namespace selection configured) | Sources refresh to recompute watched namespaces |
 | Intermediate owner references or root-selector membership change | Namespace rescan |
+| Object created | Pod and object jobs whose owner chain stopped at it as a missing owner |
 
 Discovery requests watches for newly encountered ancestor kinds while resolving
 ownership.

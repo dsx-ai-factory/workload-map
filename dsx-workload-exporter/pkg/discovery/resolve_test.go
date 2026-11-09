@@ -128,6 +128,10 @@ var _ = Describe("root resolution", func() {
 		result, err := d.Get(context.Background(), ref)
 		Expect(errors.Is(err, ErrUnresolvedOwner)).To(BeTrue())
 		Expect(result.Workload).To(BeNil())
+		var missing *MissingOwnerError
+		Expect(errors.As(err, &missing)).To(BeTrue(), "the error must name the missing owner")
+		Expect(missing.Owner.Name).To(Equal("root"))
+		Expect(missing.Owner.UID).NotTo(BeEmpty())
 	})
 	It("rejects replacement UIDs", func() {
 		r.objects["job"].UID = "replacement"

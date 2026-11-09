@@ -493,7 +493,14 @@ func (s *reflectorStore) Replace(values []any, _ string) error {
 		r.queueObjectChange(old, object)
 	}
 	w.ready = true
-	r.updateWatchHealth(w, nil)
+	// A streaming list delivers its snapshot on the watch stream, and the reflector
+	// applies it after that stream may already have failed. The snapshot keeps that
+	// failure; the next watch start reports the recovery.
+	var healthErr error
+	if errors.Is(w.err, errShortWatch) {
+		healthErr = w.err
+	}
+	r.updateWatchHealth(w, healthErr)
 	r.enqueueScopeRefresh(w.key.Namespace)
 	return nil
 }

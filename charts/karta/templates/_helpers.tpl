@@ -113,14 +113,32 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{/*
 GOMEMLIMIT for the exporter container. auto: 90% of resources.limits.memory in bytes,
 so the Go GC works harder as the container nears its memory limit; the rest covers
-memory outside the Go runtime. Any other non-empty value passes through. Empty, or
-auto without a memory limit or with a zero one, renders nothing.
+memory outside the Go runtime. Any other value must be off or a Go byte count, such
+as 3600MiB, and fails the render otherwise. Empty, or auto without a memory limit or
+with a zero one, renders nothing.
 */}}
 {{- define "karta.exporter.goMemLimit" -}}
-{{- $value := toString (.Values.exporter.goMemLimit | default "") -}}
-{{- if ne $value "auto" -}}
+{{- $setting := .Values.exporter.goMemLimit -}}
+{{- $value := "" -}}
+{{- if or (kindIs "float64" $setting) (kindIs "int64" $setting) (kindIs "int" $setting) -}}
+{{- /* Helm reads a YAML number as a float, which prints as 3.6e+09; Go needs whole bytes. */ -}}
+{{- if or (le (float64 $setting) 0.0) (ne (floor (float64 $setting)) (float64 $setting)) -}}
+{{- fail (printf "exporter.goMemLimit %v must be a positive whole number of bytes; use off, or leave it empty, for no limit" $setting) -}}
+{{- end -}}
+{{- $value = printf "%.0f" (float64 $setting) -}}
+{{- else if not (kindIs "invalid" $setting) -}}
+{{- $value = toString $setting -}}
+{{- end -}}
+{{- if and $value (ne $value "auto") -}}
+{{- /* Go's GOMEMLIMIT format: anything else makes the exporter fail at start. */ -}}
+{{- if not (regexMatch "^(off|[0-9]+(B|[KMGT]iB)?)$" $value) -}}
+{{- fail (printf "exporter.goMemLimit %q is not a Go memory limit; use auto, off, or a whole byte count with an optional B, KiB, MiB, GiB or TiB suffix" $value) -}}
+{{- end -}}
+{{- if regexMatch "^0+(B|[KMGT]iB)?$" $value -}}
+{{- fail (printf "exporter.goMemLimit %q is a zero-byte Go memory limit; use off, or leave it empty, for no limit" $value) -}}
+{{- end -}}
 {{- $value -}}
-{{- else -}}
+{{- else if eq $value "auto" -}}
 {{- $raw := dig "resources" "limits" "memory" "" .Values.exporter -}}
 {{- $bytes := 0.0 -}}
 {{- if or (kindIs "float64" $raw) (kindIs "int64" $raw) (kindIs "int" $raw) -}}

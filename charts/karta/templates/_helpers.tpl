@@ -114,7 +114,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 GOMEMLIMIT for the exporter container. auto: 90% of resources.limits.memory in bytes,
 so the Go GC works harder before the kernel OOM-kills the container; the rest covers
 memory outside the Go runtime. Any other non-empty value passes through. Empty, or
-auto without a memory limit, renders nothing.
+auto without a memory limit or with a zero one, renders nothing.
 */}}
 {{- define "karta.exporter.goMemLimit" -}}
 {{- $value := toString (.Values.exporter.goMemLimit | default "") -}}
@@ -122,17 +122,41 @@ auto without a memory limit, renders nothing.
 {{- $value -}}
 {{- else -}}
 {{- $raw := dig "resources" "limits" "memory" "" .Values.exporter -}}
+{{- $bytes := 0.0 -}}
 {{- if or (kindIs "float64" $raw) (kindIs "int64" $raw) (kindIs "int" $raw) -}}
-{{- printf "%.0f" (floor (mulf (float64 $raw) 0.9)) -}}
+{{- $bytes = float64 $raw -}}
 {{- else if $raw -}}
 {{- $limit := toString $raw -}}
-{{- $number := regexFind "^[0-9]+(\\.[0-9]+)?" $limit -}}
+{{- /* A Kubernetes quantity: a signed decimal number, then an SI suffix or a decimal exponent. */ -}}
+{{- $number := regexFind "^[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)" $limit -}}
 {{- $suffix := trimPrefix $number $limit -}}
-{{- $units := dict "" 1 "k" 1000 "M" 1000000 "G" 1000000000 "T" 1000000000000 "Ki" 1024 "Mi" 1048576 "Gi" 1073741824 "Ti" 1099511627776 -}}
-{{- if or (not $number) (not (hasKey $units $suffix)) -}}
+{{- $units := dict "" 1 "m" 0.001 "k" 1e3 "M" 1e6 "G" 1e9 "T" 1e12 "P" 1e15 "E" 1e18 "Ki" 1024 "Mi" 1048576 "Gi" 1073741824 "Ti" 1099511627776 "Pi" 1125899906842624 "Ei" 1152921504606846976 -}}
+{{- $multiplier := 0.0 -}}
+{{- if and $number (hasKey $units $suffix) -}}
+{{- $multiplier = float64 (get $units $suffix) -}}
+{{- else if and $number (regexMatch "^[eE][+-]?[0-9]{1,2}$" $suffix) -}}
+{{- $exponent := atoi (trimPrefix "+" (substr 1 (len $suffix) $suffix)) -}}
+{{- if and (ge $exponent -18) (le $exponent 18) -}}
+{{- $multiplier = 1.0 -}}
+{{- range until (int (max $exponent (sub 0 $exponent))) -}}
+{{- if ge $exponent 0 -}}
+{{- $multiplier = mulf $multiplier 10 -}}
+{{- else -}}
+{{- $multiplier = divf $multiplier 10 -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if not $multiplier -}}
 {{- fail (printf "exporter.goMemLimit=auto cannot read exporter.resources.limits.memory %q; set exporter.goMemLimit to a Go value such as 3600MiB" $limit) -}}
 {{- end -}}
-{{- printf "%.0f" (floor (mulf (float64 $number) (float64 (get $units $suffix)) 0.9)) -}}
+{{- $bytes = mulf (float64 $number) $multiplier -}}
+{{- end -}}
+{{- /* bytes x 9 / 10, not x 0.9: 4e9 x 0.9 is not exact in floating point. */ -}}
+{{- $goMemLimit := floor (divf (mulf $bytes 9) 10) -}}
+{{- /* A zero limit means unlimited; GOMEMLIMIT=0 would be a zero-byte Go limit. */ -}}
+{{- if ge $goMemLimit 1.0 -}}
+{{- printf "%.0f" $goMemLimit -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -23,6 +24,31 @@ import (
 )
 
 var _ = Describe("chart label configuration", func() {
+	It("loads the documented SkyPilot Helm example", func() {
+		values, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "dsx-workload-exporter", "examples", "skypilot-values.yaml"))
+		Expect(err).To(Succeed())
+		for _, raw := range chartDocuments(GinkgoT(), renderExporterChart(GinkgoT(), string(values))) {
+			var doc struct {
+				Kind string            `yaml:"kind"`
+				Data map[string]string `yaml:"data"`
+			}
+			Expect(yaml.Unmarshal(raw, &doc)).To(Succeed())
+			if doc.Kind != "ConfigMap" || doc.Data["config.yaml"] == "" {
+				continue
+			}
+			cfg, err := loadConfig(doc.Data["config.yaml"], nil)
+			Expect(err).To(Succeed())
+			Expect(cfg.KartaDefinitionSource.EnableExperimental).To(BeTrue())
+			Expect(cfg.PodWorkloadAssociation).NotTo(BeNil())
+			Expect(cfg.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("kueue.x-k8s.io/pod-group-name"))
+			Expect(cfg.Rules).To(HaveLen(1))
+			_, err = labelevaluator.NewCompiler().Compile(labelevaluator.Config{Expression: cfg.Rules[0].Expression, Limits: cfg.Limits})
+			Expect(err).To(Succeed())
+			return
+		}
+		Fail("exporter config not found")
+	})
+
 	for _, tc := range []struct {
 		name   string
 		args   []string

@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+operator:
+  enabled: false
+exporter:
+  enabled: true
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: sky-kueue-lab
+  kartaDefinitionSource:
+    enableExperimental: true
+  objectSelectors:
+    - apiVersion: kueue.x-k8s.io/v1beta2
+      kind: Workload
+      selector:
+        matchExpressions:
+          - key: skypilot-cluster-name
+            operator: Exists
+  workloadMetricSelector:
+    matchExpressions:
+      - key: kueue.x-k8s.io/pod-group-name
+        operator: DoesNotExist
+  podWorkloadAssociation:
+    podSelector:
+      matchExpressions:
+        - key: kueue.x-k8s.io/pod-group-name
+          operator: Exists
+        - key: skypilot-cluster-name
+          operator: Exists
+    target:
+      apiVersion: kueue.x-k8s.io/v1beta2
+      kind: Workload
+      nameFromLabel: kueue.x-k8s.io/pod-group-name
+  labelRules:
+    - name: component
+      metrics: [dsx_workload_pod_info]
+      sources: [pod]
+      expression: |
+        has(object.metadata.labels) &&
+        "skypilot-cluster-name" in object.metadata.labels &&
+        "skypilot-head-node" in object.metadata.labels
+          ? (object.metadata.labels["skypilot-head-node"] == "1"
+              ? "head"
+              : (object.metadata.labels["skypilot-head-node"] == "0" ? "worker" : ""))
+          : ""

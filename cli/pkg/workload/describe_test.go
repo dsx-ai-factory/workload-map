@@ -336,8 +336,9 @@ spec:
 		Expect(pod.Reason).To(Equal("PodCompleted"))
 	})
 
-	// A component without a selector must not claim a sibling's pods, or ready
-	// counts can exceed the desired count.
+	// Milvus names 18 pod-bearing components and gives only 12 a selector. Left
+	// unchecked the other six each claim the whole workload, so one pod reports
+	// under seven components and ready counts exceed desired.
 	It("does not let a selectorless component claim a sibling's pods", func() {
 		view := describeObject([]byte(`
 apiVersion: milvus.io/v1beta1
@@ -353,7 +354,7 @@ spec:
 
 		Expect(componentNamed(view.Components, "proxy").Pods).To(HaveLen(1))
 		for _, name := range []string{"etcd", "minio", "pulsar-broker"} {
-			Expect(componentNamed(view.Components, name).Pods).To(BeEmpty(), name+" must not claim the proxy pod")
+			Expect(componentNamed(view.Components, name).Pods).To(BeEmpty(), name+" has no selector and owns no pod")
 		}
 	})
 

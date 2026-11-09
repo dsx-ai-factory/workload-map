@@ -52,12 +52,14 @@ podWorkloadAssociation:
 		`workloadMetricSelector: {matchExpressions: [{key: group, operator: Invalid}]}`,
 		`podWorkloadAssociation: {target: {apiVersion: "", kind: Workload, nameFromLabel: group}}`,
 		`podWorkloadAssociation: {target: {apiVersion: example.org/, kind: Workload, nameFromLabel: group}}`,
-		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: *, nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: "*", nameFromLabel: group}}`,
 		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: ""}}`,
 		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: "bad key"}}`,
 		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: group}, podSelector: {matchExpressions: [{key: group, operator: Invalid}]}}`,
 	} {
 		It("rejects invalid association and metric selection configuration: "+invalid, func() {
+			var parsed map[string]any
+			Expect(yaml.Unmarshal([]byte(invalid), &parsed)).To(Succeed())
 			_, err := loadConfig(invalid, nil)
 			Expect(err).To(HaveOccurred())
 		})

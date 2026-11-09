@@ -46,7 +46,7 @@ func TestObjectSelectorsMatching(t *testing.T) {
 			object := &unstructured.Unstructured{}
 			object.SetGroupVersionKind(tc.gvk)
 			object.SetLabels(tc.labels)
-			require.Equal(t, tc.matches, r.matchesObjectSelectors(object))
+			require.Equal(t, tc.matches, r.isObjectSelected(object))
 		})
 	}
 }
@@ -59,7 +59,7 @@ func TestObjectSelectorsAssociationLabelChanges(t *testing.T) {
 	pod := associationPod("member", "pod")
 	target := rootLifetimeObject(associationTestGVK, "ns", "group", "target")
 	target.SetOwnerReferences([]metav1.OwnerReference{associationOwner(pod)})
-	require.True(t, r.state.matchesObjectSelectors(pod), "other kinds remain selected")
+	require.True(t, r.state.isObjectSelected(pod), "other kinds remain selected")
 	require.NoError(t, r.state.applyWatchEvent(podWatch, pod, false))
 	for i, selected := range []bool{false, true, false, true} {
 		target = target.DeepCopy()

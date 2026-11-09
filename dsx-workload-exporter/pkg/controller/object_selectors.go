@@ -47,12 +47,14 @@ func compileObjectSelectors(rules []ObjectSelector) (map[schema.GroupVersionKind
 	return result, nil
 }
 
+// ValidateObjectSelectors rejects malformed selectors and duplicate scopes,
+// including more than one global entry.
 func ValidateObjectSelectors(rules []ObjectSelector) error {
 	_, err := compileObjectSelectors(rules)
 	return err
 }
 
-func (r *controllerState) matchesObjectSelectors(object *unstructured.Unstructured) bool {
+func (r *controllerState) isObjectSelected(object *unstructured.Unstructured) bool {
 	objectLabels := labelsFor(object)
 	if global, configured := r.objectSelectors[schema.GroupVersionKind{}]; configured && !global.Matches(objectLabels) {
 		return false

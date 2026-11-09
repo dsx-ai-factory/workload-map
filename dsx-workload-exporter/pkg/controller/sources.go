@@ -538,7 +538,7 @@ func (r *controllerState) queueObjectChange(old, current *unstructured.Unstructu
 			}
 		}
 	}
-	objectMembershipChanged := old != nil && current != nil && r.matchesObjectSelectors(old) != r.matchesObjectSelectors(current)
+	objectMembershipChanged := old != nil && current != nil && r.isObjectSelected(old) != r.isObjectSelected(current)
 	ancestorOwnershipChanged := ownershipChanged && ancestor
 	if ancestorOwnershipChanged || objectMembershipChanged {
 		r.enqueueScopeRefresh(object.GetNamespace())

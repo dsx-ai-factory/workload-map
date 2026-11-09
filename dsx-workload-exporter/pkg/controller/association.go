@@ -82,7 +82,7 @@ func (r *Runtime) resolvePodAssociation(ctx context.Context, pod, root *unstruct
 		return root, snapshot, source, err
 	}
 	owner, valid = discovery.ControllerOwner(object)
-	if !valid || owner.UID != "" || object.GetNamespace() != pod.GetNamespace() || !r.state.matchesObjectSelectors(object) {
+	if !valid || owner.UID != "" || object.GetNamespace() != pod.GetNamespace() || !r.state.isObjectSelected(object) {
 		return root, snapshot, source, ErrInvalidPodAssociation
 	}
 	for _, ref := range object.GetOwnerReferences() {
@@ -93,6 +93,8 @@ func (r *Runtime) resolvePodAssociation(ctx context.Context, pod, root *unstruct
 	return root, snapshot, source, ErrInvalidPodAssociation
 }
 
+// ValidatePodWorkloadAssociation checks configuration syntax. A nil configuration
+// disables association; target availability is checked during reconciliation.
 func ValidatePodWorkloadAssociation(config *PodWorkloadAssociation) error {
 	if config == nil {
 		return nil

@@ -7,7 +7,6 @@ package exportermetrics
 import (
 	"context"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -63,18 +62,14 @@ var (
 		Name: "rest_client_rate_limiter_duration_seconds", Help: "Client-side rate limiter wait before a Kubernetes API request, by verb and host.",
 		Buckets: []float64{0.005, 0.025, 0.1, 0.25, 0.5, 1, 2, 4, 8, 15, 30, 60},
 	}, []string{"verb", "host"})
-
-	registerClientMetrics sync.Once
 )
 
 // Register adds the exporter's own metrics to registry. The client-go hooks are process-wide and install once.
 func Register(registry prometheus.Registerer) error {
-	registerClientMetrics.Do(func() {
-		metrics.Register(metrics.RegisterOpts{
-			RequestResult:      requestResult{},
-			RequestLatency:     latency{requestLatency},
-			RateLimiterLatency: latency{rateLimiterLatency},
-		})
+	metrics.Register(metrics.RegisterOpts{
+		RequestResult:      requestResult{},
+		RequestLatency:     latency{requestLatency},
+		RateLimiterLatency: latency{rateLimiterLatency},
 	})
 	for _, collector := range []prometheus.Collector{
 		collectors.NewGoCollector(),

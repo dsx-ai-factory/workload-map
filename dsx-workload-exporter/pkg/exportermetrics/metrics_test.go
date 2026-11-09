@@ -6,12 +6,14 @@ package exportermetrics
 import (
 	"fmt"
 	"net/url"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/tools/metrics"
 	"k8s.io/client-go/util/workqueue"
@@ -33,6 +35,11 @@ func TestRegisterExposesRuntimeAndProcessMetrics(t *testing.T) {
 	}
 	require.True(t, names["go_goroutines"], "go collector")
 	require.True(t, names["go_memstats_heap_inuse_bytes"], "go collector")
+	// The process collector reads /proc; other platforms may not report these.
+	if runtime.GOOS == "linux" {
+		require.True(t, names["process_cpu_seconds_total"], "process collector")
+		require.True(t, names["process_resident_memory_bytes"], "process collector")
+	}
 }
 
 func TestRegisterTwiceInOneRegistryFails(t *testing.T) {
@@ -68,12 +75,23 @@ func TestWorkqueueReportsByQueueName(t *testing.T) {
 func TestClientGoRequestsAreCounted(t *testing.T) {
 	require.NoError(t, Register(prometheus.NewRegistry()))
 	host := "exportermetrics-test.example.com"
+	// The vectors are package-level, so the checks compare against values read before.
+	histogram := func(vec *prometheus.HistogramVec) *dto.Histogram {
+		var metric dto.Metric
+		require.NoError(t, vec.WithLabelValues("GET", host).(prometheus.Histogram).Write(&metric))
+		return metric.GetHistogram()
+	}
 	before := testutil.ToFloat64(requestResults.WithLabelValues("200", "GET", host))
+	latencyBefore, waitBefore := histogram(requestLatency), histogram(rateLimiterLatency)
 
 	metrics.RequestResult.Increment(t.Context(), "200", "GET", host)
 	metrics.RequestLatency.Observe(t.Context(), "GET", url.URL{Host: host}, 20*time.Millisecond)
 	metrics.RateLimiterLatency.Observe(t.Context(), "GET", url.URL{Host: host}, time.Millisecond)
 
 	require.InDelta(t, before+1, testutil.ToFloat64(requestResults.WithLabelValues("200", "GET", host)), 0)
-	require.Equal(t, 1, testutil.CollectAndCount(requestLatency.MustCurryWith(prometheus.Labels{"verb": "GET", "host": host})))
+	latency, wait := histogram(requestLatency), histogram(rateLimiterLatency)
+	require.Equal(t, latencyBefore.GetSampleCount()+1, latency.GetSampleCount())
+	require.InDelta(t, latencyBefore.GetSampleSum()+0.020, latency.GetSampleSum(), 1e-9)
+	require.Equal(t, waitBefore.GetSampleCount()+1, wait.GetSampleCount())
+	require.InDelta(t, waitBefore.GetSampleSum()+0.001, wait.GetSampleSum(), 1e-9)
 }

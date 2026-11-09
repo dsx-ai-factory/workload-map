@@ -51,7 +51,9 @@ runtime ownership and verification.
 | `dsx_exporter_observation_valid` | Gauge | Resource-type collection: `1` or `0`. Workload/discovery failures: `0` only. | Report collection health and failure reasons. Healthy workloads have no separate health row. |
 
 Without a selected Karta definition, a verified root still supplies Pod identity,
-creation time and all nine status phase gauges with value `0`. The status labels
+creation time and each enabled status phase gauge with value `0`.
+The [status phase configuration](../../dsx-workload-exporter/configuration.md#status-phases)
+controls which of the nine phases are emitted. The status labels
 `karta` and `karta_source` are empty. Zero means no phase matched; it does not
 assert an evaluated application state. Workload label rules still apply.
 Component and instance are `<unknown>`; group is empty. Missing a definition

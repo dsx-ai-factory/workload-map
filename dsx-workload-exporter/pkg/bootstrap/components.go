@@ -104,5 +104,5 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 	if err != nil {
 		return app.Components{}, err
 	}
-	return app.Components{Runtime: runtime, Store: publications, Definitions: definitions}, nil
+	return app.Components{Runtime: runtime, Store: publications, Definitions: definitions, ExcludeStatuses: cfg.ExcludeStatuses}, nil
 }

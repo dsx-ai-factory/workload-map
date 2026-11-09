@@ -65,6 +65,6 @@ leave the metrics. Root and Pod labels also verify custom-label source selection
 
 Pod and Job init containers wait on files written by the test. JobSet completion
 uses the same gate. Operator status assertions first read the live controller
-status and compare all nine phase gauges in one scrape. Catalog phases can
+status and compare all seven default phase gauges in one scrape. Catalog phases can
 overlap. The synthetic Deployment Karta is used only for definition updates and
 evaluation failure recovery; it does not establish operator lifecycle behavior.

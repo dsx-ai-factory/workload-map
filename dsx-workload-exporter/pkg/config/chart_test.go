@@ -18,6 +18,7 @@ import (
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelresolver"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 var _ = Describe("chart label configuration", func() {
@@ -85,6 +86,32 @@ var _ = Describe("chart label configuration", func() {
 			Expect(found).To(BeTrue(), "rendered exporter config was not found")
 		})
 	}
+})
+
+var _ = Describe("chart status exclusions", func() {
+	DescribeTable("preserves default and explicit lists",
+		func(values string, want []v1alpha1.ResourceStatus) {
+			out := renderExporterChart(GinkgoT(), values)
+			for _, raw := range chartDocuments(GinkgoT(), out) {
+				var doc struct {
+					Kind string            `yaml:"kind"`
+					Data map[string]string `yaml:"data"`
+				}
+				Expect(yaml.Unmarshal(raw, &doc)).To(Succeed())
+				if doc.Kind != "ConfigMap" || doc.Data["config.yaml"] == "" {
+					continue
+				}
+				cfg, err := loadConfig(doc.Data["config.yaml"], nil)
+				Expect(err).To(Succeed())
+				Expect(cfg.ExcludeStatuses).To(Equal(want))
+				return
+			}
+			Fail("exporter config not found")
+		},
+		Entry("default", "", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
+		Entry("all phases", "exporter:\n  excludeStatuses: []\n", []v1alpha1.ResourceStatus{}),
+		Entry("custom exclusions", "exporter:\n  excludeStatuses: [Running]\n", []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}),
+	)
 })
 
 var _ = Describe("chart definition source configuration", func() {

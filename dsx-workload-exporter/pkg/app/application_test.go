@@ -27,6 +27,7 @@ import (
 	collector "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/adapters/otel"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/controller"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 type runtimeFunc func(context.Context) error
@@ -325,6 +326,29 @@ func TestHTTPMetricsPublicationRemovalAndReadiness(t *testing.T) {
 	}
 }
 
+func TestHTTPMetricsExcludesConfiguredPhases(t *testing.T) {
+	publications := store.New()
+	publications.UpsertWorkload(&store.WorkloadResult{
+		Record: store.WorkloadRecord{
+			UID: "root", Ref: store.ObjectRef{UID: "root", Name: "sandbox"},
+			HasStatus: true, Phases: []string{"Suspending"},
+		},
+		HasValue: true,
+	})
+	h := startHTTPApplication(t, publications, nil, v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus)
+	family := h.scrape(t)[collector.MetricWorkloadStatus]
+	require.NotNil(t, family)
+	require.Len(t, family.Metric, 7)
+	for _, sample := range family.Metric {
+		for _, label := range sample.Label {
+			if label.GetName() == collector.LabelPhase {
+				require.NotContains(t, []string{"Suspending", "Resuming"}, label.GetValue())
+			}
+		}
+		require.Zero(t, sample.GetGauge().GetValue())
+	}
+}
+
 func TestHTTPMetricsRetainsAllPodIdentities(t *testing.T) {
 	publications := store.New()
 	root := store.ObjectRef{UID: "root", Namespace: "ns", Name: "training", GVK: schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"}}
@@ -549,10 +573,10 @@ func (s *blockedCaptureStore) Capture() store.CapturedView {
 	return s.PublicationStore.Capture()
 }
 
-func startHTTPApplication(t *testing.T, publications store.PublicationStore, wrapHandler func(http.Handler) http.Handler) *httpApplication {
+func startHTTPApplication(t *testing.T, publications store.PublicationStore, wrapHandler func(http.Handler) http.Handler, excludeStatuses ...v1alpha1.ResourceStatus) *httpApplication {
 	t.Helper()
 	runtime := &httpTestRuntime{started: make(chan struct{}), stopped: make(chan struct{})}
-	application, err := New(Components{Runtime: runtime, Store: publications, Definitions: definitionRunner{}})
+	application, err := New(Components{Runtime: runtime, Store: publications, Definitions: definitionRunner{}, ExcludeStatuses: excludeStatuses})
 	if err != nil {
 		t.Fatal(err)
 	}

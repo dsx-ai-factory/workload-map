@@ -15,11 +15,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 // collector formats one immutable result view per collection.
 type collector struct {
 	store            store.Capturer
+	phases           []v1alpha1.ResourceStatus
 	podInfo          gauge
 	workloadStatus   gauge
 	workloadCreated  gauge
@@ -45,10 +47,13 @@ type discoveryFailure struct {
 }
 
 // Register registers the KEP gauges. Unregister before shutting down the provider.
-func Register(meter metric.Meter, s store.Capturer) (metric.Registration, error) {
+func Register(meter metric.Meter, s store.Capturer, excludeStatuses []v1alpha1.ResourceStatus) (metric.Registration, error) {
 	workloadIdentityLabels := []string{LabelNamespace, LabelWorkload, LabelWorkloadGroup, LabelWorkloadVersion, LabelWorkloadKind, LabelWorkloadUID}
 	c := &collector{
 		store: s,
+		phases: slices.DeleteFunc(slices.Clone(allPhases), func(phase v1alpha1.ResourceStatus) bool {
+			return slices.Contains(excludeStatuses, phase)
+		}),
 		podInfo: gauge{
 			name:        MetricPodWorkloadInfo,
 			description: "Pod attribution to a confirmed workload root. Value is always 1.",
@@ -157,7 +162,7 @@ func (c *collector) collect(ctx context.Context, observer metric.Observer) error
 			c.workloadCreated.observe(observer, float64(workload.CreatedTimestamp), nil, ref.Namespace, ref.Name, string(workload.UID))
 		}
 		if workload.HasStatus {
-			for _, phase := range allPhases {
+			for _, phase := range c.phases {
 				value := 0.0
 				if slices.Contains(workload.Phases, string(phase)) {
 					value = 1

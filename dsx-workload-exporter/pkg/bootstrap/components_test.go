@@ -55,6 +55,7 @@ var _ = Describe("exporter construction", func() {
 		Expect(components.Runtime).NotTo(BeNil())
 		Expect(components.Definitions).NotTo(BeNil())
 		Expect(components.Store).NotTo(BeNil())
+		Expect(components.ExcludeStatuses).To(Equal(cfg.ExcludeStatuses))
 		Expect(components.Runtime.Ready()).To(BeFalse())
 		Expect(client.QPS).To(Equal(float32(3)))
 		Expect(client.Burst).To(Equal(5))

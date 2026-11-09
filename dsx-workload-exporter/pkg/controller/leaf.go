@@ -122,10 +122,10 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 	if err == nil {
 		hasLabelErrors, err = r.evaluatePodRecord(ctx, selection, podObject, rootObject, metricWorkload, &record)
 	}
-	if err != nil && !association.eligible && !associationChanged {
-		return r.state.failPodEvaluation(key, workload.Path, fmt.Errorf("%w: %w", discovery.ErrEvaluation, err), rootRef, selection)
-	}
 	if err != nil {
+		if !association.eligible && !associationChanged {
+			return r.state.failPodEvaluation(key, workload.Path, fmt.Errorf("%w: %w", discovery.ErrEvaluation, err), rootRef, selection)
+		}
 		hasLabelErrors = true
 	}
 	sources := r.state.sourcesFor(workload.Path)

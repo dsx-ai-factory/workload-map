@@ -14,6 +14,8 @@ import (
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 )
 
+// TestInferMilvusDependencyPodComponent checks the default dependency labels
+// without assuming that selector matching establishes workload ownership.
 func TestInferMilvusDependencyPodComponent(t *testing.T) {
 	summary, err := NewStructureSummary(kartas.Milvus())
 	if err != nil {

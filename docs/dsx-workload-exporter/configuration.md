@@ -22,6 +22,7 @@ reads it at startup.
 | `image.tag` | `""` | Empty uses chart appVersion; override for an unreleased branch. |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy. |
 | `metricsPort` | `8080` | Shared listener, container, probe and Service port. |
+| `pprof.enabled`, `pprof.port` | `false`, `6060` | Serve Go pprof profiles on `127.0.0.1:<port>` inside the Pod. No Service exposes them; reach them with `kubectl port-forward`. |
 | `resources` | Requests: `500m` CPU, `512Mi` memory. Limits: `2` CPU, `4Gi` memory. | For large clusters, increase requests and limits based on measured CPU and memory usage. Watched object count, object size and scrape frequency affect usage. |
 | `nodeSelector`, `affinity` | `{}` | Exporter placement. |
 | `tolerations` | `[]` | Exporter tolerations. |
@@ -89,6 +90,8 @@ path. Zero CEL limits use the defaults above; negative limits are rejected.
 All suffixes use the `DSX_WORKLOAD_EXPORTER_` prefix. The listener is a separate
 flag, `--metrics-bind-address`, default `:8080`; it has no YAML or environment
 setting. `--version` prints the binary version.
+`--pprof-bind-address` serves Go pprof profiles on a separate listener. It is
+empty by default, which disables them; bind it to localhost.
 
 Binary defaults match runtime values above except namespace and resource
 selection: the binary selects all namespaces and excludes no root types.

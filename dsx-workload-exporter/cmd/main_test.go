@@ -6,6 +6,8 @@ package main
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,6 +63,7 @@ var _ = Describe("command help", func() {
 		output, err := runExporterCommand(ctx, "--help")
 		Expect(err).To(Succeed(), string(output))
 		Expect(string(output)).To(ContainSubstring("metrics-bind-address"))
+		Expect(string(output)).To(ContainSubstring("pprof-bind-address"))
 		for _, name := range []string{
 			"generic-label-eval-cost-limit", "generic-label-eval-max-expression-bytes", "generic-label-eval-max-result-bytes",
 			"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_COST_LIMIT", "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_EXPRESSION_BYTES", "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_RESULT_BYTES",
@@ -69,6 +72,22 @@ var _ = Describe("command help", func() {
 		}
 		for _, removed := range []string{"interrupt", "INTERRUPT", "-label-cost-limit", "-label-max-", "labelLimits", "-cel-", "_CEL_"} {
 			Expect(string(output)).NotTo(ContainSubstring(removed))
+		}
+	})
+})
+
+var _ = Describe("pprof server", func() {
+	It("serves the profile handlers and nothing else", func() {
+		handler := newPprofServer("127.0.0.1:0").Handler
+		for path, want := range map[string]int{
+			"/debug/pprof/":          http.StatusOK,
+			"/debug/pprof/goroutine": http.StatusOK,
+			"/debug/pprof/heap":      http.StatusOK,
+			"/metrics":               http.StatusNotFound,
+		} {
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+			Expect(recorder.Code).To(Equal(want), path)
 		}
 	})
 })

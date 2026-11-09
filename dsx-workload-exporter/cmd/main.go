@@ -10,9 +10,12 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -35,6 +38,7 @@ func main() {
 func run() error {
 	fs := flag.NewFlagSet("dsx-workload-exporter", flag.ContinueOnError)
 	address := fs.String("metrics-bind-address", ":8080", "Listen address for metrics and health probes.")
+	pprofAddress := fs.String("pprof-bind-address", "", "Listen address for Go pprof profiles; empty disables them. Bind to localhost and reach it with kubectl port-forward.")
 	showVersion := fs.Bool("version", false, "Print the exporter version and exit.")
 	loader := config.NewLoader(fs, os.LookupEnv)
 	switch err := fs.Parse(os.Args[1:]); {
@@ -79,6 +83,16 @@ func run() error {
 	defer stop()
 	// Once shutdown begins, a second signal ends the process.
 	context.AfterFunc(ctx, stop)
+	if *pprofAddress != "" {
+		server := newPprofServer(*pprofAddress)
+		context.AfterFunc(ctx, func() { _ = server.Close() })
+		// Profiles are diagnostics: a failed listener is logged and the exporter keeps running.
+		go func() {
+			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Error("pprof server stopped", "address", *pprofAddress, "error", err)
+			}
+		}()
+	}
 	if ctx.Err() == nil {
 		slog.Info("DSX workload exporter starting",
 			"version", version.String(), "address", *address, "labelRules", len(cfg.Rules),
@@ -90,4 +104,16 @@ func run() error {
 	}
 	slog.Info("DSX workload exporter stopped")
 	return nil
+}
+
+// newPprofServer serves the Go pprof handlers on address. It is a listener of its
+// own, so profiles are never exposed on the metrics port.
+func newPprofServer(address string) *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	return &http.Server{Addr: address, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 }

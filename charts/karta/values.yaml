@@ -25,6 +25,11 @@ exporter:
     limits:
       cpu: "2"
       memory: 4Gi
+  # Go pprof profiles on 127.0.0.1:<port> inside the Pod, for kubectl port-forward
+  # only; no Service exposes them. Off by default.
+  pprof:
+    enabled: false
+    port: 6060
   nodeSelector: {}
   tolerations: []
   affinity: {}

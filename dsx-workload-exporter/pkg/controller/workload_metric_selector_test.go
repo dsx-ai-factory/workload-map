@@ -4,45 +4,50 @@
 package controller
 
 import (
-	"testing"
+	"errors"
 
-	"github.com/stretchr/testify/require"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/discovery"
 )
 
-func TestWorkloadMetricSelectorKeepsPodInfoAndRejectsStalePublication(t *testing.T) {
-	r := newRootLifetimeRuntime(t, Config{WorkloadMetricSelector: &metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "example.org/group", Operator: metav1.LabelSelectorOpDoesNotExist}},
-	}})
-	podWatch := rootLifetimeWatch(t, r, podGVK, "", true)
-	pod := rootLifetimeObject(podGVK, "ns", "pod", "pod")
-	require.NoError(t, r.state.applyWatchEvent(podWatch, pod, false))
-	drainRootLifetimeQueues(t, r)
-	previous := *r.state.deps.Publications.Workload(pod.GetUID())
-	selection, err := r.state.lookupDefinition(podGVK)
-	require.NoError(t, err)
-	oldRef := refOf(pod)
-	pod = pod.DeepCopy()
-	pod.SetResourceVersion("2")
-	pod.SetLabels(map[string]string{"example.org/group": "missing-target"})
-	require.NoError(t, r.state.applyWatchEvent(podWatch, pod, false))
-	require.ErrorIs(t, r.state.publishWorkload(pod.GetUID(), oldRef, selection, previous), discovery.ErrStale)
-	require.ErrorIs(t, r.state.failWorkload(pod.GetUID(), refOf(pod), discovery.ErrPermissionDenied), discovery.ErrPermissionDenied)
-	require.Nil(t, r.state.deps.Publications.Workload(pod.GetUID()), "source errors must not restore suppressed metrics")
-	drainRootLifetimeQueues(t, r)
-	require.Nil(t, r.state.deps.Publications.Workload(pod.GetUID()))
-	result := r.state.deps.Publications.Pod(pod.GetUID())
-	require.True(t, result.HasValue)
-	require.Empty(t, result.Error)
-	require.Equal(t, pod.GetUID(), result.Record.Workload.UID)
+var _ = Describe("Workload metric selector", func() {
+	It("keeps Pod info and rejects stale publications while suppressing workload metrics", func() {
+		r := newRootLifetimeRuntime(GinkgoTB(), Config{WorkloadMetricSelector: &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "example.org/group", Operator: metav1.LabelSelectorOpDoesNotExist}},
+		}})
+		podWatch := rootLifetimeWatch(GinkgoTB(), r, podGVK, "", true)
+		pod := rootLifetimeObject(podGVK, "ns", "pod", "pod")
+		Expect(r.state.applyWatchEvent(podWatch, pod, false)).To(Succeed())
+		drainRootLifetimeQueues(GinkgoTB(), r)
+		previous := *r.state.deps.Publications.Workload(pod.GetUID())
+		selection, err := r.state.lookupDefinition(podGVK)
+		Expect(err).NotTo(HaveOccurred())
+		oldRef := refOf(pod)
+		pod = pod.DeepCopy()
+		pod.SetResourceVersion("2")
+		pod.SetLabels(map[string]string{"example.org/group": "missing-target"})
+		Expect(r.state.applyWatchEvent(podWatch, pod, false)).To(Succeed())
+		err = r.state.publishWorkload(pod.GetUID(), oldRef, selection, previous)
+		Expect(errors.Is(err, discovery.ErrStale)).To(BeTrue(), "expected ErrStale, got %v", err)
+		err = r.state.failWorkload(pod.GetUID(), refOf(pod), discovery.ErrPermissionDenied)
+		Expect(errors.Is(err, discovery.ErrPermissionDenied)).To(BeTrue(), "expected ErrPermissionDenied, got %v", err)
+		Expect(r.state.deps.Publications.Workload(pod.GetUID())).To(BeNil(), "source errors must not restore suppressed metrics")
+		drainRootLifetimeQueues(GinkgoTB(), r)
+		Expect(r.state.deps.Publications.Workload(pod.GetUID())).To(BeNil())
+		result := r.state.deps.Publications.Pod(pod.GetUID())
+		Expect(result.HasValue).To(BeTrue())
+		Expect(result.Error).To(BeEmpty())
+		Expect(result.Record.Workload.UID).To(Equal(pod.GetUID()))
 
-	pod = pod.DeepCopy()
-	pod.SetResourceVersion("3")
-	pod.SetLabels(nil)
-	require.NoError(t, r.state.applyWatchEvent(podWatch, pod, false))
-	drainRootLifetimeQueues(t, r)
-	require.True(t, r.state.deps.Publications.Workload(pod.GetUID()).HasValue)
-	require.True(t, r.state.deps.Publications.Pod(pod.GetUID()).HasValue)
-}
+		pod = pod.DeepCopy()
+		pod.SetResourceVersion("3")
+		pod.SetLabels(nil)
+		Expect(r.state.applyWatchEvent(podWatch, pod, false)).To(Succeed())
+		drainRootLifetimeQueues(GinkgoTB(), r)
+		Expect(r.state.deps.Publications.Workload(pod.GetUID()).HasValue).To(BeTrue())
+		Expect(r.state.deps.Publications.Pod(pod.GetUID()).HasValue).To(BeTrue())
+	})
+})

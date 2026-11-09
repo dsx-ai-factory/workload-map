@@ -13,11 +13,13 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/app"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/bootstrap"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/config"
+	inventory "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/kartadefinitioninventory"
 )
 
 type warningRecorder struct {
@@ -25,6 +27,26 @@ type warningRecorder struct {
 }
 
 var _ = Describe("exporter construction", func() {
+	DescribeTable("passes experimental opt-in to the inventory",
+		func(enabled bool) {
+			cfg := config.DefaultConfig()
+			cfg.KartaDefinitionSource.Cluster.Enabled = false
+			cfg.KartaDefinitionSource.EnableExperimental = enabled
+			components, err := bootstrap.New(cfg, &rest.Config{Host: "https://example.test"})
+			Expect(err).NotTo(HaveOccurred())
+			definitions := components.Definitions.(inventory.Reader)
+			selection, err := definitions.Lookup(schema.GroupVersionKind{Group: "kueue.x-k8s.io", Version: "v1beta2", Kind: "Workload"})
+			Expect(err).NotTo(HaveOccurred())
+			if enabled {
+				Expect(selection.Origin.Name).To(Equal("kueue-x-k8s-io-workload-v1beta2"))
+			} else {
+				Expect(selection.Definition).To(BeNil())
+			}
+		},
+		Entry("default", false),
+		Entry("enabled", true),
+	)
+
 	It("constructs real components without starting API requests or mutating client settings", func() {
 		cfg := config.DefaultConfig()
 		client := &rest.Config{Host: "https://example.test", QPS: 3, Burst: 5}

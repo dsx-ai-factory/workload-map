@@ -2,16 +2,18 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { useListMock, listCatalog } = vi.hoisted(() => ({
+const { useListMock, listCatalog, useKartaConfig } = vi.hoisted(() => ({
   useListMock: vi.fn(),
   listCatalog: vi.fn(),
+  useKartaConfig: vi.fn(),
 }));
 vi.mock('@kinvolk/headlamp-plugin/lib', () => ({
   K8s: { crd: { makeCustomResourceClass: vi.fn(() => ({ useList: useListMock })) } },
 }));
 vi.mock('../../lib/karta/kartaUtil', () => ({ listCatalog }));
+vi.mock('../../config', () => ({ useKartaConfig }));
 
 import type { Karta } from '../../lib/karta/karta.types';
 import { useKartaDefinitions } from './useKartaDefinitions';
@@ -27,7 +29,33 @@ function karta(name: string, kind?: { group: string; version: string; kind: stri
 
 const deploymentGVK = { group: 'apps', version: 'v1', kind: 'Deployment' };
 
+beforeEach(() => useKartaConfig.mockReturnValue(undefined));
+
 describe('useKartaDefinitions', () => {
+  it('reacts to the saved experimental setting for catalog and cluster definitions', async () => {
+    const catalogDeployment = karta('catalog-deployment', deploymentGVK);
+    const clusterJob = karta('cluster-job', { group: 'batch', version: 'v1', kind: 'Job' });
+    catalogDeployment.spec.experimental = true;
+    clusterJob.spec.experimental = true;
+    listCatalog.mockResolvedValue([catalogDeployment]);
+    useListMock.mockReturnValue([[{ jsonData: clusterJob }], null]);
+
+    const { result, rerender } = renderHook(() => useKartaDefinitions('cluster-a'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.definitions).toEqual([]);
+
+    useKartaConfig.mockReturnValue({ enableExperimental: true });
+    rerender();
+    expect(result.current.definitions).toEqual([
+      { karta: catalogDeployment, origin: 'catalog' },
+      { karta: clusterJob, origin: 'cluster' },
+    ]);
+
+    useKartaConfig.mockReturnValue({ enableExperimental: false });
+    rerender();
+    expect(result.current.definitions).toEqual([]);
+  });
+
   // Without this, useList() reads every selected cluster at once, and two
   // clusters each defining Deployment would merge into a single entry.
   it('lists the Karta CRs of the given cluster only', async () => {

@@ -75,6 +75,16 @@ spec:
 `kind` is the workload's full GVK. Always provide all three of group, version,
 and kind. (The one exception is the core `Pod` kind, which has an empty group.)
 
+For a definition that needs an explicit opt-in, set `spec.experimental: true`.
+It stays available in the SDK and catalog. The CLI, Headlamp and exporter exclude
+it until their experimental setting is enabled, even if it is installed in the
+cluster. Omitted or `false` keeps the normal behavior.
+
+Before installing an experimental definition, update the Karta CRD to a version
+that includes `spec.experimental`. The chart updates it during upgrades by
+default. If the CRD is managed separately, apply the updated
+[`run.ai_kartas.yaml`](../charts/karta/crds/run.ai_kartas.yaml) first.
+
 ## Step 3: Map the status
 
 `statusDefinition` translates the workload's own conditions or phases into

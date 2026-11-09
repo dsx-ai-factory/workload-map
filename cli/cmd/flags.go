@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	flagConfig = "config"
-	flagOutput = "output"
+	flagConfig                         = "config"
+	flagOutput                         = "output"
+	flagCatalogExperimentalDefinitions = "catalog-experimental-definitions"
 )
 
 var kubeFlags *genericclioptions.ConfigFlags
@@ -42,6 +43,11 @@ func withOutput(cmd *cobra.Command, flags *pflag.FlagSet, supportsWide bool) *En
 func withConfig(cmd *cobra.Command) {
 	cmd.PersistentFlags().String(flagConfig, "",
 		"Path to the config file (default $KARTA_CONFIG or $HOME/.karta/config.yaml)")
+}
+
+func isExperimentalEnabled(cmd *cobra.Command) bool {
+	enabled, _ := cmd.Flags().GetBool(flagCatalogExperimentalDefinitions)
+	return enabled
 }
 
 // withPhase registers the repeatable --phase enum flag on flags, along with its

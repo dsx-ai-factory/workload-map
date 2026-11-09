@@ -89,12 +89,14 @@ var _ = Describe("chart label configuration", func() {
 
 var _ = Describe("chart definition source configuration", func() {
 	for _, tc := range []struct {
-		name    string
-		values  string
-		catalog bool
+		name         string
+		values       string
+		catalog      bool
+		experimental bool
 	}{
 		{name: "defaults", catalog: true},
 		{name: "catalog disabled", values: "exporter:\n  kartaDefinitionSource:\n    catalog:\n      enabled: false\n"},
+		{name: "experimental enabled", values: "exporter:\n  kartaDefinitionSource:\n    enableExperimental: true\n", catalog: true, experimental: true},
 	} {
 		It("loads definition sources with "+tc.name, func() {
 			out := renderExporterChart(GinkgoT(), tc.values)
@@ -111,6 +113,7 @@ var _ = Describe("chart definition source configuration", func() {
 				Expect(err).To(Succeed())
 				Expect(cfg.KartaDefinitionSource.Catalog.Enabled).To(Equal(tc.catalog))
 				Expect(cfg.KartaDefinitionSource.Cluster.Enabled).To(BeTrue())
+				Expect(cfg.KartaDefinitionSource.EnableExperimental).To(Equal(tc.experimental))
 				return
 			}
 			Fail("exporter config not found")
@@ -216,6 +219,29 @@ var _ = Describe("chart exporter ServiceMonitor", func() {
 					Expect(serviceLabels[key]).To(Equal(value), "ServiceMonitor must select the exporter Service")
 				}
 			}
+		})
+	}
+})
+
+var _ = Describe("chart exporter pprof", func() {
+	for _, tc := range []struct {
+		name string
+		args []string
+		flag string
+	}{
+		{name: "disabled by default"},
+		{name: "enabled on the default port", args: []string{"--set", "exporter.pprof.enabled=true"}, flag: "--pprof-bind-address=127.0.0.1:6060"},
+		{name: "enabled on a custom port", args: []string{"--set", "exporter.pprof.enabled=true", "--set", "exporter.pprof.port=7070"}, flag: "--pprof-bind-address=127.0.0.1:7070"},
+		{name: "null", args: []string{"--set-json", "exporter.pprof=null"}},
+	} {
+		It(tc.name, func() {
+			out := string(renderExporterChart(GinkgoT(), "", tc.args...))
+			if tc.flag == "" {
+				Expect(out).NotTo(ContainSubstring("--pprof-bind-address"))
+				return
+			}
+			// Only on localhost: no Service exposes the profiles.
+			Expect(out).To(ContainSubstring(tc.flag))
 		})
 	}
 })

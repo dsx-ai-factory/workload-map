@@ -31,6 +31,11 @@ exporter:
   # Kubernetes quantity; no limit or a zero limit leaves it unset. A Go value such
   # as 3600MiB sets it directly. Empty leaves it unset.
   goMemLimit: auto
+  # Go pprof profiles on 127.0.0.1:<port> inside the Pod, for kubectl port-forward
+  # only; no Service exposes them. Off by default.
+  pprof:
+    enabled: false
+    port: 6060
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -105,6 +110,9 @@ exporter:
   # the catalog's batch-job-v1; also excluding batch-job-v1 leaves Jobs with
   # no definition. Disabling the catalog also removes this fallback.
   kartaDefinitionSource:
+    # Allow spec.experimental definitions from either source. Includes do not
+    # override this gate. Stable definitions remain enabled by default.
+    enableExperimental: false
     # Definitions built into the exporter, named as in docs/catalog, for
     # example batch-job-v1. Unknown names fail startup.
     catalog:

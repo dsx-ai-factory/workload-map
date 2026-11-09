@@ -5,12 +5,15 @@ package definitions
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -29,6 +32,7 @@ import (
 
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/catalog"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/catalog/kartas"
 )
 
 var kartasResource = schema.GroupResource{Group: "run.ai", Resource: "kartas"}
@@ -153,15 +157,87 @@ var _ = Describe("Load", func() {
 	})
 
 	It("falls back to the built-in catalog when no cluster is reachable", func() {
-		resolver, warnings := Load(ctx, noKubeconfigGetter())
+		resolver, warnings := Load(ctx, noKubeconfigGetter(), false)
 
 		Expect(warnings).To(BeEmpty())
 
 		list := resolver.List()
-		Expect(list).To(HaveLen(len(catalog.List())))
+		stable := slices.DeleteFunc(catalog.List(), func(karta *v1alpha1.Karta) bool { return karta.Spec.Experimental })
+		Expect(list).To(HaveLen(len(stable)))
 		for _, def := range list {
 			Expect(def.Origin).To(Equal(OriginCatalog))
 		}
+	})
+
+	DescribeTable("filters experimental catalog definitions",
+		func(enabled bool) {
+			resolver, warnings := Load(ctx, noKubeconfigGetter(), enabled)
+			Expect(warnings).To(BeEmpty())
+			gvk := catalog.RootKey(kartas.KueueWorkload())
+			def, err := resolver.Resolve(gvk)
+			if enabled {
+				Expect(err).NotTo(HaveOccurred())
+				Expect(def.Karta.Spec.Experimental).To(BeTrue())
+			} else {
+				Expect(err).To(MatchError(ErrNotFound))
+				Expect(resolver.ByRootKind(gvk.Kind)).To(BeEmpty())
+				_, err = resolver.ByName(kartas.KueueWorkload().Name)
+				Expect(err).To(MatchError(ErrNameNotFound))
+			}
+		},
+		Entry("default", false),
+		Entry("enabled", true),
+	)
+
+	DescribeTable("filters cluster definitions before applying catalog overrides",
+		func(enabled bool) {
+			cluster := kartas.Deployment()
+			cluster.Name = "experimental-deployment"
+			cluster.Spec.Experimental = true
+			body, err := json.Marshal(v1alpha1.KartaList{
+				TypeMeta: metav1.TypeMeta{APIVersion: "run.ai/v1alpha1", Kind: "KartaList"},
+				Items:    []v1alpha1.Karta{*cluster},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(body)
+			}))
+			DeferCleanup(server.Close)
+
+			resolver, warnings := Load(ctx, serverConfigGetter(server), enabled)
+			Expect(warnings).To(BeEmpty())
+			def, err := resolver.Resolve(deploymentGVK)
+			Expect(err).NotTo(HaveOccurred())
+			if enabled {
+				Expect(def.Karta.Name).To(Equal(cluster.Name))
+				Expect(def.Origin).To(Equal(OriginCluster))
+			} else {
+				Expect(def.Karta.Name).To(Equal(kartas.Deployment().Name))
+				Expect(def.Origin).To(Equal(OriginCatalog))
+			}
+		},
+		Entry("default retains stable catalog fallback", false),
+		Entry("opt-in permits experimental cluster override", true),
+	)
+
+	It("does not warn about collisions between excluded cluster definitions", func() {
+		body := strings.ReplaceAll(kartaListJSON("first", "second"), `"spec":{`, `"spec":{"experimental":true,`)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, body)
+		}))
+		DeferCleanup(server.Close)
+
+		resolver, warnings := Load(ctx, serverConfigGetter(server), false)
+		Expect(warnings).To(BeEmpty())
+		def, err := resolver.Resolve(deploymentGVK)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(def.Origin).To(Equal(OriginCatalog))
+
+		_, warnings = Load(ctx, serverConfigGetter(server), true)
+		Expect(warnings).To(HaveLen(1))
+		Expect(warnings[0].Reason).To(Equal(ReasonCollision))
 	})
 
 	It("merges cluster definitions and reads them cluster-scoped", func() {
@@ -173,7 +249,7 @@ var _ = Describe("Load", func() {
 		}))
 		DeferCleanup(server.Close)
 
-		resolver, warnings := Load(ctx, serverConfigGetter(server))
+		resolver, warnings := Load(ctx, serverConfigGetter(server), false)
 
 		Expect(warnings).To(BeEmpty())
 		Expect(requestPaths).To(Equal([]string{"/apis/run.ai/v1alpha1/kartas"}))
@@ -192,7 +268,7 @@ var _ = Describe("Load", func() {
 			}))
 			DeferCleanup(server.Close)
 
-			resolver, warnings := Load(ctx, serverConfigGetter(server))
+			resolver, warnings := Load(ctx, serverConfigGetter(server), false)
 
 			Expect(warnings).To(HaveLen(1))
 			Expect(warnings[0].Reason).To(Equal(ReasonCollision))
@@ -270,10 +346,29 @@ var _ = Describe("listWithClient", func() {
 		ctx = context.Background()
 	})
 
+	It("silently skips excluded experimental definitions before decoding their spec", func() {
+		experimental := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "run.ai/v1alpha1", "kind": "Karta",
+			"metadata": map[string]any{"name": "experimental"},
+			"spec":     map[string]any{"experimental": true, "structureDefinition": "future-schema"},
+		}}
+		l := &loader{}
+		loaded, err := l.listWithClient(ctx, newFakeDynamic(experimental))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(loaded).To(BeEmpty())
+		Expect(l.warnings).To(BeEmpty())
+
+		l.enableExperimental = true
+		_, err = l.listWithClient(ctx, newFakeDynamic(experimental))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(l.warnings).To(HaveLen(1))
+		Expect(l.warnings[0].Reason).To(Equal(ReasonInvalid))
+	})
+
 	It("converts the cluster payload into typed Kartas", func() {
 		objects, want := clusterKartas()
 
-		kartas, err := (&loader{}).listWithClient(ctx, newFakeDynamic(objects...))
+		kartas, err := (&loader{enableExperimental: true}).listWithClient(ctx, newFakeDynamic(objects...))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(kartas).To(ConsistOf(want))
 	})
@@ -293,7 +388,7 @@ var _ = Describe("listWithClient", func() {
 		}}
 		objects, want := clusterKartas()
 
-		l := &loader{}
+		l := &loader{enableExperimental: true}
 		kartas, err := l.listWithClient(ctx, newFakeDynamic(append(objects, skewed)...))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(kartas).To(ConsistOf(want))

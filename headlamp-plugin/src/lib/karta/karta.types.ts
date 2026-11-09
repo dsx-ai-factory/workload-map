@@ -12,6 +12,7 @@ export interface Karta {
   // the plugin's tsconfig leaves strictNullChecks off, so readers get the
   // warning but the compiler will not.
   spec?: {
+    experimental?: boolean;
     structureDefinition?: {
       rootComponent?: {
         kind?: GroupVersionKind;

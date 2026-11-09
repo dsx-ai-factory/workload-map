@@ -22,6 +22,7 @@ reads it at startup.
 | `image.tag` | `""` | Empty uses chart appVersion; override for an unreleased branch. |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy. |
 | `metricsPort` | `8080` | Shared listener, container, probe and Service port. |
+| `pprof.enabled`, `pprof.port` | `false`, `6060` | Serve Go pprof profiles on `127.0.0.1:<port>` inside the Pod. No Service exposes them; reach them with `kubectl port-forward`. |
 | `resources` | Requests: `500m` CPU, `512Mi` memory. Limits: `2` CPU, `4Gi` memory. | For large clusters, increase requests and limits based on measured CPU and memory usage. Watched object count, object size and scrape frequency affect usage. |
 | `goMemLimit` | `auto` | Go runtime soft memory limit (`GOMEMLIMIT`). `auto` sets 90% of `resources.limits.memory`, so the garbage collector runs more often near the limit instead of the container being OOM-killed. `auto` reads any Kubernetes quantity; no limit or a zero limit leaves `GOMEMLIMIT` unset. A Go value such as `3600MiB` sets it directly; empty leaves it unset. |
 | `nodeSelector`, `affinity` | `{}` | Exporter placement. |
@@ -48,6 +49,7 @@ reads it at startup.
 | `genericLabelEvaluationLimits.maxResultBytes` | `1024` | Maximum returned string size. |
 | `kartaDefinitionSource.catalog.enabled` | `true` | Load bundled definitions. |
 | `kartaDefinitionSource.cluster.enabled` | `true` | Watch cluster Karta definitions. |
+| `kartaDefinitionSource.enableExperimental` | `false` | Allow definitions with `spec.experimental: true` from either source. |
 | Each source's `include`, `exclude` | `[]` | Definition-name filters. |
 
 The exporter uses one replica and its own ServiceAccount. Global
@@ -99,6 +101,8 @@ path. Zero CEL limits use the defaults above; negative limits are rejected.
 All suffixes use the `DSX_WORKLOAD_EXPORTER_` prefix. The listener is a separate
 flag, `--metrics-bind-address`, default `:8080`; it has no YAML or environment
 setting. `--version` prints the binary version.
+`--pprof-bind-address` serves Go pprof profiles on a separate listener. It is
+empty by default, which disables them; bind it to localhost.
 
 Binary defaults match runtime values above except namespace and resource
 selection: the binary selects all namespaces and excludes no root types.
@@ -137,6 +141,21 @@ names; exclusions win. A selected cluster Karta overrides the catalog for the
 same group/kind. Cluster ties use oldest creation time, then name. Catalog ties
 use Kubernetes version priority, then name. A source or selected-definition
 error is not absence and does not trigger fallback.
+
+Experimental definitions are excluded from both sources by default. To allow
+them, add this to the Helm values file:
+
+```yaml
+exporter:
+  kartaDefinitionSource:
+    enableExperimental: true
+```
+
+An explicit `include` does not bypass this setting. The gate applies before version
+and source selection. An excluded experimental cluster Karta can therefore reveal
+a stable cluster or catalog definition. Exclusion is not a source failure.
+Changing a cluster Karta's `spec.experimental` flag refreshes selection and
+requeues affected workloads. Definitions that omit the flag are stable.
 
 Both sources are enabled by default. Set a source's `enabled` to `false` to
 disable it. Cluster watching requires the Karta CRD, even when no Karta objects

@@ -77,17 +77,27 @@ var _ = Describe("command help", func() {
 })
 
 var _ = Describe("pprof server", func() {
-	It("serves the profile handlers and nothing else", func() {
+	It("serves the profile handlers for GET and HEAD only, and nothing else", func() {
 		handler := newPprofServer("127.0.0.1:0").Handler
-		for path, want := range map[string]int{
-			"/debug/pprof/":          http.StatusOK,
-			"/debug/pprof/goroutine": http.StatusOK,
-			"/debug/pprof/heap":      http.StatusOK,
-			"/metrics":               http.StatusNotFound,
+		for _, tc := range []struct {
+			method, path string
+			want         int
+		}{
+			{http.MethodGet, "/debug/pprof/", http.StatusOK},
+			{http.MethodGet, "/debug/pprof/goroutine", http.StatusOK},
+			{http.MethodGet, "/debug/pprof/heap", http.StatusOK},
+			{http.MethodHead, "/debug/pprof/heap", http.StatusOK},
+			// A POST must not start a CPU profile or read symbols.
+			{http.MethodPost, "/debug/pprof/profile", http.StatusMethodNotAllowed},
+			{http.MethodPost, "/debug/pprof/symbol", http.StatusMethodNotAllowed},
+			{http.MethodGet, "/metrics", http.StatusNotFound},
 		} {
 			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
-			Expect(recorder.Code).To(Equal(want), path)
+			handler.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, nil))
+			Expect(recorder.Code).To(Equal(tc.want), tc.method+" "+tc.path)
+			if tc.want == http.StatusMethodNotAllowed {
+				Expect(recorder.Header().Get("Allow")).To(Equal("GET, HEAD"))
+			}
 		}
 	})
 })

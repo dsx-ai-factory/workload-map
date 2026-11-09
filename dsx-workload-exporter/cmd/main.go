@@ -109,11 +109,23 @@ func run() error {
 // newPprofServer serves the Go pprof handlers on address. It is a listener of its
 // own, so profiles are never exposed on the metrics port.
 func newPprofServer(address string) *http.Server {
+	// GET and HEAD only, as net/http/pprof registers them. A method check, not a
+	// "GET /path" pattern, because GODEBUG=httpmuxgo121=1 reads that as a literal path.
+	readOnly := func(handler http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				w.Header().Set("Allow", "GET, HEAD")
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			handler(w, r)
+		}
+	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	mux.HandleFunc("/debug/pprof/", readOnly(pprof.Index))
+	mux.HandleFunc("/debug/pprof/cmdline", readOnly(pprof.Cmdline))
+	mux.HandleFunc("/debug/pprof/profile", readOnly(pprof.Profile))
+	mux.HandleFunc("/debug/pprof/symbol", readOnly(pprof.Symbol))
+	mux.HandleFunc("/debug/pprof/trace", readOnly(pprof.Trace))
 	return &http.Server{Addr: address, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 }

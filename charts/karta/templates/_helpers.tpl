@@ -125,6 +125,9 @@ with a zero one, renders nothing.
 {{- if or (le (float64 $setting) 0.0) (ne (floor (float64 $setting)) (float64 $setting)) -}}
 {{- fail (printf "exporter.goMemLimit %v must be a positive whole number of bytes; use off, or leave it empty, for no limit" $setting) -}}
 {{- end -}}
+{{- if ge (float64 $setting) 9.2e18 -}}
+{{- fail (printf "exporter.goMemLimit %v is too large for a Go memory limit" $setting) -}}
+{{- end -}}
 {{- $value = printf "%.0f" (float64 $setting) -}}
 {{- else if not (kindIs "invalid" $setting) -}}
 {{- $value = toString $setting -}}
@@ -153,16 +156,15 @@ with a zero one, renders nothing.
 {{- if and $number (hasKey $units $suffix) -}}
 {{- $multiplier = float64 (get $units $suffix) -}}
 {{- else if and $number (regexMatch "^[eE][+-]?0*[0-9]{1,2}$" $suffix) -}}
-{{- /* Leading zeros are valid; at most two significant digits keep atoi in range. */ -}}
+{{- /* Leading zeros are valid; at most two significant digits keep atoi in range. The
+size check below bounds the value, not the exponent. */ -}}
 {{- $exponent := atoi (trimPrefix "+" (substr 1 (len $suffix) $suffix)) -}}
-{{- if and (ge $exponent -18) (le $exponent 18) -}}
 {{- $multiplier = 1.0 -}}
 {{- range until (int (max $exponent (sub 0 $exponent))) -}}
 {{- if ge $exponent 0 -}}
 {{- $multiplier = mulf $multiplier 10 -}}
 {{- else -}}
 {{- $multiplier = divf $multiplier 10 -}}
-{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -173,6 +175,10 @@ with a zero one, renders nothing.
 {{- end -}}
 {{- /* bytes x 9 / 10, not x 0.9: 4e9 x 0.9 is not exact in floating point. */ -}}
 {{- $goMemLimit := floor (divf (mulf $bytes 9) 10) -}}
+{{- /* Go reads GOMEMLIMIT as a 64-bit byte count and fails at start beyond it. */ -}}
+{{- if ge $goMemLimit 9.2e18 -}}
+{{- fail (printf "exporter.goMemLimit=auto: exporter.resources.limits.memory %v is too large for a Go memory limit; set exporter.goMemLimit to a Go value such as 3600MiB" $raw) -}}
+{{- end -}}
 {{- /* A zero limit means unlimited; GOMEMLIMIT=0 would be a zero-byte Go limit. */ -}}
 {{- if ge $goMemLimit 1.0 -}}
 {{- printf "%.0f" $goMemLimit -}}

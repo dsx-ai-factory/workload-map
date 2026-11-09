@@ -363,6 +363,7 @@ var _ = Describe("chart exporter GOMEMLIMIT", func() {
 		{name: "auto with a decimal exponent limit", args: []string{"--set-string", "exporter.resources.limits.memory=4e9"}, want: "3600000000"},
 		{name: "auto with a padded exponent limit", args: []string{"--set-string", "exporter.resources.limits.memory=4e009"}, want: "3600000000"},
 		{name: "auto with a micro limit", args: []string{"--set-string", "exporter.resources.limits.memory=4294967296000000u"}, want: "3865470566"},
+		{name: "auto with a large exponent limit", args: []string{"--set-string", "exporter.resources.limits.memory=0.00000000001e20"}, want: "900000000"},
 		{name: "auto with a fractional limit", args: []string{"--set-string", "exporter.resources.limits.memory=.5Gi"}, want: "483183820"},
 		{name: "auto without a memory limit", args: []string{"--set-json", "exporter.resources.limits=null"}},
 		// Zero means unlimited; GOMEMLIMIT=0 would be a zero-byte Go limit.
@@ -387,8 +388,10 @@ var _ = Describe("chart exporter GOMEMLIMIT", func() {
 		{name: "an empty value", args: []string{"--set", "exporter.goMemLimit="}},
 		{name: "an unreadable limit", args: []string{"--set", "exporter.resources.limits.memory=4Gx"},
 			failure: `cannot read exporter.resources.limits.memory "4Gx"`},
-		{name: "an out-of-range exponent", args: []string{"--set-string", "exporter.resources.limits.memory=4e99"},
-			failure: `cannot read exporter.resources.limits.memory "4e99"`},
+		{name: "a limit too large for Go", args: []string{"--set-string", "exporter.resources.limits.memory=4e99"},
+			failure: `exporter.resources.limits.memory 4e99 is too large for a Go memory limit`},
+		{name: "an explicit number too large for Go", args: []string{"--set-json", "exporter.goMemLimit=1e19"},
+			failure: `is too large for a Go memory limit`},
 	} {
 		It("renders "+tc.name, func() {
 			helm, err := exec.LookPath("helm")

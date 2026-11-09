@@ -232,6 +232,13 @@ exporter:
       expression: has(object.spec.nodeName) ? object.spec.nodeName : ""
 ```
 
+These examples expect `DCGM_FI_DEV_GPU_UTIL` in percent, from 0 to 100.
+[dcgm-exporter 4.9.0](https://github.com/NVIDIA/dcgm-exporter/releases/tag/4.9.0)
+changes its default to `DCGM_FI_DEV_GPU_UTIL_RATIO`, from 0 to 1. To use that
+default, replace the device input with `100 * DCGM_FI_DEV_GPU_UTIL_RATIO` before
+applying the joins. The remaining percentage thresholds and GPU-hour conversion
+then keep the same units.
+
 Extend the `dsx:pod_attribution:unique` rule in section 1 with `gpu_group`,
 `gpu_uuid` and `node` in both label lists. Reservation rows then carry all three
 and consumer rows carry `gpu_group` and `node`. The complete rule set lives in
@@ -266,9 +273,9 @@ harmless when the `pod_phase` label is not configured.
 reservation rows whose annotation has the `GPU-` UUID form, and kept only while
 device and group map one to one; pairs that do not are reported in
 `dsx:shared_gpu_device:ambiguous` instead of failing the join for every group.
-`dsx:shared_gpu_util:by_consumer` repeats the device value on every consumer, so
-it answers which workloads were active on a device. Do not sum it across
-consumers. `dsx:shared_gpu_util:equal_share` splits the device value evenly across
+`dsx:shared_gpu_util:by_consumer` repeats the device value on every consumer.
+It shows device activity alongside each consumer's workload identity. Do not
+sum it across consumers. `dsx:shared_gpu_util:equal_share` splits the device value evenly across
 the consumers present; its selector must stay identical to the one in
 `dsx:shared_gpu_group:consumers`, or device time leaks. A GPU fraction describes
 the share the scheduler granted, not the compute each consumer used, so prefer

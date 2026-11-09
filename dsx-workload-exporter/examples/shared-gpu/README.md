@@ -52,6 +52,14 @@ promtool 3.15.1.
 
 ## Limits
 
+The device input is `DCGM_FI_DEV_GPU_UTIL`, from 0 to 100 percent. The default in
+[dcgm-exporter 4.9.0](https://github.com/NVIDIA/dcgm-exporter/releases/tag/4.9.0)
+is `DCGM_FI_DEV_GPU_UTIL_RATIO`, from 0 to 1. For that default, replace the device
+input in the chosen rules file with `100 * DCGM_FI_DEV_GPU_UTIL_RATIO` before
+applying the joins. These tests cover the percentage input.
+Use physical-device utilization samples; per-Pod process utilization is not a
+substitute.
+
 The rules do not handle multi-device fractional Pods (one `runai-gpu-group/<id>`
 label per device) or MIG. A reservation whose annotation is not a `GPU-` UUID (a
 device index, a MIG id) is never mapped, and its consumers are reported as

@@ -67,7 +67,7 @@ var (
 	registerClientMetrics sync.Once
 )
 
-// Register adds the exporter's own metrics to registry. The client-go hooks are process wide and install once.
+// Register adds the exporter's own metrics to registry. The client-go hooks are process-wide and install once.
 func Register(registry prometheus.Registerer) error {
 	registerClientMetrics.Do(func() {
 		metrics.Register(metrics.RegisterOpts{

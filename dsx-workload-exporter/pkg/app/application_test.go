@@ -625,14 +625,15 @@ func (h *httpApplication) scrape(t *testing.T) map[string]*dto.MetricFamily {
 	return exporterFamilies(h.scrapeAll(t))
 }
 
-// exporterFamilies keeps the dsx_* families; exporter metrics have their own test.
+// exporterFamilies returns the dsx_* families; exporter metrics have their own test.
 func exporterFamilies(families map[string]*dto.MetricFamily) map[string]*dto.MetricFamily {
-	for name := range families {
-		if !strings.HasPrefix(name, "dsx_") {
-			delete(families, name)
+	selected := make(map[string]*dto.MetricFamily, len(families))
+	for name, family := range families {
+		if strings.HasPrefix(name, "dsx_") {
+			selected[name] = family
 		}
 	}
-	return families
+	return selected
 }
 
 func (h *httpApplication) scrapeAll(t *testing.T) map[string]*dto.MetricFamily {

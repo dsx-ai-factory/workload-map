@@ -4,7 +4,9 @@
 package exportermetrics
 
 import (
+	"fmt"
 	"net/url"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,6 +16,10 @@ import (
 	"k8s.io/client-go/tools/metrics"
 	"k8s.io/client-go/util/workqueue"
 )
+
+// queueRuns names each workqueue test run's queue. The queue metric vectors are
+// package-level, so a reused name would carry counts over to the next run.
+var queueRuns atomic.Int64
 
 func TestRegisterExposesRuntimeAndProcessMetrics(t *testing.T) {
 	registry := prometheus.NewRegistry()
@@ -42,7 +48,7 @@ func TestRegisterInSeveralRegistries(t *testing.T) {
 
 func TestWorkqueueReportsByQueueName(t *testing.T) {
 	require.NoError(t, Register(prometheus.NewRegistry()))
-	name := "exportermetrics-test-queue"
+	name := fmt.Sprintf("exportermetrics-test-queue-%d", queueRuns.Add(1))
 	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[string](),
 		workqueue.TypedRateLimitingQueueConfig[string]{Name: name, MetricsProvider: Workqueue})
 	t.Cleanup(queue.ShutDown)

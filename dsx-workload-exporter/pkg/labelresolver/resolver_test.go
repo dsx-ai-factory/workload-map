@@ -506,3 +506,29 @@ func pod(scheduler string, labels map[string]string) *unstructured.Unstructured 
 	p.SetLabels(labels)
 	return p
 }
+
+var _ = Describe("SkyPilot component rule", func() {
+	It("sets roles only for identified SkyPilot Pods", func(ctx SpecContext) {
+		r := newResolver(LabelRule{Name: "component", Metrics: []string{MetricPodWorkloadInfo}, Sources: []Source{SourcePod}, Expression: `has(object.metadata.labels) &&
+"skypilot-cluster-name" in object.metadata.labels &&
+"skypilot-head-node" in object.metadata.labels
+  ? (object.metadata.labels["skypilot-head-node"] == "1"
+      ? "head"
+      : (object.metadata.labels["skypilot-head-node"] == "0" ? "worker" : ""))
+  : ""`})
+		for _, tc := range []struct {
+			labels map[string]string
+			want   string
+		}{
+			{map[string]string{"skypilot-cluster-name": "train", "skypilot-head-node": "1"}, "head"},
+			{map[string]string{"skypilot-cluster-name": "train", "skypilot-head-node": "0"}, "worker"},
+			{map[string]string{"skypilot-cluster-name": "train", "skypilot-head-node": "other"}, ""},
+			{map[string]string{"skypilot-head-node": "1"}, ""},
+			{nil, ""},
+		} {
+			result, err := r.Resolve(ctx, Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil), Pod: pod("", tc.labels)})
+			Expect(err).To(Succeed())
+			Expect(result[0].Labels["component"]).To(Equal(tc.want))
+		}
+	})
+})

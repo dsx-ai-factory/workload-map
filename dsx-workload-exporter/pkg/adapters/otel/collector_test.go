@@ -473,3 +473,23 @@ func TestRetainedPodUsesItsOwnProvenanceAfterWorkloadChanges(t *testing.T) {
 	g.Expect(s.Pod("pod").Record.Karta).To(Equal("job-karta"))
 	g.Expect(s.Pod("pod").Record.KartaSource).To(Equal("cluster"))
 }
+
+func TestComponentLabelOverridesKeepPhysicalIdentity(t *testing.T) {
+	g := NewWithT(t)
+	s, _, pod, scrape := collectorFixture(t)
+	pod.Record.Component = "pod"
+	pod.Record.Labels = map[string]string{
+		"component": "head", "component_instance": "leader", "replica_group_id": "0",
+		"workload_uid": "wrong", "pod_uid": "wrong", "observation_valid": "false",
+	}
+	s.UpsertPod(pod)
+	output := scrape()
+	for _, label := range []string{`component="head"`, `component_instance="leader"`, `replica_group_id="0"`, `workload_uid="root"`, `pod_uid="pod"`} {
+		g.Expect(output).To(ContainSubstring(label))
+	}
+	g.Expect(output).NotTo(ContainSubstring(`="wrong"`))
+	g.Expect(output).NotTo(ContainSubstring(`observation_valid="false"`))
+	pod.Record.Labels = map[string]string{"component": ""}
+	s.UpsertPod(pod)
+	g.Expect(scrape()).To(ContainSubstring(`component="pod"`))
+}

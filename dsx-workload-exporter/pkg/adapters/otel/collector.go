@@ -202,6 +202,15 @@ func (g gauge) observe(observer metric.Observer, value float64, custom map[strin
 		attributes = append(attributes, attribute.String(name, value))
 	}
 	for i, name := range g.labels {
+		if g.name == MetricPodWorkloadInfo {
+			switch name {
+			case LabelComponent, LabelComponentInstance, LabelReplicaGroupID:
+				if override := custom[name]; override != "" {
+					attributes = append(attributes, attribute.String(name, override))
+					continue
+				}
+			}
+		}
 		attributes = append(attributes, attribute.String(name, values[i]))
 	}
 	observer.ObserveFloat64(g.instrument, value, metric.WithAttributeSet(attribute.NewSet(attributes...)))

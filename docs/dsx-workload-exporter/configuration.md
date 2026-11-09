@@ -291,10 +291,30 @@ a fallback succeeds. Runtime can retain the entire previous Pod or status result
 as invalid after a label error; successful labels are not independently published.
 With no prior value, the affected output can be absent.
 
-Use custom names that do not collide with built-in labels. The resolver's
-`Apply` helper supports overrides, but the current collector appends built-ins
-last, so built-in values win in exported metrics. Names starting with `__` are
-rejected. Syntax, statically known result-type and expression-size errors reject
+For `dsx_workload_pod_info`, nonempty label rules can override `component`,
+`component_instance` and `replica_group_id`. Empty results keep the inferred
+value. Other built-in labels, including workload and Pod UIDs, remain protected.
+For SkyPilot, this rule reads the Pod's labels and groups its metrics into
+`head` and `worker` components. Other Pods keep their inferred component.
+The workload UID is unchanged.
+
+```yaml
+exporter:
+  labelRules:
+    - name: component
+      metrics: [dsx_workload_pod_info]
+      sources: [pod]
+      expression: |
+        has(object.metadata.labels) &&
+        "skypilot-cluster-name" in object.metadata.labels &&
+        "skypilot-head-node" in object.metadata.labels
+          ? (object.metadata.labels["skypilot-head-node"] == "1"
+              ? "head"
+              : (object.metadata.labels["skypilot-head-node"] == "0" ? "worker" : ""))
+          : ""
+```
+
+Names starting with `__` are rejected. Syntax, statically known result-type and expression-size errors reject
 startup. Dynamic type, result-size and cost errors happen during evaluation and
 do not stop the process. See the [resolver](../../dsx-workload-exporter/pkg/labelresolver/README.md).
 

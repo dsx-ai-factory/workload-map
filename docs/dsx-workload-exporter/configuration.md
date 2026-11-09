@@ -165,27 +165,6 @@ namespace and has an owner reference naming Pod `worker-0` with UID `pod-123`.
 Neither object has a controller owner. The Pod also has
 `app.kubernetes.io/managed-by=example-platform`.
 
-This configuration associates the Pod metric with that Workload:
-
-```yaml
-exporter:
-  podWorkloadAssociation:
-    podSelector:
-      matchLabels:
-        app.kubernetes.io/managed-by: example-platform
-      matchExpressions:
-        - key: platform.example.com/workload-name
-          operator: Exists
-    target:
-      apiVersion: scheduling.example.org/v1
-      kind: Workload
-      nameFromLabel: platform.example.com/workload-name
-  workloadMetricSelector:
-    matchExpressions:
-      - key: platform.example.com/workload-name
-        operator: DoesNotExist
-```
-
 Association is disabled by default. The target type must already exist and have
 a selected Karta definition. It must pass resource and object selection. The
 exporter checks its owner references against the Pod's name and current UID.
@@ -210,19 +189,67 @@ failure. A failed target watch immediately invalidates existing associations.
 The last known target UID may remain until the next Pod reconciliation falls
 back to the Pod UID. Watch recovery requeues affected Pods.
 
-The [complete values example](examples/pod-association-values.yaml) combines
-these settings with a [component label rule](#configured-labels). Replace the
-example API type, labels and namespace with those used by your platform. Both
-Pods and targets must pass the global `environment=production` filter. The
-example assumes the workload CRD, its controller and its Karta definition are
-already installed; the exporter chart does not install them.
+<details>
+<summary>Complete Helm values for Pod association</summary>
+
+This example combines association, root filtering and a
+[component label rule](#configured-labels). Replace the API type, labels and
+namespace with those used by your platform. Both Pods and targets must have
+`environment=production` and `app.kubernetes.io/managed-by=example-platform`.
+Only the Pods carry `platform.example.com/workload-name`.
+
+The workload CRD, its controller and its Karta definition must already be
+installed; the exporter chart does not install them. Save these values as
+`pod-association-values.yaml`:
+
+```yaml
+operator:
+  enabled: false
+exporter:
+  enabled: true
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: workloads
+  objectSelectors:
+    - selector:
+        matchLabels:
+          environment: production
+    - apiVersion: scheduling.example.org/v1
+      kind: Workload
+      selector:
+        matchLabels:
+          app.kubernetes.io/managed-by: example-platform
+  workloadMetricSelector:
+    matchExpressions:
+      - key: platform.example.com/workload-name
+        operator: DoesNotExist
+  podWorkloadAssociation:
+    podSelector:
+      matchLabels:
+        app.kubernetes.io/managed-by: example-platform
+      matchExpressions:
+        - key: platform.example.com/workload-name
+          operator: Exists
+    target:
+      apiVersion: scheduling.example.org/v1
+      kind: Workload
+      nameFromLabel: platform.example.com/workload-name
+  labelRules:
+    - name: component
+      metrics: [dsx_workload_pod_info]
+      sources: [pod]
+      expression: |
+        has(object.metadata.labels) &&
+        "platform.example.com/role" in object.metadata.labels
+          ? object.metadata.labels["platform.example.com/role"] : ""
+```
 
 From this checkout, use an exporter image built from the same checkout:
 
 ```sh
 helm upgrade --install workload-exporter ./charts/karta \
   --namespace monitoring --create-namespace \
-  -f docs/dsx-workload-exporter/examples/pod-association-values.yaml \
+  -f pod-association-values.yaml \
   --set exporter.image.repository=ghcr.io/example/dsx-workload-exporter \
   --set-string exporter.image.tag=YOUR_TAG
 ```
@@ -230,6 +257,8 @@ helm upgrade --install workload-exporter ./charts/karta \
 Replace the image placeholders. For an existing release, keep its release name,
 namespace, values and operator setting. The example disables the operator.
 See [installation](installation.md) for image and scrape setup.
+
+</details>
 
 ### Definition sources and owner boundaries
 

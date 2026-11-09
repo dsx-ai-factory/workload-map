@@ -25,8 +25,16 @@ import (
 
 var _ = Describe("chart label configuration", func() {
 	It("loads the documented Pod association Helm example", func() {
-		values, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "dsx-workload-exporter", "examples", "pod-association-values.yaml"))
+		document, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "dsx-workload-exporter", "configuration.md"))
 		Expect(err).To(Succeed())
+		_, example, found := bytes.Cut(document, []byte("<summary>Complete Helm values for Pod association</summary>"))
+		Expect(found).To(BeTrue(), "Pod association Helm example summary not found in configuration.md")
+		example, _, found = bytes.Cut(example, []byte("</details>"))
+		Expect(found).To(BeTrue(), "Pod association Helm example closing details tag not found")
+		_, values, found := bytes.Cut(example, []byte("```yaml\n"))
+		Expect(found).To(BeTrue(), "Pod association Helm example opening YAML fence not found")
+		values, _, found = bytes.Cut(values, []byte("\n```"))
+		Expect(found).To(BeTrue(), "Pod association Helm example closing YAML fence not found")
 		for _, raw := range chartDocuments(GinkgoT(), renderExporterChart(GinkgoT(), string(values))) {
 			var doc struct {
 				Kind string            `yaml:"kind"`

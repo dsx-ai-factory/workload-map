@@ -18,6 +18,8 @@ const PHASE_SEVERITY: Record<string, number> = {
   Undefined: 9,
 };
 
+export const STATUS_UNAVAILABLE_LABEL = 'Unavailable';
+
 // Worst first, so a filter offers them in the order the chips use.
 export const KARTA_PHASES = Object.keys(PHASE_SEVERITY);
 
@@ -57,7 +59,7 @@ export function StatusPhaseChips({ phases, error }: StatusPhaseChipsProps) {
     return (
       <StatusLabel status="error">
         <Icon aria-hidden icon="mdi:alert-outline" width="1.2rem" height="1.2rem" />
-        <span title={error}>Unavailable</span>
+        <span title={error}>{STATUS_UNAVAILABLE_LABEL}</span>
       </StatusLabel>
     );
   }

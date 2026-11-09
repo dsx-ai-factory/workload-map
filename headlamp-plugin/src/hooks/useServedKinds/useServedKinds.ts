@@ -306,6 +306,9 @@ export function useServedKinds(
           // no kinds, and asking would be the 404 this exists to avoid.
           if (!groupVersions.has(groupVersion)) {
             if (refreshFailed) {
+              // An expired missing entry would otherwise schedule an
+              // immediate recheck, ahead of the failure retry clock.
+              runCache.missing.delete(groupVersion);
               runCache.failed.add(groupVersion);
             } else {
               runCache.failed.delete(groupVersion);

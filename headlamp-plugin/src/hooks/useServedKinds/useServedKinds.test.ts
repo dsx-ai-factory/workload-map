@@ -394,10 +394,52 @@ describe('useServedKinds', () => {
           await vi.advanceTimersByTimeAsync(31_000);
         });
         await waitFor(() => expect(apisCalls()).toBeGreaterThanOrEqual(attempt));
+        expect(apisCalls()).toBeLessThanOrEqual(attempt + 1);
         await waitFor(() => expect(result.current.failedGroupVersions.has('ray.io/v1')).toBe(true));
         expect(result.current.error).toBeNull();
         expect(result.current.served?.has(servedKindKey('apps', 'v1', 'Deployment'))).toBe(true);
       }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps /apis requests bounded while refreshes keep failing for an expired absent group', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let apisFails = false;
+      request.mockImplementation((path: string) => {
+        switch (path) {
+          case '/apis':
+            return apisFails
+              ? Promise.reject(new Error('apis down'))
+              : Promise.resolve({ groups: [{ versions: [{ groupVersion: 'apps/v1' }] }] });
+          case '/apis/apps/v1':
+            return Promise.resolve({
+              resources: [{ name: 'deployments', kind: 'Deployment', namespaced: true }],
+            });
+          default:
+            return Promise.reject(new Error(`unexpected request: ${path}`));
+        }
+      });
+
+      const { result } = renderHook(() => useServedKinds('cluster-a', [apps, rayJob]));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      apisFails = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(31_000);
+      });
+      // Small steps, so a retry with no delay would show as a burst of requests.
+      for (let i = 0; i < 100; i++) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1);
+        });
+      }
+
+      const apisCalls = request.mock.calls.filter(call => call[0] === '/apis').length;
+      expect(apisCalls).toBeLessThanOrEqual(4);
+      expect(result.current.failedGroupVersions.has('ray.io/v1')).toBe(true);
     } finally {
       vi.useRealTimers();
     }

@@ -133,6 +133,8 @@ describe('buildWorkloadColumns', () => {
     expect(failed).not.toBe(pending);
     expect(recovered).toBe(pending);
     expect(value({ phases: ['Running'] })).not.toBe(pending);
+    expect(failed).toContain('Unavailable');
+    expect(failed).toContain('engine unavailable');
     expect(pending).toBe('[]');
     expect(value({ phases: ['Running'] })).toBe('["Running"]');
   });

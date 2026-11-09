@@ -113,34 +113,25 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{/*
 GOMEMLIMIT for the exporter container. auto: 90% of resources.limits.memory in bytes,
 so the Go GC works harder as the container nears its memory limit; the rest covers
-memory outside the Go runtime. Any other value must be off or a Go byte count, such
-as 3600MiB, and fails the render otherwise. Empty, or auto without a memory limit or
-with a zero one, renders nothing.
+memory outside the Go runtime. A number is GiB and renders as whole MiB. Empty, or
+auto without a memory limit or with a zero one, renders nothing.
 */}}
 {{- define "karta.exporter.goMemLimit" -}}
 {{- $setting := .Values.exporter.goMemLimit -}}
 {{- $value := "" -}}
-{{- if or (kindIs "float64" $setting) (kindIs "int64" $setting) (kindIs "int" $setting) -}}
-{{- /* Helm reads a YAML number as a float, which prints as 3.6e+09; Go needs whole bytes. */ -}}
-{{- if or (le (float64 $setting) 0.0) (ne (floor (float64 $setting)) (float64 $setting)) -}}
-{{- fail (printf "exporter.goMemLimit %v must be a positive whole number of bytes; use off, or leave it empty, for no limit" $setting) -}}
-{{- end -}}
-{{- if ge (float64 $setting) 9.2e18 -}}
-{{- fail (printf "exporter.goMemLimit %v is too large for a Go memory limit" $setting) -}}
-{{- end -}}
-{{- $value = printf "%.0f" (float64 $setting) -}}
-{{- else if not (kindIs "invalid" $setting) -}}
+{{- if not (kindIs "invalid" $setting) -}}
 {{- $value = toString $setting -}}
 {{- end -}}
-{{- if and $value (ne $value "auto") -}}
-{{- /* Go's GOMEMLIMIT format: anything else makes the exporter fail at start. */ -}}
-{{- if not (regexMatch "^(off|[0-9]+(B|[KMGT]iB)?)$" $value) -}}
-{{- fail (printf "exporter.goMemLimit %q is not a Go memory limit; use auto, off, or a whole byte count with an optional B, KiB, MiB, GiB or TiB suffix" $value) -}}
+{{- if regexMatch "^([0-9]+(\\.[0-9]*)?|\\.[0-9]+)$" $value -}}
+{{- /* Bounded, so Go can always read the rendered MiB count. */ -}}
+{{- $gib := float64 $value -}}
+{{- $mib := floor (mulf $gib 1024) -}}
+{{- if or (lt $mib 1.0) (gt $gib 1024.0) -}}
+{{- fail (printf "exporter.goMemLimit %v must be a number of GiB from 0.001 to 1024" $setting) -}}
 {{- end -}}
-{{- if regexMatch "^0+(B|[KMGT]iB)?$" $value -}}
-{{- fail (printf "exporter.goMemLimit %q is a zero-byte Go memory limit; use off, or leave it empty, for no limit" $value) -}}
-{{- end -}}
-{{- $value -}}
+{{- printf "%.0fMiB" $mib -}}
+{{- else if and $value (ne $value "auto") -}}
+{{- fail (printf "exporter.goMemLimit %q must be auto, a number of GiB such as 3.5, or empty" $value) -}}
 {{- else if eq $value "auto" -}}
 {{- $raw := dig "resources" "limits" "memory" "" .Values.exporter -}}
 {{- $bytes := 0.0 -}}
@@ -169,7 +160,7 @@ size check below bounds the value, not the exponent. */ -}}
 {{- end -}}
 {{- end -}}
 {{- if not $multiplier -}}
-{{- fail (printf "exporter.goMemLimit=auto cannot read exporter.resources.limits.memory %q; set exporter.goMemLimit to a Go value such as 3600MiB" $limit) -}}
+{{- fail (printf "exporter.goMemLimit=auto cannot read exporter.resources.limits.memory %q; set exporter.goMemLimit to a number of GiB such as 3.5" $limit) -}}
 {{- end -}}
 {{- $bytes = mulf (float64 $number) $multiplier -}}
 {{- end -}}
@@ -177,7 +168,7 @@ size check below bounds the value, not the exponent. */ -}}
 {{- $goMemLimit := floor (divf (mulf $bytes 9) 10) -}}
 {{- /* Go reads GOMEMLIMIT as a 64-bit byte count and fails at start beyond it. */ -}}
 {{- if ge $goMemLimit 9.2e18 -}}
-{{- fail (printf "exporter.goMemLimit=auto: exporter.resources.limits.memory %v is too large for a Go memory limit; set exporter.goMemLimit to a Go value such as 3600MiB" $raw) -}}
+{{- fail (printf "exporter.goMemLimit=auto: exporter.resources.limits.memory %v is too large for a Go memory limit; set exporter.goMemLimit to a number of GiB such as 3.5" $raw) -}}
 {{- end -}}
 {{- /* A zero limit means unlimited; GOMEMLIMIT=0 would be a zero-byte Go limit. */ -}}
 {{- if ge $goMemLimit 1.0 -}}

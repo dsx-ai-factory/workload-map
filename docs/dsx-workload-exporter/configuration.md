@@ -24,7 +24,7 @@ reads it at startup.
 | `metricsPort` | `8080` | Shared listener, container, probe and Service port. |
 | `pprof.enabled`, `pprof.port` | `false`, `6060` | Serve Go pprof profiles on `127.0.0.1:<port>` inside the Pod. No Service exposes them; reach them with `kubectl port-forward`. |
 | `resources` | Requests: `500m` CPU, `512Mi` memory. Limits: `2` CPU, `4Gi` memory. | For large clusters, increase requests and limits based on measured CPU and memory usage. Watched object count, object size and scrape frequency affect usage. |
-| `goMemLimit` | `auto` | Go runtime soft memory limit (`GOMEMLIMIT`). `auto` sets 90% of `resources.limits.memory`, so the garbage collector runs more often near the limit, which lowers the risk of an OOM kill. `auto` reads any Kubernetes quantity that fits in 64-bit bytes; no limit or a zero limit leaves `GOMEMLIMIT` unset. `off`, or a Go byte count such as `3600MiB`, sets it directly; any other value fails the render. Empty leaves it unset. |
+| `goMemLimit` | `auto` | Go runtime soft memory limit (`GOMEMLIMIT`). `auto` sets 90% of `resources.limits.memory`, so the garbage collector runs more often near the limit, which lowers the risk of an OOM kill. `auto` reads any Kubernetes quantity that fits in 64-bit bytes; no limit or a zero limit leaves `GOMEMLIMIT` unset. A number sets it in GiB, such as `3.5`, from 0.001 to 1024; empty leaves it unset. |
 | `nodeSelector`, `affinity` | `{}` | Exporter placement. |
 | `tolerations` | `[]` | Exporter tolerations. |
 | `podLabels`, `podAnnotations` | `{}` | Additional Pod metadata; selector labels and `checksum/config` are reserved. |

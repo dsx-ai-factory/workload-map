@@ -29,8 +29,7 @@ exporter:
   # heap nears it, instead of letting the heap reach twice its live size. This
   # lowers the risk of an OOM kill; it does not remove it. auto: 90% of
   # resources.limits.memory, any Kubernetes quantity; no limit or a zero limit
-  # leaves it unset. off, or a Go byte count such as 3600MiB, sets it directly;
-  # any other value fails the render. Empty leaves it unset.
+  # leaves it unset. A number sets it in GiB, such as 3.5; empty leaves it unset.
   goMemLimit: auto
   # Go pprof profiles on 127.0.0.1:<port> inside the Pod, for kubectl port-forward
   # only; no Service exposes them. Off by default.

@@ -367,7 +367,7 @@ func (r *controllerState) refreshDefinitions(next map[schema.GroupKind]selectedD
 // isSameDefinition ignores metadata that does not affect workload evaluation.
 func isSameDefinition(previous, next selectedDefinition) bool {
 	hasSameWinner := previous.Origin.Source == next.Origin.Source && previous.Origin.Name == next.Origin.Name && previous.Origin.UID == next.Origin.UID
-	if previous.GVK != next.GVK || !hasSameWinner {
+	if previous.GVK != next.GVK || previous.Explicit != next.Explicit || !hasSameWinner {
 		return false
 	}
 	if failureReason(previous.err) != failureReason(next.err) {

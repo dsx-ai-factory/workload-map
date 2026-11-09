@@ -22,6 +22,16 @@ watches for Pods, selected Karta kinds and configured required kinds. Each
 client-go Reflector runs LIST/WATCH in its own goroutine. Its callbacks accept
 objects into the cache and enqueue keys independently of the sources worker.
 
+Before expanding selected kinds across namespaces, the sources worker checks API
+discovery. An absent API is skipped unless its type was selected with
+`kartaDefinitionSource.catalog.include`, `kartaDefinitionSource.cluster.include`
+or `requiredKinds`. Skipped types are retried with the existing queue backoff.
+Discovery is refreshed at most once every 45 seconds so newly installed APIs can
+start watches. A missing API response from an existing watch schedules another
+refresh. Confirmed absence removes that type's watch and stale workload results.
+Permission, discovery, LIST/WATCH and evaluation failures remain visible. A live
+Pod that still references an absent owner API also retains its observation error.
+
 ## Which worker handles what?
 
 Queues hold identities, not object snapshots. Workers read current cached data.

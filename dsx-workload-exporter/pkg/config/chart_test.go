@@ -15,7 +15,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/controller"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelresolver"
 )
@@ -53,7 +55,10 @@ var _ = Describe("chart label configuration", func() {
 			Expect(err).To(Succeed())
 			args := []string{"template", "labels", chart,
 				"--set", "exporter.enabled=true",
+				"--set-json", `exporter.objectSelectors=[{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"platform":"sky"}}}]`,
 				"--set-json", "exporter.labelRules=" + string(raw),
+				"--set-json", `exporter.workloadMetricSelector={"matchExpressions":[{"key":"example.org/group","operator":"DoesNotExist"}]}`,
+				"--set-json", `exporter.podWorkloadAssociation={"target":{"apiVersion":"scheduling.example.org/v1","kind":"Workload","nameFromLabel":"example.org/group"}}`,
 			}
 			out, err := exec.Command(helm, append(args, tc.args...)...).CombinedOutput()
 			Expect(err).To(Succeed(), string(out))
@@ -76,7 +81,10 @@ var _ = Describe("chart label configuration", func() {
 				cfg, err := loadConfig(doc.Data["config.yaml"], nil)
 				Expect(err).To(Succeed())
 				Expect(cfg.Rules).To(Equal(rules))
+				Expect(cfg.ObjectSelectors).To(Equal([]controller.ObjectSelector{{APIVersion: "scheduling.example.org/v1", Kind: "Workload", Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"platform": "sky"}}}}))
 				Expect(cfg.Limits).To(Equal(tc.limits))
+				Expect(cfg.WorkloadMetricSelector).To(Equal(&metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "example.org/group", Operator: metav1.LabelSelectorOpDoesNotExist}}}))
+				Expect(cfg.PodWorkloadAssociation).To(Equal(&controller.PodWorkloadAssociation{Target: controller.AssociationTarget{APIVersion: "scheduling.example.org/v1", Kind: "Workload", NameFromLabel: "example.org/group"}}))
 				for _, rule := range cfg.Rules {
 					_, err = labelevaluator.NewCompiler().Compile(labelevaluator.Config{Expression: rule.Expression, Limits: cfg.Limits})
 					Expect(err).To(Succeed())
@@ -128,6 +136,7 @@ var _ = Describe("chart definition source configuration", func() {
 		chart := filepath.Join("..", "..", "..", "charts", "karta")
 		out, err := exec.Command(helm, "template", "sources", chart,
 			"--set", "exporter.enabled=true",
+			"--set-json", `exporter.objectSelectors=[{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"platform":"sky"}}}]`,
 			"--set", "exporter.kartaDefinitionSource.cluster.enabled=null",
 		).CombinedOutput()
 		Expect(err).To(HaveOccurred())

@@ -100,7 +100,12 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 		return nil
 	}
 	rootRef = refOf(rootObject)
-	if selectionErr != nil {
+	metricWorkload, association, associationSource, associationErr := r.resolvePodAssociation(ctx, podObject, rootObject, workload)
+	associationChanged := false
+	if previous := r.state.deps.Publications.Pod(key.UID); previous != nil {
+		associationChanged = !r.state.associationTarget.Empty() && previous.Record.Workload.GVK == r.state.associationTarget && previous.Record.Workload.UID != metricWorkload.GetUID()
+	}
+	if selectionErr != nil && !association.eligible && !associationChanged {
 		return r.state.failPodEvaluation(key, workload.Path, selectionErr, rootRef, selection)
 	}
 	record := store.PodRecord{
@@ -109,22 +114,32 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 		Namespace:       ref.Namespace,
 		Component:       "<unknown>",
 		Instance:        "<unknown>",
-		Workload:        storedRef(rootRef),
+		Workload:        storedRef(refOf(metricWorkload)),
 		OwnerResolution: store.OwnerResolution(workload.Resolution),
 	}
-	hasLabelErrors, err := r.evaluatePodRecord(ctx, selection, podObject, rootObject, &record)
-	if err != nil {
+	hasLabelErrors := false
+	err = selectionErr
+	if err == nil {
+		hasLabelErrors, err = r.evaluatePodRecord(ctx, selection, podObject, rootObject, metricWorkload, &record)
+	}
+	if err != nil && !association.eligible && !associationChanged {
 		return r.state.failPodEvaluation(key, workload.Path, fmt.Errorf("%w: %w", discovery.ErrEvaluation, err), rootRef, selection)
+	}
+	if err != nil {
+		hasLabelErrors = true
 	}
 	sources := r.state.sourcesFor(workload.Path)
 	if !slices.Contains(sources, rootSource) {
 		sources = append(sources, rootSource)
 	}
-	podResult := store.PodResult{Record: record, Input: storedRef(ref), HasValue: true, Sources: sources}
-	return r.state.publishPod(workload.Path, rootRef, selection, podResult, hasLabelErrors)
+	if associationSource.Resource.Resource != "" && !slices.Contains(sources, associationSource) {
+		sources = append(sources, associationSource)
+	}
+	podResult := store.PodResult{Record: record, Input: storedRef(ref), HasValue: true, Sources: sources, Error: failureReason(errors.Join(associationErr, selectionErr))}
+	return r.state.publishPod(workload.Path, rootRef, selection, podResult, hasLabelErrors, association)
 }
 
-func (r *Runtime) evaluatePodRecord(ctx context.Context, selection selectedDefinition, podObject, rootObject *unstructured.Unstructured, record *store.PodRecord) (hasLabelErrors bool, err error) {
+func (r *Runtime) evaluatePodRecord(ctx context.Context, selection selectedDefinition, podObject, rootObject, metricWorkload *unstructured.Unstructured, record *store.PodRecord) (hasLabelErrors bool, err error) {
 	if selection.Definition != nil {
 		pod := &corev1.Pod{}
 		if err := kruntime.DefaultUnstructuredConverter.FromUnstructured(podObject.Object, pod); err != nil {
@@ -138,7 +153,7 @@ func (r *Runtime) evaluatePodRecord(ctx context.Context, selection selectedDefin
 			return false, err
 		}
 	}
-	labelResults, err := r.state.deps.Labels.Resolve(ctx, labelresolver.Input{Metrics: []string{labelresolver.MetricPodWorkloadInfo}, Workload: rootObject, Pod: podObject})
+	labelResults, err := r.state.deps.Labels.Resolve(ctx, labelresolver.Input{Metrics: []string{labelresolver.MetricPodWorkloadInfo}, Workload: metricWorkload, Pod: podObject})
 	if err != nil {
 		return false, err
 	}

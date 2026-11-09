@@ -33,6 +33,9 @@ reads it at startup.
 | `serviceMonitor.interval`, `serviceMonitor.scrapeTimeout` | `""` | Empty inherits Prometheus settings. Use duration strings such as `30s` and `10s`. |
 | `namespaceSelector` | Exclude `kube-system`, `kube-public`, `kube-node-lease` | Namespace label selection. Set `matchExpressions: []` to remove these exclusions. |
 | `objectSelector`, `podSelector` | `{}` | Root and Pod output selection. |
+| `workloadMetricSelector` | `{}` | Select roots that publish workload status and creation time. Pod info remains. |
+| `objectSelectors` | `[]` | Additional root label filters keyed by exact API version and kind. |
+| `podWorkloadAssociation` | `null` | Optional Pod-to-workload metric identity, described below. |
 | `resourceRules` | `[]` | Allowed root API types; empty means unrestricted. |
 | `excludeResourceRules` | Core ConfigMaps and Secrets, all versions | Excluded root types. Set `[]` to remove these exclusions. |
 | `ignoredOwnerKinds`, `requiredKinds` | `[]` | Owner boundaries and additional watched kinds. |
@@ -123,6 +126,79 @@ Resource rules match group, version and plural resource. Entries are alternative
 all three fields must match within an entry. Each field needs a nonempty list.
 `"*"` is a wildcard and `""` is the core API group. Exclusions win. Selectors,
 malformed rules and unknown catalog names are validated before observation.
+
+### Workload metrics and Pod association
+
+`workloadMetricSelector` matches the resolved root's labels. A root that does
+not match publishes neither `dsx_workload_status` nor
+`dsx_workload_created_timestamp_seconds`. Its `dsx_workload_pod_info` rows remain
+subject to the existing root and Pod selectors. The default `{}` selects all
+roots.
+
+`podWorkloadAssociation` can give a bare Pod the metric identity of an existing
+workload. For example, Pod `research/train-a-head` carries
+`kueue.x-k8s.io/pod-group-name=train-a`. The exporter reads cached Workload
+`research/train-a`. It uses that Workload's UID only when an owner reference
+names this Pod and its current UID. Both objects must have no controller owner.
+
+```yaml
+exporter:
+  kartaDefinitionSource:
+    enableExperimental: true
+    catalog:
+      enabled: true
+  workloadMetricSelector:
+    matchExpressions:
+      - key: kueue.x-k8s.io/pod-group-name
+        operator: DoesNotExist
+  podWorkloadAssociation:
+    podSelector:
+      matchExpressions:
+        - key: kueue.x-k8s.io/pod-group-name
+          operator: Exists
+        - key: skypilot-cluster-name
+          operator: Exists
+    target:
+      apiVersion: kueue.x-k8s.io/v1beta2
+      kind: Workload
+      nameFromLabel: kueue.x-k8s.io/pod-group-name
+  objectSelectors:
+    - apiVersion: kueue.x-k8s.io/v1beta2
+      kind: Workload
+      selector:
+        matchExpressions:
+          - key: skypilot-cluster-name
+            operator: Exists
+```
+
+`objectSelectors` adds a label filter for each exact `apiVersion` and `kind`.
+Other kinds are unchanged. Each object must also match the global
+`objectSelector`. Duplicate entries for a kind/version are rejected. Filters
+apply to root selection and association targets, not intermediate metadata.
+Label changes re-evaluate selection. Exclusion alone is not a health error.
+These filters do not limit API permissions or remove objects from the watch cache.
+
+The target kind needs a selected Karta definition and must pass resource and
+object selection. The exporter uses its existing full-object LIST/WATCH cache.
+It performs no per-Pod GET and changes no Kubernetes owner references. The
+target namespace always comes from the Pod; the label supplies only its name.
+Pod and target updates re-evaluate the association.
+
+An associated row keeps the actual Pod identity and its Pod Karta component.
+The workload identity and `sources: [workload]` label expressions use the target
+Workload. `sources: [pod]` expressions still receive the Pod.
+
+Filtering and association are independent. If the target is missing or its
+owner UID does not match, Pod info keeps the original Pod root UID and reports
+`dsx_exporter_observation_valid=0` with reason `unresolved_owner`. A valid target
+clears that failure. The selector
+still suppresses that root's workload metrics. A Job-owned Pod continues to use
+its ordinary Job root. Omitting `podWorkloadAssociation` disables association.
+
+If an established target watch fails, the exporter immediately marks the last
+known association invalid. It can still carry the target UID until the next
+Pod reconciliation falls back to the original Pod root UID. Watch recovery
+requeues affected Pods so the association can be restored.
 
 ### Definition sources and owner boundaries
 

@@ -53,7 +53,11 @@ type controllerState struct {
 	definitionVersion      uint64
 	namespaceSelector      labels.Selector
 	objectSelector         labels.Selector
+	objectSelectors        map[schema.GroupVersionKind]labels.Selector
 	podSelector            labels.Selector
+	workloadMetricSelector labels.Selector
+	associationSelector    labels.Selector
+	associationTarget      schema.GroupVersionKind
 
 	ctx context.Context
 	wg  sync.WaitGroup
@@ -87,16 +91,17 @@ type rootState struct {
 
 func newControllerState(objects *objectCache) *controllerState {
 	return &controllerState{
-		objectCache:         objects,
-		watches:             map[watchKey]*resourceWatch{},
-		replacements:        map[watchKey]*resourceWatch{},
-		watchFailures:       map[discovery.WatchRequest]error{},
-		roots:               map[types.UID]*rootState{},
-		podRoots:            map[types.UID]types.UID{},
-		ancestorPods:        map[types.UID]bool{},
-		selectedObjectRoots: map[objectJobKey]selectedObjectOutcome{},
-		selectedDefinitions: map[schema.GroupKind]selectedDefinition{},
-		scopes:              map[string]bool{},
+		objectCache:            objects,
+		watches:                map[watchKey]*resourceWatch{},
+		replacements:           map[watchKey]*resourceWatch{},
+		watchFailures:          map[discovery.WatchRequest]error{},
+		roots:                  map[types.UID]*rootState{},
+		podRoots:               map[types.UID]types.UID{},
+		ancestorPods:           map[types.UID]bool{},
+		selectedObjectRoots:    map[objectJobKey]selectedObjectOutcome{},
+		selectedDefinitions:    map[schema.GroupKind]selectedDefinition{},
+		scopes:                 map[string]bool{},
+		workloadMetricSelector: labels.Everything(),
 	}
 }
 
@@ -164,6 +169,10 @@ func (r *controllerState) failWorkload(uid types.UID, ref discovery.ObjectRef, c
 	if r.roots[uid] == nil {
 		return nil
 	}
+	if entry := r.objects[keyOf(ref)]; entry.object != nil && entry.object.GetUID() == uid && !r.workloadMetricSelector.Matches(labelsFor(entry.object)) {
+		r.deps.Publications.RemoveWorkload(uid)
+		return cause
+	}
 	next := store.WorkloadResult{
 		Record:          store.WorkloadRecord{UID: uid, Ref: storedRef(ref)},
 		Sources:         sources,
@@ -210,7 +219,7 @@ func (r *controllerState) watchFailed(ref discovery.ObjectRef) bool {
 	return failed
 }
 
-func (r *controllerState) publishPod(path []discovery.ObjectRef, rootRef discovery.ObjectRef, selection selectedDefinition, next store.PodResult, labelFailed bool) error {
+func (r *controllerState) publishPod(path []discovery.ObjectRef, rootRef discovery.ObjectRef, selection selectedDefinition, next store.PodResult, labelFailed bool, association ...podAssociationSnapshot) error {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	if !r.isPathCurrent(path) || !r.hasRootOwnership(rootRef) || !r.isDefinitionCurrent(rootRef, selection) {
@@ -219,11 +228,22 @@ func (r *controllerState) publishPod(path []discovery.ObjectRef, rootRef discove
 	if current, _, err := r.lookupObject(rootRef, false); err != nil || current.GetResourceVersion() != rootRef.ResourceVersion {
 		return discovery.ErrStale
 	}
+	for _, snapshot := range association {
+		if snapshot.target.GVK.Empty() {
+			continue
+		}
+		current, _, err := r.lookupObject(snapshot.target, true)
+		if current != snapshot.object || failureReason(err) != snapshot.readReason {
+			return discovery.ErrStale
+		}
+	}
 	if labelFailed {
-		next.Error = store.ReasonEvaluationFailed
+		if next.Error == "" {
+			next.Error = store.ReasonEvaluationFailed
+		}
 		if previous := r.deps.Publications.Pod(next.Record.UID); previous != nil && previous.HasValue {
 			isDefinitionRemoved := selection.Definition == nil && previous.Record.Karta != ""
-			if !isDefinitionRemoved {
+			if !isDefinitionRemoved && previous.Record.Workload.UID == next.Record.Workload.UID {
 				next.Record = previous.Record
 				next.Sources = appendSources(previous.Sources, next.Sources)
 			}
@@ -366,6 +386,10 @@ func (r *controllerState) publishWorkload(uid types.UID, ref discovery.ObjectRef
 	}
 	if !r.isDefinitionCurrent(ref, selection) {
 		return discovery.ErrStale
+	}
+	if !r.workloadMetricSelector.Matches(labelsFor(r.objects[keyOf(ref)].object)) {
+		r.deps.Publications.RemoveWorkload(uid)
+		return nil
 	}
 	if next.StatusError != "" {
 		if previous := r.deps.Publications.Workload(uid); previous != nil && previous.HasValue {

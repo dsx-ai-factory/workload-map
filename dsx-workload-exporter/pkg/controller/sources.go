@@ -488,6 +488,22 @@ func (r *controllerState) queueObjectChange(old, current *unstructured.Unstructu
 		object = old
 	}
 	gvk := object.GroupVersionKind()
+	if gvk == r.associationTarget {
+		for _, target := range []*unstructured.Unstructured{old, current} {
+			if target == nil {
+				continue
+			}
+			for _, owner := range target.GetOwnerReferences() {
+				if owner.APIVersion != "v1" || owner.Kind != "Pod" || owner.Name == "" || owner.UID == "" {
+					continue
+				}
+				pod := r.objects[objectKey{GVK: podGVK, Namespace: target.GetNamespace(), Name: owner.Name}].object
+				if pod != nil && pod.GetUID() == owner.UID {
+					r.enqueuePod(pod)
+				}
+			}
+		}
+	}
 	if gvk == namespaceGVK && r.config.NamespaceSelector != nil {
 		r.watchSyncQueue.Add("sources")
 	}
@@ -522,7 +538,7 @@ func (r *controllerState) queueObjectChange(old, current *unstructured.Unstructu
 			}
 		}
 	}
-	objectMembershipChanged := old != nil && current != nil && r.objectSelector.Matches(labelsFor(old)) != r.objectSelector.Matches(labelsFor(current))
+	objectMembershipChanged := old != nil && current != nil && r.matchesObjectSelectors(old) != r.matchesObjectSelectors(current)
 	ancestorOwnershipChanged := ownershipChanged && ancestor
 	if ancestorOwnershipChanged || objectMembershipChanged {
 		r.enqueueScopeRefresh(object.GetNamespace())

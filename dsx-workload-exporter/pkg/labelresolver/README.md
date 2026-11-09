@@ -15,11 +15,10 @@ mutate either object during evaluation.
 
 ## Behavior
 
-- The collector preserves protected built-in labels and accepts nonempty
-  overrides for the others. See [Configured labels](../../../docs/dsx-workload-exporter/configuration.md#configured-labels)
+- The collector and `ResolvedMetricLabels.Apply` share the `IsProtectedLabel`
+  rule. Protected built-in labels keep their values; other built-ins accept
+  nonempty overrides. See [Configured labels](../../../docs/dsx-workload-exporter/configuration.md#configured-labels)
   for the protected names and examples.
-  `ResolvedMetricLabels.Apply` is a separate helper that copies resolved labels
-  over its input. Runtime does not call it.
 - A label name that starts with `__` is not permitted.
 - A rule reads its sources in the configured order. The first nonempty value
   becomes the label value.

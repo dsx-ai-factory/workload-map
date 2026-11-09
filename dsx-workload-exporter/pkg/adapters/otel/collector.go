@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelresolver"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
 )
 
@@ -203,16 +204,8 @@ func (g gauge) observe(observer metric.Observer, value float64, custom map[strin
 	}
 	for i, name := range g.labels {
 		labelValue := values[i]
-		switch name {
-		case LabelNamespace, LabelWorkload, LabelWorkloadUID, LabelWorkloadGroup,
-			LabelWorkloadVersion, LabelWorkloadKind, LabelPod, LabelPodUID,
-			LabelOwnerResolution, LabelObservationValid, LabelPhase, LabelKarta, LabelKartaSource,
-			"scope", LabelResourceGroup, LabelResourceVersion, LabelResourceKind, LabelReason:
-			// Identity, status and health labels describe the stored result.
-		default:
-			if override := custom[name]; override != "" {
-				labelValue = override
-			}
+		if override := custom[name]; override != "" && !labelresolver.IsProtectedLabel(name) {
+			labelValue = override
 		}
 		attributes = append(attributes, attribute.String(name, labelValue))
 	}

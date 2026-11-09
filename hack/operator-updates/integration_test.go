@@ -268,6 +268,7 @@ func (h scriptHarness) testFailures(t *testing.T) {
 	}, 1)
 }
 
+// runCases runs each script case and checks the exit code and queried repositories.
 func (h scriptHarness) runCases(t *testing.T, cases []scriptCase, wantExit int) {
 	t.Helper()
 	for _, test := range cases {
@@ -303,6 +304,7 @@ func (h scriptHarness) runCases(t *testing.T, cases []scriptCase, wantExit int) 
 	}
 }
 
+// testInventory verifies that every operator's repository and tag prefix are wired into the update script.
 func (h scriptHarness) testInventory(t *testing.T) {
 	prefixes := map[string]string{
 		"cert-manager/cert-manager": "v", "run-ai/fake-gpu-operator": "v", "kai-scheduler/KAI-Scheduler": "v",
@@ -311,6 +313,7 @@ func (h scriptHarness) testInventory(t *testing.T) {
 		"knative-extensions/net-kourier": "knative-v", "kserve/kserve": "v", "zilliztech/milvus-operator": "milvus-operator-",
 		"ai-dynamo/grove": "v", "ai-dynamo/dynamo": "v", "NVIDIA/k8s-nim-operator": "v",
 		"kubernetes-sigs/agent-sandbox": "v", "kubernetes-sigs/kueue": "v",
+		"openkruise/kruise": "v",
 	}
 	tags := make(map[string][]string, len(prefixes))
 	for repository, prefix := range prefixes {
@@ -468,6 +471,7 @@ func TestOperatorUpdatesStandaloneBuild(t *testing.T) {
 	}
 }
 
+// run executes the update script in an isolated environment with pinned versions and fake git tags.
 func (h scriptHarness) run(t *testing.T, test scriptCase) scriptResult {
 	t.Helper()
 	directory := t.TempDir()
@@ -503,7 +507,8 @@ func (h scriptHarness) run(t *testing.T, test scriptCase) scriptResult {
 		"KAI_SCHEDULER_VERSION=v0.15.2", "LWS_VERSION=v1.0.0", "KUBERAY_VERSION=1.0.0",
 		"KUBEFLOW_VERSION=v1.0.0", "MPI_OPERATOR_VERSION=v1.0.0", "KSERVE_VERSION=v1.0.0",
 		"MILVUS_OPERATOR_VERSION=1.0.0", "GROVE_VERSION=v0.1.0-alpha.1", "DYNAMO_VERSION=1.0.0",
-		"NIM_OPERATOR_VERSION=v1.0.0", "AGENT_SANDBOX_VERSION=v1.0.0", "KUEUE_VERSION=v0.20.5", "GOPROXY=off", "GOSUMDB=off")
+		"NIM_OPERATOR_VERSION=v1.0.0", "AGENT_SANDBOX_VERSION=v1.0.0", "KUEUE_VERSION=v0.20.5",
+		"OPENKRUISE_VERSION=1.0.0", "GOPROXY=off", "GOSUMDB=off")
 	for name, value := range test.pins {
 		env = append(env, name+"="+value)
 	}

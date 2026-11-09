@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+kind: Karta
+apiVersion: run.ai/v1alpha1
+metadata:
+  name: apps-kruise-io-cloneset-v1alpha1
+spec:
+  structureDefinition:
+    rootComponent:
+      name: cloneset
+      kind:
+        group: apps.kruise.io
+        version: v1alpha1
+        kind: CloneSet
+      specDefinition:
+        podTemplateSpecPath: .spec.template
+      scaleDefinition:
+        replicasPath: .spec.replicas
+      statusDefinition:
+        statusMappings:
+          initializing:
+            - byExpression:
+                expression: (.status.observedGeneration // 0) > 0 and .status.observedGeneration == .metadata.generation and (.status.replicas // 0) > (.spec.replicas // 1)
+                expectedResult: "true"
+            - byExpression:
+                expression: (.status.observedGeneration // 0) > 0 and (.spec.replicas // 1) > 0 and ((.status.observedGeneration // 0) != (.metadata.generation // 0) or (.status.readyReplicas // 0) != (.spec.replicas // 1) or (.status.updatedReplicas // 0) != (.spec.replicas // 1) or (.status.currentRevision != .status.updateRevision))
+                expectedResult: "true"
+          running:
+            - byExpression:
+                expression: (.status.observedGeneration // 0) > 0 and (.status.observedGeneration // 0) == (.metadata.generation // 0) and (.status.replicas // 0) == (.spec.replicas // 1) and (.status.readyReplicas // 0) == (.spec.replicas // 1) and (.status.updatedReplicas // 0) == (.spec.replicas // 1) and (.status.currentRevision == .status.updateRevision)
+                expectedResult: "true"
+    childComponents:
+      - name: pod
+        kind:
+          group: ""
+          version: v1
+          kind: Pod
+        ownerRef: cloneset
+  optimizationInstructions: {}

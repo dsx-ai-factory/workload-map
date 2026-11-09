@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+apiVersion: apps.kruise.io/v1alpha1
+kind: CloneSet
+metadata:
+  name: karta-e2e-cloneset-running
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: karta-e2e-cloneset-running
+  template:
+    metadata:
+      labels:
+        app: karta-e2e-cloneset-running
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: worker
+        image: busybox:1.36
+        command: ["sh", "-c", "sleep infinity"]
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 20m
+            memory: 32Mi

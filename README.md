@@ -266,6 +266,7 @@ Karta supports any workload type. The following are pre-built and tested Karta d
 | DynamoGraphDeployment | NVIDIA Dynamo |
 | PodCliqueSet | Grove |
 | Sandbox | Kubernetes Agent Sandbox |
+| CloneSet | OpenKruise |
 | [Workload](docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | Kueue (v1beta2, experimental; requires opt-in) |
 
 See [`docs/catalog/`](docs/catalog/) for the full Karta definitions.

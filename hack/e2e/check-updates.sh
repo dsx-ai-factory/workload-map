@@ -4,7 +4,7 @@
 set -euo pipefail
 
 E2E_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ALL_OPERATORS=(cert-manager fake-gpu-operator kai-scheduler lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue)
+ALL_OPERATORS=(cert-manager fake-gpu-operator kai-scheduler lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue openkruise)
 
 usage() {
   cat <<EOF

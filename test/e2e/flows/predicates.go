@@ -4,6 +4,8 @@
 package flows
 
 import (
+	"strconv"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
@@ -196,7 +198,7 @@ func FullyAvailable() recorder.StateCheck {
 		replicas, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
 		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
 		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
-		return desired > 0 && replicas == desired && ready == desired && updated == desired
+		return replicas == desired && ready == desired && updated == desired
 	}
 }
 
@@ -354,5 +356,66 @@ func SandboxMode(want string) recorder.StateCheck {
 			mode = "Running"
 		}
 		return mode == want
+	}
+}
+
+// NotFullyAvailable mirrors the CloneSet definition's two Initializing rules combined:
+//
+//	Rule 1 (draining, including toward zero): generation current AND status.replicas > desired.
+//	Rule 2 (general not-converged): desired > 0 AND any of generation, counter, or revision mismatch.
+//
+// Unlike ReplicasInitializing it covers the partially-ready case where 0 < readyReplicas < desired
+// and the template-change case where counters match but generation does not.
+func NotFullyAvailable() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
+		if !ok {
+			desired = 1
+		}
+		replicas, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
+		observed, _, _ := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
+		cur, _, _ := unstructured.NestedString(u.Object, "status", "currentRevision")
+		upd, _, _ := unstructured.NestedString(u.Object, "status", "updateRevision")
+		gen := u.GetGeneration()
+
+		// Rule 1: draining (generation caught up, more pods than desired).
+		if observed == gen && replicas > desired {
+			return true
+		}
+		// Rule 2: not converged (desired > 0 and any mismatch).
+		return desired > 0 && (observed != gen || ready != desired || updated != desired || cur != upd)
+	}
+}
+
+// GenerationCurrent matches when status.observedGeneration (int64) equals metadata.generation.
+func GenerationCurrent() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		observed, found, err := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
+		return err == nil && found && observed == u.GetGeneration()
+	}
+}
+
+// RevisionsCurrent matches when status.currentRevision equals status.updateRevision, the
+// CloneSet's signal that a rolling update has finished.
+func RevisionsCurrent() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		cur, _, _ := unstructured.NestedString(u.Object, "status", "currentRevision")
+		upd, _, _ := unstructured.NestedString(u.Object, "status", "updateRevision")
+		return cur != "" && cur == upd
+	}
+}
+
+// StringGenerationCurrent matches when status.observedGeneration (stored as a string by the
+// controller, e.g. Argo Rollouts) equals metadata.generation converted to string. This mirrors
+// the definition's ByExpression guard so the recorder and the definition agree on Running.
+func StringGenerationCurrent() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		observed, found, _ := unstructured.NestedString(u.Object, "status", "observedGeneration")
+		if !found {
+			return false
+		}
+		return observed == strconv.FormatInt(u.GetGeneration(), 10)
 	}
 }

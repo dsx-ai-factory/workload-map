@@ -1,0 +1,982 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 2
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - image: registry.invalid/no-such-image:v0.0.1
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+  phases:
+  - Undefined
+  resourceVersion: "1705"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 2
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - image: registry.invalid/no-such-image:v0.0.1
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Created new replica set "karta-e2e-rollout-degraded-6579b899d8"
+        reason: NewReplicaSetCreated
+        status: "True"
+        type: Progressing
+  phases:
+  - Undefined
+  resourceVersion: "1707"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 2
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - image: registry.invalid/no-such-image:v0.0.1
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      currentPodHash: 6579b899d8
+      currentStepHash: 5ffbfbbd64
+      message: more replicas need to be updated
+      observedGeneration: "2"
+      phase: Progressing
+      selector: app=karta-e2e-rollout-degraded
+  phases:
+  - Initializing
+  resourceVersion: "1710"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 2
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - image: registry.invalid/no-such-image:v0.0.1
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      currentPodHash: 6579b899d8
+      currentStepHash: 5ffbfbbd64
+      message: more replicas need to be updated
+      observedGeneration: "2"
+      phase: Progressing
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 6579b899d8
+  phases:
+  - Initializing
+  resourceVersion: "1713"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 2
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - image: registry.invalid/no-such-image:v0.0.1
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      currentPodHash: 6579b899d8
+      currentStepHash: 5ffbfbbd64
+      message: updated replicas are still becoming available
+      observedGeneration: "2"
+      phase: Progressing
+      replicas: 1
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 6579b899d8
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "1722"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 2
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - image: registry.invalid/no-such-image:v0.0.1
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:04Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8" has timed out
+          progressing.
+        reason: ProgressDeadlineExceeded
+        status: "False"
+        type: Progressing
+      currentPodHash: 6579b899d8
+      currentStepHash: 5ffbfbbd64
+      message: 'ProgressDeadlineExceeded: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8"
+        has timed out progressing.'
+      observedGeneration: "2"
+      phase: Degraded
+      replicas: 1
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 6579b899d8
+      updatedReplicas: 1
+  phases:
+  - Degraded
+  resourceVersion: "1777"
+  state: Degraded
+- action:
+    name: Rollout
+    operation:
+      patchType: application/merge-patch+json
+      payload:
+        spec:
+          template:
+            spec:
+              containers:
+              - command:
+                - sh
+                - -c
+                - sleep infinity
+                image: busybox:1.36
+                name: worker
+                resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+      verb: PATCH
+  kind: ACTION
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 3
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:04Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8" has timed out
+          progressing.
+        reason: ProgressDeadlineExceeded
+        status: "False"
+        type: Progressing
+      currentPodHash: 6579b899d8
+      currentStepHash: 5ffbfbbd64
+      message: 'ProgressDeadlineExceeded: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8"
+        has timed out progressing.'
+      observedGeneration: "2"
+      phase: Degraded
+      replicas: 1
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 6579b899d8
+      updatedReplicas: 1
+  phases:
+  - Degraded
+  resourceVersion: "1778"
+  state: Degraded
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 3
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:04Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8" has timed out
+          progressing.
+        reason: ProgressDeadlineExceeded
+        status: "False"
+        type: Progressing
+      currentPodHash: 6579b899d8
+      currentStepHash: 5ffbfbbd64
+      message: 'ProgressDeadlineExceeded: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8"
+        has timed out progressing.'
+      observedGeneration: "2"
+      phase: Degraded
+      replicas: 1
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 6579b899d8
+      updatedReplicas: 1
+  phases:
+  - Degraded
+  resourceVersion: "1782"
+  state: Degraded
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 3
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:04Z"
+        message: Created new replica set "karta-e2e-rollout-degraded-566577fd6"
+        reason: NewReplicaSetCreated
+        status: "True"
+        type: Progressing
+      currentPodHash: 6579b899d8
+      currentStepHash: 5ffbfbbd64
+      message: 'ProgressDeadlineExceeded: ReplicaSet "karta-e2e-rollout-degraded-6579b899d8"
+        has timed out progressing.'
+      observedGeneration: "2"
+      phase: Degraded
+      replicas: 1
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 6579b899d8
+      updatedReplicas: 1
+  phases:
+  - Degraded
+  resourceVersion: "1785"
+  state: Degraded
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 3
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:04Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-566577fd6" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:04Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      currentPodHash: 566577fd6
+      currentStepHash: 5ffbfbbd64
+      message: more replicas need to be updated
+      observedGeneration: "3"
+      phase: Progressing
+      replicas: 1
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 6579b899d8
+  phases:
+  - Initializing
+  resourceVersion: "1787"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 3
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 2
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:48Z"
+        lastUpdateTime: "2026-11-09T21:43:48Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:04Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:04Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-566577fd6" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      currentPodHash: 566577fd6
+      currentStepHash: 5ffbfbbd64
+      message: updated replicas are still becoming available
+      observedGeneration: "3"
+      phase: Progressing
+      replicas: 2
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 6579b899d8
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "1797"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 3
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 2
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:09Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-566577fd6" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:44:09Z"
+        lastUpdateTime: "2026-11-09T21:44:09Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:44:09Z"
+        lastUpdateTime: "2026-11-09T21:44:09Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      currentPodHash: 566577fd6
+      currentStepHash: 5ffbfbbd64
+      message: old replicas are pending termination
+      observedGeneration: "3"
+      phase: Progressing
+      readyReplicas: 1
+      replicas: 2
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 566577fd6
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "1820"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-09T21:43:48Z"
+      generation: 3
+      name: karta-e2e-rollout-degraded
+      namespace: test-fzhb9
+      uid: 9409d821-227a-4a69-af53-b1e78cc74850
+    spec:
+      progressDeadlineSeconds: 15
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-degraded
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-degraded
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:44:09Z"
+        lastUpdateTime: "2026-11-09T21:44:09Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:44:09Z"
+        lastUpdateTime: "2026-11-09T21:44:09Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:44:09Z"
+        lastUpdateTime: "2026-11-09T21:44:09Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:44:04Z"
+        lastUpdateTime: "2026-11-09T21:44:09Z"
+        message: ReplicaSet "karta-e2e-rollout-degraded-566577fd6" has successfully
+          progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      currentPodHash: 566577fd6
+      currentStepHash: 5ffbfbbd64
+      observedGeneration: "3"
+      phase: Healthy
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-degraded
+      stableRS: 566577fd6
+      updatedReplicas: 1
+  phases:
+  - Running
+  resourceVersion: "1824"
+  state: Running
+flow: degraded
+kartaFile: docs/catalog/argoproj-io-rollout-v1alpha1.yaml
+kartaName: argoproj-io-rollout-v1alpha1
+operator: argo-rollouts
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Undefined
+- amount: 3
+  phases:
+  - Initializing
+- amount: 4
+  phases:
+  - Degraded
+- amount: 3
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+version: v1.10.2
+want: Running

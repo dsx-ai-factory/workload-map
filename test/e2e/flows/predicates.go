@@ -4,6 +4,8 @@
 package flows
 
 import (
+	"strconv"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
@@ -354,5 +356,18 @@ func SandboxMode(want string) recorder.StateCheck {
 			mode = "Running"
 		}
 		return mode == want
+	}
+}
+
+// StringGenerationCurrent matches when status.observedGeneration (stored as a string by the
+// controller, e.g. Argo Rollouts) equals metadata.generation converted to string. This mirrors
+// the definition's ByExpression guard so the recorder and the definition agree on Running.
+func StringGenerationCurrent() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		observed, found, _ := unstructured.NestedString(u.Object, "status", "observedGeneration")
+		if !found {
+			return false
+		}
+		return observed == strconv.FormatInt(u.GetGeneration(), 10)
 	}
 }

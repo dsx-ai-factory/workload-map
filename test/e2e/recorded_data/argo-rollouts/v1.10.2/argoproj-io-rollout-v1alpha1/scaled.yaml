@@ -1,0 +1,1122 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 2
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+  phases:
+  - Undefined
+  resourceVersion: "1456"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 2
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: Created new replica set "karta-e2e-rollout-58cf8d6799"
+        reason: NewReplicaSetCreated
+        status: "True"
+        type: Progressing
+  phases:
+  - Undefined
+  resourceVersion: "1458"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 2
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      message: more replicas need to be updated
+      observedGeneration: "2"
+      phase: Progressing
+      selector: app=karta-e2e-rollout
+  phases:
+  - Initializing
+  resourceVersion: "1461"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 2
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      message: more replicas need to be updated
+      observedGeneration: "2"
+      phase: Progressing
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+  phases:
+  - Initializing
+  resourceVersion: "1464"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 2
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      message: updated replicas are still becoming available
+      observedGeneration: "2"
+      phase: Progressing
+      replicas: 1
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "1472"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 2
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" has successfully progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      observedGeneration: "2"
+      phase: Healthy
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 1
+  phases:
+  - Running
+  resourceVersion: "1508"
+  state: Running
+- action:
+    name: Scale
+    operation:
+      patchType: application/merge-patch+json
+      payload:
+        spec:
+          replicas: 3
+      verb: PATCH
+  kind: ACTION
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 3
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" has successfully progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      observedGeneration: "2"
+      phase: Healthy
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 1
+  phases:
+  - Undefined
+  resourceVersion: "1509"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 3
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout does not have minimum availability
+        reason: ReplicaSetNotAvailable
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      message: more replicas need to be updated
+      observedGeneration: "3"
+      phase: Progressing
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "1515"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 3
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 3
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      message: updated replicas are still becoming available
+      observedGeneration: "3"
+      phase: Progressing
+      readyReplicas: 1
+      replicas: 3
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 3
+  phases:
+  - Initializing
+  resourceVersion: "1525"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 3
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 3
+      availableReplicas: 2
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:43:18Z"
+        lastUpdateTime: "2026-11-09T21:43:18Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:24Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      message: updated replicas are still becoming available
+      observedGeneration: "3"
+      phase: Progressing
+      readyReplicas: 2
+      replicas: 3
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 3
+  phases:
+  - Initializing
+  resourceVersion: "1548"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 3
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 3
+      availableReplicas: 3
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:29Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" has successfully progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:43:29Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      observedGeneration: "3"
+      phase: Healthy
+      readyReplicas: 3
+      replicas: 3
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 3
+  phases:
+  - Running
+  resourceVersion: "1565"
+  state: Running
+- action:
+    name: Scale
+    operation:
+      patchType: application/merge-patch+json
+      payload:
+        spec:
+          replicas: 1
+      verb: PATCH
+  kind: ACTION
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 4
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 3
+      availableReplicas: 3
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:29Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" has successfully progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-09T21:43:29Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      observedGeneration: "3"
+      phase: Healthy
+      readyReplicas: 3
+      replicas: 3
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 3
+  phases:
+  - Undefined
+  resourceVersion: "1566"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 4
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 3
+      availableReplicas: 3
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:29Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:29Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: Rollout does not have minimum availability
+        reason: ReplicaSetNotAvailable
+        status: "True"
+        type: Progressing
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      observedGeneration: "4"
+      phase: Healthy
+      readyReplicas: 3
+      replicas: 3
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 3
+  phases:
+  - Running
+  resourceVersion: "1572"
+  state: Running
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-09T21:43:06Z"
+      generation: 4
+      name: karta-e2e-rollout
+      namespace: test-fzhb9
+      uid: 4d19816c-d183-4415-b216-0fe0777f0e57
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout
+      strategy:
+        canary: {}
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:06Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-09T21:43:29Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-09T21:43:29Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-09T21:43:06Z"
+        lastUpdateTime: "2026-11-09T21:43:29Z"
+        message: ReplicaSet "karta-e2e-rollout-58cf8d6799" has successfully progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      currentPodHash: 58cf8d6799
+      currentStepHash: 5ffbfbbd64
+      observedGeneration: "4"
+      phase: Healthy
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout
+      stableRS: 58cf8d6799
+      updatedReplicas: 1
+  phases:
+  - Running
+  resourceVersion: "1581"
+  state: Running
+flow: scaled
+kartaFile: docs/catalog/argoproj-io-rollout-v1alpha1.yaml
+kartaName: argoproj-io-rollout-v1alpha1
+operator: argo-rollouts
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Undefined
+- amount: 3
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+- amount: 1
+  phases:
+  - Undefined
+- amount: 3
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+- amount: 1
+  phases:
+  - Undefined
+- amount: 2
+  phases:
+  - Running
+version: v1.10.2
+want: Running

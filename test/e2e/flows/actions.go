@@ -55,3 +55,12 @@ func SuspendSandbox() *recorder.Action {
 func ResumeSandbox() *recorder.Action {
 	return &recorder.Action{Type: recorder.ActionResume, Patch: []byte(`{"spec":{"operatingMode":"Running"}}`)}
 }
+
+// RolloutImage patches spec.template to trigger a rollout with a new container image. JSON
+// merge patch replaces the entire containers array, so containerJSON must be the complete
+// container object with only the image changed.
+func RolloutImage(containerJSON string) *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionRollout, Patch: []byte(
+		fmt.Sprintf(`{"spec":{"template":{"spec":{"containers":[%s]}}}}`, containerJSON),
+	)}
+}

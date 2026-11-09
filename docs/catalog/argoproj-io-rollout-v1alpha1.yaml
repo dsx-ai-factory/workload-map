@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+kind: Karta
+apiVersion: run.ai/v1alpha1
+metadata:
+  name: argoproj-io-rollout-v1alpha1
+spec:
+  structureDefinition:
+    rootComponent:
+      name: rollout
+      kind:
+        group: argoproj.io
+        version: v1alpha1
+        kind: Rollout
+      specDefinition:
+        podTemplateSpecPath: .spec.template
+      scaleDefinition:
+        replicasPath: .spec.replicas
+      statusDefinition:
+        phaseDefinition:
+          path: .status.phase
+        conditionsDefinition:
+          path: .status.conditions
+          typeFieldName: type
+          statusFieldName: status
+          messageFieldName: message
+          reasonFieldName: reason
+        statusMappings:
+          initializing:
+            - byPhase: Progressing
+          running:
+            - byPhase: Healthy
+              byExpression:
+                expression: .status.observedGeneration == (.metadata.generation | tostring)
+                expectedResult: "true"
+          degraded:
+            - byPhase: Degraded
+    childComponents:
+      - name: replicaset
+        kind:
+          group: apps
+          version: v1
+          kind: ReplicaSet
+        ownerRef: rollout
+  optimizationInstructions: {}

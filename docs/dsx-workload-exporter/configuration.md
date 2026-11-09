@@ -24,7 +24,7 @@ reads it at startup.
 | `metricsPort` | `8080` | Shared listener, container, probe and Service port. |
 | `pprof.enabled`, `pprof.port` | `false`, `6060` | Serve Go pprof profiles on `127.0.0.1:<port>` inside the Pod. No Service exposes them; reach them with `kubectl port-forward`. |
 | `resources` | Requests: `500m` CPU, `512Mi` memory. Limits: `2` CPU, `4Gi` memory. | For large clusters, increase requests and limits based on measured CPU and memory usage. Watched object count, object size and scrape frequency affect usage. |
-| `goMemLimit` | `auto` | Go runtime soft memory limit (`GOMEMLIMIT`). `auto` sets 90% of `resources.limits.memory`, so the garbage collector runs more often near the limit instead of the container being OOM-killed. `auto` reads any Kubernetes quantity; no limit or a zero limit leaves `GOMEMLIMIT` unset. A Go value such as `3600MiB` sets it directly; empty leaves it unset. |
+| `goMemLimit` | `auto` | Go runtime soft memory limit (`GOMEMLIMIT`). `auto` sets 90% of `resources.limits.memory`, so the garbage collector runs more often near the limit, which lowers the risk of an OOM kill. `auto` reads any Kubernetes quantity; no limit or a zero limit leaves `GOMEMLIMIT` unset. A Go value such as `3600MiB` sets it directly; empty leaves it unset. |
 | `nodeSelector`, `affinity` | `{}` | Exporter placement. |
 | `tolerations` | `[]` | Exporter tolerations. |
 | `podLabels`, `podAnnotations` | `{}` | Additional Pod metadata; selector labels and `checksum/config` are reserved. |
@@ -62,7 +62,7 @@ The default worker settings start four Pod workers and four workload workers.
 These counts control queue processing, not the total goroutines or API requests.
 
 `goMemLimit` is a soft limit. As memory nears it, the garbage collector runs
-more often: memory stays under the limit, and the exporter uses more CPU. If the
+more often, which usually keeps memory under the limit and costs CPU. If the
 live data alone is larger than the limit, the runtime caps garbage collection at
 about half of the CPU and lets memory grow past it. The container is then
 OOM-killed at `resources.limits.memory`. A working set that stays at the limit

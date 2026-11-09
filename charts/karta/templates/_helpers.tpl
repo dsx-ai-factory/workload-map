@@ -112,7 +112,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{/*
 GOMEMLIMIT for the exporter container. auto: 90% of resources.limits.memory in bytes,
-so the Go GC works harder before the kernel OOM-kills the container; the rest covers
+so the Go GC works harder as the container nears its memory limit; the rest covers
 memory outside the Go runtime. Any other non-empty value passes through. Empty, or
 auto without a memory limit or with a zero one, renders nothing.
 */}}
@@ -130,11 +130,12 @@ auto without a memory limit or with a zero one, renders nothing.
 {{- /* A Kubernetes quantity: a signed decimal number, then an SI suffix or a decimal exponent. */ -}}
 {{- $number := regexFind "^[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)" $limit -}}
 {{- $suffix := trimPrefix $number $limit -}}
-{{- $units := dict "" 1 "m" 0.001 "k" 1e3 "M" 1e6 "G" 1e9 "T" 1e12 "P" 1e15 "E" 1e18 "Ki" 1024 "Mi" 1048576 "Gi" 1073741824 "Ti" 1099511627776 "Pi" 1125899906842624 "Ei" 1152921504606846976 -}}
+{{- $units := dict "" 1 "n" 1e-9 "u" 1e-6 "m" 0.001 "k" 1e3 "M" 1e6 "G" 1e9 "T" 1e12 "P" 1e15 "E" 1e18 "Ki" 1024 "Mi" 1048576 "Gi" 1073741824 "Ti" 1099511627776 "Pi" 1125899906842624 "Ei" 1152921504606846976 -}}
 {{- $multiplier := 0.0 -}}
 {{- if and $number (hasKey $units $suffix) -}}
 {{- $multiplier = float64 (get $units $suffix) -}}
-{{- else if and $number (regexMatch "^[eE][+-]?[0-9]{1,2}$" $suffix) -}}
+{{- else if and $number (regexMatch "^[eE][+-]?0*[0-9]{1,2}$" $suffix) -}}
+{{- /* Leading zeros are valid; at most two significant digits keep atoi in range. */ -}}
 {{- $exponent := atoi (trimPrefix "+" (substr 1 (len $suffix) $suffix)) -}}
 {{- if and (ge $exponent -18) (le $exponent 18) -}}
 {{- $multiplier = 1.0 -}}

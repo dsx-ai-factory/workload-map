@@ -26,10 +26,11 @@ exporter:
       cpu: "2"
       memory: 4Gi
   # Soft memory limit of the Go runtime (GOMEMLIMIT). The GC runs more often as the
-  # heap nears it, instead of letting the heap reach twice its live size and the
-  # kernel OOM-kill the container. auto: 90% of resources.limits.memory, any
-  # Kubernetes quantity; no limit or a zero limit leaves it unset. A Go value such
-  # as 3600MiB sets it directly. Empty leaves it unset.
+  # heap nears it, instead of letting the heap reach twice its live size. This
+  # lowers the risk of an OOM kill; it does not remove it. auto: 90% of
+  # resources.limits.memory, any Kubernetes quantity; no limit or a zero limit
+  # leaves it unset. A Go value such as 3600MiB sets it directly. Empty leaves it
+  # unset.
   goMemLimit: auto
   # Go pprof profiles on 127.0.0.1:<port> inside the Pod, for kubectl port-forward
   # only; no Service exposes them. Off by default.

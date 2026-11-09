@@ -266,7 +266,7 @@ func TestRootLifetimeNamespaceExclusionAndReentry(t *testing.T) {
 }
 
 func TestGenericRootSelectorExclusionAndReentry(t *testing.T) {
-	r := newRootLifetimeRuntime(t, Config{ObjectSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"observe": "yes"}}})
+	r := newRootLifetimeRuntime(t, Config{ObjectSelectors: []ObjectSelector{{Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"observe": "yes"}}}}})
 	w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "", true)
 	root := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "root", "root")
 	for i, selected := range []bool{true, false, true} {

@@ -88,7 +88,6 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 		ResourceRules:          cfg.ResourceRules,
 		ExcludeResourceRules:   cfg.ExcludeResourceRules,
 		NamespaceSelector:      cfg.NamespaceSelector,
-		ObjectSelector:         cfg.ObjectSelector,
 		ObjectSelectors:        cfg.ObjectSelectors,
 		PodSelector:            cfg.PodSelector,
 		WorkloadMetricSelector: cfg.WorkloadMetricSelector,

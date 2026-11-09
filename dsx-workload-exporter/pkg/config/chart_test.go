@@ -24,8 +24,8 @@ import (
 )
 
 var _ = Describe("chart label configuration", func() {
-	It("loads the documented SkyPilot Helm example", func() {
-		values, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "dsx-workload-exporter", "examples", "skypilot-values.yaml"))
+	It("loads the documented Pod association Helm example", func() {
+		values, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "dsx-workload-exporter", "examples", "pod-association-values.yaml"))
 		Expect(err).To(Succeed())
 		for _, raw := range chartDocuments(GinkgoT(), renderExporterChart(GinkgoT(), string(values))) {
 			var doc struct {
@@ -38,9 +38,8 @@ var _ = Describe("chart label configuration", func() {
 			}
 			cfg, err := loadConfig(doc.Data["config.yaml"], nil)
 			Expect(err).To(Succeed())
-			Expect(cfg.KartaDefinitionSource.EnableExperimental).To(BeTrue())
 			Expect(cfg.PodWorkloadAssociation).NotTo(BeNil())
-			Expect(cfg.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("kueue.x-k8s.io/pod-group-name"))
+			Expect(cfg.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("platform.example.com/workload-name"))
 			Expect(cfg.Rules).To(HaveLen(1))
 			_, err = labelevaluator.NewCompiler().Compile(labelevaluator.Config{Expression: cfg.Rules[0].Expression, Limits: cfg.Limits})
 			Expect(err).To(Succeed())
@@ -81,7 +80,7 @@ var _ = Describe("chart label configuration", func() {
 			Expect(err).To(Succeed())
 			args := []string{"template", "labels", chart,
 				"--set", "exporter.enabled=true",
-				"--set-json", `exporter.objectSelectors=[{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"platform":"sky"}}}]`,
+				"--set-json", `exporter.objectSelectors=[{"selector":{"matchLabels":{"environment":"production"}}},{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"app.kubernetes.io/managed-by":"example-platform"}}}]`,
 				"--set-json", "exporter.labelRules=" + string(raw),
 				"--set-json", `exporter.workloadMetricSelector={"matchExpressions":[{"key":"example.org/group","operator":"DoesNotExist"}]}`,
 				"--set-json", `exporter.podWorkloadAssociation={"target":{"apiVersion":"scheduling.example.org/v1","kind":"Workload","nameFromLabel":"example.org/group"}}`,
@@ -107,7 +106,7 @@ var _ = Describe("chart label configuration", func() {
 				cfg, err := loadConfig(doc.Data["config.yaml"], nil)
 				Expect(err).To(Succeed())
 				Expect(cfg.Rules).To(Equal(rules))
-				Expect(cfg.ObjectSelectors).To(Equal([]controller.ObjectSelector{{APIVersion: "scheduling.example.org/v1", Kind: "Workload", Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"platform": "sky"}}}}))
+				Expect(cfg.ObjectSelectors).To(Equal([]controller.ObjectSelector{{Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"environment": "production"}}}, {APIVersion: "scheduling.example.org/v1", Kind: "Workload", Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app.kubernetes.io/managed-by": "example-platform"}}}}))
 				Expect(cfg.Limits).To(Equal(tc.limits))
 				Expect(cfg.WorkloadMetricSelector).To(Equal(&metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "example.org/group", Operator: metav1.LabelSelectorOpDoesNotExist}}}))
 				Expect(cfg.PodWorkloadAssociation).To(Equal(&controller.PodWorkloadAssociation{Target: controller.AssociationTarget{APIVersion: "scheduling.example.org/v1", Kind: "Workload", NameFromLabel: "example.org/group"}}))
@@ -162,7 +161,7 @@ var _ = Describe("chart definition source configuration", func() {
 		chart := filepath.Join("..", "..", "..", "charts", "karta")
 		out, err := exec.Command(helm, "template", "sources", chart,
 			"--set", "exporter.enabled=true",
-			"--set-json", `exporter.objectSelectors=[{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"platform":"sky"}}}]`,
+			"--set-json", `exporter.objectSelectors=[{"selector":{"matchLabels":{"environment":"production"}}},{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"app.kubernetes.io/managed-by":"example-platform"}}}]`,
 			"--set", "exporter.kartaDefinitionSource.cluster.enabled=null",
 		).CombinedOutput()
 		Expect(err).To(HaveOccurred())

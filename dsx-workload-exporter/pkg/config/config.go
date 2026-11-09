@@ -44,7 +44,6 @@ type Config struct {
 	ExcludeResourceRules   []controller.ResourceRule          `yaml:"excludeResourceRules" json:"excludeResourceRules"`
 	NamespaceSelector      *metav1.LabelSelector              `yaml:"namespaceSelector" json:"namespaceSelector"`
 	ObjectSelectors        []controller.ObjectSelector        `yaml:"objectSelectors" json:"objectSelectors"`
-	ObjectSelector         *metav1.LabelSelector              `yaml:"objectSelector" json:"objectSelector"`
 	PodSelector            *metav1.LabelSelector              `yaml:"podSelector" json:"podSelector"`
 	WorkloadMetricSelector *metav1.LabelSelector              `yaml:"workloadMetricSelector" json:"workloadMetricSelector"`
 	PodWorkloadAssociation *controller.PodWorkloadAssociation `yaml:"podWorkloadAssociation" json:"podWorkloadAssociation"`
@@ -275,7 +274,7 @@ func (cfg Config) Validate() error {
 	if err := labelresolver.ValidateConfig(cfg.Config); err != nil {
 		return err
 	}
-	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.ObjectSelector, cfg.PodSelector, cfg.WorkloadMetricSelector} {
+	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.PodSelector, cfg.WorkloadMetricSelector} {
 		if selector != nil {
 			if _, err := metav1.LabelSelectorAsSelector(selector); err != nil {
 				return err

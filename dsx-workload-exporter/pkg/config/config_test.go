@@ -18,6 +18,11 @@ import (
 )
 
 var _ = Describe("config defaults and rules", func() {
+	It("rejects the removed singular object selector key", func() {
+		_, err := loadConfig("objectSelector: {matchLabels: {team: platform}}", nil)
+		Expect(err).To(MatchError(ContainSubstring(`unknown field "objectSelector"`)))
+	})
+
 	It("loads independent workload metric selection and an optional Pod association", func() {
 		defaults, err := loadConfig("", nil)
 		Expect(err).To(Succeed())

@@ -155,7 +155,9 @@ func TestPodWorkloadAssociationRequiresSelectedTargetAndBarePod(t *testing.T) {
 			case "excluded resource":
 				r.state.config.ExcludeResourceRules = []ResourceRule{{APIGroups: []string{associationTestGVK.Group}, APIVersions: []string{"v1"}, Resources: []string{"workloads"}}}
 			case "target selector":
-				r.state.objectSelector, _ = selector(&metav1.LabelSelector{MatchLabels: map[string]string{"example.org/group": "group"}})
+				var err error
+				r.state.objectSelectors, err = compileObjectSelectors([]ObjectSelector{{Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"example.org/group": "group"}}}})
+				require.NoError(t, err)
 			case "Pod selector":
 				r.state.associationSelector, _ = selector(&metav1.LabelSelector{MatchLabels: map[string]string{"example.org/managed": "true"}})
 			case "wrong namespace":

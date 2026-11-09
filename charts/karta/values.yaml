@@ -60,9 +60,8 @@ exporter:
           - kube-system
           - kube-public
           - kube-node-lease
-  # Select which objects the publication controller observes.
-  objectSelector: {}
-  # Additional label filters for exact apiVersion/kind pairs.
+  # Label filters for workload roots. Omit apiVersion and kind for a global filter.
+  # All applicable filters must match. An empty list allows every root.
   objectSelectors: []
   podSelector: {}
   # Select roots that publish workload status and creation time. Pod info remains.

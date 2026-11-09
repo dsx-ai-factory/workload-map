@@ -52,7 +52,6 @@ type controllerState struct {
 	definitionInventoryErr error
 	definitionVersion      uint64
 	namespaceSelector      labels.Selector
-	objectSelector         labels.Selector
 	objectSelectors        map[schema.GroupVersionKind]labels.Selector
 	podSelector            labels.Selector
 	workloadMetricSelector labels.Selector

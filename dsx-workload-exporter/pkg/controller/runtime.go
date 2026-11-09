@@ -36,15 +36,15 @@ type Dependencies struct {
 	Publications store.Writer
 }
 type Config struct {
-	IgnoredOwnerKinds                              []schema.GroupVersionKind
-	ResourceRules, ExcludeResourceRules            []ResourceRule
-	NamespaceSelector, ObjectSelector, PodSelector *metav1.LabelSelector
-	WorkloadMetricSelector                         *metav1.LabelSelector
-	ObjectSelectors                                []ObjectSelector
-	PodWorkloadAssociation                         *PodWorkloadAssociation
-	ClusterDefinitions                             bool
-	RequiredKinds                                  []schema.GroupVersionKind
-	Workers, LeafWorkers, RootWorkers              int
+	IgnoredOwnerKinds                   []schema.GroupVersionKind
+	ResourceRules, ExcludeResourceRules []ResourceRule
+	NamespaceSelector, PodSelector      *metav1.LabelSelector
+	WorkloadMetricSelector              *metav1.LabelSelector
+	ObjectSelectors                     []ObjectSelector
+	PodWorkloadAssociation              *PodWorkloadAssociation
+	ClusterDefinitions                  bool
+	RequiredKinds                       []schema.GroupVersionKind
+	Workers, LeafWorkers, RootWorkers   int
 }
 type ResourceRule struct {
 	APIGroups   []string `json:"apiGroups"`
@@ -131,10 +131,6 @@ func New(config Config, deps Dependencies, reader *Reader) (*Runtime, error) {
 	}
 	var err error
 	r.namespaceSelector, err = selector(config.NamespaceSelector)
-	if err != nil {
-		return nil, err
-	}
-	r.objectSelector, err = selector(config.ObjectSelector)
 	if err != nil {
 		return nil, err
 	}

@@ -32,9 +32,9 @@ reads it at startup.
 | `serviceMonitor.additionalLabels` | `{}` | Labels used by Prometheus to select the ServiceMonitor. |
 | `serviceMonitor.interval`, `serviceMonitor.scrapeTimeout` | `""` | Empty inherits Prometheus settings. Use duration strings such as `30s` and `10s`. |
 | `namespaceSelector` | Exclude `kube-system`, `kube-public`, `kube-node-lease` | Namespace label selection. Set `matchExpressions: []` to remove these exclusions. |
-| `objectSelector`, `podSelector` | `{}` | Root and Pod output selection. |
+| `podSelector` | `{}` | Pod attribution output selection. |
 | `workloadMetricSelector` | `{}` | Select roots that publish workload status and creation time. Pod info remains. |
-| `objectSelectors` | `[]` | Additional root label filters keyed by exact API version and kind. |
+| `objectSelectors` | `[]` | Root label filters for all kinds or an exact API version and kind. All applicable filters must pass. |
 | `podWorkloadAssociation` | `null` | Optional Pod-to-workload metric identity, described below. |
 | `resourceRules` | `[]` | Allowed root API types; empty means unrestricted. |
 | `excludeResourceRules` | Core ConfigMaps and Secrets, all versions | Excluded root types. Set `[]` to remove these exclusions. |
@@ -103,7 +103,7 @@ The Helm namespace and ConfigMap/Secret exclusions are chart defaults.
 
 ## Selection
 
-`namespaceSelector` selects namespace labels. `objectSelector` selects the
+`namespaceSelector` selects namespace labels. `objectSelectors` filters the
 resolved root's labels. `podSelector` selects Pod attribution rows, not watches.
 A Pod row requires both root and Pod selection. Workload status still describes
 the full workload. Excluding a root does not promote its children to roots.
@@ -127,107 +127,109 @@ all three fields must match within an entry. Each field needs a nonempty list.
 `"*"` is a wildcard and `""` is the core API group. Exclusions win. Selectors,
 malformed rules and unknown catalog names are validated before observation.
 
-### Workload metrics and Pod association
+### Root label filters
 
-Use these settings together when SkyPilot creates bare Pods and Kueue creates
-one Workload for their group. A three-node job should have one workload status
-and three Pod attribution rows, all with the Kueue Workload UID.
-
-| Setting | What it selects | Default |
-| --- | --- | --- |
-| `objectSelectors` | Root labels for an exact API version and kind, in addition to `objectSelector`. | No extra filters. |
-| `workloadMetricSelector` | Roots that emit status and creation time. It does not remove Pod info. | All roots. |
-| `podWorkloadAssociation` | Bare Pods whose metric identity can come from a verified target. | Disabled. |
-
-This example includes only SkyPilot Kueue Workloads. Deployments, Jobs and other
-kinds still use the global selection rules:
+Use one `objectSelectors` list for global and kind-specific filters. An entry
+without `apiVersion` and `kind` applies to every root. Set both fields to limit
+an entry to one exact API version and kind:
 
 ```yaml
 exporter:
   objectSelectors:
-    - apiVersion: kueue.x-k8s.io/v1beta2
+    - selector:
+        matchLabels:
+          environment: production
+    - apiVersion: scheduling.example.org/v1
       kind: Workload
       selector:
-        matchExpressions:
-          - key: skypilot-cluster-name
-            operator: Exists
+        matchLabels:
+          app.kubernetes.io/managed-by: example-platform
 ```
 
-The API version is exact. Duplicate entries for the same version and kind are
-rejected. Filters apply to roots and association targets, not intermediate
-owners. Label changes re-evaluate selection. These filters do not change RBAC
-or remove objects from the watch cache.
+A Deployment must have `environment=production`. A Workload of the specified
+kind must also have `app.kubernetes.io/managed-by=example-platform`. Every
+applicable filter must pass. An empty list adds no filtering.
 
-For a Pod labelled `kueue.x-k8s.io/pod-group-name=train-a`, this configuration
-looks for Workload `train-a` in the Pod's own namespace:
+Both type fields must be set or both omitted. Duplicate entries for the same
+version and kind, including a second global entry, are rejected. Filters apply
+to roots and association targets, not intermediate owners. Label changes
+re-evaluate selection. These filters do not change RBAC or remove objects from
+the watch cache.
+
+### Workload metrics and Pod association
+
+Some platforms create bare Pods and a separate workload object that refers back
+to them. For example, Pod `worker-0` has UID `pod-123` and label
+`platform.example.com/workload-name=train-a`. Workload `train-a` is in the same
+namespace and has an owner reference naming Pod `worker-0` with UID `pod-123`.
+Neither object has a controller owner. The Pod also has
+`app.kubernetes.io/managed-by=example-platform`.
+
+This configuration associates the Pod metric with that Workload:
 
 ```yaml
 exporter:
-  kartaDefinitionSource:
-    enableExperimental: true
-  workloadMetricSelector:
-    matchExpressions:
-      - key: kueue.x-k8s.io/pod-group-name
-        operator: DoesNotExist
   podWorkloadAssociation:
     podSelector:
+      matchLabels:
+        app.kubernetes.io/managed-by: example-platform
       matchExpressions:
-        - key: kueue.x-k8s.io/pod-group-name
-          operator: Exists
-        - key: skypilot-cluster-name
+        - key: platform.example.com/workload-name
           operator: Exists
     target:
-      apiVersion: kueue.x-k8s.io/v1beta2
+      apiVersion: scheduling.example.org/v1
       kind: Workload
-      nameFromLabel: kueue.x-k8s.io/pod-group-name
+      nameFromLabel: platform.example.com/workload-name
+  workloadMetricSelector:
+    matchExpressions:
+      - key: platform.example.com/workload-name
+        operator: DoesNotExist
 ```
 
-The target must have a selected Karta definition and pass resource and object
-selection. Its owner references must contain the Pod's name and current UID.
-Both objects must have no controller owner. A Job-owned Pod keeps its normal
-Job root. The exporter uses the existing full-object watch cache, makes no
-per-Pod GET and changes no owner references.
+Association is disabled by default. The target type must already exist and have
+a selected Karta definition. It must pass resource and object selection. The
+exporter checks its owner references against the Pod's name and current UID.
+A Job-owned Pod keeps its normal Job root. The exporter uses the existing
+full-object watch cache, makes no per-Pod GET and changes no owner references.
 
-The Pod row keeps its real Pod UID and component. Its workload identity and
-`sources: [workload]` expressions use the target Workload. `sources: [pod]`
-expressions still receive the Pod. Pod and target updates re-check the association.
+The resulting Pod row uses the Workload's UID as `workload_uid` and keeps
+`pod_uid="pod-123"`. Its workload identity and `sources: [workload]` expressions
+use the target Workload. `sources: [pod]` expressions still receive the Pod.
+Component inference uses the physical ownership tree. Pod and target updates
+re-check the association.
 
-`workloadMetricSelector` suppresses status and creation-time rows for the bare
-Pods in this example. The Kueue Workload still publishes its own rows. Filtering
-and association are independent: a missing or invalid target leaves Pod info
-under the original Pod UID with `observation_valid="false"` and a health row
-with reason `unresolved_owner`. Restoring a valid target clears the failure.
+`workloadMetricSelector` selects roots that publish status and creation time.
+It defaults to all roots and does not remove Pod info. In this example, only
+the bare Pods carry the workload-name label, so their extra workload rows are
+suppressed. The target Workload still publishes its own rows.
 
-A failed target watch immediately invalidates existing associations. The last
-known target UID may remain until the next Pod reconciliation falls back to the
-Pod UID. Watch recovery requeues the affected Pods.
+Filtering and association are independent. A missing or invalid target leaves
+Pod info under the original Pod UID with `observation_valid="false"` and a
+health row with reason `unresolved_owner`. Restoring a valid target clears the
+failure. A failed target watch immediately invalidates existing associations.
+The last known target UID may remain until the next Pod reconciliation falls
+back to the Pod UID. Watch recovery requeues affected Pods.
 
-The [complete SkyPilot values file](examples/skypilot-values.yaml) combines these
-settings with the [head/worker label rule](#configured-labels) and enables the
-exporter. It assumes SkyPilot and Kueue already run in `sky-kueue-lab`. Change the
-namespace to yours. Kueue's catalog definition is experimental, so the example
-explicitly enables experimental definitions.
+The [complete values example](examples/pod-association-values.yaml) combines
+these settings with a [component label rule](#configured-labels). Replace the
+example API type, labels and namespace with those used by your platform. Both
+Pods and targets must pass the global `environment=production` filter. The
+example assumes the workload CRD, its controller and its Karta definition are
+already installed; the exporter chart does not install them.
 
-From a checkout containing this change, deploy the chart with an exporter image
-built from the same checkout:
+From this checkout, use an exporter image built from the same checkout:
 
 ```sh
-helm upgrade --install skypilot-exporter ./charts/karta \
+helm upgrade --install workload-exporter ./charts/karta \
   --namespace monitoring --create-namespace \
-  -f docs/dsx-workload-exporter/examples/skypilot-values.yaml \
+  -f docs/dsx-workload-exporter/examples/pod-association-values.yaml \
   --set exporter.image.repository=ghcr.io/example/dsx-workload-exporter \
   --set-string exporter.image.tag=YOUR_TAG
 ```
 
-Replace the image placeholders. For an existing release, use its release name,
-namespace and values, then add these exporter settings. The example disables
-the operator; keep your existing `operator.enabled` value when upgrading a
-shared release. See [installation](installation.md) for image and scrape setup.
-The chart does not install SkyPilot, Kueue, Prometheus or Grafana.
-
-The live three-node example shows [one workload](../design/metrics-exporter/skypilot-workload.png)
-and its [head/worker structure](../design/metrics-exporter/skypilot-structure.png).
-The Pod identities are real; GPU utilization and VRAM in this demo are simulated.
+Replace the image placeholders. For an existing release, keep its release name,
+namespace, values and operator setting. The example disables the operator.
+See [installation](installation.md) for image and scrape setup.
 
 ### Definition sources and owner boundaries
 
@@ -320,12 +322,23 @@ a fallback succeeds. Runtime can retain the entire previous Pod or status result
 as invalid after a label error; successful labels are not independently published.
 With no prior value, the affected output can be absent.
 
-For `dsx_workload_pod_info`, nonempty label rules can override `component`,
-`component_instance` and `replica_group_id`. Empty results keep the inferred
-value. Other built-in labels, including workload and Pod UIDs, remain protected.
-For SkyPilot, this rule reads the Pod's labels and groups its metrics into
-`head` and `worker` components. Other Pods keep their inferred component.
-The workload UID is unchanged.
+Rules can add any valid custom label. A nonempty rule value also replaces an
+unprotected built-in label, such as `component`, `component_instance` or
+`replica_group_id`. Empty results keep the inferred value.
+
+The collector preserves these names when they are built-in labels of the metric:
+
+| Purpose | Protected labels |
+| --- | --- |
+| Identity and joins | `namespace`, `workload_name`, `workload_uid`, `workload_group`, `workload_version`, `workload_kind`, `pod_name`, `pod_uid` |
+| Evaluation result | `phase`, `owner_resolution`, `observation_valid`, `karta`, `karta_source` |
+| Collection health | `scope`, `resource_group`, `resource_version`, `resource_kind`, `reason` |
+
+Protection applies to built-in collisions. For example, `phase` cannot replace
+the status metric's phase, but it can be a custom label on Pod info.
+This rule reads the Pod's `platform.example.com/role` label. A value of
+`worker` produces `component="worker"`. Pods without that label keep their
+inferred component.
 
 ```yaml
 exporter:
@@ -335,12 +348,8 @@ exporter:
       sources: [pod]
       expression: |
         has(object.metadata.labels) &&
-        "skypilot-cluster-name" in object.metadata.labels &&
-        "skypilot-head-node" in object.metadata.labels
-          ? (object.metadata.labels["skypilot-head-node"] == "1"
-              ? "head"
-              : (object.metadata.labels["skypilot-head-node"] == "0" ? "worker" : ""))
-          : ""
+        "platform.example.com/role" in object.metadata.labels
+          ? object.metadata.labels["platform.example.com/role"] : ""
 ```
 
 Names starting with `__` are rejected. Syntax, statically known result-type and expression-size errors reject

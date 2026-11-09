@@ -15,8 +15,9 @@ mutate either object during evaluation.
 
 ## Behavior
 
-- The collector preserves built-in identity labels. Pod info accepts three
-  nonempty component overrides, described in [Configured labels](../../../docs/dsx-workload-exporter/configuration.md#configured-labels).
+- The collector preserves protected built-in labels and accepts nonempty
+  overrides for the others. See [Configured labels](../../../docs/dsx-workload-exporter/configuration.md#configured-labels)
+  for the protected names and examples.
   `ResolvedMetricLabels.Apply` is a separate helper that copies resolved labels
   over its input. Runtime does not call it.
 - A label name that starts with `__` is not permitted.

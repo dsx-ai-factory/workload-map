@@ -156,12 +156,24 @@ func TestClusterRootKeepsPodNamespacesDistinct(t *testing.T) {
 func TestBuiltInIdentityOverridesCustomLabels(t *testing.T) {
 	g := NewWithT(t)
 	s, workload, pod, scrape := collectorFixture(t)
-	workload.Record.StatusLabels = map[string]string{"namespace": "wrong", "team": "status"}
-	pod.Record.Labels = map[string]string{"namespace": "wrong", "team": "pod"}
+	identity := []string{LabelNamespace, LabelWorkload, LabelWorkloadUID, LabelWorkloadGroup,
+		LabelWorkloadVersion, LabelWorkloadKind, LabelOwnerResolution, LabelObservationValid}
+	workload.Record.StatusLabels = map[string]string{"team": "status"}
+	pod.Record.Labels = map[string]string{"team": "pod", "phase": "custom-pod-phase"}
+	for _, name := range identity {
+		workload.Record.StatusLabels[name] = "wrong"
+		pod.Record.Labels[name] = "wrong"
+	}
+	for _, name := range []string{LabelPhase, LabelKarta, LabelKartaSource} {
+		workload.Record.StatusLabels[name] = "wrong"
+	}
+	pod.Record.Labels[LabelPod] = "wrong"
+	pod.Record.Labels[LabelPodUID] = "wrong"
 	s.UpsertWorkload(workload)
 	s.UpsertPod(pod)
 	output := scrape()
-	g.Expect(output).NotTo(ContainSubstring(`namespace="wrong"`))
+	g.Expect(output).NotTo(ContainSubstring(`="wrong"`))
+	g.Expect(strings.Count(output, MetricWorkloadStatus+"{")).To(Equal(len(allPhases)))
 	for _, line := range strings.Split(output, "\n") {
 		switch {
 		case strings.HasPrefix(line, MetricWorkloadCreatedTimestamp+"{"), strings.HasPrefix(line, MetricExporterObservationValid+"{"):
@@ -170,6 +182,7 @@ func TestBuiltInIdentityOverridesCustomLabels(t *testing.T) {
 			g.Expect(line).To(ContainSubstring(`team="status"`))
 		case strings.HasPrefix(line, MetricPodWorkloadInfo+"{"):
 			g.Expect(line).To(ContainSubstring(`team="pod"`))
+			g.Expect(line).To(ContainSubstring(`phase="custom-pod-phase"`))
 		}
 	}
 }

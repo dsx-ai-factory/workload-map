@@ -14,21 +14,28 @@ import (
 )
 
 // ObjectSelector restricts root workloads of one exact API version and kind.
+// Omitting both applies the selector to every root workload.
 type ObjectSelector struct {
-	APIVersion string                `json:"apiVersion" yaml:"apiVersion"`
-	Kind       string                `json:"kind" yaml:"kind"`
+	APIVersion string                `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
+	Kind       string                `json:"kind,omitempty" yaml:"kind,omitempty"`
 	Selector   *metav1.LabelSelector `json:"selector" yaml:"selector"`
 }
 
 func compileObjectSelectors(rules []ObjectSelector) (map[schema.GroupVersionKind]labels.Selector, error) {
 	result := make(map[schema.GroupVersionKind]labels.Selector, len(rules))
 	for _, rule := range rules {
-		gv, err := schema.ParseGroupVersion(rule.APIVersion)
-		if err != nil || len(validation.IsDNS1035Label(gv.Version)) != 0 || len(validation.IsCIdentifier(rule.Kind)) != 0 || (gv.Group != "" && len(validation.IsDNS1123Subdomain(gv.Group)) != 0) {
-			return nil, fmt.Errorf("objectSelectors requires apiVersion and kind: %q %q", rule.APIVersion, rule.Kind)
+		var gvk schema.GroupVersionKind
+		if rule.APIVersion != "" || rule.Kind != "" {
+			gv, err := schema.ParseGroupVersion(rule.APIVersion)
+			if err != nil || len(validation.IsDNS1035Label(gv.Version)) != 0 || len(validation.IsCIdentifier(rule.Kind)) != 0 || (gv.Group != "" && len(validation.IsDNS1123Subdomain(gv.Group)) != 0) {
+				return nil, fmt.Errorf("objectSelectors requires both a valid apiVersion and kind, or neither: %q %q", rule.APIVersion, rule.Kind)
+			}
+			gvk = gv.WithKind(rule.Kind)
 		}
-		gvk := gv.WithKind(rule.Kind)
 		if _, exists := result[gvk]; exists {
+			if gvk.Empty() {
+				return nil, fmt.Errorf("duplicate global objectSelectors entry")
+			}
 			return nil, fmt.Errorf("duplicate objectSelectors kind: %s", gvk)
 		}
 		selected, err := selector(rule.Selector)
@@ -47,7 +54,7 @@ func ValidateObjectSelectors(rules []ObjectSelector) error {
 
 func (r *controllerState) matchesObjectSelectors(object *unstructured.Unstructured) bool {
 	objectLabels := labelsFor(object)
-	if !r.objectSelector.Matches(objectLabels) {
+	if global, configured := r.objectSelectors[schema.GroupVersionKind{}]; configured && !global.Matches(objectLabels) {
 		return false
 	}
 	selected, configured := r.objectSelectors[object.GroupVersionKind()]

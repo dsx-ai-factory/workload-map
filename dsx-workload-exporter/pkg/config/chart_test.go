@@ -223,6 +223,29 @@ var _ = Describe("chart exporter ServiceMonitor", func() {
 	}
 })
 
+var _ = Describe("chart exporter pprof", func() {
+	for _, tc := range []struct {
+		name string
+		args []string
+		flag string
+	}{
+		{name: "disabled by default"},
+		{name: "enabled on the default port", args: []string{"--set", "exporter.pprof.enabled=true"}, flag: "--pprof-bind-address=127.0.0.1:6060"},
+		{name: "enabled on a custom port", args: []string{"--set", "exporter.pprof.enabled=true", "--set", "exporter.pprof.port=7070"}, flag: "--pprof-bind-address=127.0.0.1:7070"},
+		{name: "null", args: []string{"--set-json", "exporter.pprof=null"}},
+	} {
+		It(tc.name, func() {
+			out := string(renderExporterChart(GinkgoT(), "", tc.args...))
+			if tc.flag == "" {
+				Expect(out).NotTo(ContainSubstring("--pprof-bind-address"))
+				return
+			}
+			// Only on localhost: no Service exposes the profiles.
+			Expect(out).To(ContainSubstring(tc.flag))
+		})
+	}
+})
+
 var _ = Describe("chart exporter resources", func() {
 	for _, tc := range []struct {
 		name  string

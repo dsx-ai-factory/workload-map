@@ -46,9 +46,10 @@ func ValidateObjectSelectors(rules []ObjectSelector) error {
 }
 
 func (r *controllerState) matchesObjectSelectors(object *unstructured.Unstructured) bool {
-	if !r.objectSelector.Matches(labelsFor(object)) {
+	objectLabels := labelsFor(object)
+	if !r.objectSelector.Matches(objectLabels) {
 		return false
 	}
 	selected, configured := r.objectSelectors[object.GroupVersionKind()]
-	return !configured || selected.Matches(labelsFor(object))
+	return !configured || selected.Matches(objectLabels)
 }

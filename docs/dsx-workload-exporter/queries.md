@@ -248,7 +248,7 @@ max by (UUID) (DCGM_FI_DEV_GPU_UTIL)
 # dsx:shared_gpu_util:by_consumer
 dsx:shared_gpu_util:device
 * on (gpu_group, node) group_right (UUID)
-  dsx:pod_attribution:unique{observation_valid="true",gpu_group!="",gpu_uuid=""}
+  dsx:pod_attribution:unique{observation_valid="true",namespace!="kai-resource-reservation",gpu_group!="",gpu_uuid=""}
 
 # dsx:shared_gpu_util:equal_share
 dsx:shared_gpu_util:by_consumer
@@ -256,9 +256,11 @@ dsx:shared_gpu_util:by_consumer
   dsx:shared_gpu_group:consumers
 ```
 
-The rules file adds `pod_phase!~"Succeeded|Failed"` to the consumer selector
-above and to `dsx:shared_gpu_group:consumers`; the matcher is harmless when the
-`pod_phase` label is not configured.
+`namespace!="kai-resource-reservation"` keeps an unannotated reservation Pod
+from being counted as a consumer during a swap; replace it with the configured
+reservation namespace when it differs from the default. The rules file also adds
+`pod_phase!~"Succeeded|Failed"` to both consumer selectors; the matcher is
+harmless when the `pod_phase` label is not configured.
 
 `dsx:shared_gpu_device:group` holds one row per shared device, taken from the
 reservation rows whose annotation has the `GPU-` UUID form, and kept only while
@@ -333,6 +335,8 @@ dsx:shared_gpu_util:by_consumer`, and keep the status guards. The `and` keeps on
 consumers whose mapping is current, so a stale sample cannot outlive its mapping.
 That series repeats the device value for every consumer and carries the consumer's
 attribution labels. A low value means the whole device was quiet.
+This result covers shared Pods only. For a mixed workload, check dedicated GPU
+activity separately before making a workload-level idleness decision.
 Do not use `dsx:shared_gpu_util:equal_share` for idleness; the split understates
 activity. Filtering Pods also limits how much of the workload the query observes.
 

@@ -64,12 +64,15 @@ groups:
           unless on (UUID, gpu_group, node)
             dsx:shared_gpu_device:group
 
-      # Consumers observed in each sharing group right now. This selector and the fan-out
-      # selector below must stay identical, or device time leaks from the shares.
+      # Consumers observed in each sharing group right now. Exclude the reservation
+      # namespace (kai-resource-reservation by default; replace when configured
+      # differently) so an unannotated reservation Pod during a swap is not counted as a
+      # consumer. This selector and the fan-out selector below must stay identical, or
+      # device time leaks from the shares.
       - record: dsx:shared_gpu_group:consumers
         expr: |
           count by (gpu_group, node) (
-            dsx:pod_attribution:unique{observation_valid="true",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
+            dsx:pod_attribution:unique{observation_valid="true",namespace!="kai-resource-reservation",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
           )
 
       # Utilization of each mapped shared device. One series per device, with its
@@ -87,7 +90,7 @@ groups:
         expr: |
           dsx:shared_gpu_util:device
           * on (gpu_group, node) group_right (UUID)
-            dsx:pod_attribution:unique{observation_valid="true",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
+            dsx:pod_attribution:unique{observation_valid="true",namespace!="kai-resource-reservation",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
 
       # Equal split of the device value across the consumers present.
       - record: dsx:shared_gpu_util:equal_share

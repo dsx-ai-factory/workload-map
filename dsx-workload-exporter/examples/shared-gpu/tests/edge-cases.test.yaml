@@ -144,6 +144,30 @@ tests:
           - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-2",node="node-1"}'
             value: 40
 
+  - name: an unannotated Running reservation Pod during a swap is not counted as a consumer
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa",pod_phase="Running"}'
+        values: '1x12'
+      # Replacement reservation Pod started during a swap before its container wrote the annotation.
+      - series: 'dsx_workload_pod_info{namespace="kai-resource-reservation",pod_name="gpu-reservation-new",pod_uid="res-2",workload_name="gpu-reservation-new",workload_version="v1",workload_kind="Pod",workload_uid="res-2",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",pod_phase="Running"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1",pod_phase="Running"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_util:equal_share
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1",pod_phase="Running"}'
+            value: 40
+
   - name: a consumer with unknown component keeps its share and the device value is conserved
     interval: 1m
     input_series:

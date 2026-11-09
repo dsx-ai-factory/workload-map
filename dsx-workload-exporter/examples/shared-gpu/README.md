@@ -29,7 +29,7 @@ section 3a.
 | `dsx:shared_gpu_device:candidate` | Every valid reservation row whose `gpu_uuid` has the `GPU-` UUID form, keyed by `UUID`, `gpu_group` and `node`. Not a join key. |
 | `dsx:shared_gpu_device:group` | Candidates whose device and `(gpu_group, node)` pair map one to one. The join key. |
 | `dsx:shared_gpu_device:ambiguous` | Candidates excluded by the one-to-one guard. |
-| `dsx:shared_gpu_group:consumers` | Consumers observed per group and node, excluding Succeeded and Failed Pods when `pod_phase` is configured. |
+| `dsx:shared_gpu_group:consumers` | Consumers observed per group and node, excluding the reservation namespace and excluding Succeeded and Failed Pods when `pod_phase` is configured. |
 | `dsx:shared_gpu_util:device` | Device utilization for each mapped shared device, with its group and node. |
 | `dsx:shared_gpu_util:by_consumer` | The device value repeated on every consumer. Do not sum across consumers. |
 | `dsx:shared_gpu_util:equal_share` | The device value split evenly across the consumers present. |

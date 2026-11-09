@@ -53,7 +53,7 @@ groups:
       - record: dsx:shared_gpu_group:consumers
         expr: |
           count by (cluster, gpu_group, node) (
-            dsx:pod_attribution:unique{observation_valid="true",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
+            dsx:pod_attribution:unique{observation_valid="true",namespace!="kai-resource-reservation",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
           )
 
       - record: dsx:shared_gpu_util:device
@@ -66,7 +66,7 @@ groups:
         expr: |
           dsx:shared_gpu_util:device
           * on (cluster, gpu_group, node) group_right (UUID)
-            dsx:pod_attribution:unique{observation_valid="true",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
+            dsx:pod_attribution:unique{observation_valid="true",namespace!="kai-resource-reservation",gpu_group!="",gpu_uuid="",pod_phase!~"Succeeded|Failed"}
 
       - record: dsx:shared_gpu_util:equal_share
         expr: |

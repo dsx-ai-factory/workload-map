@@ -322,9 +322,22 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 		defer r.wg.Done()
 		defer close(events)
 		defer stream.Stop()
-		received := first != nil
-		if received && !r.forwardWatchEvent(ctx, w, *first, events, monitored.StopChan()) {
-			return
+		received := false
+		// A streaming list ends its snapshot with the initial-events-end bookmark, and
+		// the reflector times its short-watch check from there. Snapshot events are not
+		// live activity, so the clock restarts at that bookmark.
+		observe := func(event watch.Event) {
+			if isInitialEventsEnd(event) {
+				started, received = time.Now(), false
+				return
+			}
+			received = true
+		}
+		if first != nil {
+			if !r.forwardWatchEvent(ctx, w, *first, events, monitored.StopChan()) {
+				return
+			}
+			observe(*first)
 		}
 		for {
 			select {
@@ -343,10 +356,10 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 					}
 					return
 				}
-				received = true
 				if !r.forwardWatchEvent(ctx, w, event, events, monitored.StopChan()) {
 					return
 				}
+				observe(event)
 			}
 		}
 	}()
@@ -367,6 +380,15 @@ func peekWatchStart(stream watch.Interface) (*watch.Event, error) {
 	default:
 		return nil, nil
 	}
+}
+
+// isInitialEventsEnd reports the bookmark that ends the initial events of a streaming list.
+func isInitialEventsEnd(event watch.Event) bool {
+	if event.Type != watch.Bookmark {
+		return false
+	}
+	object, err := meta.Accessor(event.Object)
+	return err == nil && object.GetAnnotations()[metav1.InitialEventsAnnotationKey] == "true"
 }
 
 // forwardWatchEvent returns false when the stream must end. An error event is still

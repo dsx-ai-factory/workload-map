@@ -150,3 +150,43 @@ func TestVeryShortWatchMarksSourceUnhealthy(t *testing.T) {
 	require.ErrorIs(t, w.err, errShortWatch, "a watch that ends at once without events failed")
 	require.ErrorIs(t, r.state.sources[w.key].err, errShortWatch)
 }
+
+func TestWatchClosedRightAfterStreamingListIsUnhealthy(t *testing.T) {
+	for name, tc := range map[string]struct {
+		liveEvent bool
+		healthy   bool
+	}{
+		"closed after the initial-events-end bookmark": {},
+		"closed after a live event":                    {liveEvent: true, healthy: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := newRootLifetimeRuntime(t, Config{})
+			w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "ns", true)
+			fake := watch.NewFake()
+			fakeWatchSource(t, r, w.key.Resource, fake)
+			sendInitialEvents := true
+			stream, err := r.state.watchResource(t.Context(), w, metav1.ListOptions{SendInitialEvents: &sendInitialEvents, AllowWatchBookmarks: true})
+			require.NoError(t, err)
+
+			existing := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "existing", "existing")
+			bookmark := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "", "")
+			bookmark.SetAnnotations(map[string]string{metav1.InitialEventsAnnotationKey: "true"})
+			go func() {
+				// The streaming list: the snapshot, its end bookmark, then the live watch.
+				fake.Add(existing)
+				fake.Action(watch.Bookmark, bookmark)
+				if tc.liveEvent {
+					fake.Modify(existing)
+				}
+				fake.Stop()
+			}()
+			waitClosed(t, stream)
+			if tc.healthy {
+				require.NoError(t, w.err)
+				return
+			}
+			require.ErrorIs(t, w.err, errShortWatch, "snapshot events are not live watch activity")
+			require.ErrorIs(t, r.state.sources[w.key].err, errShortWatch)
+		})
+	}
+}

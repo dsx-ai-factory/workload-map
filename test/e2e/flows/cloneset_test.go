@@ -72,4 +72,20 @@ var _ = Describe("CloneSet", Ordered, Label("openkruise", "cloneset"), func() {
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
 		Expect(err).To(Succeed())
 	})
+
+	It("stuck", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "stuck", "testdata/cloneset/stuck.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).With(IntEq(0, "status", "readyReplicas")),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
+	It("degraded", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "degraded", "testdata/cloneset/degraded.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).With(IntEq(2, "status", "readyReplicas")),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
 })

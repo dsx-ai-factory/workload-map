@@ -539,18 +539,20 @@ func fragmentedRequest(spec resource.FragmentedPodSpec) Resources {
 }
 
 // podRequest mirrors the effective pod request Kubernetes schedules against:
-// max(largest init container, regular containers plus sidecars).
+// max(largest init container plus preceding sidecars, regular containers plus sidecars).
 func podRequest(spec corev1.PodSpec) Resources {
 	running := sumContainers(spec.Containers)
 
-	var largestInit Resources
+	var largestInit, sidecars Resources
 	for _, container := range spec.InitContainers {
 		request := requirementsOf(container.Resources)
 		// A sidecar never exits, so it accumulates rather than peaking.
 		if container.RestartPolicy != nil && *container.RestartPolicy == corev1.ContainerRestartPolicyAlways {
 			running.add(request)
+			sidecars.add(request)
 			continue
 		}
+		request.add(sidecars)
 		largestInit = Resources{
 			GPUs:        max(largestInit.GPUs, request.GPUs),
 			CPUMillis:   max(largestInit.CPUMillis, request.CPUMillis),

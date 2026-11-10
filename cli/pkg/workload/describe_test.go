@@ -465,6 +465,38 @@ spec:
 		Expect(view.Resources.MemoryBytes).To(Equal(int64(2 * 1024 * 1024 * 1024)))
 	})
 
+	DescribeTable("accounts for native sidecars in init-container order", func(sidecarFirst bool, expected int64) {
+		sidecar := corev1.Container{
+			Name:          "proxy",
+			RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
+			Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resourceQuantity("1"),
+				corev1.ResourceMemory: resourceQuantity("1Gi"),
+			}},
+		}
+		setup := corev1.Container{
+			Name: "setup",
+			Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resourceQuantity("4"),
+				corev1.ResourceMemory: resourceQuantity("4Gi"),
+			}},
+		}
+		spec := corev1.PodSpec{
+			Containers:     []corev1.Container{{Name: "app", Resources: sidecar.Resources}},
+			InitContainers: []corev1.Container{setup, sidecar},
+		}
+		if sidecarFirst {
+			spec.InitContainers = []corev1.Container{sidecar, setup}
+		}
+
+		request := podRequest(spec)
+		Expect(request.CPUMillis).To(Equal(expected * 1000))
+		Expect(request.MemoryBytes).To(Equal(expected * 1024 * 1024 * 1024))
+	},
+		Entry("includes a sidecar running before setup", true, int64(5)),
+		Entry("excludes a sidecar that starts after setup", false, int64(4)),
+	)
+
 	// Reading only the containers reports a pod smaller than the one placed.
 	It("prefers a pod-level request over the containers and adds the overhead", func() {
 		view := describeObject([]byte(`

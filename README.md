@@ -21,6 +21,8 @@
 [![Latest release](https://img.shields.io/github/v/release/dsx-ai-factory/workload-map)](https://github.com/dsx-ai-factory/workload-map/releases)
 [![License](https://img.shields.io/github/license/dsx-ai-factory/workload-map)](LICENSE)
 
+Names: Workload-Map is the project and the repository, formerly called Karta. `Karta` is still the name of the CRD kind and of its definitions, `kli` is the CLI, and the Go library is the module `github.com/dsx-ai-factory/workload-map/karta/sdk`.
+
 Karta lets you define a portable, declarative blueprint for any Kubernetes workload - whether it's a simple Deployment, a distributed PyTorchJob, or a custom CRD. Controllers and platforms can then use that blueprint to inspect, modify, and manage workloads without hard-coding knowledge of each type.
 
 ## The Problem
@@ -123,6 +125,25 @@ against `checksums.txt`, and put the `kli` executable on your `PATH`.
 
 Run `kli --version` to print the release version. `go install` is not a
 supported way to install the CLI.
+
+Then list the definitions the CLI ships with. This works without a cluster:
+
+```bash
+kli definitions
+```
+
+```text
+NAME                                         KIND                   ORIGIN   COMPONENTS
+apps-deployment-v1                           Deployment             catalog  deployment, replicaset
+apps-nvidia-com-nimcache-v1alpha1            NIMCache               catalog  nimcache
+apps-nvidia-com-nimservice-v1alpha1          NIMService             catalog  nimservice
+apps-statefulset-v1                          StatefulSet            catalog  statefulset
+batch-cronjob-v1                             CronJob                catalog  cronjob, job
+...
+```
+
+Only the first rows are shown. `kli get` and `kli describe` inspect live
+workloads and need a cluster.
 
 See the [CLI Guide](docs/CLI%20Guide.md) for shell completion and for installing
 from a clone with make.

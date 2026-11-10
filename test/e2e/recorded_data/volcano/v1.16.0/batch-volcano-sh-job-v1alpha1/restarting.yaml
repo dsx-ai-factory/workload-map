@@ -1,0 +1,256 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-10T22:42:39Z"
+      generation: 1
+      name: karta-e2e-vcjob-restarting
+      namespace: test-5bwq6
+      uid: 97e31ec9-10b9-488d-b931-3d66e20572e3
+    spec:
+      maxRetry: 3
+      minAvailable: 1
+      policies:
+      - action: RestartJob
+        event: PodFailed
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 1
+        name: worker
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - sleep 3; exit 1
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-10T22:42:39Z"
+        status: Pending
+      minAvailable: 1
+      state:
+        lastTransitionTime: "2026-11-10T22:42:39Z"
+        phase: Pending
+  phases:
+  - Initializing
+  resourceVersion: "78601"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-10T22:42:39Z"
+      generation: 1
+      name: karta-e2e-vcjob-restarting
+      namespace: test-5bwq6
+      uid: 97e31ec9-10b9-488d-b931-3d66e20572e3
+    spec:
+      maxRetry: 3
+      minAvailable: 1
+      policies:
+      - action: RestartJob
+        event: PodFailed
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 1
+        name: worker
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - sleep 3; exit 1
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-10T22:42:39Z"
+        status: Pending
+      minAvailable: 1
+      pending: 1
+      state:
+        lastTransitionTime: "2026-11-10T22:42:39Z"
+        phase: Pending
+      taskStatusCount:
+        worker:
+          phase:
+            Pending: 1
+  phases:
+  - Initializing
+  resourceVersion: "78611"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-10T22:42:39Z"
+      generation: 1
+      name: karta-e2e-vcjob-restarting
+      namespace: test-5bwq6
+      uid: 97e31ec9-10b9-488d-b931-3d66e20572e3
+    spec:
+      maxRetry: 3
+      minAvailable: 1
+      policies:
+      - action: RestartJob
+        event: PodFailed
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 1
+        name: worker
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - sleep 3; exit 1
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-10T22:42:39Z"
+        status: Pending
+      - lastTransitionTime: "2026-11-10T22:42:42Z"
+        status: Running
+      minAvailable: 1
+      running: 1
+      state:
+        lastTransitionTime: "2026-11-10T22:42:42Z"
+        phase: Running
+      taskStatusCount:
+        worker:
+          phase:
+            Running: 1
+  phases:
+  - Running
+  resourceVersion: "78631"
+  state: Running
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-10T22:42:39Z"
+      generation: 1
+      name: karta-e2e-vcjob-restarting
+      namespace: test-5bwq6
+      uid: 97e31ec9-10b9-488d-b931-3d66e20572e3
+    spec:
+      maxRetry: 3
+      minAvailable: 1
+      policies:
+      - action: RestartJob
+        event: PodFailed
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 1
+        name: worker
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - sleep 3; exit 1
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-10T22:42:39Z"
+        status: Pending
+      - lastTransitionTime: "2026-11-10T22:42:42Z"
+        status: Running
+      - lastTransitionTime: "2026-11-10T22:42:46Z"
+        status: Restarting
+      minAvailable: 1
+      retryCount: 1
+      runningDuration: 7.804890634s
+      state:
+        lastTransitionTime: "2026-11-10T22:42:46Z"
+        phase: Restarting
+      terminating: 1
+      version: 1
+  phases:
+  - Initializing
+  resourceVersion: "78649"
+  state: Initializing
+flow: restarting
+kartaFile: docs/catalog/batch-volcano-sh-job-v1alpha1.yaml
+kartaName: batch-volcano-sh-job-v1alpha1
+operator: volcano
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+- amount: 1
+  phases:
+  - Initializing
+version: v1.16.0
+want: Initializing

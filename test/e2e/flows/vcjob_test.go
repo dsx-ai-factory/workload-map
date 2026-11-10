@@ -62,7 +62,60 @@ var _ = Describe("VcJob", Ordered, Label("vcjob"), func() {
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
 		Expect(err).To(Succeed())
 	})
+
+	It("restarting", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "restarting", "testdata/vcjob/restarting.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).With(PhaseEq("Pending", "status", "state", "phase")),
+			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
+			// The job fails and enters Restarting with retries left, mapping to Initializing.
+			recorder.Reaches(kartav1alpha1.InitializingStatus).With(vcjobRestarting()),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
+	It("restarting-exhausted", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "restarting-exhausted", "testdata/vcjob/restarting-exhausted.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus),
+			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
+			// The job exhausts its single retry; Restarting with retryCount >= maxRetry maps to Failed.
+			recorder.Reaches(kartav1alpha1.FailedStatus),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
+	It("terminated", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "terminated", "testdata/vcjob/terminated.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus),
+			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
+			// PodFailed triggers TerminateJob; Terminating and Terminated both map to Failed.
+			recorder.Reaches(kartav1alpha1.FailedStatus).With(PhaseAny([]string{"Terminating", "Terminated"}, "status", "state", "phase")),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
+	It("aborted", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "aborted", "testdata/vcjob/aborted.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus),
+			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
+			// PodFailed triggers AbortJob; Aborting maps to Suspending.
+			recorder.Reaches(kartav1alpha1.SuspendingStatus),
+			// The controller always completes the abort; Aborted maps to Suspended.
+			recorder.Reaches(kartav1alpha1.SuspendedStatus).With(PhaseEq("Aborted", "status", "state", "phase")),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
 })
+
+func vcjobRestarting() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		phase, _, _ := unstructured.NestedString(u.Object, "status", "state", "phase")
+		return phase == "Restarting"
+	}
+}
 
 func vcjobInitializing() recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {

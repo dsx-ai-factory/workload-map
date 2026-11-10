@@ -35,10 +35,9 @@ import (
 // Degraded is not mapped. The controller writes no fault condition or error
 // reason to status; a consumer wanting pod faults reads them from pods.
 //
-// Unproven by recordings: Restarting (both retry-count branches),
-// Completing, Aborting, and Aborted. These mappings follow the Volcano
-// controller source but no e2e flow exercises them. Writes are unproven.
-// Advanced lifecycle policies beyond retry-count gating are excluded.
+// Unproven by recordings: Completing. The in-flight phase always ends at
+// Completed but no e2e flow captures a frame in Completing alone; the
+// completed flow reaches Completed directly. Writes are unproven.
 func VcJob() *v1alpha1.Karta {
 	return &v1alpha1.Karta{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "run.ai/v1alpha1", Kind: "Karta"},

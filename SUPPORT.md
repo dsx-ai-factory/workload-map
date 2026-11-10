@@ -16,7 +16,7 @@ Karta is pre-1.0. We maintain the three most recent released minor version lines
 | 0.1.x | `v0.1` | Supported |
 | Older | | Not supported |
 
-Bug reports and pull requests against unsupported versions are not accepted, except for critical security issues, which are handled privately through NVIDIA PSIRT (see [Security](SECURITY.md)).
+Bug reports and pull requests against unsupported versions are not accepted, except for security issues, which are handled privately through NVIDIA PSIRT (see [Security](SECURITY.md)).
 
 When a new minor version ships, this table is updated and the oldest line stops receiving fixes.
 

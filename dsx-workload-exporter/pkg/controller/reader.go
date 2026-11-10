@@ -146,7 +146,7 @@ func failureReason(err error) string {
 		return ""
 	case apierrors.IsForbidden(err), apierrors.IsUnauthorized(err), errors.Is(err, discovery.ErrPermissionDenied), errors.Is(err, inventory.ErrPermissionDenied):
 		return store.ReasonPermissionDenied
-	case errors.Is(err, discovery.ErrUnresolvedOwner), apierrors.IsNotFound(err):
+	case errors.Is(err, ErrInvalidPodAssociation), errors.Is(err, discovery.ErrUnresolvedOwner), apierrors.IsNotFound(err):
 		return store.ReasonUnresolvedOwner
 	case errors.Is(err, discovery.ErrInvalidDefinition), errors.Is(err, inventory.ErrInvalidDefinition):
 		return store.ReasonInvalidDefinition

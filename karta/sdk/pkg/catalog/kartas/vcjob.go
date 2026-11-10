@@ -22,7 +22,8 @@ import (
 // write observedGeneration or standard Kubernetes conditions. Mapped phases:
 //   - Pending to Initializing.
 //   - Restarting to Initializing when retries remain
-//     (retryCount < maxRetry), to Failed when exhausted.
+//     (retryCount < maxRetry; Volcano defaults maxRetry to 3),
+//     to Failed when exhausted.
 //   - Running to Running (minAvailable tasks are scheduled).
 //   - Completing to Completed (in-flight, always ends at Completed).
 //   - Completed to Completed.
@@ -55,7 +56,7 @@ func VcJob() *v1alpha1.Karta {
 							Initializing: []v1alpha1.StatusMatcher{
 								{ByPhase: "Pending"},
 								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     `.status.state.phase == "Restarting" and (.spec.maxRetry == null or (.status.retryCount // 0) < .spec.maxRetry)`,
+									Expression:     `.status.state.phase == "Restarting" and (.status.retryCount // 0) < (.spec.maxRetry // 3)`,
 									ExpectedResult: "true",
 								}},
 							},
@@ -72,7 +73,7 @@ func VcJob() *v1alpha1.Karta {
 								{ByPhase: "Terminated"},
 								{ByPhase: "Failed"},
 								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     `.status.state.phase == "Restarting" and .spec.maxRetry != null and (.status.retryCount // 0) >= .spec.maxRetry`,
+									Expression:     `.status.state.phase == "Restarting" and (.status.retryCount // 0) >= (.spec.maxRetry // 3)`,
 									ExpectedResult: "true",
 								}},
 							},

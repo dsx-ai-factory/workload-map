@@ -32,7 +32,7 @@ type provisionResult struct {
 }
 
 func TestInfrastructureInstallPlan(t *testing.T) {
-	all := "lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue vcjob"
+	all := "lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue volcano"
 	cases := []struct {
 		name      string
 		workloads []string

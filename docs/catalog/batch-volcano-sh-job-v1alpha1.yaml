@@ -19,7 +19,7 @@ spec:
           initializing:
             - byPhase: Pending
             - byExpression:
-                expression: .status.state.phase == "Restarting" and (.spec.maxRetry == null or (.status.retryCount // 0) < .spec.maxRetry)
+                expression: .status.state.phase == "Restarting" and (.status.retryCount // 0) < (.spec.maxRetry // 3)
                 expectedResult: "true"
           running:
             - byPhase: Running
@@ -31,7 +31,7 @@ spec:
             - byPhase: Terminated
             - byPhase: Failed
             - byExpression:
-                expression: .status.state.phase == "Restarting" and .spec.maxRetry != null and (.status.retryCount // 0) >= .spec.maxRetry
+                expression: .status.state.phase == "Restarting" and (.status.retryCount // 0) >= (.spec.maxRetry // 3)
                 expectedResult: "true"
           suspended:
             - byPhase: Aborted

@@ -21,7 +21,7 @@ var _ = Describe("VcJob", Ordered, Label("vcjob"), func() {
 
 	BeforeAll(func(ctx SpecContext) {
 		installKarta(ctx, "../../docs/catalog/batch-volcano-sh-job-v1alpha1.yaml", "batch-volcano-sh-job-v1alpha1")
-		fx = recorder.Fixture{Operator: "vcjob", Version: operatorVersion("vcjob"), KartaName: "batch-volcano-sh-job-v1alpha1", KartaFile: "docs/catalog/batch-volcano-sh-job-v1alpha1.yaml"}
+		fx = recorder.Fixture{Operator: "volcano", Version: operatorVersion("volcano"), KartaName: "batch-volcano-sh-job-v1alpha1", KartaFile: "docs/catalog/batch-volcano-sh-job-v1alpha1.yaml"}
 		rec = recorder.New(cfg).
 			SetTimeout(4*time.Minute).
 			AddState(kartav1alpha1.InitializingStatus, vcjobInitializing()).
@@ -73,9 +73,9 @@ func vcjobInitializing() recorder.StateCheck {
 		if phase != "Restarting" {
 			return false
 		}
-		maxRetry, found, err := unstructured.NestedInt64(u.Object, "spec", "maxRetry")
-		if err != nil || !found {
-			return true
+		maxRetry, found, _ := unstructured.NestedInt64(u.Object, "spec", "maxRetry")
+		if !found {
+			maxRetry = 3
 		}
 		retryCount, _, _ := unstructured.NestedInt64(u.Object, "status", "retryCount")
 		return retryCount < maxRetry
@@ -89,9 +89,9 @@ func vcjobFailed() recorder.StateCheck {
 		case "Terminating", "Terminated", "Failed":
 			return true
 		case "Restarting":
-			maxRetry, found, err := unstructured.NestedInt64(u.Object, "spec", "maxRetry")
-			if err != nil || !found {
-				return false
+			maxRetry, found, _ := unstructured.NestedInt64(u.Object, "spec", "maxRetry")
+			if !found {
+				maxRetry = 3
 			}
 			retryCount, _, _ := unstructured.NestedInt64(u.Object, "status", "retryCount")
 			return retryCount >= maxRetry

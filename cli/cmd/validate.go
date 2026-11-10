@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	yamlv3 "go.yaml.in/yaml/v3"
 	"sigs.k8s.io/yaml"
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
@@ -58,7 +59,7 @@ func newValidateCommand() *cobra.Command {
 			}
 
 			var karta v1alpha1.Karta
-			if err := yaml.Unmarshal(data, &karta); err != nil {
+			if err := decodeDefinition(data, &karta); err != nil {
 				return usageError(cmd, fmt.Errorf("parse %s: %w", name, err))
 			}
 
@@ -91,4 +92,22 @@ func readDefinition(cmd *cobra.Command, path string) (string, []byte, error) {
 		return "", nil, fmt.Errorf("read definition: %w", err)
 	}
 	return path, data, nil
+}
+
+// decodeDefinition parses a definition strictly. Two defects that a plain
+// yaml.Unmarshal hides are errors here, because both silently lose input:
+//
+//   - an unknown field (a misspelled key) is discarded, so the definition
+//     validates while the value never lands;
+//   - a duplicate mapping key keeps the last value and drops the first.
+//
+// yaml.v3 is the decoder that reports duplicate keys; sigs.k8s.io/yaml is the
+// one that follows the Kubernetes json tags, and its UnmarshalStrict rejects
+// unknown fields. Neither does both, so both run.
+func decodeDefinition(data []byte, out *v1alpha1.Karta) error {
+	var probe map[string]interface{}
+	if err := yamlv3.Unmarshal(data, &probe); err != nil {
+		return err
+	}
+	return yaml.UnmarshalStrict(data, out)
 }

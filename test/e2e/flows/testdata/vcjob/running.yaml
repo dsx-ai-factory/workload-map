@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A Volcano Job with two named tasks (different replica counts and templates) so
+# the controller drives it through Pending to Running and the recording proves
+# distinct task extraction via instanceIdPath.
+apiVersion: batch.volcano.sh/v1alpha1
+kind: Job
+metadata:
+  name: karta-e2e-vcjob
+  namespace: default
+spec:
+  minAvailable: 3
+  tasks:
+    - name: worker
+      replicas: 2
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          containers:
+            - name: worker
+              image: busybox:1.36
+              command: ["sleep", "infinity"]
+              resources:
+                requests: {cpu: 50m, memory: 64Mi}
+                limits: {cpu: 50m, memory: 64Mi}
+    - name: helper
+      replicas: 1
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          containers:
+            - name: helper
+              image: busybox:1.36
+              command: ["sleep", "infinity"]
+              resources:
+                requests: {cpu: 50m, memory: 32Mi}
+                limits: {cpu: 50m, memory: 32Mi}

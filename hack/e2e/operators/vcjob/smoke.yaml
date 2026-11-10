@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Smoke test for the Volcano install: up.sh creates this Volcano Job whose
+# single task runs `true` and completes, so the controller drives it to the
+# Completed phase before the e2e suite relies on it. Fails fast here if the
+# operator is broken.
+apiVersion: batch.volcano.sh/v1alpha1
+kind: Job
+metadata:
+  name: vcjob-smoke
+  namespace: default
+spec:
+  minAvailable: 1
+  tasks:
+    - name: smoke
+      replicas: 1
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          containers:
+            - name: smoke
+              image: busybox:1.36
+              command: ["true"]
+              resources:
+                requests: {cpu: 50m, memory: 32Mi}

@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+kind: Karta
+apiVersion: run.ai/v1alpha1
+metadata:
+  name: batch-volcano-sh-job-v1alpha1
+spec:
+  structureDefinition:
+    rootComponent:
+      name: vcjob
+      kind:
+        group: batch.volcano.sh
+        version: v1alpha1
+        kind: Job
+      statusDefinition:
+        phaseDefinition:
+          path: .status.state.phase
+        statusMappings:
+          initializing:
+            - byPhase: Pending
+            - byExpression:
+                expression: .status.state.phase == "Restarting" and (.spec.maxRetry == null or (.status.retryCount // 0) < .spec.maxRetry)
+                expectedResult: "true"
+          running:
+            - byPhase: Running
+          completed:
+            - byPhase: Completing
+            - byPhase: Completed
+          failed:
+            - byPhase: Terminating
+            - byPhase: Terminated
+            - byPhase: Failed
+            - byExpression:
+                expression: .status.state.phase == "Restarting" and .spec.maxRetry != null and (.status.retryCount // 0) >= .spec.maxRetry
+                expectedResult: "true"
+          suspended:
+            - byPhase: Aborted
+          suspending:
+            - byPhase: Aborting
+    childComponents:
+      - name: task
+        kind:
+          group: ""
+          version: v1
+          kind: Pod
+        ownerRef: vcjob
+        specDefinition:
+          podTemplateSpecPath: .spec.tasks[].template
+        scaleDefinition:
+          replicasPath: .spec.tasks[].replicas
+          minReplicasPath: .spec.tasks[].minAvailable
+        instanceIdPath: .spec.tasks[].name
+        podSelector:
+          componentInstanceSelector:
+            idPath: .metadata.labels["volcano.sh/task-spec"]
+  optimizationInstructions:
+    gangScheduling:
+      podGroups:
+        - name: job
+          members:
+            - componentName: task
+              groupByKeyPaths:
+                - .metadata.labels["volcano.sh/job-name"]

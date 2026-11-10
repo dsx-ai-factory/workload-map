@@ -58,7 +58,7 @@ This software operates primarily at the Kubernetes controller level, with additi
 
 - Safe evaluation of user-authored definitions: Karta resources embed jq queries and path expressions that are evaluated against arbitrary workload objects.
 - Correct admission control: the operator's validating and mutating webhooks accept or reject Karta resources and must not be bypassable or a source of denial of service for the API server.
-- Least-privilege access to the cluster: the operator reads workload custom resources and writes only Karta resources, status, events, and its own webhook configuration.
+- Least-privilege access to the cluster: the operator reads workload custom resources and writes only Karta resources, status, events, and its own webhook configuration, and, in auto certificate mode, its webhook certificate Secret.
 - Integrity of the published artifacts: the module, container images, and Helm chart that users install.
 
 Repository exposure classification: Public. The project is Apache-2.0 licensed with public contribution documentation, so this document is written to public-safe detail.

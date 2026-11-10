@@ -73,8 +73,8 @@ func vcjobInitializing() recorder.StateCheck {
 		if phase != "Restarting" {
 			return false
 		}
-		maxRetry, found, _ := unstructured.NestedInt64(u.Object, "spec", "maxRetry")
-		if !found {
+		maxRetry, found, err := unstructured.NestedInt64(u.Object, "spec", "maxRetry")
+		if err != nil || !found {
 			return true
 		}
 		retryCount, _, _ := unstructured.NestedInt64(u.Object, "status", "retryCount")
@@ -89,8 +89,8 @@ func vcjobFailed() recorder.StateCheck {
 		case "Terminating", "Terminated", "Failed":
 			return true
 		case "Restarting":
-			maxRetry, found, _ := unstructured.NestedInt64(u.Object, "spec", "maxRetry")
-			if !found {
+			maxRetry, found, err := unstructured.NestedInt64(u.Object, "spec", "maxRetry")
+			if err != nil || !found {
 				return false
 			}
 			retryCount, _, _ := unstructured.NestedInt64(u.Object, "status", "retryCount")

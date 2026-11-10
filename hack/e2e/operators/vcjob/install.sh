@@ -14,6 +14,7 @@ main() {
   kubectl apply --server-side --force-conflicts -f "https://raw.githubusercontent.com/volcano-sh/volcano/${VOLCANO_VERSION}/installer/volcano-development.yaml"
   rollout_wait volcano-system deploy/volcano-controllers
   rollout_wait volcano-system deploy/volcano-scheduler
+  rollout_wait volcano-system deploy/volcano-admission
 }
 
 main "$@"

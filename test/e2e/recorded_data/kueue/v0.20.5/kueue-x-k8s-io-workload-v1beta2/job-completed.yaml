@@ -1,0 +1,305 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      creationTimestamp: "2026-11-08T15:18:49Z"
+      finalizers:
+      - kueue.x-k8s.io/resource-in-use
+      generation: 1
+      labels:
+        kueue.x-k8s.io/job-uid: 404d7dec-1d02-4b05-8535-f52bfdf7c747
+      name: job-karta-e2e-kueue-completed-3ff0f
+      namespace: test-w4b4w
+      ownerReferences:
+      - apiVersion: batch/v1
+        blockOwnerDeletion: true
+        controller: true
+        kind: Job
+        name: karta-e2e-kueue-completed
+        uid: 404d7dec-1d02-4b05-8535-f52bfdf7c747
+      uid: 7ce6ba99-bd01-4895-8e04-52f1c3f253dd
+    spec:
+      active: true
+      podSets:
+      - count: 1
+        name: main
+        template:
+          metadata:
+            labels:
+              batch.kubernetes.io/job-name: karta-e2e-kueue-completed
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - exit 0
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            restartPolicy: Never
+            schedulerName: default-scheduler
+            securityContext: {}
+            terminationGracePeriodSeconds: 1
+        topologyRequest:
+          podIndexLabel: batch.kubernetes.io/job-completion-index
+      priority: 0
+      queueName: karta-e2e-kueue
+    status:
+      admission:
+        clusterQueue: karta-e2e-kueue
+        podSetAssignments:
+        - count: 1
+          flavors:
+            cpu: karta-e2e-kueue
+            memory: karta-e2e-kueue
+          name: main
+          resourceUsage:
+            cpu: 50m
+            memory: 32Mi
+      conditions:
+      - lastTransitionTime: "2026-11-08T15:18:49Z"
+        message: Not all pods are ready or succeeded
+        observedGeneration: 1
+        reason: WaitForStart
+        status: "False"
+        type: PodsReady
+      - lastTransitionTime: "2026-11-08T15:18:49Z"
+        message: Quota reserved in ClusterQueue karta-e2e-kueue
+        observedGeneration: 1
+        reason: QuotaReserved
+        status: "True"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T15:18:49Z"
+        message: The workload is admitted
+        observedGeneration: 1
+        reason: Admitted
+        status: "True"
+        type: Admitted
+  phases:
+  - Undefined
+  resourceVersion: "1629"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      creationTimestamp: "2026-11-08T15:18:49Z"
+      finalizers:
+      - kueue.x-k8s.io/resource-in-use
+      generation: 1
+      labels:
+        kueue.x-k8s.io/job-uid: 404d7dec-1d02-4b05-8535-f52bfdf7c747
+      name: job-karta-e2e-kueue-completed-3ff0f
+      namespace: test-w4b4w
+      ownerReferences:
+      - apiVersion: batch/v1
+        blockOwnerDeletion: true
+        controller: true
+        kind: Job
+        name: karta-e2e-kueue-completed
+        uid: 404d7dec-1d02-4b05-8535-f52bfdf7c747
+      uid: 7ce6ba99-bd01-4895-8e04-52f1c3f253dd
+    spec:
+      active: true
+      podSets:
+      - count: 1
+        name: main
+        template:
+          metadata:
+            labels:
+              batch.kubernetes.io/job-name: karta-e2e-kueue-completed
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - exit 0
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            restartPolicy: Never
+            schedulerName: default-scheduler
+            securityContext: {}
+            terminationGracePeriodSeconds: 1
+        topologyRequest:
+          podIndexLabel: batch.kubernetes.io/job-completion-index
+      priority: 0
+      queueName: karta-e2e-kueue
+    status:
+      admission:
+        clusterQueue: karta-e2e-kueue
+        podSetAssignments:
+        - count: 1
+          flavors:
+            cpu: karta-e2e-kueue
+            memory: karta-e2e-kueue
+          name: main
+          resourceUsage:
+            cpu: 50m
+            memory: 32Mi
+      conditions:
+      - lastTransitionTime: "2026-11-08T15:18:53Z"
+        message: All pods reached readiness and the workload is running
+        observedGeneration: 1
+        reason: Started
+        status: "True"
+        type: PodsReady
+      - lastTransitionTime: "2026-11-08T15:18:49Z"
+        message: Quota reserved in ClusterQueue karta-e2e-kueue
+        observedGeneration: 1
+        reason: QuotaReserved
+        status: "True"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T15:18:49Z"
+        message: The workload is admitted
+        observedGeneration: 1
+        reason: Admitted
+        status: "True"
+        type: Admitted
+  phases:
+  - Running
+  resourceVersion: "1657"
+  state: Running
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      creationTimestamp: "2026-11-08T15:18:49Z"
+      finalizers:
+      - kueue.x-k8s.io/resource-in-use
+      generation: 1
+      labels:
+        kueue.x-k8s.io/job-uid: 404d7dec-1d02-4b05-8535-f52bfdf7c747
+      name: job-karta-e2e-kueue-completed-3ff0f
+      namespace: test-w4b4w
+      ownerReferences:
+      - apiVersion: batch/v1
+        blockOwnerDeletion: true
+        controller: true
+        kind: Job
+        name: karta-e2e-kueue-completed
+        uid: 404d7dec-1d02-4b05-8535-f52bfdf7c747
+      uid: 7ce6ba99-bd01-4895-8e04-52f1c3f253dd
+    spec:
+      active: true
+      podSets:
+      - count: 1
+        name: main
+        template:
+          metadata:
+            labels:
+              batch.kubernetes.io/job-name: karta-e2e-kueue-completed
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - exit 0
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            restartPolicy: Never
+            schedulerName: default-scheduler
+            securityContext: {}
+            terminationGracePeriodSeconds: 1
+        topologyRequest:
+          podIndexLabel: batch.kubernetes.io/job-completion-index
+      priority: 0
+      queueName: karta-e2e-kueue
+    status:
+      admission:
+        clusterQueue: karta-e2e-kueue
+        podSetAssignments:
+        - count: 1
+          flavors:
+            cpu: karta-e2e-kueue
+            memory: karta-e2e-kueue
+          name: main
+          resourceUsage:
+            cpu: 50m
+            memory: 32Mi
+      conditions:
+      - lastTransitionTime: "2026-11-08T15:18:49Z"
+        message: Quota reserved in ClusterQueue karta-e2e-kueue
+        observedGeneration: 1
+        reason: QuotaReserved
+        status: "True"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T15:18:49Z"
+        message: The workload is admitted
+        observedGeneration: 1
+        reason: Admitted
+        status: "True"
+        type: Admitted
+      - lastTransitionTime: "2026-11-08T15:18:53Z"
+        message: Reached expected number of succeeded pods
+        observedGeneration: 1
+        reason: Succeeded
+        status: "True"
+        type: Finished
+      - lastTransitionTime: "2026-11-08T15:18:53Z"
+        message: All pods reached readiness and the workload is running
+        observedGeneration: 1
+        reason: Started
+        status: "True"
+        type: PodsReady
+  phases:
+  - Completed
+  resourceVersion: "1660"
+  state: Completed
+flow: job-completed
+kartaFile: docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml
+kartaName: kueue-x-k8s-io-workload-v1beta2
+operator: kueue
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 1
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Running
+- amount: 1
+  phases:
+  - Completed
+version: v0.20.5
+want: Completed

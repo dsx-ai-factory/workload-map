@@ -9,18 +9,53 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/controller"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelresolver"
 )
 
 var _ = Describe("chart label configuration", func() {
+	It("loads the documented Pod association Helm example", func() {
+		document, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "dsx-workload-exporter", "configuration.md"))
+		Expect(err).To(Succeed())
+		_, example, found := bytes.Cut(document, []byte("<summary>Complete Helm values for Pod association</summary>"))
+		Expect(found).To(BeTrue(), "Pod association Helm example summary not found in configuration.md")
+		example, _, found = bytes.Cut(example, []byte("</details>"))
+		Expect(found).To(BeTrue(), "Pod association Helm example closing details tag not found")
+		_, values, found := bytes.Cut(example, []byte("```yaml\n"))
+		Expect(found).To(BeTrue(), "Pod association Helm example opening YAML fence not found")
+		values, _, found = bytes.Cut(values, []byte("\n```"))
+		Expect(found).To(BeTrue(), "Pod association Helm example closing YAML fence not found")
+		for _, raw := range chartDocuments(GinkgoT(), renderExporterChart(GinkgoT(), string(values))) {
+			var doc struct {
+				Kind string            `yaml:"kind"`
+				Data map[string]string `yaml:"data"`
+			}
+			Expect(yaml.Unmarshal(raw, &doc)).To(Succeed())
+			if doc.Kind != "ConfigMap" || doc.Data["config.yaml"] == "" {
+				continue
+			}
+			cfg, err := loadConfig(doc.Data["config.yaml"], nil)
+			Expect(err).To(Succeed())
+			Expect(cfg.PodWorkloadAssociation).NotTo(BeNil())
+			Expect(cfg.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("platform.example.com/workload-name"))
+			Expect(cfg.Rules).To(HaveLen(1))
+			_, err = labelevaluator.NewCompiler().Compile(labelevaluator.Config{Expression: cfg.Rules[0].Expression, Limits: cfg.Limits})
+			Expect(err).To(Succeed())
+			return
+		}
+		Fail("exporter config not found")
+	})
+
 	for _, tc := range []struct {
 		name   string
 		args   []string
@@ -53,7 +88,10 @@ var _ = Describe("chart label configuration", func() {
 			Expect(err).To(Succeed())
 			args := []string{"template", "labels", chart,
 				"--set", "exporter.enabled=true",
+				"--set-json", `exporter.objectSelectors=[{"selector":{"matchLabels":{"environment":"production"}}},{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"app.kubernetes.io/managed-by":"example-platform"}}}]`,
 				"--set-json", "exporter.labelRules=" + string(raw),
+				"--set-json", `exporter.workloadMetricSelector={"matchExpressions":[{"key":"example.org/group","operator":"DoesNotExist"}]}`,
+				"--set-json", `exporter.podWorkloadAssociation={"target":{"apiVersion":"scheduling.example.org/v1","kind":"Workload","nameFromLabel":"example.org/group"}}`,
 			}
 			out, err := exec.Command(helm, append(args, tc.args...)...).CombinedOutput()
 			Expect(err).To(Succeed(), string(out))
@@ -76,7 +114,10 @@ var _ = Describe("chart label configuration", func() {
 				cfg, err := loadConfig(doc.Data["config.yaml"], nil)
 				Expect(err).To(Succeed())
 				Expect(cfg.Rules).To(Equal(rules))
+				Expect(cfg.ObjectSelectors).To(Equal([]controller.ObjectSelector{{Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"environment": "production"}}}, {APIVersion: "scheduling.example.org/v1", Kind: "Workload", Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app.kubernetes.io/managed-by": "example-platform"}}}}))
 				Expect(cfg.Limits).To(Equal(tc.limits))
+				Expect(cfg.WorkloadMetricSelector).To(Equal(&metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "example.org/group", Operator: metav1.LabelSelectorOpDoesNotExist}}}))
+				Expect(cfg.PodWorkloadAssociation).To(Equal(&controller.PodWorkloadAssociation{Target: controller.AssociationTarget{APIVersion: "scheduling.example.org/v1", Kind: "Workload", NameFromLabel: "example.org/group"}}))
 				for _, rule := range cfg.Rules {
 					_, err = labelevaluator.NewCompiler().Compile(labelevaluator.Config{Expression: rule.Expression, Limits: cfg.Limits})
 					Expect(err).To(Succeed())
@@ -89,12 +130,14 @@ var _ = Describe("chart label configuration", func() {
 
 var _ = Describe("chart definition source configuration", func() {
 	for _, tc := range []struct {
-		name    string
-		values  string
-		catalog bool
+		name         string
+		values       string
+		catalog      bool
+		experimental bool
 	}{
 		{name: "defaults", catalog: true},
 		{name: "catalog disabled", values: "exporter:\n  kartaDefinitionSource:\n    catalog:\n      enabled: false\n"},
+		{name: "experimental enabled", values: "exporter:\n  kartaDefinitionSource:\n    enableExperimental: true\n", catalog: true, experimental: true},
 	} {
 		It("loads definition sources with "+tc.name, func() {
 			out := renderExporterChart(GinkgoT(), tc.values)
@@ -111,6 +154,7 @@ var _ = Describe("chart definition source configuration", func() {
 				Expect(err).To(Succeed())
 				Expect(cfg.KartaDefinitionSource.Catalog.Enabled).To(Equal(tc.catalog))
 				Expect(cfg.KartaDefinitionSource.Cluster.Enabled).To(BeTrue())
+				Expect(cfg.KartaDefinitionSource.EnableExperimental).To(Equal(tc.experimental))
 				return
 			}
 			Fail("exporter config not found")
@@ -125,6 +169,7 @@ var _ = Describe("chart definition source configuration", func() {
 		chart := filepath.Join("..", "..", "..", "charts", "karta")
 		out, err := exec.Command(helm, "template", "sources", chart,
 			"--set", "exporter.enabled=true",
+			"--set-json", `exporter.objectSelectors=[{"selector":{"matchLabels":{"environment":"production"}}},{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"app.kubernetes.io/managed-by":"example-platform"}}}]`,
 			"--set", "exporter.kartaDefinitionSource.cluster.enabled=null",
 		).CombinedOutput()
 		Expect(err).To(HaveOccurred())
@@ -216,6 +261,29 @@ var _ = Describe("chart exporter ServiceMonitor", func() {
 					Expect(serviceLabels[key]).To(Equal(value), "ServiceMonitor must select the exporter Service")
 				}
 			}
+		})
+	}
+})
+
+var _ = Describe("chart exporter pprof", func() {
+	for _, tc := range []struct {
+		name string
+		args []string
+		flag string
+	}{
+		{name: "disabled by default"},
+		{name: "enabled on the default port", args: []string{"--set", "exporter.pprof.enabled=true"}, flag: "--pprof-bind-address=127.0.0.1:6060"},
+		{name: "enabled on a custom port", args: []string{"--set", "exporter.pprof.enabled=true", "--set", "exporter.pprof.port=7070"}, flag: "--pprof-bind-address=127.0.0.1:7070"},
+		{name: "null", args: []string{"--set-json", "exporter.pprof=null"}},
+	} {
+		It(tc.name, func() {
+			out := string(renderExporterChart(GinkgoT(), "", tc.args...))
+			if tc.flag == "" {
+				Expect(out).NotTo(ContainSubstring("--pprof-bind-address"))
+				return
+			}
+			// Only on localhost: no Service exposes the profiles.
+			Expect(out).To(ContainSubstring(tc.flag))
 		})
 	}
 })

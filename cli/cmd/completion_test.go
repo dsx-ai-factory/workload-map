@@ -72,7 +72,7 @@ func TestCompleteQualifiesAKindSeveralGroupsDefine(t *testing.T) {
 	fork.Name = "jobset-fork"
 	fork.Spec.StructureDefinition.RootComponent.Kind.Group = "fork.example.com"
 	restore := loadDefinitions
-	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
 		return definitions.New([]*v1alpha1.Karta{kartas.Jobset(), fork}, nil), nil
 	}
 	t.Cleanup(func() { loadDefinitions = restore })
@@ -179,7 +179,7 @@ func TestCompleteGivesUpOnAClusterThatDoesNotAnswer(t *testing.T) {
 	t.Cleanup(func() { completionTimeout = restoreTimeout })
 
 	restore := loadDefinitions
-	loadDefinitions = func(ctx context.Context, _ genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(ctx context.Context, _ genericclioptions.RESTClientGetter, _ bool) (*definitions.Resolver, []definitions.Warning) {
 		<-ctx.Done()
 		return definitions.New(nil, nil), nil
 	}
@@ -223,7 +223,7 @@ func TestCompleteGivesUpOnDiscoveryThatDoesNotAnswer(t *testing.T) {
 	t.Cleanup(func() { completionTimeout = restoreTimeout })
 
 	restore := loadDefinitions
-	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
 		return definitions.New([]*v1alpha1.Karta{kartas.Jobset()}, nil), nil
 	}
 	t.Cleanup(func() { loadDefinitions = restore })

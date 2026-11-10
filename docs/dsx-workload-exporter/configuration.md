@@ -22,6 +22,7 @@ reads it at startup.
 | `image.tag` | `""` | Empty uses chart appVersion; override for an unreleased branch. |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy. |
 | `metricsPort` | `8080` | Shared listener, container, probe and Service port. |
+| `pprof.enabled`, `pprof.port` | `false`, `6060` | Serve Go pprof profiles on `127.0.0.1:<port>` inside the Pod. No Service exposes them; reach them with `kubectl port-forward`. |
 | `resources` | Requests: `500m` CPU, `512Mi` memory. Limits: `2` CPU, `4Gi` memory. | For large clusters, increase requests and limits based on measured CPU and memory usage. Watched object count, object size and scrape frequency affect usage. |
 | `nodeSelector`, `affinity` | `{}` | Exporter placement. |
 | `tolerations` | `[]` | Exporter tolerations. |
@@ -31,7 +32,10 @@ reads it at startup.
 | `serviceMonitor.additionalLabels` | `{}` | Labels used by Prometheus to select the ServiceMonitor. |
 | `serviceMonitor.interval`, `serviceMonitor.scrapeTimeout` | `""` | Empty inherits Prometheus settings. Use duration strings such as `30s` and `10s`. |
 | `namespaceSelector` | Exclude `kube-system`, `kube-public`, `kube-node-lease` | Namespace label selection. Set `matchExpressions: []` to remove these exclusions. |
-| `objectSelector`, `podSelector` | `{}` | Root and Pod output selection. |
+| `podSelector` | `{}` | Pod attribution output selection. |
+| `workloadMetricSelector` | `{}` | Select roots that publish workload status and creation time. Pod info remains. |
+| `objectSelectors` | `[]` | Root label filters for all kinds or an exact API version and kind. All applicable filters must pass. |
+| `podWorkloadAssociation` | `null` | Optional Pod-to-workload metric identity, described below. |
 | `resourceRules` | `[]` | Allowed root API types; empty means unrestricted. |
 | `excludeResourceRules` | Core ConfigMaps and Secrets, all versions | Excluded root types. Set `[]` to remove these exclusions. |
 | `ignoredOwnerKinds`, `requiredKinds` | `[]` | Owner boundaries and additional watched kinds. |
@@ -47,6 +51,7 @@ reads it at startup.
 | `genericLabelEvaluationLimits.maxResultBytes` | `1024` | Maximum returned string size. |
 | `kartaDefinitionSource.catalog.enabled` | `true` | Load bundled definitions. |
 | `kartaDefinitionSource.cluster.enabled` | `true` | Watch cluster Karta definitions. |
+| `kartaDefinitionSource.enableExperimental` | `false` | Allow definitions with `spec.experimental: true` from either source. |
 | Each source's `include`, `exclude` | `[]` | Definition-name filters. |
 
 The exporter uses one replica and its own ServiceAccount. Global
@@ -89,6 +94,8 @@ path. Zero CEL limits use the defaults above; negative limits are rejected.
 All suffixes use the `DSX_WORKLOAD_EXPORTER_` prefix. The listener is a separate
 flag, `--metrics-bind-address`, default `:8080`; it has no YAML or environment
 setting. `--version` prints the binary version.
+`--pprof-bind-address` serves Go pprof profiles on a separate listener. It is
+empty by default, which disables them; bind it to localhost.
 
 Binary defaults match runtime values above except namespace and resource
 selection: the binary selects all namespaces and excludes no root types.
@@ -96,7 +103,7 @@ The Helm namespace and ConfigMap/Secret exclusions are chart defaults.
 
 ## Selection
 
-`namespaceSelector` selects namespace labels. `objectSelector` selects the
+`namespaceSelector` selects namespace labels. `objectSelectors` filters the
 resolved root's labels. `podSelector` selects Pod attribution rows, not watches.
 A Pod row requires both root and Pod selection. Workload status still describes
 the full workload. Excluding a root does not promote its children to roots.
@@ -120,6 +127,139 @@ all three fields must match within an entry. Each field needs a nonempty list.
 `"*"` is a wildcard and `""` is the core API group. Exclusions win. Selectors,
 malformed rules and unknown catalog names are validated before observation.
 
+### Root label filters
+
+Use one `objectSelectors` list for global and kind-specific filters. An entry
+without `apiVersion` and `kind` applies to every root. Set both fields to limit
+an entry to one exact API version and kind:
+
+```yaml
+exporter:
+  objectSelectors:
+    - selector:
+        matchLabels:
+          environment: production
+    - apiVersion: scheduling.example.org/v1
+      kind: Workload
+      selector:
+        matchLabels:
+          app.kubernetes.io/managed-by: example-platform
+```
+
+A Deployment must have `environment=production`. A Workload of the specified
+kind must also have `app.kubernetes.io/managed-by=example-platform`. Every
+applicable filter must pass. An empty list adds no filtering.
+
+Both type fields must be set or both omitted. Duplicate entries for the same
+version and kind, including a second global entry, are rejected. Filters apply
+to roots and association targets, not intermediate owners. Label changes
+re-evaluate selection. These filters do not change RBAC or remove objects from
+the watch cache.
+
+### Workload metrics and Pod association
+
+Some platforms create bare Pods and a separate workload object that refers back
+to them. For example, Pod `worker-0` has UID `pod-123` and label
+`platform.example.com/workload-name=train-a`. Workload `train-a` is in the same
+namespace and has an owner reference naming Pod `worker-0` with UID `pod-123`.
+Neither object has a controller owner. The Pod also has
+`app.kubernetes.io/managed-by=example-platform`.
+
+Association is disabled by default. The target type must already exist and have
+a selected Karta definition. It must pass resource and object selection. The
+exporter checks its owner references against the Pod's name and current UID.
+A Job-owned Pod keeps its normal Job root. The exporter uses the existing
+full-object watch cache, makes no per-Pod GET and changes no owner references.
+
+The resulting Pod row uses the Workload's UID as `workload_uid` and keeps
+`pod_uid="pod-123"`. Its workload identity and `sources: [workload]` expressions
+use the target Workload. `sources: [pod]` expressions still receive the Pod.
+Component inference uses the physical ownership tree. Pod and target updates
+re-check the association.
+
+`workloadMetricSelector` selects roots that publish status and creation time.
+It defaults to all roots and does not remove Pod info. In this example, only
+the bare Pods carry the workload-name label, so their extra workload rows are
+suppressed. The target Workload still publishes its own rows.
+
+Filtering and association are independent. A missing or invalid target leaves
+Pod info under the original Pod UID with `observation_valid="false"` and a
+health row with reason `unresolved_owner`. Restoring a valid target clears the
+failure. A failed target watch immediately invalidates existing associations.
+The last known target UID may remain until the next Pod reconciliation falls
+back to the Pod UID. Watch recovery requeues affected Pods.
+
+<details>
+<summary>Complete Helm values for Pod association</summary>
+
+This example combines association, root filtering and a
+[component label rule](#configured-labels). Replace the API type, labels and
+namespace with those used by your platform. Both Pods and targets must have
+`environment=production` and `app.kubernetes.io/managed-by=example-platform`.
+Only the Pods carry `platform.example.com/workload-name`.
+
+The workload CRD, its controller and its Karta definition must already be
+installed; the exporter chart does not install them. Save these values as
+`pod-association-values.yaml`:
+
+```yaml
+operator:
+  enabled: false
+exporter:
+  enabled: true
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: workloads
+  objectSelectors:
+    - selector:
+        matchLabels:
+          environment: production
+    - apiVersion: scheduling.example.org/v1
+      kind: Workload
+      selector:
+        matchLabels:
+          app.kubernetes.io/managed-by: example-platform
+  workloadMetricSelector:
+    matchExpressions:
+      - key: platform.example.com/workload-name
+        operator: DoesNotExist
+  podWorkloadAssociation:
+    podSelector:
+      matchLabels:
+        app.kubernetes.io/managed-by: example-platform
+      matchExpressions:
+        - key: platform.example.com/workload-name
+          operator: Exists
+    target:
+      apiVersion: scheduling.example.org/v1
+      kind: Workload
+      nameFromLabel: platform.example.com/workload-name
+  labelRules:
+    - name: component
+      metrics: [dsx_workload_pod_info]
+      sources: [pod]
+      expression: |
+        has(object.metadata.labels) &&
+        "platform.example.com/role" in object.metadata.labels
+          ? object.metadata.labels["platform.example.com/role"] : ""
+```
+
+From this checkout, use an exporter image built from the same checkout:
+
+```sh
+helm upgrade --install workload-exporter ./charts/karta \
+  --namespace monitoring --create-namespace \
+  -f pod-association-values.yaml \
+  --set exporter.image.repository=ghcr.io/example/dsx-workload-exporter \
+  --set-string exporter.image.tag=YOUR_TAG
+```
+
+Replace the image placeholders. For an existing release, keep its release name,
+namespace, values and operator setting. The example disables the operator.
+See [installation](installation.md) for image and scrape setup.
+
+</details>
+
 ### Definition sources and owner boundaries
 
 Source filters apply before precedence. Empty includes select all definition
@@ -127,6 +267,21 @@ names; exclusions win. A selected cluster Karta overrides the catalog for the
 same group/kind. Cluster ties use oldest creation time, then name. Catalog ties
 use Kubernetes version priority, then name. A source or selected-definition
 error is not absence and does not trigger fallback.
+
+Experimental definitions are excluded from both sources by default. To allow
+them, add this to the Helm values file:
+
+```yaml
+exporter:
+  kartaDefinitionSource:
+    enableExperimental: true
+```
+
+An explicit `include` does not bypass this setting. The gate applies before version
+and source selection. An excluded experimental cluster Karta can therefore reveal
+a stable cluster or catalog definition. Exclusion is not a source failure.
+Changing a cluster Karta's `spec.experimental` flag refreshes selection and
+requeues affected workloads. Definitions that omit the flag are stable.
 
 Both sources are enabled by default. Set a source's `enabled` to `false` to
 disable it. Cluster watching requires the Karta CRD, even when no Karta objects
@@ -196,10 +351,37 @@ a fallback succeeds. Runtime can retain the entire previous Pod or status result
 as invalid after a label error; successful labels are not independently published.
 With no prior value, the affected output can be absent.
 
-Use custom names that do not collide with built-in labels. The resolver's
-`Apply` helper supports overrides, but the current collector appends built-ins
-last, so built-in values win in exported metrics. Names starting with `__` are
-rejected. Syntax, statically known result-type and expression-size errors reject
+Rules can add any valid custom label. A nonempty rule value also replaces an
+unprotected built-in label, such as `component`, `component_instance` or
+`replica_group_id`. Empty results keep the inferred value.
+
+The collector preserves these names when they are built-in labels of the metric:
+
+| Purpose | Protected labels |
+| --- | --- |
+| Identity and joins | `namespace`, `workload_name`, `workload_uid`, `workload_group`, `workload_version`, `workload_kind`, `pod_name`, `pod_uid` |
+| Evaluation result | `phase`, `owner_resolution`, `observation_valid`, `karta`, `karta_source` |
+| Collection health | `scope`, `resource_group`, `resource_version`, `resource_kind`, `reason` |
+
+Protection applies to built-in collisions. For example, `phase` cannot replace
+the status metric's phase, but it can be a custom label on Pod info.
+This rule reads the Pod's `platform.example.com/role` label. A value of
+`worker` produces `component="worker"`. Pods without that label keep their
+inferred component.
+
+```yaml
+exporter:
+  labelRules:
+    - name: component
+      metrics: [dsx_workload_pod_info]
+      sources: [pod]
+      expression: |
+        has(object.metadata.labels) &&
+        "platform.example.com/role" in object.metadata.labels
+          ? object.metadata.labels["platform.example.com/role"] : ""
+```
+
+Names starting with `__` are rejected. Syntax, statically known result-type and expression-size errors reject
 startup. Dynamic type, result-size and cost errors happen during evaluation and
 do not stop the process. See the [resolver](../../dsx-workload-exporter/pkg/labelresolver/README.md).
 

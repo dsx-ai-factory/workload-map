@@ -57,6 +57,7 @@ var definitions = []func() *v1alpha1.Karta{
 	kartas.DynamoV1beta1,
 	kartas.GrovePodCliqueSet,
 	kartas.Sandbox,
+	kartas.KueueWorkload,
 }
 
 // Catalog is an immutable set of built-in Kartas indexed by their root component GVK.
@@ -109,7 +110,8 @@ func RootKey(k *v1alpha1.Karta) schema.GroupVersionKind {
 
 // Get returns the built-in Karta whose root component matches gvk. The returned
 // Karta is a deep copy, so callers may mutate it freely without affecting the
-// immutable catalog.
+// immutable catalog. Experimental definitions are included; consumers decide
+// whether to enable them.
 func (c *Catalog) Get(gvk schema.GroupVersionKind) (*v1alpha1.Karta, error) {
 	if k, ok := c.byGVK[gvk]; ok {
 		return k.DeepCopy(), nil
@@ -119,7 +121,7 @@ func (c *Catalog) Get(gvk schema.GroupVersionKind) (*v1alpha1.Karta, error) {
 
 // List returns all built-in Kartas sorted by GVK. Each entry is a deep copy, so
 // callers may mutate the slice or the Kartas without affecting the immutable
-// catalog.
+// catalog. Experimental definitions are included.
 func (c *Catalog) List() []*v1alpha1.Karta {
 	keys := slices.SortedFunc(maps.Keys(c.byGVK), func(a, b schema.GroupVersionKind) int {
 		return strings.Compare(a.String(), b.String())

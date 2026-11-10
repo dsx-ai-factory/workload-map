@@ -9,8 +9,8 @@ godebug fips140=off
 
 require (
 	github.com/dsx-ai-factory/workload-map/karta/sdk v0.0.0
-	github.com/google/cel-go v0.29.2
-	github.com/onsi/ginkgo/v2 v2.34.0
+	github.com/google/cel-go v0.30.0
+	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/client_model v0.6.3

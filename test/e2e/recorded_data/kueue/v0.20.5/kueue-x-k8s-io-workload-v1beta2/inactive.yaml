@@ -1,0 +1,50 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      creationTimestamp: "2026-11-08T11:02:08Z"
+      generation: 1
+      name: karta-e2e-kueue-inactive
+      namespace: test-n86nx
+      uid: 60781434-2b06-4bd8-abe3-25aaf5125235
+    spec:
+      active: false
+      podSets:
+      - count: 1
+        name: main
+        template:
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - "true"
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+      queueName: karta-e2e-kueue
+  phases:
+  - Suspended
+  resourceVersion: "1856"
+  state: Suspended
+flow: inactive
+kartaFile: docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml
+kartaName: kueue-x-k8s-io-workload-v1beta2
+operator: kueue
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 1
+  phases:
+  - Suspended
+version: v0.20.5
+want: Suspended

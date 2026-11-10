@@ -1,8 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { registerRoute, registerSidebarEntry } from '@kinvolk/headlamp-plugin/lib';
+import {
+  registerPluginSettings,
+  registerRoute,
+  registerSidebarEntry,
+} from '@kinvolk/headlamp-plugin/lib';
+import { Settings } from './components/settings/Settings';
 import { WorkloadsPage } from './pages/workloadsPage/WorkloadsPage';
+
+registerPluginSettings('karta', Settings, true);
 
 registerSidebarEntry({
   parent: null,

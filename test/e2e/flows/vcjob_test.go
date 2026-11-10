@@ -68,7 +68,7 @@ var _ = Describe("VcJob", Ordered, Label("vcjob"), func() {
 			recorder.Reaches(kartav1alpha1.InitializingStatus).With(PhaseEq("Pending", "status", "state", "phase")),
 			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
 			// The job fails and enters Restarting with retries left, mapping to Initializing.
-			recorder.Reaches(kartav1alpha1.InitializingStatus).With(vcjobRestarting()),
+			recorder.Reaches(kartav1alpha1.InitializingStatus).With(vcjobRestartingWithRetries()),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
 		Expect(err).To(Succeed())
@@ -110,10 +110,18 @@ var _ = Describe("VcJob", Ordered, Label("vcjob"), func() {
 	})
 })
 
-func vcjobRestarting() recorder.StateCheck {
+func vcjobRestartingWithRetries() recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {
 		phase, _, _ := unstructured.NestedString(u.Object, "status", "state", "phase")
-		return phase == "Restarting"
+		if phase != "Restarting" {
+			return false
+		}
+		maxRetry, found, _ := unstructured.NestedInt64(u.Object, "spec", "maxRetry")
+		if !found {
+			maxRetry = 3
+		}
+		retryCount, _, _ := unstructured.NestedInt64(u.Object, "status", "retryCount")
+		return retryCount < maxRetry
 	}
 }
 

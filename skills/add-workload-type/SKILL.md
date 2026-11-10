@@ -4,10 +4,10 @@ description: >-
   Author, validate, and ship a Karta definition for a new Kubernetes workload
   type. Use when a user wants to add or support a workload framework or CRD in
   Karta (an Argo Workflow, a Volcano Job, a SparkApplication, any custom
-  operator), or to write, fix, or review a Karta definition. In the karta
-  repository, step 8 ships it as a catalog entry with a recorded e2e flow;
-  elsewhere, the definition is applied to a cluster. Not for consuming a
-  definition from Go code.
+  operator), or to write, fix, or review a Karta definition. The intended use
+  picks the workflow: a cluster-only definition checked with kli and
+  karta-verify, one verified by a recorded e2e flow, or a catalog
+  contribution. Not for consuming a definition from Go code.
 license: Apache-2.0
 ---
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -34,17 +34,46 @@ Load these as needed; confirm field names and rules here, never guess.
 - `reference/recorded-flow.md` - operator source and step 8 detail.
 - `reference/troubleshooting.md` - every error and symptom with its fix.
 
-## Two ways to use this skill
+## Choose the workflow first
 
-In the karta repository, every step applies: the definition becomes a catalog
-entry, so step 8 ships it with an operator install and a recorded flow. Run
-every `go run ./hack/karta-verify` below from the `karta/sdk/` directory, where
-file arguments resolve: a definition under the repository's `docs/catalog/` is
-`../docs/catalog/<file>.yaml`, and any other file needs its path relative to
-`karta/sdk/` or an absolute path.
+Before step 1, ask the user two questions. Skip one the request already
+answers, and say which answer was taken from it. When no one can answer (an
+unattended run), take the catalog contribution in a checkout of this
+repository and the cluster-only path elsewhere, and state that assumption.
 
-Anywhere else, steps 1 to 7 apply and step 8 is replaced by applying the Karta
-to the cluster that runs Karta. Nothing needs a checkout.
+- What is the definition for: a demo, a development system, or production?
+  How much verification does it need?
+- Is it for their own use, or a contribution to the Karta catalog?
+
+The answers pick the workflow, not whether a checkout is at hand. Verification
+and recording are separate layers. `kli validate` checks the definition, and
+karta-verify checks it against workload objects; both work without a
+checkout. A recorded e2e flow is the layer above them: it exercises the
+definition against real operator behavior, frame by frame, and keeps the
+result for regression testing. Recording needs the repository.
+
+- Cluster only, no checkout. For a demo, or when the user declines recording.
+  Steps 1 to 7 run as in Without a checkout below, and step 8 creates the
+  Karta on the cluster. Validate with `kli validate`, and use karta-verify to
+  check the definition against workload objects.
+- Own use, recorded. Recommended for a development or production system,
+  where correctness matters beyond a demo. Clone
+  `https://github.com/dsx-ai-factory/workload-map.git`, run every step there,
+  and record the flow as step 8 describes, without the catalog entry. Then
+  create the Karta on the user's cluster.
+- Catalog contribution. The repository workflow and the recorded flow are
+  required: step 8 in full, shipped as a catalog entry in a pull request.
+
+When the user picks the cluster-only path for a development or production
+system, say once that a recorded flow is the stronger verification, and name
+in the summary what was not recorded.
+
+In a checkout, run every `go run ./hack/karta-verify` below from the
+`karta/sdk/` directory, where file arguments resolve: a definition under the
+repository's `docs/catalog/` is `../docs/catalog/<file>.yaml`, and any other
+file needs its path relative to `karta/sdk/` or an absolute path.
+
+### Without a checkout
 
 Probe first: `kli --version` and `go version`. Install a missing `kli` with
 Homebrew, on macOS or Linux; the repository is its own tap, so the URL and the
@@ -441,8 +470,8 @@ pod label code are stand-ins; every run on them counts as unverified.
     --workload <real-cr.yaml> --predict <predictions.yaml> --strict
   ```
 
-  With no checkout, run from any directory with the public module form (Two
-  ways to use this skill) in place of `./hack/karta-verify`, with the same
+  With no checkout, run from any directory with the public module form
+  (Without a checkout) in place of `./hack/karta-verify`, with the same
   flags.
 
 - Reconcile every mismatch and warning. Decide whether the path or the
@@ -499,6 +528,29 @@ Detail: karta-verify runs in `reference/technical-guide.md`.
 The definition is not done until a recorded flow proves it. Catalog
 Definitions in `CONTRIBUTING.md` lists the deliverables. Why, commands, and
 examples: `reference/recorded-flow.md`.
+
+On the cluster-only path, step 8 is the cluster check and `kubectl create`
+under Without a checkout; nothing below applies.
+
+On the own-use recorded path, skip the catalog entry: no Go builder, no
+`catalog.go` registration, no `README.md` row, no pull request. Do the
+operator install, the flow, the manifests, the recording, and every check
+after it below. What the builder comment would hold goes in a comment at the
+top of the definition file. Two differences:
+
+- Place the definition at `docs/catalog/<name>.yaml` in the checkout, `<name>`
+  as the catalog names it (the Step 8 bullet under Without a checkout), with
+  the same `KartaName` and `KartaFile` in the flow's `recorder.Fixture`. The
+  replay suite reads the definition from `docs/catalog/` by file name, so a
+  file elsewhere records but does not replay. `make generate-samples` deletes
+  every file there with no builder: keep the source copy outside the
+  checkout and copy it back after.
+- Run the Before `make check` list except `make check` itself and the commit:
+  the untracked definition fails its `validate` step.
+
+Then create the Karta on the user's cluster as the Step 8 bullet under
+Without a checkout describes, and keep the checkout: re-recording after an
+operator upgrade or a definition change is how the definition stays proven.
 
 Catalog entry:
 

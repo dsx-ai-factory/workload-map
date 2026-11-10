@@ -70,6 +70,14 @@ Eval 5 covers a user with a cluster but no checkout, the case the skill
 handles through `kli`, installed with Homebrew, and the public karta-verify
 module. Its results are in the eval 5 section below.
 
+The skill later asks for the intended use before step 1 and picks the
+workflow from it: cluster only, own use with a recorded flow, or a catalog
+contribution. An unattended run takes the catalog contribution in a checkout
+and the cluster-only path elsewhere, which keeps the measured runs of evals 1,
+2 and 5 on the paths they graded. Eval 6 covers the choice itself, and eval 5
+gained an expectation that the run states its path. Both ran on 2026-11-10;
+results are in the workflow choice section below.
+
 The skill later made step 8 ship every definition in this repository as a
 catalog entry with a recorded flow. Evals 1 and 4 now expect that entry, the
 reverse of the "definition only" expectation graded above, and evals 1, 2 and
@@ -211,6 +219,77 @@ Limits of this run:
   it was added as an expectation after this run and graded from the same
   logs.
 
+## Workflow choice, evals 5 and 6
+
+Model: claude-opus-5-5
+Date: 2026-11-10
+Runs: eval 6, 3 per configuration; eval 5, 3 with the new skill only
+
+Configurations: the skill with the "Choose the workflow first" section (new)
+and the skill before it (previous). Each run got a copy of the skill without
+`evals/` and `BENCHMARK.md`, no checkout, and no installed `kli`.
+
+Setup. Eval 6 used no cluster: each run stopped at its first question to the
+user or its first written line, and was graded on that message. Eval 5 ran
+on a cluster with Karta installed and 37 Kartas it did not create. Each run
+had its own TrainJob CRD in its own API group, a running CR with status, and
+three pods owned by it. No controller ran. A run that asked a question got
+one scripted reply: a demo on the user's own cluster, not the catalog, no
+controller source, no finished TrainJob.
+
+Eval 6:
+
+| Expectation | New | Previous |
+|-------------|-----|----------|
+| Both workflow questions settled from the request, or asked | 3/3 | 1/3 |
+| Recorded path recommended for production, with a clone | 3/3 | 0/3 |
+| Verification and recording kept distinct | 3/3 | 0/3 |
+
+Every new run took production and own use from the request, said so,
+recommended cloning and recording, and asked whether to record or take the
+cluster-only path. No previous run mentioned recording. One previous run
+ruled out the catalog because there was no checkout; another took own use
+from "in-house"; the third did not address it.
+
+Eval 5, new skill:
+
+| Expectation | Runs |
+|-------------|------|
+| kli from a release archive checked against `checksums.txt` | 3/3 |
+| Catalog read with `kli definitions --kubeconfig /dev/null` | 3/3 |
+| `kli validate` before create, exit code reported | 3/3 |
+| karta-verify from the public module at a tag, `--predict` and `--strict` | 3/3 |
+| Cluster check with `kubectl get kartas.run.ai`, dry run, `kubectl create` | 3/3 |
+| Live check with `kli get` and `kli describe` | 2/3 |
+| Path stated, with a recorded flow named as the stronger check | 3/3 |
+
+| Run | Tokens | Time |
+|-----|--------|------|
+| 1 | 123,823 | 348s |
+| 2 | 140,514 | 365s |
+| 3 | 123,654 | 260s |
+
+What changed against the 2026-10-26 runs:
+
+- Every run asked before writing: what the definition is for, and the
+  controller's status semantics. The 2026-10-26 runs asked nothing. The
+  status questions also appear in every previous-skill run of eval 6, so
+  they come from step 1, not from the new section. An unattended run would
+  stop at the first question.
+- The step 8 cluster check is measured for the first time: this cluster
+  allowed reading every Karta.
+
+Limits of this run:
+
+- The cluster runs a platform that deletes any Karta its backend did not
+  register, within seconds of creation. Runs 1 and 3 finished the live check
+  inside that window; run 2 did not, and stopped to report it. The missing
+  row is the cluster's, not the skill's.
+- Eval 5 has no previous-skill or no-skill configuration in this run; its
+  earlier rows come from the 2026-10-26 section.
+- Eval 6 grades only the first message, so it does not show whether a run
+  follows the recorded path to the end.
+
 ## Per-eval breakdown
 
 | Eval | Config | Pass rate | Tokens | Time |
@@ -296,8 +375,9 @@ figures above for both configurations.
    separately, with three configurations; its setup is in the eval 5 section.
 2. Grade each run against its `expectations` list.
 3. Validate every produced definition, and exercise it against a real CR with
-   predictions written before the run, from `karta/sdk/` (for eval 5, with
-   the public-module form in `SKILL.md` in place of `./hack/karta-verify`):
+   predictions written before the run, from `karta/sdk/`, except eval 5,
+   which runs from any directory with the public-module form in `SKILL.md` in
+   place of `./hack/karta-verify`:
 
    ```sh
    go run ./hack/karta-verify --karta <definition> \

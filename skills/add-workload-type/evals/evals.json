@@ -1,6 +1,6 @@
 {
   "skill_name": "add-workload-type",
-  "notes": "Expectations are chosen to separate a skill-guided run from an unaided one. Each expectation records pass counts over 3 runs per configuration, as with_skill vs without_skill: evals 1 and 2 from the 2026-10-29 re-run, eval 3 from the 2026-08-18 benchmark, eval 5 from its own 2026-10-26 run (three configurations). Expectations marked floor are correctness minimums that both configurations satisfy where measured; they are kept to catch regressions, not to show a delta. Expectations with a null measured value come from evals that have not been run, or were added or reworded after their last run, so neither their floor nor their discriminating status is established.",
+  "notes": "Expectations are chosen to separate a skill-guided run from an unaided one. Each expectation records pass counts over 3 runs per configuration, as with_skill vs without_skill: evals 1 and 2 from the 2026-10-29 re-run, eval 3 from the 2026-08-18 benchmark, eval 5 from its own 2026-10-26 run (three configurations), with two expectations from a 2026-11-10 run of the new skill only, eval 6 from 2026-11-10 as new vs previous skill. Expectations marked floor are correctness minimums that both configurations satisfy where measured; they are kept to catch regressions, not to show a delta. Expectations with a null measured value come from evals that have not been run, or were added or reworded after their last run, so neither their floor nor their discriminating status is established.",
   "evals": [
     {
       "id": 1,
@@ -177,7 +177,35 @@
         },
         {
           "text": "No catalog builder, hack/e2e operator install, or recorded flow is produced. Before applying, kubectl get kartas.run.ai exits 0 and shows whether a Karta already covers training.example.com/v1 TrainJob. With none, the definition is created with kubectl create, not kubectl apply, after a server-side dry run, and checked with kli get and kli describe on a live TrainJob; with one, or on a read error, the run stops without applying and says why",
-          "measured": null,
+          "measured": "3/3 check and create, 2/3 live (2026-11-10, new skill only)",
+          "kind": "discriminating"
+        },
+        {
+          "text": "The run states the workflow it took and why: the cluster-only path, from the request or as the unattended default, and that a recorded e2e flow in a checkout is the stronger verification it did not do",
+          "measured": "3/3 (2026-11-10, new skill only)",
+          "kind": "discriminating"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "purpose": "Workflow choice by intended use. The request names a production system and an in-house CRD, but no checkout. The skill must pick the workflow from the intended use, not from the missing checkout. Measured on 2026-11-10 as new skill vs previous skill, 3 runs each (BENCHMARK.md, workflow choice section).",
+      "prompt": "We run our in-house CRD training.example.com/v1 TrainJob in production (CRD and a running CR attached). Write a Karta definition for it so our platform can manage these jobs. I don't have the Karta repo cloned.",
+      "expected_output": "Before writing anything, the run states that the request answers production and own use, recommends a recorded e2e flow for a production system, which needs a clone of the repository, and asks whether to take that path or the cluster-only one. It keeps verification (kli validate, karta-verify) separate from recording.",
+      "expectations": [
+        {
+          "text": "Before step 1, the run settles both workflow questions: it takes production and own use from the request (in-house CRD, our platform) and says so, or asks the one it cannot take; it does not decide own use from the missing checkout",
+          "measured": "3/3 vs 1/3",
+          "kind": "discriminating"
+        },
+        {
+          "text": "The run recommends the recorded path for a production system, including for own use, and says it needs a clone of https://github.com/dsx-ai-factory/workload-map.git; it does not pick the cluster-only path only because no checkout exists",
+          "measured": "3/3 vs 0/3",
+          "kind": "discriminating"
+        },
+        {
+          "text": "The run keeps verification and recording distinct: kli validate and karta-verify run without a checkout, and a recorded flow is the additional layer that needs the repository",
+          "measured": "3/3 vs 0/3",
           "kind": "discriminating"
         }
       ]

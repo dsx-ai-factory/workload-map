@@ -133,3 +133,37 @@ tests:
         exp_samples:
           - labels: 'dsx:shared_gpu_device:unattributed{UUID="GPU-aaaa",gpu_group="g-1",node="node-1"}'
             value: 1
+
+  - name: Exporter job and team labels on dsx_workload_pod_info are preserved on attribution and consumer utilization series
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-1"}'
+        values: '40x12'
+      - series: 'dsx_workload_pod_info{job="dsx-workload-exporter",namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-1",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-1",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{job="dsx-workload-exporter",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",team="re",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{job="dsx-workload-exporter",namespace="team-b",pod_name="runner-1",pod_uid="r-1",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",team="re",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:pod_attribution:unique{namespace="team-b"}
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:pod_attribution:unique{job="dsx-workload-exporter",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",team="re",gpu_group="g-1",node="node-1"}'
+            value: 1
+          - labels: 'dsx:pod_attribution:unique{job="dsx-workload-exporter",namespace="team-b",pod_name="runner-1",pod_uid="r-1",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",team="re",gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_util:by_consumer
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:by_consumer{UUID="GPU-aaaa",job="dsx-workload-exporter",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",team="re",gpu_group="g-1",node="node-1"}'
+            value: 40
+          - labels: 'dsx:shared_gpu_util:by_consumer{UUID="GPU-aaaa",job="dsx-workload-exporter",namespace="team-b",pod_name="runner-1",pod_uid="r-1",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",team="re",gpu_group="g-1",node="node-1"}'
+            value: 40
+      - expr: dsx:shared_gpu_util:equal_share
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",job="dsx-workload-exporter",namespace="team-b",pod_name="runner-0",pod_uid="r-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",team="re",gpu_group="g-1",node="node-1"}'
+            value: 20
+          - labels: 'dsx:shared_gpu_util:equal_share{UUID="GPU-aaaa",job="dsx-workload-exporter",namespace="team-b",pod_name="runner-1",pod_uid="r-1",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-1",owner_resolution="resolved",component="deployment",observation_valid="true",team="re",gpu_group="g-1",node="node-1"}'
+            value: 20

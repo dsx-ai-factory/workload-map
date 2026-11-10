@@ -18,16 +18,16 @@ groups:
     rules:
       - record: dsx:pod_attribution:unique
         expr: |
-          max by (namespace, pod_name, pod_uid, workload_name, workload_group, workload_version,
+          max by (job, namespace, pod_name, pod_uid, workload_name, workload_group, workload_version,
                   workload_kind, workload_uid, owner_resolution, component, component_instance,
-                  replica_group_id, observation_valid, gpu_group, gpu_uuid, node, pod_phase) (
+                  replica_group_id, observation_valid, team, gpu_group, gpu_uuid, node, pod_phase) (
             dsx_workload_pod_info
           )
-          and on (namespace, pod_name)
-          (count by (namespace, pod_name) (
-            group by (namespace, pod_name, pod_uid, workload_name, workload_group, workload_version,
+          and on (job, namespace, pod_name)
+          (count by (job, namespace, pod_name) (
+            group by (job, namespace, pod_name, pod_uid, workload_name, workload_group, workload_version,
                       workload_kind, workload_uid, owner_resolution, component, component_instance,
-                      replica_group_id, observation_valid, gpu_group, gpu_uuid, node, pod_phase) (
+                      replica_group_id, observation_valid, team, gpu_group, gpu_uuid, node, pod_phase) (
               dsx_workload_pod_info
             )
           ) == 1)

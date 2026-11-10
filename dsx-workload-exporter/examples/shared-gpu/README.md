@@ -7,17 +7,26 @@ Recording rules that attribute GPU measurements to the consumer Pods of a GPU th
 a sharing scheduler holds through a reservation Pod. The background, the three
 `labelRules` entries they need (`gpu_group`, `gpu_uuid` and `node`) and the query
 guidance are in [queries.md](../../../docs/dsx-workload-exporter/queries.md),
-section 3a.
+section 3a. On DGX Cloud clusters scraped by `dgxc-alloy`, set
+`exporter.serviceMonitor.enabled: true` and
+`exporter.serviceMonitor.additionalLabels: {"alloy.dgxc.nvidia.com/scrape-metrics": "true"}`
+when installing the chart so the collector discovers the exporter's
+`ServiceMonitor`.
 
 ## Files
 
 - `shared-gpu-rules.yaml`: the rule group for one cluster per backend. It includes
-  `dsx:pod_attribution:unique` extended with the `gpu_group`, `gpu_uuid`, `node`
-  and optional `pod_phase` labels. Load it in place of the section 1 rule, not
-  next to it. Add any other configured label (for example `team` from section 1)
-  to both lists of that rule. A sharing group is keyed by `(gpu_group, node)`: the
-  scheduler keeps one reservation Pod per node and group, and a group value can
-  appear on more than one node.
+  `dsx:pod_attribution:unique` extended with `job`, `team`, `gpu_group`,
+  `gpu_uuid`, `node` and optional `pod_phase`, and keys its conflict check on
+  `(job, namespace, pod_name)` to match
+  [`examples/grafana/recording-rules.yaml`](../grafana/recording-rules.yaml) and
+  work with the [Grafana dashboards](../grafana/). Load it in place of the
+  `dsx:pod_attribution:unique` rule from section 1 or
+  `examples/grafana/recording-rules.yaml` (keeping `dsx:workload:observed`), not
+  next to it. Add any other configured labels to both grouping lists of that
+  rule. A sharing group is keyed by `(gpu_group, node)`: the scheduler keeps one
+  reservation Pod per node and group, and a group value can appear on more than
+  one node.
 - `shared-gpu-rules.cluster.yaml`: the same rules with `cluster` in every
   matching key, for backends that hold several clusters.
 - `tests/`: promtool unit tests over synthetic series.

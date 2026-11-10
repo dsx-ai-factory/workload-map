@@ -232,6 +232,11 @@ exporter:
       expression: has(object.spec.nodeName) ? object.spec.nodeName : ""
 ```
 
+On DGX Cloud clusters scraped by `dgxc-alloy`, also set
+`exporter.serviceMonitor.enabled: true` and
+`exporter.serviceMonitor.additionalLabels: {"alloy.dgxc.nvidia.com/scrape-metrics": "true"}`
+so the collector discovers the `ServiceMonitor`.
+
 These examples expect `DCGM_FI_DEV_GPU_UTIL` in percent, from 0 to 100.
 [dcgm-exporter 4.9.0](https://github.com/NVIDIA/dcgm-exporter/releases/tag/4.9.0)
 changes its default to `DCGM_FI_DEV_GPU_UTIL_RATIO`, from 0 to 1. To use that
@@ -243,8 +248,12 @@ Extend the `dsx:pod_attribution:unique` rule in section 1 with `gpu_group`,
 `gpu_uuid` and `node` in both label lists. Reservation rows then carry all three
 and consumer rows carry `gpu_group` and `node`. The complete rule set lives in
 [`examples/shared-gpu`](../../dsx-workload-exporter/examples/shared-gpu/) with
-promtool unit tests. A sharing group is keyed by `(gpu_group, node)`. The core is
-one join on `UUID` followed by a fan-out on the group:
+promtool unit tests; its `dsx:pod_attribution:unique` rule also preserves `job`
+and `team` and keys the conflict check on `(job, namespace, pod_name)` to match
+[`examples/grafana/recording-rules.yaml`](../../dsx-workload-exporter/examples/grafana/recording-rules.yaml)
+and the [Grafana dashboards](../../dsx-workload-exporter/examples/grafana/). A
+sharing group is keyed by `(gpu_group, node)`. The core is one join on `UUID`
+followed by a fan-out on the group:
 
 ```promql
 # dsx:shared_gpu_util:device

@@ -44,7 +44,7 @@ Karta (*a map to navigate resources*) introduces a CRD that maps the structure o
 - **Update** pod specs, labels, and annotations across all instances
 - **Understand** workload hierarchy (e.g., a JobSet with master + worker groups)
 
-In addition to the CRD, Karta provides a **Go package** that performs the core processing logic: query evaluation to dynamically interpret custom resource schemas, resource extraction that traverses workload hierarchies to identify and group pods, and optimization instruction processors that apply strategies such as gang scheduling to ensure coordinated placement of pods for distributed workloads.
+In addition to the CRD, Karta provides a **Go package** that performs the core processing logic: query evaluation to dynamically interpret custom resource schemas, resource extraction that traverses workload hierarchies to identify and group pods, and optimization instruction processors that apply strategies such as gang scheduling (admitting all the pods of a distributed workload together, or none of them) to ensure coordinated placement of pods for distributed workloads.
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -99,6 +99,17 @@ With the pre-built [LeaderWorkerSet Karta definition](docs/catalog/leaderworkers
 The structure in this view comes from Karta path expressions: the group, leader, and worker components, their replica counts, the per-pod GPU counts, and the workload status mapped from LeaderWorkerSet conditions to a common vocabulary. The gang semantics come from the same definition's gang-scheduling instructions, which declare each group's pods as one gang. None of it is LeaderWorkerSet-specific code. Point the same code at a RayCluster or a JobSet with their Karta definitions and the view keeps working. [KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler) consumes the gang instructions today through its Karta-based pod grouper to admit each gang all-or-nothing, and any scheduler with a gang primitive can translate them the same way.
 
 ## Quick Start
+
+Start here, no cluster needed: run the [offline quickstart](docs/examples/quickstart/). It needs only Go, and its README shows the full expected output.
+
+Pick the path that matches what you want to do:
+
+| Path | Use it to | You need |
+|---|---|---|
+| [Offline quickstart](docs/examples/quickstart/) | See the uniform API read and mutate a JobSet and a LeaderWorkerSet | Go 1.27.3 or later |
+| [Install the CLI](#install-the-cli) | List definitions and inspect workloads with `kli` | Homebrew, or a release archive. Inspecting live workloads also needs a cluster and `kubectl` context |
+| [Install the CRD](#install-the-crd) | Register Karta definitions in a cluster | A cluster and `kubectl` context |
+| [Use the Go library](#use-the-go-library) | Call Karta from your own controller or tool | Go 1.27.3 or later |
 
 ### Install the CLI
 

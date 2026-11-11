@@ -128,11 +128,22 @@ repositories named `homebrew-<name>`. Installing by full name also makes
 Homebrew trust this one cask, which it requires for any tap it does not
 maintain. `brew upgrade kli` installs later releases.
 
-Each release also publishes prebuilt `kli` archives for Linux and macOS on
-amd64 and arm64, with a `checksums.txt` manifest, on the
+Each release also publishes prebuilt archives for Linux and macOS on amd64 and
+arm64, with a `checksums.txt` manifest, on the
 [GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
-To install without Homebrew, download the archive for your platform, check it
-against `checksums.txt`, and put the `kli` executable on your `PATH`.
+The archives are named `karta_<version>_<os>_<arch>.tar.gz` and contain the
+`kli` executable. To install without Homebrew, set the release version and your
+platform, then download, check and extract:
+
+```bash
+VERSION=0.3.0 OS=darwin ARCH=arm64   # release to install; OS: darwin or linux; ARCH: amd64 or arm64
+curl -fsSLO "https://github.com/dsx-ai-factory/workload-map/releases/download/v${VERSION}/karta_${VERSION}_${OS}_${ARCH}.tar.gz"
+curl -fsSLO "https://github.com/dsx-ai-factory/workload-map/releases/download/v${VERSION}/checksums.txt"
+shasum -a 256 -c --ignore-missing checksums.txt   # on Linux: sha256sum -c --ignore-missing checksums.txt
+tar -xzf "karta_${VERSION}_${OS}_${ARCH}.tar.gz" kli
+```
+
+Then move `kli` to a directory on your `PATH`.
 
 Run `kli --version` to print the release version. `go install` is not a
 supported way to install the CLI.

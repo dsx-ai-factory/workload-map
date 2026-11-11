@@ -167,6 +167,52 @@ its replica count.
 Again the `// 1` default keeps the path null-safe: `parallelism` is optional and
 defaults to 1 when unset.
 
+Your complete `job.yaml` now looks like this. It is a valid definition as is;
+the scheduling instructions in Step 6 are optional.
+
+```yaml
+apiVersion: run.ai/v1alpha1
+kind: Karta
+metadata:
+  name: batch-v1-job
+spec:
+  structureDefinition:
+    rootComponent:
+      name: job
+      kind:
+        group: batch
+        version: v1
+        kind: Job
+      statusDefinition:
+        conditionsDefinition:
+          path: .status.conditions
+          typeFieldName: type
+          statusFieldName: status
+          reasonFieldName: reason
+          messageFieldName: message
+        statusMappings:
+          initializing:
+            - byExpression:
+                expression: (.status.active // 0) > 0 and (.status.ready // 0) == 0
+                expectedResult: "true"
+          running:
+            - byExpression:
+                expression: (.status.active // 0) > 0 and (.status.ready // 0) > 0
+                expectedResult: "true"
+          completed:
+            - byConditions:
+                - type: Complete
+                  status: "True"
+          failed:
+            - byConditions:
+                - type: Failed
+                  status: "True"
+      specDefinition:
+        podTemplateSpecPath: .spec.template
+      scaleDefinition:
+        replicasPath: .spec.parallelism // 1
+```
+
 ## Step 6 (optional, experimental): Add scheduling instructions
 
 `optimizationInstructions` is optional and used by schedulers. For gang

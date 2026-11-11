@@ -129,7 +129,7 @@ every supported development host. The operator e2e suite is compiled during
 There is no Go workspace. The library is the `karta/sdk/` module, and the CLI,
 operator, and other modules reach it through a relative `replace` directive in
 their own `go.mod`. Run Go commands from a module's directory, for example
-`cd karta && go test ./pkg/...`. The root `go.mod` only marks the library's old
+`cd karta/sdk && go test ./pkg/...`. The root `go.mod` only marks the library's old
 module path as deprecated and has no packages.
 
 `make lint` never rewrites your files. `make fmt` and the per-component

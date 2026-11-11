@@ -47,7 +47,7 @@ CONTROLLER_TOOLS_VERSION    ?= v0.23.0
 GO_LICENCE_DETECTOR_VERSION ?= v0.11.1
 ENVTEST_VERSION             ?= release-0.23
 # renovate: datasource=go depName=github.com/goreleaser/goreleaser/v2
-GORELEASER_VERSION          ?= v2.19.0
+GORELEASER_VERSION          ?= v2.20.0
 # Kubernetes control-plane (apiserver, etcd, kubectl) version envtest downloads.
 ENVTEST_K8S_VERSION         ?= 1.31.0
 # Control-plane version for the chart's admission policy tests; MutatingAdmissionPolicy v1 needs 1.36+.
@@ -473,11 +473,13 @@ fmt-check-exporter: ## Check exporter formatting without modifying files
 .PHONY: vet-exporter
 vet-exporter: ## go vet the exporter and its envtest modules
 	cd dsx-workload-exporter && go vet ./...
+	cd dsx-workload-exporter && go vet -tags e2e ./test/e2e/...
 	cd $(EXPORTER_ENVTEST_DIR) && go vet ./...
 
 .PHONY: lint-exporter
 lint-exporter: golangci-lint ## Lint the exporter and its envtest modules
 	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
+	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml --build-tags=e2e ./test/e2e/...
 	cd $(EXPORTER_ENVTEST_DIR) && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
 .PHONY: modules-check-exporter
@@ -514,7 +516,7 @@ exporter-version-smoke: build-exporter ## Verify the exporter reports the stampe
 		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
 
 .PHONY: check-exporter
-check-exporter: fmt-check-exporter vet-exporter lint-exporter modules-check-exporter test-exporter exporter-version-smoke ## Full exporter presubmit
+check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter test-exporter exporter-version-smoke ## Full exporter presubmit
 
 EXPORTER_GO_VERSION := $(shell awk '/^go /{print $$2; exit}' dsx-workload-exporter/go.mod)
 EXPORTER_IMAGE_REPOSITORY ?= $(IMAGE_REGISTRY)/dsx-workload-exporter
@@ -781,6 +783,19 @@ build-operator-e2e: ## Compile the operator e2e suite without running it (no clu
 test-operator-e2e: ## Run the operator e2e against the current cluster (KARTA_WEBHOOK_MODE must match the one e2e-up installed; CLUSTER_NAME for a named one)
 	CLUSTER_NAME=$(CLUSTER_NAME) KARTA_WEBHOOK_MODE=$(KARTA_WEBHOOK_MODE) $(E2E_KUBECONFIG) ./hack/e2e/karta-operator/test.sh
 
+.PHONY: exporter-e2e-up test-exporter-e2e exporter-e2e-down build-exporter-e2e
+exporter-e2e-up: ## Create an isolated Kind cluster and install two exporter shards
+	./hack/e2e/dsx-workload-exporter/up.sh
+
+test-exporter-e2e: ## Run exporter E2E against its isolated Kind cluster
+	./hack/e2e/dsx-workload-exporter/test.sh
+
+exporter-e2e-down: ## Delete the isolated exporter Kind cluster
+	./hack/e2e/dsx-workload-exporter/down.sh
+
+build-exporter-e2e: ## Compile exporter E2E tests without a cluster
+	cd dsx-workload-exporter && go test -tags e2e -run '^$$' ./test/e2e/...
+
 .PHONY: e2e-operators-check-latest-supported-versions
 e2e-operators-check-latest-supported-versions: ## Report newer workload and infra operator tags (OPERATORS="jobset infra", UPDATE_FLAGS="--fail-on-update --include-prereleases")
 	@bash ./hack/e2e/check-updates.sh $(UPDATE_FLAGS) $(OPERATORS)
@@ -818,6 +833,7 @@ E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh hack/e2e/check-updates.sh \
 	hack/e2e/_updates.sh \
 	$(wildcard hack/e2e/infra/*/*.sh) \
 	$(wildcard hack/e2e/operators/*/check-updates.sh) \
+	$(wildcard hack/e2e/dsx-workload-exporter/*.sh) \
 	$(wildcard hack/e2e/karta-operator/*.sh) \
 	hack/e2e/operators/_common.sh \
 	$(wildcard hack/e2e/operators/*/install.sh) \

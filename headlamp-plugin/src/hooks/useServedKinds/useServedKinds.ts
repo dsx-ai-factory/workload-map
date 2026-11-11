@@ -96,27 +96,67 @@ async function fetchResources(
   return { groupVersion, served, failed: false };
 }
 
+// Short, since an API group can be installed while the page is open.
+const MISSING_GROUP_TTL_MS = 30_000;
+// A group that is listed but whose resources did not answer is retried on its
+// own, shorter clock.
+const FAILED_GROUP_RETRY_MS = 15_000;
+
+interface GroupVersionsRequest {
+  sequence: number;
+  // The promise rather than its result, so concurrent runs share it.
+  promise: Promise<Set<string>>;
+}
+
 interface DiscoveryCache {
   cluster: string;
-  // The /apis promise rather than its result, so concurrent runs share it.
-  groupVersions: Promise<Set<string>> | null;
+  groupVersions: GroupVersionsRequest | null;
+  // The last answer that succeeded, kept apart from the current request so
+  // every failed refresh can fall back to it.
+  lastGroupVersions: Set<string> | null;
+  sequence: number;
   served: Map<string, ServedKind>;
   failed: Set<string>;
   pending: Map<string, Promise<void>>;
-  // Group/versions already resolved, including those the cluster does not
-  // serve: those contribute no kinds and asking again would gain nothing.
   asked: Set<string>;
+  // Group/versions the cluster did not list, and when. Entries expire, since
+  // the group may be installed later.
+  missing: Map<string, number>;
 }
 
 function newCache(cluster: string): DiscoveryCache {
   return {
     cluster,
     groupVersions: null,
+    lastGroupVersions: null,
+    sequence: 0,
     served: new Map(),
     failed: new Set(),
     pending: new Map(),
     asked: new Set(),
+    missing: new Map(),
   };
+}
+
+function requestGroupVersions(runCache: DiscoveryCache, cluster: string): GroupVersionsRequest {
+  const request: GroupVersionsRequest = {
+    sequence: ++runCache.sequence,
+    // Not cached on failure, or one hiccup would stop every later wave asking.
+    promise: fetchGroupVersions(cluster).then(
+      groupVersions => {
+        runCache.lastGroupVersions = groupVersions;
+        return groupVersions;
+      },
+      (err: unknown) => {
+        if (runCache.groupVersions === request) {
+          runCache.groupVersions = null;
+        }
+        throw err;
+      }
+    ),
+  };
+  runCache.groupVersions = request;
+  return request;
 }
 
 // Reports which of the given kinds the cluster serves, since listing one it
@@ -130,6 +170,10 @@ export function useServedKinds(
   const [failedGroupVersions, setFailedGroupVersions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  // Bumped when an absent group's answer expires, to re-run the effect while
+  // the requested groups stay the same.
+  const [recheck, setRecheck] = useState(0);
+  const lastRun = useRef({ cluster: '', requested: '', recheck: 0 });
 
   // Definitions arrive in waves, the catalog first and the cluster's own CRs
   // after, so the kind set grows and this effect re-runs, often before the
@@ -153,6 +197,11 @@ export function useServedKinds(
   // Keyed by cluster too: plurals and scope are answered per cluster.
   useEffect(() => {
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const cleanup = () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
 
     if (cache.current.cluster !== cluster) {
       // Another cluster's answers describe different paths entirely.
@@ -167,6 +216,12 @@ export function useServedKinds(
     // previous cluster's answer land in the cache of whatever is current by
     // the time it resolves.
     const runCache = cache.current;
+    const runSequence = ++runCache.sequence;
+    const timerRecheck =
+      lastRun.current.cluster === cluster &&
+      lastRun.current.requested === requested &&
+      lastRun.current.recheck !== recheck;
+    lastRun.current = { cluster, requested, recheck };
 
     if (cluster === '' || requested === '') {
       // Nothing to ask: settle rather than wait on a request never made.
@@ -175,23 +230,71 @@ export function useServedKinds(
     }
 
     const wanted = requested.split(',');
-    const outstanding = wanted.filter(groupVersion => !runCache.asked.has(groupVersion));
+    const scheduleRecheck = () => {
+      const expiries = wanted
+        .map(groupVersion => runCache.missing.get(groupVersion))
+        .filter(missingSince => missingSince !== undefined)
+        .map(missingSince => missingSince + MISSING_GROUP_TTL_MS - Date.now());
+      if (wanted.some(groupVersion => runCache.failed.has(groupVersion))) {
+        expiries.push(FAILED_GROUP_RETRY_MS);
+      }
+      if (expiries.length > 0) {
+        timer = setTimeout(() => setRecheck(n => n + 1), Math.max(0, Math.min(...expiries)));
+      }
+    };
+    const now = Date.now();
+    const outstanding = wanted.filter(groupVersion => {
+      const missingSince = runCache.missing.get(groupVersion);
+      return (
+        !runCache.asked.has(groupVersion) &&
+        (missingSince === undefined || now - missingSince >= MISSING_GROUP_TTL_MS)
+      );
+    });
     if (outstanding.length === 0) {
       setServed(new Map(runCache.served));
       setFailedGroupVersions(new Set(runCache.failed));
       setLoading(false);
-      return;
+      scheduleRecheck();
+      return cleanup;
     }
-    setLoading(true);
+    // A timer-only recheck keeps the rows already shown instead of flashing
+    // them away while discovery runs again.
+    if (!timerRecheck) {
+      setLoading(true);
+    }
 
     (async () => {
-      // A rejected promise would otherwise be cached as an answer, so a single
-      // hiccup would keep every later wave from ever asking again.
-      runCache.groupVersions ??= fetchGroupVersions(cluster).catch((err: unknown) => {
-        runCache.groupVersions = null;
-        throw err;
-      });
-      const groupVersions = await runCache.groupVersions;
+      let request = runCache.groupVersions ?? requestGroupVersions(runCache, cluster);
+      let groupVersions: Set<string>;
+      let refreshFailed = false;
+      try {
+        groupVersions = await request.promise;
+      } catch (err) {
+        // The earlier answer is still usable, so only the groups it cannot
+        // vouch for are reported, not the whole discovery.
+        if (!runCache.lastGroupVersions) {
+          throw err;
+        }
+        groupVersions = runCache.lastGroupVersions;
+        refreshFailed = true;
+      }
+      // An answer older than this run may predate an install, so refresh it
+      // before treating the group as absent. Concurrent runs share the refresh.
+      if (
+        !refreshFailed &&
+        request.sequence < runSequence &&
+        outstanding.some(gv => !groupVersions.has(gv))
+      ) {
+        request =
+          runCache.groupVersions && runCache.groupVersions.sequence > runSequence
+            ? runCache.groupVersions
+            : requestGroupVersions(runCache, cluster);
+        try {
+          groupVersions = await request.promise;
+        } catch {
+          refreshFailed = true;
+        }
+      }
 
       await Promise.all(
         outstanding.map(groupVersion => {
@@ -202,9 +305,19 @@ export function useServedKinds(
           // A group the cluster does not serve is answered too: it contributes
           // no kinds, and asking would be the 404 this exists to avoid.
           if (!groupVersions.has(groupVersion)) {
-            runCache.asked.add(groupVersion);
+            if (refreshFailed) {
+              // An expired missing entry would otherwise schedule an
+              // immediate recheck, ahead of the failure retry clock.
+              runCache.missing.delete(groupVersion);
+              runCache.failed.add(groupVersion);
+            } else {
+              runCache.failed.delete(groupVersion);
+              runCache.missing.set(groupVersion, Date.now());
+            }
             return Promise.resolve();
           }
+          // Listed now, so no longer absent, even if its resources fail below.
+          runCache.missing.delete(groupVersion);
           const resolving = fetchResources(cluster, groupVersion).then(resolved => {
             runCache.pending.delete(groupVersion);
             if (resolved.failed) {
@@ -214,6 +327,7 @@ export function useServedKinds(
               return;
             }
             runCache.failed.delete(groupVersion);
+            runCache.missing.delete(groupVersion);
             runCache.asked.add(groupVersion);
             for (const [key, value] of resolved.served) {
               runCache.served.set(key, value);
@@ -228,6 +342,7 @@ export function useServedKinds(
         if (!cancelled) {
           setServed(new Map(runCache.served));
           setFailedGroupVersions(new Set(runCache.failed));
+          scheduleRecheck();
         }
       })
       .catch((err: unknown) => {
@@ -241,10 +356,8 @@ export function useServedKinds(
         }
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [cluster, requested]);
+    return cleanup;
+  }, [cluster, requested, recheck]);
 
   return { served, failedGroupVersions, loading, error };
 }

@@ -209,13 +209,32 @@ func (rule compiledRule) evaluate(ctx context.Context, objects map[Source]*unstr
 	return ruleResult{err: errors.Join(errs...)}, nil
 }
 
-// Apply returns builtIn with the resolved values added. A resolved value replaces a
-// built-in value of the same name; a label without a resolved value keeps its built-in value.
+// Apply returns a copy of builtIn with resolved labels added. Protected built-ins
+// keep their values; other built-ins accept nonempty overrides.
 func (r ResolvedMetricLabels) Apply(builtIn map[string]string) map[string]string {
 	labels := maps.Clone(builtIn)
 	if labels == nil {
 		labels = make(map[string]string, len(r.Labels))
 	}
-	maps.Copy(labels, r.Labels)
+	for name, value := range r.Labels {
+		if _, exists := builtIn[name]; exists && (value == "" || IsProtectedLabel(name)) {
+			continue
+		}
+		labels[name] = value
+	}
 	return labels
+}
+
+// IsProtectedLabel identifies built-in labels whose identity, status or health
+// values cannot be overridden. The name remains usable when it is not built-in.
+func IsProtectedLabel(name string) bool {
+	switch name {
+	case "namespace", "workload_name", "workload_uid", "workload_group",
+		"workload_version", "workload_kind", "pod_name", "pod_uid",
+		"owner_resolution", "observation_valid", "phase", "karta", "karta_source",
+		"scope", "resource_group", "resource_version", "resource_kind", "reason":
+		return true
+	default:
+		return false
+	}
 }

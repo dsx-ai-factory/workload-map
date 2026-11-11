@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -39,7 +41,8 @@ const (
 
 // loader accumulates the warnings one cluster read produces.
 type loader struct {
-	warnings []Warning
+	warnings           []Warning
+	enableExperimental bool
 }
 
 func (l *loader) warn(reason, format string, args ...any) {
@@ -48,9 +51,10 @@ func (l *loader) warn(reason, format string, args ...any) {
 
 // Load builds the resolver every CLI command looks definitions up in. It seeds
 // the built-in catalog and then best-effort merges the cluster's Karta
-// definitions on top.
-func Load(ctx context.Context, rcg genericclioptions.RESTClientGetter) (*Resolver, []Warning) {
-	l := &loader{}
+// definitions on top. Experimental definitions are excluded from both sources
+// before merging unless enableExperimental is true.
+func Load(ctx context.Context, rcg genericclioptions.RESTClientGetter, enableExperimental bool) (*Resolver, []Warning) {
+	l := &loader{enableExperimental: enableExperimental}
 	cluster, err := l.fetchCluster(ctx, rcg)
 	if err != nil {
 		if w, ok := classify(err); ok {
@@ -59,7 +63,13 @@ func Load(ctx context.Context, rcg genericclioptions.RESTClientGetter) (*Resolve
 		cluster = nil
 	}
 
-	resolver := New(catalog.List(), cluster)
+	builtins := catalog.List()
+	if !enableExperimental {
+		builtins = slices.DeleteFunc(builtins, func(karta *v1alpha1.Karta) bool {
+			return karta.Spec.Experimental
+		})
+	}
+	resolver := New(builtins, cluster)
 	for _, c := range resolver.Collisions() {
 		names := make([]string, 0, len(c.Names))
 		for _, name := range c.Names {
@@ -129,6 +139,11 @@ func (l *loader) listWithClient(ctx context.Context, dyn dynamic.Interface) ([]*
 
 	kartas := make([]*v1alpha1.Karta, 0, len(list.Items))
 	for i := range list.Items {
+		// Excluded definitions must not produce conversion warnings either.
+		experimental, _, _ := unstructured.NestedBool(list.Items[i].Object, "spec", "experimental")
+		if experimental && !l.enableExperimental {
+			continue
+		}
 		var karta v1alpha1.Karta
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(list.Items[i].Object, &karta); err != nil {
 			// One definition this build cannot read must not cost the user the

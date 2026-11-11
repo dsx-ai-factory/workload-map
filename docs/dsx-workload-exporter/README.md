@@ -13,5 +13,6 @@ with CPU, memory and GPU measurements from other exporters.
 - [Build and run the binary](../../dsx-workload-exporter/README.md).
 
 - [PromQL query examples](queries.md) for attribution and low observed GPU activity.
+- [Grafana dashboard and Prometheus rule examples](../../dsx-workload-exporter/examples/grafana/README.md).
 
 Low activity alone does not prove idleness.

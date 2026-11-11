@@ -1,0 +1,64 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      creationTimestamp: "2026-11-08T11:02:07Z"
+      generation: 1
+      name: karta-e2e-kueue-pending
+      namespace: test-n86nx
+      uid: a005a79b-396b-4045-8fe6-32d03cbaad84
+    spec:
+      active: true
+      podSets:
+      - count: 1
+        name: main
+        template:
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - "true"
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+      queueName: karta-kueue-missing
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-08T11:02:07Z"
+        message: LocalQueue karta-kueue-missing doesn't exist
+        observedGeneration: 1
+        reason: Misconfigured
+        status: "False"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T11:02:07Z"
+        message: The workload has no reservation
+        observedGeneration: 1
+        reason: NoReservation
+        status: "False"
+        type: Admitted
+  phases:
+  - Initializing
+  resourceVersion: "1845"
+  state: Initializing
+flow: pending
+kartaFile: docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml
+kartaName: kueue-x-k8s-io-workload-v1beta2
+operator: kueue
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 1
+  phases:
+  - Initializing
+version: v0.20.5
+want: Initializing

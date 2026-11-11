@@ -174,6 +174,49 @@ var _ = Describe("Karta definition inventory", func() {
 		})
 	})
 
+	It("persists experimental flags and refreshes default and opted-in selections", func() {
+		object := clusterKarta("experimental-job", jobGVK)
+		Expect(unstructured.SetNestedField(object.Object, true, "spec", "experimental")).To(Succeed())
+		create(object)
+		resource := adminClient.Resource(kartasGVR)
+		stored, err := resource.Get(testCtx, object.GetName(), metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		experimental, found, err := unstructured.NestedBool(stored.Object, "spec", "experimental")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(found).To(BeTrue())
+		Expect(experimental).To(BeTrue())
+
+		defaults := start(clientFor(adminConfig), withCatalog)
+		optInConfig := withCatalog
+		optInConfig.EnableExperimental = true
+		optedIn := start(clientFor(adminConfig), optInConfig)
+		expectOrigin(defaults, jobGVK, func(o inventory.Origin) bool { return o.Name == "batch-job-v1" })
+		expectOrigin(optedIn, jobGVK, func(o inventory.Origin) bool { return o.Name == "experimental-job" })
+
+		for _, experimental := range []bool{false, true} {
+			Expect(unstructured.SetNestedField(stored.Object, experimental, "spec", "experimental")).To(Succeed())
+			stored, err = resource.Update(testCtx, stored, metav1.UpdateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			value, found, err := unstructured.NestedBool(stored.Object, "spec", "experimental")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(found).To(BeTrue())
+			Expect(value).To(Equal(experimental))
+			want := "experimental-job"
+			if experimental {
+				want = "batch-job-v1"
+			}
+			expectOrigin(defaults, jobGVK, func(o inventory.Origin) bool { return o.Name == want })
+			expectOrigin(optedIn, jobGVK, func(o inventory.Origin) bool {
+				return o.Name == "experimental-job" && o.ResourceVersion == stored.GetResourceVersion()
+			})
+			Expect(inventoryHealth(defaults)()).To(Succeed())
+			Expect(inventoryHealth(optedIn)()).To(Succeed())
+		}
+		Expect(resource.Delete(testCtx, stored.GetName(), metav1.DeleteOptions{})).To(Succeed())
+		expectOrigin(optedIn, jobGVK, func(o inventory.Origin) bool { return o.Name == "batch-job-v1" })
+		expectOrigin(defaults, jobGVK, func(o inventory.Origin) bool { return o.Name == "batch-job-v1" })
+	})
+
 	It("is unavailable while the API server is down, and recovers once it is back", func() {
 		create(clusterKarta("cluster-job", jobGVK))
 		inv := start(clientFor(adminConfig), withCatalog)

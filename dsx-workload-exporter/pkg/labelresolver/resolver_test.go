@@ -447,13 +447,35 @@ var _ = Describe("execution order", func() {
 })
 
 var _ = Describe("Apply", func() {
-	It("replaces built-in values and keeps built-in labels without a resolved value", func() {
+	It("overrides component labels while preserving workload identity", func() {
 		builtIn := map[string]string{"workload_name": "train", "component": "workers", "workload_uid": "uid-1"}
-		resolved := ResolvedMetricLabels{Labels: map[string]string{"component": "trainer", "team": "research"}}
+		resolved := ResolvedMetricLabels{Labels: map[string]string{
+			"component": "trainer", "team": "research", "workload_name": "wrong", "workload_uid": "wrong",
+		}}
 		Expect(resolved.Apply(builtIn)).To(Equal(map[string]string{
 			"workload_name": "train", "component": "trainer", "workload_uid": "uid-1", "team": "research",
 		}))
 		Expect(builtIn).To(Equal(map[string]string{"workload_name": "train", "component": "workers", "workload_uid": "uid-1"}))
+	})
+
+	It("protects status and health labels only when they are built-in", func() {
+		builtIn := map[string]string{
+			"phase": "Running", "observation_valid": "true", "reason": "", "scope": "resource_type",
+			"resource_group": "apps", "resource_version": "v1", "resource_kind": "Deployment",
+		}
+		resolved := ResolvedMetricLabels{Labels: map[string]string{}}
+		for name := range builtIn {
+			resolved.Labels[name] = "custom"
+		}
+		Expect(resolved.Apply(builtIn)).To(Equal(builtIn))
+		Expect(resolved.Apply(nil)).To(Equal(resolved.Labels))
+	})
+
+	It("keeps built-in values when overrides are empty", func() {
+		resolved := ResolvedMetricLabels{Labels: map[string]string{"component": "", "team": ""}}
+		Expect(resolved.Apply(map[string]string{"component": "workers"})).To(Equal(map[string]string{
+			"component": "workers", "team": "",
+		}))
 	})
 
 	It("keeps the built-in value when the rule resolves an empty value", func(ctx SpecContext) {
@@ -506,3 +528,29 @@ func pod(scheduler string, labels map[string]string) *unstructured.Unstructured 
 	p.SetLabels(labels)
 	return p
 }
+
+var _ = Describe("SkyPilot component rule", func() {
+	It("sets roles only for identified SkyPilot Pods", func(ctx SpecContext) {
+		r := newResolver(LabelRule{Name: "component", Metrics: []string{MetricPodWorkloadInfo}, Sources: []Source{SourcePod}, Expression: `has(object.metadata.labels) &&
+"skypilot-cluster-name" in object.metadata.labels &&
+"skypilot-head-node" in object.metadata.labels
+  ? (object.metadata.labels["skypilot-head-node"] == "1"
+      ? "head"
+      : (object.metadata.labels["skypilot-head-node"] == "0" ? "worker" : ""))
+  : ""`})
+		for _, tc := range []struct {
+			labels map[string]string
+			want   string
+		}{
+			{map[string]string{"skypilot-cluster-name": "train", "skypilot-head-node": "1"}, "head"},
+			{map[string]string{"skypilot-cluster-name": "train", "skypilot-head-node": "0"}, "worker"},
+			{map[string]string{"skypilot-cluster-name": "train", "skypilot-head-node": "other"}, ""},
+			{map[string]string{"skypilot-head-node": "1"}, ""},
+			{nil, ""},
+		} {
+			result, err := r.Resolve(ctx, Input{Metrics: []string{MetricPodWorkloadInfo}, Workload: workload(nil), Pod: pod("", tc.labels)})
+			Expect(err).To(Succeed())
+			Expect(result[0].Labels["component"]).To(Equal(tc.want))
+		}
+	})
+})

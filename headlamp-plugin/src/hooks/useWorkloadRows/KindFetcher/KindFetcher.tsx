@@ -5,6 +5,7 @@ import { K8s } from '@kinvolk/headlamp-plugin/lib';
 import { useThrottle } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import { useEffect, useMemo, useRef } from 'react';
 import { Definition } from '../../../lib/karta/definitions';
+import { gvkKey } from '../../../lib/karta/gvkKey';
 import { Workload } from '../../../lib/karta/karta.types';
 import { evaluatePhases } from '../../../lib/karta/kartaUtil';
 import { buildWorkloadRow } from '../buildRow/buildRow';
@@ -22,7 +23,8 @@ export interface KindFetcherProps {
   // fetched. undefined means all of them.
   namespaces?: string[];
   onRows: (key: string, rows: WorkloadRow[]) => void;
-  onError: (key: string, error: Error) => void;
+  // null reports that the list no longer fails, which clears an earlier error.
+  onError: (key: string, error: Error | null) => void;
 }
 
 const LIST_THROTTLE_MS = 1000;
@@ -47,9 +49,10 @@ export function KindFetcher({
   onRows,
   onError,
 }: KindFetcherProps) {
-  const key = definition.karta.metadata.name;
-  // Validated definitions always have a root kind.
-  const kind = definition.karta.spec.structureDefinition.rootComponent.kind!;
+  const kind = definition.rootKind;
+  // Not the Karta name: a cluster Karta can reuse a catalog Karta's name for a
+  // different kind, and both would write to the same entry.
+  const key = gvkKey(kind);
 
   const ResourceClass = useMemo(
     () =>
@@ -90,6 +93,10 @@ export function KindFetcher({
   // The version of the most recently started call per workload: calls can
   // resolve out of order, and a stale one would overwrite a fresh result.
   const inFlightVersion = useRef<Map<string, string>>(new Map());
+  // The message of the latest failed evaluation per workload. Kept apart from
+  // the phase cache so a failure is retried like an uncached workload, while
+  // its row shows the status as unavailable instead of the last known phases.
+  const evaluationErrors = useRef<Map<string, string>>(new Map());
 
   // The definition's version, not its identity: useKartaDefinitions rebuilds
   // the objects every render. The ref keeps identity out of the effect deps.
@@ -101,12 +108,17 @@ export function KindFetcher({
   useEffect(() => {
     phaseCache.current.clear();
     inFlightVersion.current.clear();
+    evaluationErrors.current.clear();
   }, [definitionVersion]);
 
   useEffect(() => {
+    // The error does not stop the rows: Headlamp can return the workloads of
+    // one namespace together with a forbidden error from another, and the
+    // readable ones still belong in the table.
     if (error) {
       onError(key, new Error(error.message));
-      return;
+    } else if (!listLoading) {
+      onError(key, null);
     }
     if (listLoading || !items) {
       return;
@@ -128,7 +140,7 @@ export function KindFetcher({
 
     // Otherwise a page left open through job churn holds every uid it saw.
     const live = new Set(roots.map(item => workloadCacheKey(item.jsonData as Workload)));
-    for (const cache of [phaseCache.current, inFlightVersion.current]) {
+    for (const cache of [phaseCache.current, inFlightVersion.current, evaluationErrors.current]) {
       for (const cached of cache.keys()) {
         if (!live.has(cached)) {
           cache.delete(cached);
@@ -140,8 +152,13 @@ export function KindFetcher({
       roots.map(item => {
         const workload = item.jsonData as Workload;
         const row = buildWorkloadRow(currentDefinition, workload, item.cluster);
-        const cached = phaseCache.current.get(workloadCacheKey(workload));
-        return cached ? { ...row, phases: cached.phases } : row;
+        const cacheKey = workloadCacheKey(workload);
+        const cached = phaseCache.current.get(cacheKey);
+        if (cached) {
+          return { ...row, phases: cached.phases };
+        }
+        const statusError = evaluationErrors.current.get(cacheKey);
+        return statusError ? { ...row, statusError } : row;
       });
 
     onRows(key, buildRows());
@@ -173,8 +190,21 @@ export function KindFetcher({
             return;
           }
           phaseCache.current.set(cacheKey, { resourceVersion, phases });
-        } catch {
-          // Leave uncached; a later resourceVersion change retries.
+          evaluationErrors.current.delete(cacheKey);
+        } catch (evaluationError) {
+          // Only a still-current evaluation may speak for the workload: a late
+          // failure must not erase a newer successful result.
+          if (cancelled || inFlightVersion.current.get(cacheKey) !== resourceVersion) {
+            return;
+          }
+          // The last known phases describe an older version, so showing them
+          // would present a stale status as current. Uncached, a later run
+          // retries.
+          phaseCache.current.delete(cacheKey);
+          evaluationErrors.current.set(
+            cacheKey,
+            evaluationError instanceof Error ? evaluationError.message : String(evaluationError)
+          );
         }
       })
     ).then(() => {

@@ -12,6 +12,14 @@ is a placeholder setup, a `/karta/workloads` route and a WASM engine
 exporting only `kartaVersion`. The real tree visualization and engine
 bindings land in follow-up work.
 
+## Experimental definitions
+
+Definitions with `spec.experimental: true` are excluded by default, from both
+the catalog and the cluster. To include them, open Settings > Plugins > karta,
+enable "Enable experimental definitions", and save. Headlamp stores this
+setting in the current browser profile. Disabling it removes their workloads
+from the table.
+
 ## How the WASM engine is built and loaded
 
 [`karta-wasm/`](../karta-wasm/) (repository root, a sibling of this

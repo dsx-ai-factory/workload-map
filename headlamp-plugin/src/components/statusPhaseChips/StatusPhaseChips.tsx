@@ -18,6 +18,8 @@ const PHASE_SEVERITY: Record<string, number> = {
   Undefined: 9,
 };
 
+export const STATUS_UNAVAILABLE_LABEL = 'Unavailable';
+
 // Worst first, so a filter offers them in the order the chips use.
 export const KARTA_PHASES = Object.keys(PHASE_SEVERITY);
 
@@ -46,11 +48,21 @@ const PHASE_STATUS: Record<string, 'success' | 'warning' | 'error' | ''> = {
 
 export interface StatusPhaseChipsProps {
   phases: string[];
+  // The evaluation error, when the phases could not be computed.
+  error?: string;
 }
 
 // A pill per matched phase, worst first. A workload can match several at once,
 // such as Running and Degraded.
-export function StatusPhaseChips({ phases }: StatusPhaseChipsProps) {
+export function StatusPhaseChips({ phases, error }: StatusPhaseChipsProps) {
+  if (error) {
+    return (
+      <StatusLabel status="error">
+        <Icon aria-hidden icon="mdi:alert-outline" width="1.2rem" height="1.2rem" />
+        <span title={error}>{STATUS_UNAVAILABLE_LABEL}</span>
+      </StatusLabel>
+    );
+  }
   const sorted = [...phases].sort((a, b) => (PHASE_SEVERITY[a] ?? 99) - (PHASE_SEVERITY[b] ?? 99));
   return (
     <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">

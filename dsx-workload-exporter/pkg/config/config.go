@@ -39,27 +39,30 @@ type Loader struct {
 // Config is the exporter configuration. It is read from the YAML file named by
 // --config. A flag, or its environment variable, overrides the file when set.
 type Config struct {
-	labelresolver.Config  `yaml:",inline"`
-	ResourceRules         []controller.ResourceRule   `yaml:"resourceRules" json:"resourceRules"`
-	ExcludeResourceRules  []controller.ResourceRule   `yaml:"excludeResourceRules" json:"excludeResourceRules"`
-	NamespaceSelector     *metav1.LabelSelector       `yaml:"namespaceSelector" json:"namespaceSelector"`
-	ObjectSelector        *metav1.LabelSelector       `yaml:"objectSelector" json:"objectSelector"`
-	PodSelector           *metav1.LabelSelector       `yaml:"podSelector" json:"podSelector"`
-	KartaDefinitionSource KartaDefinitionSourceConfig `yaml:"kartaDefinitionSource" json:"kartaDefinitionSource"`
-	IgnoredOwnerKinds     Kinds                       `yaml:"ignoredOwnerKinds" json:"ignoredOwnerKinds"`
-	RequiredKinds         Kinds                       `yaml:"requiredKinds" json:"requiredKinds"`
-	RequestTimeout        string                      `yaml:"requestTimeout" json:"requestTimeout"`
-	APIQPS                float32                     `yaml:"apiQPS" json:"apiQPS"`
-	APIBurst              int                         `yaml:"apiBurst" json:"apiBurst"`
-	Workers               int                         `yaml:"workers" json:"workers"`
-	LeafWorkers           int                         `yaml:"leafWorkers" json:"leafWorkers"`
-	RootWorkers           int                         `yaml:"rootWorkers" json:"rootWorkers"`
+	labelresolver.Config   `yaml:",inline"`
+	ResourceRules          []controller.ResourceRule          `yaml:"resourceRules" json:"resourceRules"`
+	ExcludeResourceRules   []controller.ResourceRule          `yaml:"excludeResourceRules" json:"excludeResourceRules"`
+	NamespaceSelector      *metav1.LabelSelector              `yaml:"namespaceSelector" json:"namespaceSelector"`
+	ObjectSelectors        []controller.ObjectSelector        `yaml:"objectSelectors" json:"objectSelectors"`
+	PodSelector            *metav1.LabelSelector              `yaml:"podSelector" json:"podSelector"`
+	WorkloadMetricSelector *metav1.LabelSelector              `yaml:"workloadMetricSelector" json:"workloadMetricSelector"`
+	PodWorkloadAssociation *controller.PodWorkloadAssociation `yaml:"podWorkloadAssociation" json:"podWorkloadAssociation"`
+	KartaDefinitionSource  KartaDefinitionSourceConfig        `yaml:"kartaDefinitionSource" json:"kartaDefinitionSource"`
+	IgnoredOwnerKinds      Kinds                              `yaml:"ignoredOwnerKinds" json:"ignoredOwnerKinds"`
+	RequiredKinds          Kinds                              `yaml:"requiredKinds" json:"requiredKinds"`
+	RequestTimeout         string                             `yaml:"requestTimeout" json:"requestTimeout"`
+	APIQPS                 float32                            `yaml:"apiQPS" json:"apiQPS"`
+	APIBurst               int                                `yaml:"apiBurst" json:"apiBurst"`
+	Workers                int                                `yaml:"workers" json:"workers"`
+	LeafWorkers            int                                `yaml:"leafWorkers" json:"leafWorkers"`
+	RootWorkers            int                                `yaml:"rootWorkers" json:"rootWorkers"`
 }
 
 // KartaDefinitionSourceConfig selects definitions from the configured sources.
 type KartaDefinitionSourceConfig struct {
-	Catalog DefinitionSourceConfig `yaml:"catalog" json:"catalog"`
-	Cluster DefinitionSourceConfig `yaml:"cluster" json:"cluster"`
+	EnableExperimental bool                   `yaml:"enableExperimental" json:"enableExperimental"`
+	Catalog            DefinitionSourceConfig `yaml:"catalog" json:"catalog"`
+	Cluster            DefinitionSourceConfig `yaml:"cluster" json:"cluster"`
 }
 
 type DefinitionSourceConfig struct {
@@ -271,7 +274,7 @@ func (cfg Config) Validate() error {
 	if err := labelresolver.ValidateConfig(cfg.Config); err != nil {
 		return err
 	}
-	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.ObjectSelector, cfg.PodSelector} {
+	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.PodSelector, cfg.WorkloadMetricSelector} {
 		if selector != nil {
 			if _, err := metav1.LabelSelectorAsSelector(selector); err != nil {
 				return err
@@ -279,6 +282,12 @@ func (cfg Config) Validate() error {
 		}
 	}
 	if err := controller.ValidateResourceRules(slices.Concat(cfg.ResourceRules, cfg.ExcludeResourceRules)); err != nil {
+		return err
+	}
+	if err := controller.ValidateObjectSelectors(cfg.ObjectSelectors); err != nil {
+		return err
+	}
+	if err := controller.ValidatePodWorkloadAssociation(cfg.PodWorkloadAssociation); err != nil {
 		return err
 	}
 	for _, kinds := range [][]schema.GroupVersionKind{cfg.IgnoredOwnerKinds, cfg.RequiredKinds} {
@@ -314,7 +323,7 @@ func (c KartaDefinitionSourceConfig) InventoryConfig() inventory.Config {
 	convert := func(s DefinitionSourceConfig) inventory.SourceConfig {
 		return inventory.SourceConfig{Enabled: s.Enabled, Include: s.Include, Exclude: s.Exclude}
 	}
-	return inventory.Config{Catalog: convert(c.Catalog), Cluster: convert(c.Cluster)}
+	return inventory.Config{Catalog: convert(c.Catalog), Cluster: convert(c.Cluster), EnableExperimental: c.EnableExperimental}
 }
 
 // value distinguishes an explicit empty flag from an unset one.

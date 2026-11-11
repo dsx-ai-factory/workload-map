@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+apiVersion: leaderworkerset.x-k8s.io/v1
+kind: LeaderWorkerSet
+metadata:
+  name: worker-groups
+  namespace: exporter-workloads-a
+  labels: {team: root-team}
+spec:
+  replicas: 2
+  leaderWorkerTemplate:
+    size: 2
+    leaderTemplate:
+      metadata:
+        labels: {team: pod-team}
+      spec:
+        terminationGracePeriodSeconds: 1
+        containers:
+          - name: work
+            image: busybox:1.37.0
+            command: [sleep, infinity]
+            resources:
+              requests: {cpu: 10m, memory: 16Mi}
+              limits: {cpu: 100m, memory: 32Mi}
+    workerTemplate:
+      metadata:
+        labels: {team: pod-team}
+      spec:
+        terminationGracePeriodSeconds: 1
+        containers:
+          - name: work
+            image: busybox:1.37.0
+            command: [sleep, infinity]
+            resources:
+              requests: {cpu: 10m, memory: 16Mi}
+              limits: {cpu: 100m, memory: 32Mi}

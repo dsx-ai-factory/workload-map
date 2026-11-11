@@ -15,7 +15,7 @@ import (
 	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
 )
 
-var _ = Describe("VcJob", Ordered, Label("vcjob"), func() {
+var _ = Describe("VcJob", Ordered, Label("volcano", "vcjob"), func() {
 	var rec *recorder.Recorder
 	var fx recorder.Fixture
 
@@ -89,8 +89,10 @@ var _ = Describe("VcJob", Ordered, Label("vcjob"), func() {
 		out, err := recorder.NewFlow(rec, "terminated", "testdata/vcjob/terminated.yaml").Through(
 			recorder.Reaches(kartav1alpha1.InitializingStatus),
 			recorder.Reaches(kartav1alpha1.RunningStatus).Optional(),
-			// PodFailed triggers TerminateJob; Terminating and Terminated both map to Failed.
-			recorder.Reaches(kartav1alpha1.FailedStatus).With(PhaseAny([]string{"Terminating", "Terminated"}, "status", "state", "phase")),
+			// PodFailed triggers TerminateJob; Terminating is the in-flight phase.
+			recorder.Reaches(kartav1alpha1.FailedStatus).With(PhaseEq("Terminating", "status", "state", "phase")),
+			// The controller drives Terminating to Terminated; both map to Failed.
+			recorder.Reaches(kartav1alpha1.FailedStatus).With(PhaseEq("Terminated", "status", "state", "phase")),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
 		Expect(err).To(Succeed())

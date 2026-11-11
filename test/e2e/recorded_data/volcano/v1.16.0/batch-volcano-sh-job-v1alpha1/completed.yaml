@@ -4,11 +4,11 @@ events:
     apiVersion: batch.volcano.sh/v1alpha1
     kind: Job
     metadata:
-      creationTimestamp: "2026-11-10T22:41:56Z"
+      creationTimestamp: "2026-11-11T15:26:37Z"
       generation: 1
       name: karta-e2e-vcjob-completed
-      namespace: test-5bwq6
-      uid: 28fd9efa-7046-4b46-895e-f575baa82d71
+      namespace: test-m6rxx
+      uid: 33116810-2ceb-44d0-9970-ce1ccbc9d51d
     spec:
       maxRetry: 3
       minAvailable: 3
@@ -63,26 +63,26 @@ events:
             restartPolicy: Never
     status:
       conditions:
-      - lastTransitionTime: "2026-11-10T22:41:56Z"
+      - lastTransitionTime: "2026-11-11T15:26:37Z"
         status: Pending
       minAvailable: 3
       state:
-        lastTransitionTime: "2026-11-10T22:41:56Z"
+        lastTransitionTime: "2026-11-11T15:26:37Z"
         phase: Pending
   phases:
   - Initializing
-  resourceVersion: "78333"
+  resourceVersion: "85312"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: batch.volcano.sh/v1alpha1
     kind: Job
     metadata:
-      creationTimestamp: "2026-11-10T22:41:56Z"
+      creationTimestamp: "2026-11-11T15:26:37Z"
       generation: 1
       name: karta-e2e-vcjob-completed
-      namespace: test-5bwq6
-      uid: 28fd9efa-7046-4b46-895e-f575baa82d71
+      namespace: test-m6rxx
+      uid: 33116810-2ceb-44d0-9970-ce1ccbc9d51d
     spec:
       maxRetry: 3
       minAvailable: 3
@@ -137,12 +137,12 @@ events:
             restartPolicy: Never
     status:
       conditions:
-      - lastTransitionTime: "2026-11-10T22:41:56Z"
+      - lastTransitionTime: "2026-11-11T15:26:37Z"
         status: Pending
       minAvailable: 3
       pending: 3
       state:
-        lastTransitionTime: "2026-11-10T22:41:56Z"
+        lastTransitionTime: "2026-11-11T15:26:37Z"
         phase: Pending
       taskStatusCount:
         helper:
@@ -153,18 +153,18 @@ events:
             Pending: 2
   phases:
   - Initializing
-  resourceVersion: "78346"
+  resourceVersion: "85321"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: batch.volcano.sh/v1alpha1
     kind: Job
     metadata:
-      creationTimestamp: "2026-11-10T22:41:56Z"
+      creationTimestamp: "2026-11-11T15:26:37Z"
       generation: 1
       name: karta-e2e-vcjob-completed
-      namespace: test-5bwq6
-      uid: 28fd9efa-7046-4b46-895e-f575baa82d71
+      namespace: test-m6rxx
+      uid: 33116810-2ceb-44d0-9970-ce1ccbc9d51d
     spec:
       maxRetry: 3
       minAvailable: 3
@@ -219,35 +219,36 @@ events:
             restartPolicy: Never
     status:
       conditions:
-      - lastTransitionTime: "2026-11-10T22:41:59Z"
+      - lastTransitionTime: "2026-11-11T15:26:40Z"
         status: Pending
       minAvailable: 3
       pending: 2
       running: 1
       state:
-        lastTransitionTime: "2026-11-10T22:41:59Z"
+        lastTransitionTime: "2026-11-11T15:26:40Z"
         phase: Pending
       taskStatusCount:
         helper:
           phase:
-            Running: 1
+            Pending: 1
         worker:
           phase:
-            Pending: 2
+            Pending: 1
+            Running: 1
   phases:
   - Initializing
-  resourceVersion: "78385"
+  resourceVersion: "85368"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: batch.volcano.sh/v1alpha1
     kind: Job
     metadata:
-      creationTimestamp: "2026-11-10T22:41:56Z"
+      creationTimestamp: "2026-11-11T15:26:37Z"
       generation: 1
       name: karta-e2e-vcjob-completed
-      namespace: test-5bwq6
-      uid: 28fd9efa-7046-4b46-895e-f575baa82d71
+      namespace: test-m6rxx
+      uid: 33116810-2ceb-44d0-9970-ce1ccbc9d51d
     spec:
       maxRetry: 3
       minAvailable: 3
@@ -302,13 +303,13 @@ events:
             restartPolicy: Never
     status:
       conditions:
-      - lastTransitionTime: "2026-11-10T22:41:59Z"
+      - lastTransitionTime: "2026-11-11T15:26:40Z"
         status: Pending
       minAvailable: 3
       pending: 1
       running: 2
       state:
-        lastTransitionTime: "2026-11-10T22:41:59Z"
+        lastTransitionTime: "2026-11-11T15:26:40Z"
         phase: Pending
       taskStatusCount:
         helper:
@@ -320,18 +321,18 @@ events:
             Running: 1
   phases:
   - Initializing
-  resourceVersion: "78386"
+  resourceVersion: "85370"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: batch.volcano.sh/v1alpha1
     kind: Job
     metadata:
-      creationTimestamp: "2026-11-10T22:41:56Z"
+      creationTimestamp: "2026-11-11T15:26:37Z"
       generation: 1
       name: karta-e2e-vcjob-completed
-      namespace: test-5bwq6
-      uid: 28fd9efa-7046-4b46-895e-f575baa82d71
+      namespace: test-m6rxx
+      uid: 33116810-2ceb-44d0-9970-ce1ccbc9d51d
     spec:
       maxRetry: 3
       minAvailable: 3
@@ -386,14 +387,14 @@ events:
             restartPolicy: Never
     status:
       conditions:
-      - lastTransitionTime: "2026-11-10T22:41:59Z"
+      - lastTransitionTime: "2026-11-11T15:26:40Z"
         status: Pending
-      - lastTransitionTime: "2026-11-10T22:41:59Z"
+      - lastTransitionTime: "2026-11-11T15:26:40Z"
         status: Running
       minAvailable: 3
       running: 3
       state:
-        lastTransitionTime: "2026-11-10T22:41:59Z"
+        lastTransitionTime: "2026-11-11T15:26:40Z"
         phase: Running
       taskStatusCount:
         helper:
@@ -404,18 +405,18 @@ events:
             Running: 2
   phases:
   - Running
-  resourceVersion: "78388"
+  resourceVersion: "85372"
   state: Running
 - kind: STATE
   object:
     apiVersion: batch.volcano.sh/v1alpha1
     kind: Job
     metadata:
-      creationTimestamp: "2026-11-10T22:41:56Z"
+      creationTimestamp: "2026-11-11T15:26:37Z"
       generation: 1
       name: karta-e2e-vcjob-completed
-      namespace: test-5bwq6
-      uid: 28fd9efa-7046-4b46-895e-f575baa82d71
+      namespace: test-m6rxx
+      uid: 33116810-2ceb-44d0-9970-ce1ccbc9d51d
     spec:
       maxRetry: 3
       minAvailable: 3
@@ -470,14 +471,14 @@ events:
             restartPolicy: Never
     status:
       conditions:
-      - lastTransitionTime: "2026-11-10T22:41:59Z"
+      - lastTransitionTime: "2026-11-11T15:26:40Z"
         status: Pending
-      - lastTransitionTime: "2026-11-10T22:42:10Z"
+      - lastTransitionTime: "2026-11-11T15:26:51Z"
         status: Running
       minAvailable: 3
       running: 2
       state:
-        lastTransitionTime: "2026-11-10T22:42:10Z"
+        lastTransitionTime: "2026-11-11T15:26:51Z"
         phase: Running
       succeeded: 1
       taskStatusCount:
@@ -489,18 +490,18 @@ events:
             Running: 2
   phases:
   - Running
-  resourceVersion: "78423"
+  resourceVersion: "85406"
   state: Running
 - kind: STATE
   object:
     apiVersion: batch.volcano.sh/v1alpha1
     kind: Job
     metadata:
-      creationTimestamp: "2026-11-10T22:41:56Z"
+      creationTimestamp: "2026-11-11T15:26:37Z"
       generation: 1
       name: karta-e2e-vcjob-completed
-      namespace: test-5bwq6
-      uid: 28fd9efa-7046-4b46-895e-f575baa82d71
+      namespace: test-m6rxx
+      uid: 33116810-2ceb-44d0-9970-ce1ccbc9d51d
     spec:
       maxRetry: 3
       minAvailable: 3
@@ -555,14 +556,14 @@ events:
             restartPolicy: Never
     status:
       conditions:
-      - lastTransitionTime: "2026-11-10T22:41:59Z"
+      - lastTransitionTime: "2026-11-11T15:26:40Z"
         status: Pending
-      - lastTransitionTime: "2026-11-10T22:42:15Z"
+      - lastTransitionTime: "2026-11-11T15:26:56Z"
         status: Running
       minAvailable: 3
       running: 1
       state:
-        lastTransitionTime: "2026-11-10T22:42:15Z"
+        lastTransitionTime: "2026-11-11T15:26:56Z"
         phase: Running
       succeeded: 2
       taskStatusCount:
@@ -575,18 +576,18 @@ events:
             Succeeded: 1
   phases:
   - Running
-  resourceVersion: "78442"
+  resourceVersion: "85426"
   state: Running
 - kind: STATE
   object:
     apiVersion: batch.volcano.sh/v1alpha1
     kind: Job
     metadata:
-      creationTimestamp: "2026-11-10T22:41:56Z"
+      creationTimestamp: "2026-11-11T15:26:37Z"
       generation: 1
       name: karta-e2e-vcjob-completed
-      namespace: test-5bwq6
-      uid: 28fd9efa-7046-4b46-895e-f575baa82d71
+      namespace: test-m6rxx
+      uid: 33116810-2ceb-44d0-9970-ce1ccbc9d51d
     spec:
       maxRetry: 3
       minAvailable: 3
@@ -641,15 +642,15 @@ events:
             restartPolicy: Never
     status:
       conditions:
-      - lastTransitionTime: "2026-11-10T22:41:59Z"
+      - lastTransitionTime: "2026-11-11T15:26:40Z"
         status: Pending
-      - lastTransitionTime: "2026-11-10T22:42:15Z"
+      - lastTransitionTime: "2026-11-11T15:26:56Z"
         status: Running
-      - lastTransitionTime: "2026-11-10T22:42:15Z"
+      - lastTransitionTime: "2026-11-11T15:26:56Z"
         status: Completed
       minAvailable: 3
       state:
-        lastTransitionTime: "2026-11-10T22:42:15Z"
+        lastTransitionTime: "2026-11-11T15:26:56Z"
         phase: Completed
       succeeded: 3
       taskStatusCount:
@@ -661,7 +662,7 @@ events:
             Succeeded: 2
   phases:
   - Completed
-  resourceVersion: "78444"
+  resourceVersion: "85428"
   state: Completed
 flow: completed
 kartaFile: docs/catalog/batch-volcano-sh-job-v1alpha1.yaml

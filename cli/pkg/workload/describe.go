@@ -539,7 +539,7 @@ func fragmentedRequest(spec resource.FragmentedPodSpec) Resources {
 }
 
 // podRequest mirrors the effective pod request Kubernetes schedules against:
-// max(largest init container plus preceding sidecars, regular containers plus sidecars).
+// max(each init container plus preceding sidecars, regular containers plus sidecars).
 func podRequest(spec corev1.PodSpec) Resources {
 	running := sumContainers(spec.Containers)
 

@@ -465,13 +465,14 @@ spec:
 		Expect(view.Resources.MemoryBytes).To(Equal(int64(2 * 1024 * 1024 * 1024)))
 	})
 
-	DescribeTable("accounts for native sidecars in init-container order", func(sidecarFirst bool, expected int64) {
+	DescribeTable("accounts for native sidecars in init-container order", func(sidecarFirst bool, expectedCPU, expectedMemory, expectedGPUs apiresource.Quantity) {
 		sidecar := corev1.Container{
 			Name:          "proxy",
 			RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
 			Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resourceQuantity("1"),
 				corev1.ResourceMemory: resourceQuantity("1Gi"),
+				gpuResourceName:       resourceQuantity("1"),
 			}},
 		}
 		setup := corev1.Container{
@@ -479,10 +480,17 @@ spec:
 			Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resourceQuantity("4"),
 				corev1.ResourceMemory: resourceQuantity("4Gi"),
+				gpuResourceName:       resourceQuantity("2"),
 			}},
 		}
 		spec := corev1.PodSpec{
-			Containers:     []corev1.Container{{Name: "app", Resources: sidecar.Resources}},
+			Containers: []corev1.Container{{
+				Name: "app",
+				Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resourceQuantity("1"),
+					corev1.ResourceMemory: resourceQuantity("1Gi"),
+				}},
+			}},
 			InitContainers: []corev1.Container{setup, sidecar},
 		}
 		if sidecarFirst {
@@ -490,12 +498,59 @@ spec:
 		}
 
 		request := podRequest(spec)
-		Expect(request.CPUMillis).To(Equal(expected * 1000))
-		Expect(request.MemoryBytes).To(Equal(expected * 1024 * 1024 * 1024))
+		Expect(request.CPUMillis).To(Equal(expectedCPU.MilliValue()))
+		Expect(request.MemoryBytes).To(Equal(expectedMemory.Value()))
+		Expect(request.GPUs).To(Equal(expectedGPUs.Value()))
 	},
-		Entry("includes a sidecar running before setup", true, int64(5)),
-		Entry("excludes a sidecar that starts after setup", false, int64(4)),
+		Entry("includes a sidecar running before setup", true, resourceQuantity("5"), resourceQuantity("5Gi"), resourceQuantity("3")),
+		Entry("excludes a sidecar that starts after setup", false, resourceQuantity("4"), resourceQuantity("4Gi"), resourceQuantity("2")),
 	)
+
+	It("includes all preceding native sidecars in the init-container resource peak", func() {
+		spec := corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name: "app",
+				Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resourceQuantity("1"),
+					corev1.ResourceMemory: resourceQuantity("1Gi"),
+				}},
+			}},
+			InitContainers: []corev1.Container{
+				{
+					Name:          "proxy",
+					RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
+					Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resourceQuantity("1"),
+						corev1.ResourceMemory: resourceQuantity("1Gi"),
+						gpuResourceName:       resourceQuantity("1"),
+					}},
+				},
+				{
+					Name:          "dns",
+					RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
+					Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resourceQuantity("1"),
+						corev1.ResourceMemory: resourceQuantity("512Mi"),
+						gpuResourceName:       resourceQuantity("1"),
+					}},
+				},
+				{
+					Name: "setup",
+					Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resourceQuantity("4"),
+						corev1.ResourceMemory: resourceQuantity("4Gi"),
+						gpuResourceName:       resourceQuantity("2"),
+					}},
+				},
+			},
+		}
+
+		request := podRequest(spec)
+		expectedCPU, expectedMemory, expectedGPUs := resourceQuantity("6"), resourceQuantity("5.5Gi"), resourceQuantity("4")
+		Expect(request.CPUMillis).To(Equal(expectedCPU.MilliValue()))
+		Expect(request.MemoryBytes).To(Equal(expectedMemory.Value()))
+		Expect(request.GPUs).To(Equal(expectedGPUs.Value()))
+	})
 
 	// Reading only the containers reports a pod smaller than the one placed.
 	It("prefers a pod-level request over the containers and adds the overhead", func() {

@@ -51,6 +51,29 @@ func (v *KartaValidator) Validate() error {
 	return errors.Join(errs...)
 }
 
+// DeprecationWarnings reports deprecated mappings without rejecting or rewriting them.
+// It can be called independently of Validate and returns root warnings before child warnings.
+func (v *KartaValidator) DeprecationWarnings() []string {
+	if v.karta == nil {
+		return nil
+	}
+
+	var warnings []string
+	structure := v.karta.Spec.StructureDefinition
+	components := append([]ComponentDefinition{structure.RootComponent}, structure.ChildComponents...)
+	for i, component := range components {
+		if component.StatusDefinition == nil || len(component.StatusDefinition.StatusMappings.Initializing) == 0 {
+			continue
+		}
+		path := "spec.structureDefinition.rootComponent"
+		if i > 0 {
+			path = fmt.Sprintf("spec.structureDefinition.childComponents[%d]", i-1)
+		}
+		warnings = append(warnings, path+".statusDefinition.statusMappings.initializing is deprecated; use pending for waiting and progressing for an unfinished state transition according to the source status")
+	}
+	return warnings
+}
+
 func (v *KartaValidator) initialize() []error {
 	var errs []error
 

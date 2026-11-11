@@ -1,0 +1,254 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: milvus.io/v1beta1
+    kind: Milvus
+    metadata:
+      creationTimestamp: "2026-10-19T06:44:59Z"
+      finalizers:
+      - milvus.milvus.io/finalizer
+      generation: 2
+      name: karta-e2e-milvus-initializing
+      namespace: test-hgzkt
+      uid: 8322717c-dd53-4c63-8750-369215c14c43
+    spec:
+      components:
+        disableMetric: false
+        image: milvusdb/milvus:v0.0.0-nonexistent
+        imageUpdateMode: rollingUpgrade
+        metricInterval: ""
+        paused: false
+        probes: null
+        securityContext: null
+        standalone:
+          paused: false
+          probes: null
+          replicas: 1
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          securityContext: null
+          serviceType: ClusterIP
+        targetPortType: string
+      dependencies:
+        customMsgStream: null
+        etcd:
+          endpoints:
+          - nonexistent-etcd:2379
+          external: true
+        kafka:
+          external: false
+        msgStreamType: rocksmq
+        natsmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        pulsar:
+          endpoint: ""
+          external: false
+        rocksmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        storage:
+          endpoint: nonexistent-minio:9000
+          external: true
+          secretRef: ""
+          type: MinIO
+        tei:
+          enabled: false
+        woodpecker:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+      hookConfig: null
+      mode: standalone
+  phases:
+  - Pending
+  resourceVersion: "8236"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: milvus.io/v1beta1
+    kind: Milvus
+    metadata:
+      annotations:
+        milvus.io/dependency-values-merged: "true"
+        milvus.io/pod-service-label-added: "true"
+      creationTimestamp: "2026-10-19T06:44:59Z"
+      finalizers:
+      - milvus.milvus.io/finalizer
+      generation: 3
+      labels:
+        milvus.io/operator-version: 1.3.7
+      name: karta-e2e-milvus-initializing
+      namespace: test-hgzkt
+      uid: 8322717c-dd53-4c63-8750-369215c14c43
+    spec:
+      components:
+        disableMetric: false
+        enableRollingUpdate: false
+        image: milvusdb/milvus:v0.0.0-nonexistent
+        imageUpdateMode: rollingUpgrade
+        metricInterval: ""
+        paused: false
+        probes: null
+        rollingMode: 2
+        securityContext: null
+        standalone:
+          paused: false
+          probes: null
+          replicas: 1
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          securityContext: null
+          serviceType: ClusterIP
+        targetPortType: string
+        updateConfigMapOnly: true
+      config: {}
+      dependencies:
+        customMsgStream: null
+        etcd:
+          endpoints:
+          - nonexistent-etcd:2379
+          external: true
+        kafka:
+          external: false
+        msgStreamType: rocksmq
+        natsmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        pulsar:
+          endpoint: ""
+          external: false
+        rocksmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        storage:
+          endpoint: nonexistent-minio:9000
+          external: true
+          secretRef: ""
+          type: MinIO
+        tei:
+          enabled: false
+        woodpecker:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+      hookConfig: null
+      mode: standalone
+  phases:
+  - Pending
+  resourceVersion: "8238"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: milvus.io/v1beta1
+    kind: Milvus
+    metadata:
+      annotations:
+        milvus.io/dependency-values-merged: "true"
+        milvus.io/pod-service-label-added: "true"
+      creationTimestamp: "2026-10-19T06:44:59Z"
+      finalizers:
+      - milvus.milvus.io/finalizer
+      generation: 3
+      labels:
+        milvus.io/operator-version: 1.3.7
+      name: karta-e2e-milvus-initializing
+      namespace: test-hgzkt
+      uid: 8322717c-dd53-4c63-8750-369215c14c43
+    spec:
+      components:
+        disableMetric: false
+        enableRollingUpdate: false
+        image: milvusdb/milvus:v0.0.0-nonexistent
+        imageUpdateMode: rollingUpgrade
+        metricInterval: ""
+        paused: false
+        probes: null
+        rollingMode: 2
+        securityContext: null
+        standalone:
+          paused: false
+          probes: null
+          replicas: 1
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          securityContext: null
+          serviceType: ClusterIP
+        targetPortType: string
+        updateConfigMapOnly: true
+      config: {}
+      dependencies:
+        customMsgStream: null
+        etcd:
+          endpoints:
+          - nonexistent-etcd:2379
+          external: true
+        kafka:
+          external: false
+        msgStreamType: rocksmq
+        natsmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        pulsar:
+          endpoint: ""
+          external: false
+        rocksmq:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+        storage:
+          endpoint: nonexistent-minio:9000
+          external: true
+          secretRef: ""
+          type: MinIO
+        tei:
+          enabled: false
+        woodpecker:
+          persistence:
+            persistentVolumeClaim:
+              spec: null
+      hookConfig: null
+      mode: standalone
+    status:
+      currentImage: milvusdb/milvus:v0.0.0-nonexistent
+      ingress:
+        loadBalancer: {}
+      rollingModeVersion: 2
+      status: Pending
+  phases:
+  - Pending
+  resourceVersion: "8239"
+  state: Pending
+flow: pending
+kartaFile: docs/catalog/milvus-io-milvus-v1beta1.yaml
+kartaName: milvus-io-milvus-v1beta1
+operator: milvus
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 3
+  phases:
+  - Pending
+version: 1.3.7
+want: Pending

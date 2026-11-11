@@ -3,7 +3,7 @@
 #
 # A batch/v1 Job that runs long. The running flow observes it initialize then reach Running (a pod
 # ready) and stops there; the pod sleeps well past the check so Running is stable. A readiness probe
-# gives a distinct Initializing then Running window.
+# gives a distinct Pending then Running window.
 apiVersion: batch/v1
 kind: Job
 metadata:

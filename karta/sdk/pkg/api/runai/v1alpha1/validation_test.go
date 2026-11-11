@@ -492,12 +492,69 @@ var _ = Describe("KartaValidator", func() {
 		})
 	})
 
+	Describe("DeprecationWarnings", func() {
+		It("accepts legacy root and child mappings and identifies both locations in order", func() {
+			legacy := StatusMappings{Initializing: []StatusMatcher{{ByPhase: "Pending"}}}
+			baseKarta.Spec.StructureDefinition.RootComponent.StatusDefinition.StatusMappings = legacy
+			baseKarta.Spec.StructureDefinition.ChildComponents[0].StatusDefinition = &StatusDefinition{StatusMappings: legacy}
+
+			warnings := validator.DeprecationWarnings()
+			Expect(warnings).To(HaveLen(2))
+			Expect(warnings[0]).To(HavePrefix("spec.structureDefinition.rootComponent.statusDefinition.statusMappings.initializing is deprecated"))
+			Expect(warnings[1]).To(HavePrefix("spec.structureDefinition.childComponents[0].statusDefinition.statusMappings.initializing is deprecated"))
+			Expect(validator.Validate()).To(Succeed())
+			Expect(baseKarta.Spec.StructureDefinition.RootComponent.StatusDefinition.StatusMappings).To(Equal(legacy))
+			Expect(baseKarta.Spec.StructureDefinition.ChildComponents[0].StatusDefinition.StatusMappings).To(Equal(legacy))
+		})
+
+		It("does not warn for new mappings, absent child status, or empty legacy mappings", func() {
+			baseKarta.Spec.StructureDefinition.RootComponent.StatusDefinition.StatusMappings = StatusMappings{
+				Initializing: []StatusMatcher{},
+				Pending:      []StatusMatcher{{ByPhase: "Pending"}},
+				Progressing:  []StatusMatcher{{ByPhase: "Updating"}},
+			}
+			Expect(validator.DeprecationWarnings()).To(BeEmpty())
+			Expect(validator.Validate()).To(Succeed())
+		})
+
+		It("handles a nil Karta without hiding its validation error", func() {
+			validator := NewKartaValidator(nil)
+			Expect(validator.DeprecationWarnings()).To(BeEmpty())
+			Expect(validator.Validate()).To(MatchError("karta is nil"))
+		})
+	})
+
+	DescribeTable("validates Pending and Progressing expressions on every component",
+		func(child bool, progressing bool) {
+			mapping := []StatusMatcher{{ByExpression: &ExpressionMatcher{Expression: ".status[", ExpectedResult: "true"}}}
+			definition := &StatusDefinition{}
+			if progressing {
+				definition.StatusMappings.Progressing = mapping
+			} else {
+				definition.StatusMappings.Pending = mapping
+			}
+			if child {
+				baseKarta.Spec.StructureDefinition.ChildComponents[0].StatusDefinition = definition
+			} else {
+				baseKarta.Spec.StructureDefinition.RootComponent.StatusDefinition = definition
+			}
+
+			Expect(validator.Validate()).To(MatchError(ContainSubstring("failed to parse JQ expression '.status['")))
+		},
+		Entry("root Pending", false, false),
+		Entry("root Progressing", false, true),
+		Entry("child Pending", true, false),
+		Entry("child Progressing", true, true),
+	)
+
 	Describe("StatusMappings.Entries", func() {
 		It("should return all status-to-matchers pairs", func() {
 			mappings := StatusMappings{
 				Running:      []StatusMatcher{{ByPhase: "Running"}},
 				Failed:       []StatusMatcher{{ByPhase: "Failed"}},
 				Completed:    []StatusMatcher{{ByPhase: "Completed"}},
+				Pending:      []StatusMatcher{{ByPhase: "Pending"}},
+				Progressing:  []StatusMatcher{{ByPhase: "Updating"}},
 				Initializing: []StatusMatcher{{ByPhase: "Initializing"}},
 				Degraded:     []StatusMatcher{{ByPhase: "Degraded"}},
 				Suspended:    []StatusMatcher{{ByPhase: "Suspended"}},
@@ -506,7 +563,7 @@ var _ = Describe("KartaValidator", func() {
 			}
 
 			entries := mappings.Entries()
-			Expect(entries).To(HaveLen(8))
+			Expect(entries).To(HaveLen(10))
 
 			statusToMatchers := make(map[ResourceStatus][]StatusMatcher)
 			for _, entry := range entries {
@@ -519,6 +576,8 @@ var _ = Describe("KartaValidator", func() {
 			Expect(statusToMatchers[FailedStatus]).To(Equal(mappings.Failed))
 			Expect(statusToMatchers).To(HaveKey(CompletedStatus))
 			Expect(statusToMatchers[CompletedStatus]).To(Equal(mappings.Completed))
+			Expect(statusToMatchers[PendingStatus]).To(Equal(mappings.Pending))
+			Expect(statusToMatchers[ProgressingStatus]).To(Equal(mappings.Progressing))
 			Expect(statusToMatchers).To(HaveKey(InitializingStatus))
 			Expect(statusToMatchers[InitializingStatus]).To(Equal(mappings.Initializing))
 			Expect(statusToMatchers).To(HaveKey(DegradedStatus))
@@ -534,7 +593,7 @@ var _ = Describe("KartaValidator", func() {
 		It("should return entries with nil matchers for empty mappings", func() {
 			mappings := StatusMappings{}
 			entries := mappings.Entries()
-			Expect(entries).To(HaveLen(8))
+			Expect(entries).To(HaveLen(10))
 			for _, entry := range entries {
 				Expect(entry.Matchers).To(BeNil())
 			}

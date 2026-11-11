@@ -20,13 +20,31 @@ spec:
           messageFieldName: message
           reasonFieldName: reason
         statusMappings:
-          initializing:
+          pending:
             - byExpression:
-                expression: (.spec.replicas // 0) > 0 and (.status.availableReplicas // 0) < (.spec.replicas // 0)
+                expression: |-
+                  .metadata.deletionTimestamp == null and (.spec.replicas // 0) > 0
+                      and (any(.status.conditions[]?; .type == "TopologyLevelsUnavailable" and .status == "True") | not)
+                      and (((.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation)
+                          and (.status.availableReplicas != null or .status.observedGeneration != null)
+                          and (.status.availableReplicas // 0) < .spec.replicas)
+                          or ((.metadata.generation // 0) > 0 and ((.status.lastErrors // []) | length == 0)
+                              and ((.status == null or .status == {}) or
+                                  (.status.observedGeneration != null and .status.observedGeneration < .metadata.generation))))
+                expectedResult: "true"
+          progressing:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and (.spec.updateStrategy.type // "RollingRecreate") != "OnDelete"
+                      and .status.updateProgress.updateEndedAt == null
+                      and (any(.status.conditions[]?; .type == "TopologyLevelsUnavailable" and .status == "True") | not)
+                      and ((.status.updateProgress.updateStartedAt != null and .status.updateProgress.updateStartedAt != ""
+                          and .status.updateProgress.updateStartedAt != "0001-01-01T00:00:00Z")
+                          or any(.status.conditions[]?; .type == "UpdateInProgress" and (.status == "True" or (.status == "Unknown" and .reason == "ProgressDeadlineExceeded"))))
                 expectedResult: "true"
           running:
             - byExpression:
-                expression: (.status.availableReplicas // 0) >= (.spec.replicas // 0)
+                expression: (.status.observedGeneration == null or .metadata.generation == null or .status.observedGeneration >= .metadata.generation) and .status != null and (.status.availableReplicas // 0) >= (.spec.replicas // 0)
                 expectedResult: "true"
           failed:
             - byConditions:

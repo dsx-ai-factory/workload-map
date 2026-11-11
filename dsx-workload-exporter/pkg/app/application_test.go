@@ -277,8 +277,8 @@ func TestHTTPMetricsPublicationRemovalAndReadiness(t *testing.T) {
 			"owner_resolution": "resolved", "pod_name": name, "pod_uid": uid, "component": "trainer", "component_instance": "0", "replica_group_id": "workers", "observation_valid": "true", "queue": "gpu",
 		}, value: 1})
 	}
-	statusSamples := make([]metricSample, 0, 9)
-	for _, phase := range []string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Suspending", "Resuming", "Undefined"} {
+	statusSamples := make([]metricSample, 0, 11)
+	for _, phase := range []string{"Initializing", "Pending", "Progressing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Suspending", "Resuming", "Undefined"} {
 		value := 0.0
 		if phase == "Running" || phase == "Degraded" {
 			value = 1

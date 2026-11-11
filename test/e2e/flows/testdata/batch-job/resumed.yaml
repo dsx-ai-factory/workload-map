@@ -3,7 +3,7 @@
 #
 # A batch/v1 Job created already suspended. The resumed flow observes it Suspended, clears
 # spec.suspend, and the Job starts a fresh pod that inits then runs to completion. sleep 20
-# with a readiness probe gives a stable Initializing then Running window on the single run.
+# with a readiness probe gives a stable Pending then Running window on the single run.
 apiVersion: batch/v1
 kind: Job
 metadata:

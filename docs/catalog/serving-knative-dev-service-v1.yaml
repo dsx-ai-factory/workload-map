@@ -19,10 +19,28 @@ spec:
           statusFieldName: status
           messageFieldName: message
         statusMappings:
-          initializing:
+          pending:
             - byConditions:
                 - type: Ready
                   status: Unknown
+              byExpression:
+                expression: |-
+                  (.metadata.generation == null or .status.observedGeneration == null or
+                      .status.observedGeneration >= .metadata.generation)
+                expectedResult: "true"
+          progressing:
+            - byConditions:
+                - type: Ready
+                  status: Unknown
+              byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and (.metadata.generation == null or .status.observedGeneration == null or
+                      .status.observedGeneration >= .metadata.generation) and
+                                                          (any(.status.conditions[]?; (.type | IN("Ready", "ConfigurationsReady", "RoutesReady")) and .status == "Unknown" and
+                                                              (.reason == "OutOfDate" or .reason == "TrafficNotMigrated")) or
+                                                           ((.status.latestCreatedRevisionName // "") != "" and
+                                                            .status.latestCreatedRevisionName != .status.latestReadyRevisionName))
+                expectedResult: "true"
           running:
             - byConditions:
                 - type: Ready

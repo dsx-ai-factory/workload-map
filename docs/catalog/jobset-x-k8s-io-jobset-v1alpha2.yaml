@@ -20,13 +20,36 @@ spec:
           messageFieldName: message
           reasonFieldName: reason
         statusMappings:
-          initializing:
+          pending:
             - byExpression:
-                expression: (.status.replicatedJobsStatus // []) | any(.active > 0 and (.ready // 0) == 0) and all(.failed == 0)
+                expression: |-
+                  .metadata.deletionTimestamp == null and .spec.suspend != true
+                      and (any(.status.conditions[]?; .status == "True"
+                          and (.type == "Completed" or .type == "Failed")) | not) and (
+                      . as $jobset | any(.spec.replicatedJobs[]?; . as $desired |
+                          ($jobset.status.replicatedJobsStatus // [] | map(select(.name == $desired.name)) | .[0]) as $observed |
+                          ($desired.replicas // 1) > 0 and (
+                              ($observed != null and ($desired.replicas // 1) >
+                                  (([$observed.ready // 0, $observed.active // 0] | min) + ($observed.succeeded // 0))) or
+                              ($observed == null and ($jobset.metadata.generation // 0) > 0))))
+                expectedResult: "true"
+          progressing:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and .spec.suspend != true
+                      and (any(.status.conditions[]?; .status == "True"
+                          and (.type == "Completed" or .type == "Failed")) | not) and (
+                      any(.status.conditions[]?; .type == "RestartingJobSet" and .status == "True")
+                      or (.spec.startupPolicy.startupPolicyOrder == "InOrder"
+                          and any(.status.conditions[]?; .type == "StartupPolicyInProgress" and .status == "True")))
                 expectedResult: "true"
           running:
             - byExpression:
-                expression: (.status.replicatedJobsStatus // []) | any(.active > 0 or .ready > 0) and all((.failed // 0) == 0)
+                expression: |-
+                  .metadata.deletionTimestamp == null and .spec.suspend != true
+                      and (any(.status.conditions[]?; .status == "True"
+                          and (.type == "Completed" or .type == "Failed")) | not) and ((.status.replicatedJobsStatus // []) |
+                      any((.ready // 0) > 0 and (.active // 0) > 0) and all((.failed // 0) == 0))
                 expectedResult: "true"
           completed:
             - byConditions:
@@ -40,6 +63,9 @@ spec:
             - byConditions:
                 - type: Suspended
                   status: "True"
+              byExpression:
+                expression: .spec.suspend == true
+                expectedResult: "true"
       suspendDefinition:
         suspendActions:
           - path: .spec.suspend

@@ -4,13 +4,13 @@ events:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-10-09T04:50:35Z"
+      creationTimestamp: "2026-10-19T07:08:57Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-running
-      namespace: test-47hmn
-      uid: bd1ffcb3-9e76-4084-afdc-7e496f45e649
+      namespace: test-qbks7
+      uid: b0b238e8-be88-490a-9ec9-8d67ae5c1341
     spec:
       model:
         name: karta-e2e/fake-model
@@ -35,21 +35,21 @@ events:
           securityContext:
             runAsUser: 65532
   phases:
-  - Undefined
-  resourceVersion: "6886"
-  state: Undefined
+  - Pending
+  resourceVersion: "2934"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-10-09T04:50:35Z"
+      creationTimestamp: "2026-10-19T07:08:57Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-running
-      namespace: test-47hmn
-      uid: bd1ffcb3-9e76-4084-afdc-7e496f45e649
+      namespace: test-qbks7
+      uid: b0b238e8-be88-490a-9ec9-8d67ae5c1341
     spec:
       model:
         name: karta-e2e/fake-model
@@ -75,7 +75,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-running-kserve-workload-svc.test-47hmn.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-running-kserve-workload-svc.test-qbks7.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -92,23 +92,23 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-10-09T04:50:51Z"
+      - lastTransitionTime: "2026-10-19T07:08:59Z"
         reason: Progressing
         severity: Info
         status: "False"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:50:51Z"
+      - lastTransitionTime: "2026-10-19T07:08:59Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-10-09T04:50:51Z"
+      - lastTransitionTime: "2026-10-19T07:08:59Z"
         reason: Progressing
         status: "False"
         type: Ready
-      - lastTransitionTime: "2026-10-09T04:50:51Z"
+      - lastTransitionTime: "2026-10-19T07:08:59Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-10-09T04:50:51Z"
+      - lastTransitionTime: "2026-10-19T07:08:59Z"
         reason: Progressing
         status: "False"
         type: WorkloadsReady
@@ -123,21 +123,22 @@ events:
           kind: Service
           name: karta-e2e-llmisvc-running-kserve-workload-svc
   phases:
-  - Initializing
-  resourceVersion: "6995"
-  state: Initializing
+  - Progressing
+  - Pending
+  resourceVersion: "2973"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-10-09T04:50:35Z"
+      creationTimestamp: "2026-10-19T07:08:57Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-running
-      namespace: test-47hmn
-      uid: bd1ffcb3-9e76-4084-afdc-7e496f45e649
+      namespace: test-qbks7
+      uid: b0b238e8-be88-490a-9ec9-8d67ae5c1341
     spec:
       model:
         name: karta-e2e/fake-model
@@ -163,7 +164,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-running-kserve-workload-svc.test-47hmn.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-running-kserve-workload-svc.test-qbks7.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -180,25 +181,25 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-10-09T04:50:57Z"
+      - lastTransitionTime: "2026-10-19T07:09:01Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         severity: Info
         status: "False"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:50:57Z"
+      - lastTransitionTime: "2026-10-19T07:09:01Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-10-09T04:50:57Z"
+      - lastTransitionTime: "2026-10-19T07:09:01Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
         type: Ready
-      - lastTransitionTime: "2026-10-09T04:50:57Z"
+      - lastTransitionTime: "2026-10-19T07:09:01Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-10-09T04:50:57Z"
+      - lastTransitionTime: "2026-10-19T07:09:01Z"
         message: Deployment does not have minimum availability.
         reason: MinimumReplicasUnavailable
         status: "False"
@@ -214,21 +215,21 @@ events:
           kind: Service
           name: karta-e2e-llmisvc-running-kserve-workload-svc
   phases:
-  - Initializing
-  resourceVersion: "7046"
-  state: Initializing
+  - Pending
+  resourceVersion: "2993"
+  state: Pending
 - kind: STATE
   object:
     apiVersion: serving.kserve.io/v1alpha2
     kind: LLMInferenceService
     metadata:
-      creationTimestamp: "2026-10-09T04:50:35Z"
+      creationTimestamp: "2026-10-19T07:08:57Z"
       finalizers:
       - serving.kserve.io/llmisvc-finalizer
       generation: 1
       name: karta-e2e-llmisvc-running
-      namespace: test-47hmn
-      uid: bd1ffcb3-9e76-4084-afdc-7e496f45e649
+      namespace: test-qbks7
+      uid: b0b238e8-be88-490a-9ec9-8d67ae5c1341
     spec:
       model:
         name: karta-e2e/fake-model
@@ -254,7 +255,7 @@ events:
             runAsUser: 65532
     status:
       addresses:
-      - url: http://karta-e2e-llmisvc-running-kserve-workload-svc.test-47hmn.svc.cluster.local
+      - url: http://karta-e2e-llmisvc-running-kserve-workload-svc.test-qbks7.svc.cluster.local
       annotations:
         serving.kserve.io/config-llm-decode-template: kserve-config-llm-decode-template
         serving.kserve.io/config-llm-decode-worker-data-parallel: kserve-config-llm-decode-worker-data-parallel
@@ -271,21 +272,21 @@ events:
         namespace: kserve
         source: Preset
       conditions:
-      - lastTransitionTime: "2026-10-09T04:51:05Z"
+      - lastTransitionTime: "2026-10-19T07:09:16Z"
         severity: Info
         status: "True"
         type: MainWorkloadReady
-      - lastTransitionTime: "2026-10-09T04:50:57Z"
+      - lastTransitionTime: "2026-10-19T07:09:01Z"
         severity: Info
         status: "True"
         type: PresetsCombined
-      - lastTransitionTime: "2026-10-09T04:51:05Z"
+      - lastTransitionTime: "2026-10-19T07:09:16Z"
         status: "True"
         type: Ready
-      - lastTransitionTime: "2026-10-09T04:50:57Z"
+      - lastTransitionTime: "2026-10-19T07:09:01Z"
         status: "True"
         type: RouterReady
-      - lastTransitionTime: "2026-10-09T04:51:05Z"
+      - lastTransitionTime: "2026-10-19T07:09:16Z"
         status: "True"
         type: WorkloadsReady
       observedGeneration: 1
@@ -300,7 +301,7 @@ events:
           name: karta-e2e-llmisvc-running-kserve-workload-svc
   phases:
   - Running
-  resourceVersion: "7094"
+  resourceVersion: "3130"
   state: Running
 flow: running
 kartaFile: docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml
@@ -312,10 +313,14 @@ schemaVersion: 1
 summary:
 - amount: 1
   phases:
-  - Undefined
-- amount: 2
+  - Pending
+- amount: 1
   phases:
-  - Initializing
+  - Progressing
+  - Pending
+- amount: 1
+  phases:
+  - Pending
 - amount: 1
   phases:
   - Running

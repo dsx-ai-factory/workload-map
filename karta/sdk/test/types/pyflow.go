@@ -74,7 +74,7 @@ func PyFlowKarta() *v1alpha1.Karta {
 							StatusFieldName: "status",
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{
+							Pending: []v1alpha1.StatusMatcher{
 								{
 									ByConditions: []v1alpha1.ExpectedCondition{
 										{

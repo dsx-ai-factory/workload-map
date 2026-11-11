@@ -16,13 +16,52 @@ spec:
         phaseDefinition:
           path: .status.state
         statusMappings:
+          pending:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and (.spec.suspend != true and
+                      .status.state != "failed" and
+                      (.status.state != "suspended" or
+                       (.spec.suspend == false and .metadata.generation != null and
+                        .status.observedGeneration == .metadata.generation and
+                        any(.status.conditions[]?; .type == "RayClusterSuspending" and .status == "False") and
+                        any(.status.conditions[]?; .type == "RayClusterSuspended" and .status == "False"))) and
+                      (any(.status.conditions[]?; .status == "True" and
+                          (.type == "RayClusterSuspending" or .type == "RayClusterSuspended")) | not) and
+                      any(.status.conditions[]?; .type == "RayClusterProvisioned" and .status == "False") and
+                      any(.status.conditions[]?; .type == "HeadPodReady" and .status == "False") or
+                      ((.metadata.generation // 0) > 0 and
+                       ((.status == null or .status == {}) or
+                        (.spec.suspend == false and .status.state == "suspended"))))
+                expectedResult: "true"
+          progressing:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and .spec.suspend != true and
+                      .status.state != "failed" and
+                      (.status.state != "suspended" or
+                       (.spec.suspend == false and .metadata.generation != null and
+                        .status.observedGeneration == .metadata.generation and
+                        any(.status.conditions[]?; .type == "RayClusterSuspending" and .status == "False") and
+                        any(.status.conditions[]?; .type == "RayClusterSuspended" and .status == "False"))) and
+                      (any(.status.conditions[]?; .status == "True" and
+                          (.type == "RayClusterSuspending" or .type == "RayClusterSuspended")) | not) and
+                      any(.status.conditions[]?; .type == "RayClusterProvisioned" and .status == "False") and
+                      any(.status.conditions[]?; .type == "HeadPodReady" and .status == "False") and
+                                                      any(.status.conditions[]?; .type == "HeadPodReady" and .status == "False" and
+                                                          (.reason == "ContainerCreating" or .reason == "ContainersNotReady" or
+                                                           .reason == "ErrImagePull" or .reason == "ImagePullBackOff" or .reason == "CrashLoopBackOff"))
+                expectedResult: "true"
           running:
             - byPhase: ready
           failed:
             - byPhase: failed
           suspended:
             - byExpression:
-                expression: .spec.suspend == true and (.status.state == "suspended" or (.status.state | not))
+                expression: |-
+                  .metadata.deletionTimestamp == null and .spec.suspend == true and
+                      .status.state == "suspended" and .metadata.generation != null and
+                      .status.observedGeneration == .metadata.generation
                 expectedResult: "true"
       suspendDefinition:
         suspendActions:

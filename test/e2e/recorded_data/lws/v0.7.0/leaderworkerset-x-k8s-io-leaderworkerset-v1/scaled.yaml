@@ -1,0 +1,873 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 1
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 1
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:38Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "True"
+        type: Progressing
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+  phases:
+  - Progressing
+  - Pending
+  resourceVersion: "3503"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 1
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 1
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:38Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "True"
+        type: Progressing
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      replicas: 1
+      updatedReplicas: 1
+  phases:
+  - Progressing
+  - Pending
+  resourceVersion: "3516"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 1
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 1
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:38Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "False"
+        type: Progressing
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: All replicas are ready
+        reason: AllGroupsReady
+        status: "True"
+        type: Available
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      readyReplicas: 1
+      replicas: 1
+      updatedReplicas: 1
+  phases:
+  - Running
+  resourceVersion: "3544"
+  state: Running
+- action:
+    name: Scale
+    operation:
+      patchType: application/merge-patch+json
+      payload:
+        spec:
+          replicas: 2
+      verb: PATCH
+  kind: ACTION
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 2
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 2
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:38Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "False"
+        type: Progressing
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: All replicas are ready
+        reason: AllGroupsReady
+        status: "True"
+        type: Available
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      readyReplicas: 1
+      replicas: 1
+      updatedReplicas: 1
+  phases:
+  - Pending
+  resourceVersion: "3545"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 2
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 2
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: All replicas are ready
+        reason: AllGroupsReady
+        status: "False"
+        type: Available
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      readyReplicas: 1
+      replicas: 1
+      updatedReplicas: 1
+  phases:
+  - Progressing
+  - Pending
+  resourceVersion: "3548"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 2
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 2
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: All replicas are ready
+        reason: AllGroupsReady
+        status: "False"
+        type: Available
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      readyReplicas: 1
+      replicas: 1
+      updatedReplicas: 2
+  phases:
+  - Progressing
+  - Pending
+  resourceVersion: "3559"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 2
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 2
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: All replicas are ready
+        reason: AllGroupsReady
+        status: "False"
+        type: Available
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      readyReplicas: 1
+      replicas: 2
+      updatedReplicas: 2
+  phases:
+  - Progressing
+  - Pending
+  resourceVersion: "3570"
+  state: Pending
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 2
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 2
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "False"
+        type: Progressing
+      - lastTransitionTime: "2026-10-19T06:33:42Z"
+        message: All replicas are ready
+        reason: AllGroupsReady
+        status: "True"
+        type: Available
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      readyReplicas: 2
+      replicas: 2
+      updatedReplicas: 2
+  phases:
+  - Running
+  resourceVersion: "3594"
+  state: Running
+- action:
+    name: Scale
+    operation:
+      patchType: application/merge-patch+json
+      payload:
+        spec:
+          replicas: 1
+      verb: PATCH
+  kind: ACTION
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 3
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 1
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "False"
+        type: Progressing
+      - lastTransitionTime: "2026-10-19T06:33:42Z"
+        message: All replicas are ready
+        reason: AllGroupsReady
+        status: "True"
+        type: Available
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      readyReplicas: 2
+      replicas: 2
+      updatedReplicas: 2
+  phases:
+  - Running
+  resourceVersion: "3596"
+  state: Running
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 3
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 1
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "False"
+        type: Progressing
+      - lastTransitionTime: "2026-10-19T06:33:42Z"
+        message: All replicas are ready
+        reason: AllGroupsReady
+        status: "True"
+        type: Available
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      readyReplicas: 1
+      replicas: 2
+      updatedReplicas: 2
+  phases:
+  - Running
+  resourceVersion: "3718"
+  state: Running
+- kind: STATE
+  object:
+    apiVersion: leaderworkerset.x-k8s.io/v1
+    kind: LeaderWorkerSet
+    metadata:
+      creationTimestamp: "2026-10-19T06:33:38Z"
+      generation: 3
+      name: karta-e2e-lws-scaled
+      namespace: test-pb5h5
+      uid: 5d37cb3a-fbbd-4712-bbed-c3088c93681c
+    spec:
+      leaderWorkerTemplate:
+        leaderTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: leader
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+        restartPolicy: RecreateGroupOnPodRestart
+        size: 2
+        workerTemplate:
+          metadata: {}
+          spec:
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+      networkConfig:
+        subdomainPolicy: Shared
+      replicas: 1
+      rolloutStrategy:
+        rollingUpdateConfiguration:
+          maxSurge: 0
+          maxUnavailable: 1
+          partition: 0
+        type: RollingUpdate
+      startupPolicy: LeaderCreated
+    status:
+      conditions:
+      - lastTransitionTime: "2026-10-19T06:33:40Z"
+        message: Replicas are progressing
+        reason: GroupsProgressing
+        status: "False"
+        type: Progressing
+      - lastTransitionTime: "2026-10-19T06:33:42Z"
+        message: All replicas are ready
+        reason: AllGroupsReady
+        status: "True"
+        type: Available
+      hpaPodSelector: leaderworkerset.sigs.k8s.io/name=karta-e2e-lws-scaled,leaderworkerset.sigs.k8s.io/worker-index=0
+      readyReplicas: 1
+      replicas: 1
+      updatedReplicas: 1
+  phases:
+  - Running
+  resourceVersion: "3729"
+  state: Running
+flow: scaled
+kartaFile: docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml
+kartaName: leaderworkerset-x-k8s-io-leaderworkerset-v1
+operator: lws
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Progressing
+  - Pending
+- amount: 1
+  phases:
+  - Running
+- amount: 1
+  phases:
+  - Pending
+- amount: 3
+  phases:
+  - Progressing
+  - Pending
+- amount: 4
+  phases:
+  - Running
+version: v0.7.0
+want: Running

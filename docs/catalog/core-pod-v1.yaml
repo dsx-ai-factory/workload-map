@@ -26,8 +26,16 @@ spec:
           messageFieldName: message
           reasonFieldName: reason
         statusMappings:
-          initializing:
+          pending:
             - byPhase: Pending
+          progressing:
+            - byPhase: Pending
+              byConditions:
+                - type: PodScheduled
+                  status: "True"
+              byExpression:
+                expression: .metadata.deletionTimestamp == null
+                expectedResult: "true"
           running:
             - byPhase: Running
           completed:

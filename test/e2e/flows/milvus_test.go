@@ -22,22 +22,24 @@ var _ = Describe("Milvus", Ordered, Label("milvus"), func() {
 		fx = recorder.Fixture{Operator: "milvus", Version: operatorVersion("milvus"), KartaName: "milvus-io-milvus-v1beta1", KartaFile: "docs/catalog/milvus-io-milvus-v1beta1.yaml"}
 		rec = recorder.New(cfg).
 			SetTimeout(8*time.Minute).
-			AddState(kartav1alpha1.InitializingStatus, PhaseEq("Pending", "status", "status")).
-			AddState(kartav1alpha1.RunningStatus, CondTrue("MilvusReady"))
+			AddState(kartav1alpha1.ProgressingStatus, MilvusProgressing()).
+			AddState(kartav1alpha1.PendingStatus, MilvusPending()).
+			AddState(kartav1alpha1.RunningStatus, PhaseEq("Healthy", "status", "status")).
+			AddState(kartav1alpha1.DegradedStatus, PhaseEq("Unhealthy", "status", "status"))
 	})
 
 	It("running", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "running", "testdata/milvus/running.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus),
+			recorder.Reaches(kartav1alpha1.PendingStatus),
 			recorder.Reaches(kartav1alpha1.RunningStatus),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
 		Expect(err).To(Succeed())
 	})
 
-	It("initializing", func(ctx SpecContext) {
-		out, err := recorder.NewFlow(rec, "initializing", "testdata/milvus/initializing.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus)).Run(ctx)
+	It("pending", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "pending", "testdata/milvus/pending.yaml").Through(
+			recorder.Reaches(kartav1alpha1.PendingStatus).With(AllOf(operatorCurrentObservation, PhaseEq("Pending", "status", "status")))).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
 		Expect(err).To(Succeed())
 	})

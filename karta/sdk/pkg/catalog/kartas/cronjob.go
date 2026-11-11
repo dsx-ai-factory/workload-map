@@ -32,16 +32,17 @@ func CronJob() *v1alpha1.Karta {
 					},
 					StatusDefinition: &v1alpha1.StatusDefinition{
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								Expression:     "(.spec.suspend // false) != true and (.status.lastScheduleTime == null)",
+							Pending: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression:     ".metadata.deletionTimestamp == null and .spec.suspend != true and .status != null and .status.lastScheduleTime == null",
 								ExpectedResult: "true",
 							}}},
+							// Running describes an established schedule, including idle time between Jobs.
 							Running: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								Expression:     "(.spec.suspend // false) != true and (.status.lastScheduleTime != null)",
+								Expression:     ".metadata.deletionTimestamp == null and .spec.suspend != true and .status.lastScheduleTime != null",
 								ExpectedResult: "true",
 							}}},
 							Suspended: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
-								Expression:     "(.spec.suspend // false) == true",
+								Expression:     ".spec.suspend == true",
 								ExpectedResult: "true",
 							}}},
 						},

@@ -16,11 +16,34 @@ spec:
         phaseDefinition:
           path: .status.state
         statusMappings:
-          initializing:
-            - byPhase: initializing
-            - byPhase: pending
+          pending:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and ((.status.state == "pending" and
+                                                      (.metadata.generation == null or .status.observedGeneration == null or
+                                                       .status.observedGeneration >= .metadata.generation)) or
+                                                      (.metadata.deletionTimestamp == null and (.metadata.generation // 0) > 0 and
+                                                       any(.spec.components[]?; (.replicas // 1) > 0) and
+                                                       (((.status == null or ((.status | keys) - ["state"] | length) == 0) and
+                                                         (.status.state == null or (.status.state | IN("", "initializing")))) or
+                                                        (.status.observedGeneration != null and .status.observedGeneration < .metadata.generation and
+                                                         (.status.state | IN("initializing", "pending", "successful"))))))
+                expectedResult: "true"
+          progressing:
+            - byExpression:
+                expression: |-
+                  .metadata.deletionTimestamp == null and .status.state != "failed" and
+                                                      (.status.rollingUpdate.phase == "Pending" or .status.rollingUpdate.phase == "InProgress") and
+                                                      (.metadata.generation == null or .status.observedGeneration == null or
+                                                       .status.observedGeneration >= .metadata.generation)
+                expectedResult: "true"
           running:
             - byPhase: successful
+              byExpression:
+                expression: |-
+                  (.metadata.generation == null or .status.observedGeneration == null or
+                                                      .status.observedGeneration >= .metadata.generation)
+                expectedResult: "true"
           failed:
             - byPhase: failed
     childComponents:

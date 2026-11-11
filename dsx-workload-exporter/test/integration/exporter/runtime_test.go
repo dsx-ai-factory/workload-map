@@ -460,7 +460,7 @@ func deployment(ctx context.Context, ns, name string) *appsv1.Deployment {
 		},
 	}
 	Expect(api.Create(ctx, root)).To(Succeed())
-	root.Status = appsv1.DeploymentStatus{Replicas: 1, ReadyReplicas: 1, AvailableReplicas: 1, UpdatedReplicas: 1, Conditions: []appsv1.DeploymentCondition{
+	root.Status = appsv1.DeploymentStatus{ObservedGeneration: root.Generation, Replicas: 1, ReadyReplicas: 1, AvailableReplicas: 1, UpdatedReplicas: 1, Conditions: []appsv1.DeploymentCondition{
 		{Type: appsv1.DeploymentAvailable, Status: corev1.ConditionTrue},
 		{Type: appsv1.DeploymentProgressing, Status: corev1.ConditionTrue, Reason: "NewReplicaSetAvailable"},
 	}}
@@ -546,8 +546,8 @@ func expectZeroStatusMetrics(g Gomega, body string, root client.Object) {
 			samples = append(samples, line)
 		}
 	}
-	g.Expect(samples).To(HaveLen(9))
-	for _, phase := range []string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Suspending", "Resuming", "Undefined"} {
+	g.Expect(samples).To(HaveLen(11))
+	for _, phase := range []string{"Initializing", "Pending", "Progressing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Suspending", "Resuming", "Undefined"} {
 		g.Expect(samples).To(ContainElement(SatisfyAll(
 			HaveSuffix(" 0"), ContainSubstring(`phase="`+phase+`"`),
 			ContainSubstring(`karta=""`), ContainSubstring(`karta_source=""`),

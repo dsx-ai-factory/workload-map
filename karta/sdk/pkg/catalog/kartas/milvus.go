@@ -10,6 +10,11 @@ import (
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
+const milvusTransitionExpression = `.status.status != "Stopped" and
+    (.metadata.generation == null or .status.observedGeneration == null or
+     .status.observedGeneration >= .metadata.generation) and
+    (any(.status.conditions[]?; .reason == "MilvusStopped" or .reason == "MilvusStopping") | not)`
+
 // Milvus returns the built-in Karta for the Milvus workload
 // (milvus.io/v1beta1).
 func Milvus() *v1alpha1.Karta {
@@ -32,15 +37,25 @@ func Milvus() *v1alpha1.Karta {
 							StatusFieldName: "status",
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Running: []v1alpha1.StatusMatcher{
-								{ByPhase: "Healthy"},
-							},
-							Initializing: []v1alpha1.StatusMatcher{
-								{ByPhase: "Pending"},
-							},
-							Degraded: []v1alpha1.StatusMatcher{
-								{ByPhase: "Unhealthy"},
-							},
+							Running: []v1alpha1.StatusMatcher{{ByPhase: "Healthy"}},
+							Pending: []v1alpha1.StatusMatcher{
+								{ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     inferenceEmptyStatusExpression + ` and .spec.mode == "standalone" and (.spec.components.standalone.replicas // 1) > 0 and .spec.components.enableManualMode != true`,
+									ExpectedResult: "true",
+								}},
+								{
+									ByPhase:      "Pending",
+									ByExpression: &v1alpha1.ExpressionMatcher{Expression: milvusTransitionExpression, ExpectedResult: "true"},
+								}},
+							// Update convergence is independent of the cluster's serving health.
+							Progressing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression: milvusTransitionExpression + ` and
+                                    any(.status.conditions[]?; .type == "MilvusUpdated" and .status == "False" and
+                                        (.reason == "MilvusUpgradingImage" or .reason == "MilvusDowngradingImage" or
+                                         .reason == "MilvusComponentsUpdating"))`,
+								ExpectedResult: "true",
+							}}},
+							Degraded: []v1alpha1.StatusMatcher{{ByPhase: "Unhealthy"}},
 						},
 					},
 				},

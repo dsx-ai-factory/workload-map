@@ -50,10 +50,11 @@ type KartaValidator struct {
 var _ admission.Validator[*kartav1alpha1.Karta] = (*KartaValidator)(nil)
 
 func (v *KartaValidator) ValidateCreate(ctx context.Context, karta *kartav1alpha1.Karta) (admission.Warnings, error) {
-	if err := kartav1alpha1.NewKartaValidator(karta).Validate(); err != nil {
+	validator := kartav1alpha1.NewKartaValidator(karta)
+	if err := validator.Validate(); err != nil {
 		return nil, err
 	}
-	return nil, v.checkUniqueRootGVK(ctx, karta)
+	return validator.DeprecationWarnings(), v.checkUniqueRootGVK(ctx, karta)
 }
 
 // checkUniqueRootGVK rejects a Karta whose full root GVK (group/version/kind)
@@ -84,7 +85,8 @@ func (v *KartaValidator) checkUniqueRootGVK(ctx context.Context, karta *kartav1a
 }
 
 func (v *KartaValidator) ValidateUpdate(ctx context.Context, oldObj, karta *kartav1alpha1.Karta) (admission.Warnings, error) {
-	if err := kartav1alpha1.NewKartaValidator(karta).Validate(); err != nil {
+	validator := kartav1alpha1.NewKartaValidator(karta)
+	if err := validator.Validate(); err != nil {
 		return nil, err
 	}
 	oldGVK, newGVK := rootGVK(oldObj), rootGVK(karta)
@@ -94,7 +96,7 @@ func (v *KartaValidator) ValidateUpdate(ctx context.Context, oldObj, karta *kart
 	if err := checkRootLabels(karta); err != nil {
 		return nil, err
 	}
-	return nil, v.checkUniqueRootGVK(ctx, karta)
+	return validator.DeprecationWarnings(), v.checkUniqueRootGVK(ctx, karta)
 }
 
 func checkRootLabels(karta *kartav1alpha1.Karta) error {

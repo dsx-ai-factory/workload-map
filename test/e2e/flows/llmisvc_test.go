@@ -61,85 +61,98 @@ func condWithReason(condType, status, reason string, equal bool) recorder.StateC
 	}
 }
 
-var _ = Describe("LLMInferenceService", Ordered, Label("kserve", "llmisvc"), func() {
-	var rec *recorder.Recorder
-	var fx recorder.Fixture
+var _ = describeLLMInferenceService("v1alpha1", "testdata/llmisvc/v1alpha1")
+var _ = describeLLMInferenceService("v1alpha2", "testdata/llmisvc")
 
-	BeforeAll(func(ctx SpecContext) {
-		installKarta(ctx, "../../docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml", "serving-kserve-io-llminferenceservice-v1alpha2")
-		// The manifests use a pvc:// model URI: the controller mounts the claim
-		// read-only instead of spawning a storage-initializer that would try to
-		// download a real model. The claim stays empty; the fake server never
-		// reads it.
-		pvc := &corev1.PersistentVolumeClaim{
-			ObjectMeta: metav1.ObjectMeta{Name: "karta-e2e-llmisvc-model", Namespace: testNamespace},
-			Spec: corev1.PersistentVolumeClaimSpec{
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				Resources: corev1.VolumeResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("16Mi")},
+func describeLLMInferenceService(version, manifestDir string) bool {
+	return Describe("LLMInferenceService "+version, Ordered, Label("kserve", "llmisvc", "llmisvc-"+version), func() {
+		kartaName := "serving-kserve-io-llminferenceservice-" + version
+		modelClaimName := "karta-e2e-llmisvc-model"
+		if version == "v1alpha1" {
+			modelClaimName += "-v1alpha1"
+		}
+		var rec *recorder.Recorder
+		var fx recorder.Fixture
+
+		BeforeAll(func(ctx SpecContext) {
+			installKarta(ctx, "../../docs/catalog/"+kartaName+".yaml", kartaName)
+			// The manifests use a pvc:// model URI: the controller mounts the claim
+			// read-only instead of spawning a storage-initializer that would try to
+			// download a real model. The claim stays empty; the fake server never
+			// reads it.
+			pvc := &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{Name: modelClaimName, Namespace: testNamespace},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("16Mi")},
+					},
 				},
-			},
-		}
-		Expect(k8sClient.Create(ctx, pvc)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) { _ = k8sClient.Delete(ctx, pvc) })
-		fx = recorder.Fixture{Operator: "kserve", Version: operatorVersion("kserve"), KartaName: "serving-kserve-io-llminferenceservice-v1alpha2", KartaFile: "docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml"}
-		// The predicates mirror the definition. PresetsCombined sits outside the Ready rollup: when it is
-		// False the controller stops reconciling and Ready stays Unknown, which is a failure unless the
-		// service is stopped.
-		presetsFalse := CondStatus("PresetsCombined", "False")
-		initializing := func(u *unstructured.Unstructured) bool {
-			return (CondStatus("Ready", "Unknown")(u) && !presetsFalse(u)) || readyFalseReason(true, llmStartupReasons...)(u)
-		}
-		suspended := func(u *unstructured.Unstructured) bool {
-			return condWithReason("Ready", "False", llmStopReason, true)(u) ||
-				condWithReason("PresetsCombined", "False", llmStopReason, true)(u)
-		}
-		failed := func(u *unstructured.Unstructured) bool {
-			return readyFalseReason(false, append([]string{llmStopReason}, llmStartupReasons...)...)(u) ||
-				(CondStatus("Ready", "Unknown")(u) && condWithReason("PresetsCombined", "False", llmStopReason, false)(u))
-		}
-		rec = recorder.New(cfg).
-			SetTimeout(6*time.Minute).
-			AddState(kartav1alpha1.InitializingStatus, initializing).
-			AddState(kartav1alpha1.RunningStatus, CondTrue("Ready")).
-			AddState(kartav1alpha1.SuspendedStatus, suspended).
-			AddState(kartav1alpha1.FailedStatus, failed)
-	})
+			}
+			Expect(k8sClient.Create(ctx, pvc)).To(Succeed())
+			DeferCleanup(func(ctx SpecContext) { _ = k8sClient.Delete(ctx, pvc) })
+			fx = recorder.Fixture{Operator: "kserve", Version: operatorVersion("kserve"), KartaName: kartaName, KartaFile: "docs/catalog/" + kartaName + ".yaml"}
+			// The predicates mirror the definition. PresetsCombined sits outside the Ready rollup: when it is
+			// False the controller stops reconciling and Ready stays Unknown, which is a failure unless the
+			// service is stopped.
+			presetsFalse := CondStatus("PresetsCombined", "False")
+			pending := func(u *unstructured.Unstructured) bool {
+				replicas, hasReplicas, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
+				return (inferenceServiceAwaitingStatus(u) && (!hasReplicas || replicas > 0)) ||
+					(inferenceObservationCurrent(u) && !presetsFalse(u) && (CondStatus("Ready", "Unknown")(u) || readyFalseReason(true, llmStartupReasons...)(u)))
+			}
+			suspended := func(u *unstructured.Unstructured) bool {
+				return condWithReason("Ready", "False", llmStopReason, true)(u) ||
+					condWithReason("PresetsCombined", "False", llmStopReason, true)(u)
+			}
+			failed := func(u *unstructured.Unstructured) bool {
+				return readyFalseReason(false, append([]string{llmStopReason}, llmStartupReasons...)...)(u) ||
+					(CondStatus("Ready", "Unknown")(u) && condWithReason("PresetsCombined", "False", llmStopReason, false)(u))
+			}
+			rec = recorder.New(cfg).
+				SetTimeout(6*time.Minute).
+				AddState(kartav1alpha1.ProgressingStatus, AllOf(pending, condWithReason("Ready", "False", "Progressing", true))).
+				AddState(kartav1alpha1.PendingStatus, pending).
+				AddState(kartav1alpha1.RunningStatus, CondTrue("Ready")).
+				AddState(kartav1alpha1.SuspendedStatus, suspended).
+				AddState(kartav1alpha1.FailedStatus, failed)
+		})
 
-	It("running", func(ctx SpecContext) {
-		out, err := recorder.NewFlow(rec, "running", "testdata/llmisvc/running.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
-			recorder.Reaches(kartav1alpha1.RunningStatus),
-		).Run(ctx)
-		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
-		Expect(err).To(Succeed())
-	})
+		It("running", func(ctx SpecContext) {
+			out, err := recorder.NewFlow(rec, "running", manifestDir+"/running.yaml").Through(
+				recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
+				recorder.Reaches(kartav1alpha1.RunningStatus),
+			).Run(ctx)
+			Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+			Expect(err).To(Succeed())
+		})
 
-	It("failed", func(ctx SpecContext) {
-		out, err := recorder.NewFlow(rec, "failed", "testdata/llmisvc/failed.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
-			recorder.Reaches(kartav1alpha1.FailedStatus),
-		).Run(ctx)
-		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
-		Expect(err).To(Succeed())
-	})
+		It("failed", func(ctx SpecContext) {
+			out, err := recorder.NewFlow(rec, "failed", manifestDir+"/failed.yaml").Through(
+				recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
+				recorder.Reaches(kartav1alpha1.FailedStatus),
+			).Run(ctx)
+			Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+			Expect(err).To(Succeed())
+		})
 
-	It("stopped", func(ctx SpecContext) {
-		out, err := recorder.NewFlow(rec, "stopped", "testdata/llmisvc/stopped.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
-			recorder.Reaches(kartav1alpha1.RunningStatus).Do(KServeStop()),
-			recorder.Reaches(kartav1alpha1.SuspendedStatus),
-		).Run(ctx)
-		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
-		Expect(err).To(Succeed())
-	})
+		It("stopped", func(ctx SpecContext) {
+			out, err := recorder.NewFlow(rec, "stopped", manifestDir+"/stopped.yaml").Through(
+				recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
+				recorder.Reaches(kartav1alpha1.RunningStatus).Do(KServeStop()),
+				recorder.Reaches(kartav1alpha1.SuspendedStatus),
+			).Run(ctx)
+			Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+			Expect(err).To(Succeed())
+		})
 
-	It("missing-preset", func(ctx SpecContext) {
-		out, err := recorder.NewFlow(rec, "missing-preset", "testdata/llmisvc/missing-preset.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
-			recorder.Reaches(kartav1alpha1.FailedStatus),
-		).Run(ctx)
-		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
-		Expect(err).To(Succeed())
+		It("missing-preset", func(ctx SpecContext) {
+			out, err := recorder.NewFlow(rec, "missing-preset", manifestDir+"/missing-preset.yaml").Through(
+				recorder.Reaches(kartav1alpha1.PendingStatus).Optional(),
+				recorder.Reaches(kartav1alpha1.FailedStatus),
+			).Run(ctx)
+			Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+			Expect(err).To(Succeed())
+		})
 	})
-})
+}

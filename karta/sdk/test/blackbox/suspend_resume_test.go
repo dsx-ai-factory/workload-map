@@ -10,8 +10,8 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/internal/jq/execution"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/jq/execution"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/test/types"
 )

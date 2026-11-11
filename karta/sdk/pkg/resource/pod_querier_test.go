@@ -13,8 +13,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/internal/jq/execution"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/jq/execution"
 )
 
 var _ = Describe("PodQuerier", func() {

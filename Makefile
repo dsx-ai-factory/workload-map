@@ -608,7 +608,7 @@ lib-generate: controller-gen ## Generate DeepCopy methods
 
 .PHONY: lib-generate-mocks
 lib-generate-mocks: ## Generate mocks using go generate
-	cd karta/sdk && go generate ./pkg/...
+	cd karta/sdk && go generate ./pkg/... ./internal/...
 
 .PHONY: generate-samples
 generate-samples: ## Regenerate docs/catalog/ from karta/sdk/pkg/catalog

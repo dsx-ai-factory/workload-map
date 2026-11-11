@@ -153,7 +153,7 @@ reviews:
         and all fragments of one update commit atomically. No per-CRD special
         cases in the engine. A new failure mode is a typed error, never a
         silent partial write.
-    - path: "karta/sdk/pkg/jq/**"
+    - path: "karta/sdk/internal/jq/**"
       instructions: >-
         Paths are resolved with jq itself; do not reimplement setpath or
         getpath semantics in Go. The contract for validation: an expression

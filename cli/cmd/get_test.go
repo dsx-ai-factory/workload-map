@@ -725,8 +725,9 @@ func TestGetPrintsWarningsBeforeTheError(t *testing.T) {
 	}
 }
 
-// --no-headers reaches the table through the get command: the data rows stay,
-// in the same order, and only the header goes.
+// TestGetNoHeadersOmitsTheHeader checks that --no-headers reaches the table
+// through the get command: the data rows stay, in the same order, and only the
+// header goes.
 func TestGetNoHeadersOmitsTheHeader(t *testing.T) {
 	fakeCluster(t, jobSet("preprocess", 3))
 

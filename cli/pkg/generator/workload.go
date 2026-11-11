@@ -60,6 +60,9 @@ func RenderWorkloads(out, errOut io.Writer, views []workload.View, opts Options)
 	return Render(out, format, views, opts.ByName, table)
 }
 
+// renderWorkloadTable writes views as a kubectl-style table: NAME and NAMESPACE,
+// TYPE when typeOf is set, then PHASE and AGE, plus ORIGIN for -o wide. With
+// noHeaders it writes only the data rows, in the same order.
 func renderWorkloadTable(out io.Writer, views []workload.View, format Output, typeOf func(workload.View) string, noHeaders bool) error {
 	writer := printers.GetNewTabWriter(out)
 

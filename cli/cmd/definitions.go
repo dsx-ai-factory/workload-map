@@ -276,8 +276,9 @@ func definitionRows(defs []definitions.Definition) []definitionRow {
 	return rows
 }
 
-// renderDefinitions writes the table. The empty note goes to errOut so stdout
-// stays parseable.
+// renderDefinitions writes the table, with the APIVERSION column when wide is
+// set and without the header row when noHeaders is set. The empty note goes to
+// errOut so stdout stays parseable.
 func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int, wide, noHeaders bool) error {
 	if len(rows) == 0 {
 		fmt.Fprintln(errOut, "No Karta definitions found.")

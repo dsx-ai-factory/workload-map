@@ -590,7 +590,8 @@ func TestGetAllTypesWarnsOnAKindServedAtAnUncoveredVersion(t *testing.T) {
 	}
 }
 
-// --no-headers composes with --all-types and -o wide.
+// TestGetAllTypesWideNoHeaders checks that --no-headers composes with
+// --all-types and -o wide.
 func TestGetAllTypesWideNoHeaders(t *testing.T) {
 	fakeMixedCluster(t, mixedNamespace()...)
 

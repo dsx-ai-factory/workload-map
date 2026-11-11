@@ -36,7 +36,7 @@
     ]
   },
   "overrides": {
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "webpack-dev-middleware": "^8.6.0",
     "vitest": "$vitest",
     "@vitest/mocker": "^5.1.0",

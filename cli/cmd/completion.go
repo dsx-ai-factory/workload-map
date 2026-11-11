@@ -36,6 +36,14 @@ func boundRequests(cmd *cobra.Command) {
 // and describe accept. A completion has no channel for an error, so a failure
 // to reach the cluster offers nothing rather than printing.
 func completeWorkloads(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// Cobra skips the root pre-run for completion, but definition visibility
+	// must still follow the same flags, environment and config file.
+	var err error
+	config, err = buildConfig(cmd)
+	if err != nil {
+		cobra.CompDebugln(err.Error(), true)
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 	// Every lookup below reads cmd.Context(), and the __complete process ends
 	// after this one call, so replacing the context is safe.
 	ctx, cancel := context.WithTimeout(cmd.Context(), completionTimeout)
@@ -57,6 +65,35 @@ func completeWorkloads(cmd *cobra.Command, args []string, toComplete string) ([]
 		candidates = completeNames(cmd, args[0], toComplete)
 	}
 	return candidates, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeDefinitionNames offers the names of the definitions the CLI
+// understands, matching prefix. An unreachable cluster falls back to the catalog
+// quietly, within completionTimeout, the way the definitions command does.
+func completeDefinitionNames(cmd *cobra.Command, prefix string) []string {
+	// Cobra skips the root pre-run for completion, but definition visibility
+	// must still follow the same flags, environment and config file.
+	var err error
+	config, err = buildConfig(cmd)
+	if err != nil {
+		cobra.CompDebugln(err.Error(), true)
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(cmd.Context(), completionTimeout)
+	defer cancel()
+	cmd.SetContext(ctx)
+	boundRequests(cmd)
+
+	resolver, _ := loadDefinitionsForCommand(cmd, clusterAccess())
+
+	var names []string
+	for _, def := range resolver.List() {
+		if name := def.Karta.Name; strings.HasPrefix(name, prefix) {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
 }
 
 // completeNamespaces completes the -n/--namespace flag with the namespaces of
@@ -91,7 +128,7 @@ func completeNamespaces(cmd *cobra.Command, _ []string, prefix string) ([]string
 // kubectl users type, matching prefix. A kind covered at several group versions
 // would be rejected as ambiguous, so it is offered in each qualified form instead.
 func completeTypes(cmd *cobra.Command, prefix string) []string {
-	resolver, _ := loadDefinitions(cmd.Context(), clusterAccess())
+	resolver, _ := loadDefinitionsForCommand(cmd, clusterAccess())
 
 	byKind := map[string][]schema.GroupVersionKind{}
 	for _, def := range resolver.List() {

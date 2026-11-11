@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -28,12 +29,67 @@ type countingCapturer struct {
 	calls atomic.Int64
 }
 
+var _ = Describe("Collector labels", func() {
+	It("preserves built-in identity and metric-specific custom labels", func() {
+		s, workload, pod, scrape := collectorFixture(GinkgoTB())
+		identity := []string{LabelNamespace, LabelWorkload, LabelWorkloadUID, LabelWorkloadGroup,
+			LabelWorkloadVersion, LabelWorkloadKind, LabelOwnerResolution, LabelObservationValid}
+		workload.Record.StatusLabels = map[string]string{"team": "status"}
+		pod.Record.Labels = map[string]string{"team": "pod", "phase": "custom-pod-phase"}
+		for _, name := range identity {
+			workload.Record.StatusLabels[name] = "wrong"
+			pod.Record.Labels[name] = "wrong"
+		}
+		for _, name := range []string{LabelPhase, LabelKarta, LabelKartaSource} {
+			workload.Record.StatusLabels[name] = "wrong"
+		}
+		pod.Record.Labels[LabelPod] = "wrong"
+		pod.Record.Labels[LabelPodUID] = "wrong"
+		s.UpsertWorkload(workload)
+		s.UpsertPod(pod)
+		output := scrape()
+		Expect(output).NotTo(ContainSubstring(`="wrong"`))
+		Expect(strings.Count(output, MetricWorkloadStatus+"{")).To(Equal(len(allPhases)))
+		for _, line := range strings.Split(output, "\n") {
+			switch {
+			case strings.HasPrefix(line, MetricWorkloadCreatedTimestamp+"{"), strings.HasPrefix(line, MetricExporterObservationValid+"{"):
+				Expect(line).NotTo(ContainSubstring("team="))
+			case strings.HasPrefix(line, MetricWorkloadStatus+"{"):
+				Expect(line).To(ContainSubstring(`team="status"`))
+			case strings.HasPrefix(line, MetricPodWorkloadInfo+"{"):
+				Expect(line).To(ContainSubstring(`team="pod"`))
+				Expect(line).To(ContainSubstring(`phase="custom-pod-phase"`))
+			}
+		}
+	})
+
+	It("allows component labels to override defaults while preserving physical identity", func() {
+		s, _, pod, scrape := collectorFixture(GinkgoTB())
+		pod.Record.Component = "pod"
+		pod.Record.Labels = map[string]string{
+			"component": "head", "component_instance": "leader", "replica_group_id": "0",
+			"workload_uid": "wrong", "pod_uid": "wrong", "observation_valid": "false",
+		}
+		s.UpsertPod(pod)
+		output := scrape()
+		for _, label := range []string{`component="head"`, `component_instance="leader"`, `replica_group_id="0"`, `workload_uid="root"`, `pod_uid="pod"`} {
+			Expect(output).To(ContainSubstring(label))
+		}
+		Expect(output).NotTo(ContainSubstring(`="wrong"`))
+		Expect(output).NotTo(ContainSubstring(`observation_valid="false"`))
+
+		pod.Record.Labels = map[string]string{"component": ""}
+		s.UpsertPod(pod)
+		Expect(scrape()).To(ContainSubstring(`component="pod"`))
+	})
+})
+
 func (c *countingCapturer) Capture() store.CapturedView {
 	c.calls.Add(1)
 	return c.Capturer.Capture()
 }
 
-func collectorFixture(t *testing.T) (store.PublicationStore, *store.WorkloadResult, *store.PodResult, func() string) {
+func collectorFixture(t testing.TB) (store.PublicationStore, *store.WorkloadResult, *store.PodResult, func() string) {
 	t.Helper()
 	g := NewWithT(t)
 	s := store.New()
@@ -151,27 +207,6 @@ func TestClusterRootKeepsPodNamespacesDistinct(t *testing.T) {
 	output = scrape()
 	g.Expect(strings.Count(output, MetricPodWorkloadInfo+"{")).To(Equal(1))
 	g.Expect(output).NotTo(ContainSubstring(`namespace="team-a"`))
-}
-
-func TestBuiltInIdentityOverridesCustomLabels(t *testing.T) {
-	g := NewWithT(t)
-	s, workload, pod, scrape := collectorFixture(t)
-	workload.Record.StatusLabels = map[string]string{"namespace": "wrong", "team": "status"}
-	pod.Record.Labels = map[string]string{"namespace": "wrong", "team": "pod"}
-	s.UpsertWorkload(workload)
-	s.UpsertPod(pod)
-	output := scrape()
-	g.Expect(output).NotTo(ContainSubstring(`namespace="wrong"`))
-	for _, line := range strings.Split(output, "\n") {
-		switch {
-		case strings.HasPrefix(line, MetricWorkloadCreatedTimestamp+"{"), strings.HasPrefix(line, MetricExporterObservationValid+"{"):
-			g.Expect(line).NotTo(ContainSubstring("team="))
-		case strings.HasPrefix(line, MetricWorkloadStatus+"{"):
-			g.Expect(line).To(ContainSubstring(`team="status"`))
-		case strings.HasPrefix(line, MetricPodWorkloadInfo+"{"):
-			g.Expect(line).To(ContainSubstring(`team="pod"`))
-		}
-	}
 }
 
 func TestUnavailableStatusAndUnrelatedSourceFailure(t *testing.T) {

@@ -18,6 +18,53 @@ import (
 )
 
 var _ = Describe("config defaults and rules", func() {
+	It("rejects the removed singular object selector key", func() {
+		_, err := loadConfig("objectSelector: {matchLabels: {team: platform}}", nil)
+		Expect(err).To(MatchError(ContainSubstring(`unknown field "objectSelector"`)))
+	})
+
+	It("loads independent workload metric selection and an optional Pod association", func() {
+		defaults, err := loadConfig("", nil)
+		Expect(err).To(Succeed())
+		Expect(defaults.WorkloadMetricSelector).To(BeNil())
+		Expect(defaults.PodWorkloadAssociation).To(BeNil())
+		cfg, err := loadConfig(`workloadMetricSelector:
+  matchExpressions:
+  - key: example.org/group
+    operator: DoesNotExist
+podWorkloadAssociation:
+  podSelector:
+    matchLabels:
+      example.org/managed: "true"
+  target:
+    apiVersion: scheduling.example.org/v1
+    kind: Workload
+    nameFromLabel: example.org/group
+`, nil)
+		Expect(err).To(Succeed())
+		Expect(cfg.WorkloadMetricSelector.MatchExpressions).To(HaveLen(1))
+		Expect(cfg.PodWorkloadAssociation.Target.APIVersion).To(Equal("scheduling.example.org/v1"))
+		Expect(cfg.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("example.org/group"))
+		Expect(cfg.PodWorkloadAssociation.PodSelector.MatchLabels).To(HaveKeyWithValue("example.org/managed", "true"))
+	})
+
+	for _, invalid := range []string{
+		`workloadMetricSelector: {matchExpressions: [{key: group, operator: Invalid}]}`,
+		`podWorkloadAssociation: {target: {apiVersion: "", kind: Workload, nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/, kind: Workload, nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: "*", nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: ""}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: "bad key"}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: group}, podSelector: {matchExpressions: [{key: group, operator: Invalid}]}}`,
+	} {
+		It("rejects invalid association and metric selection configuration: "+invalid, func() {
+			var parsed map[string]any
+			Expect(yaml.Unmarshal([]byte(invalid), &parsed)).To(Succeed())
+			_, err := loadConfig(invalid, nil)
+			Expect(err).To(HaveOccurred())
+		})
+	}
+
 	It("preserves flat configuration keys when encoding embedded resolver settings", func() {
 		cfg, err := loadConfig("labelRules: []\ngenericLabelEvaluationLimits:\n  maxResultBytes: 32\n", nil)
 		Expect(err).To(Succeed())
@@ -220,6 +267,18 @@ var _ = Describe("Karta definition sources", func() {
 		}))
 	})
 
+	DescribeTable("loads experimental opt-in for both sources",
+		func(content string, enabled bool) {
+			cfg, err := loadConfig(content, nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.KartaDefinitionSource.EnableExperimental).To(Equal(enabled))
+			Expect(cfg.KartaDefinitionSource.InventoryConfig().EnableExperimental).To(Equal(enabled))
+		},
+		Entry("omitted", "", false),
+		Entry("enabled", "kartaDefinitionSource:\n  enableExperimental: true\n", true),
+		Entry("disabled", "kartaDefinitionSource:\n  enableExperimental: false\n", false),
+	)
+
 	DescribeTable("preserves explicit source settings",
 		func(content string, catalogEnabled, clusterEnabled bool) {
 			cfg, err := loadConfig(content, nil)
@@ -233,7 +292,7 @@ var _ = Describe("Karta definition sources", func() {
 		Entry("filters without enabled flags", "kartaDefinitionSource:\n  catalog:\n    include: [batch-job-v1]\n  cluster:\n    exclude: [team-job]\n", true, true),
 	)
 
-	It("selects every catalog definition when the file only enables the catalog", func() {
+	It("keeps catalog name filters empty when the file only enables the catalog", func() {
 		cfg, err := loadConfig("kartaDefinitionSource:\n  catalog:\n    enabled: true\n", nil)
 		Expect(err).NotTo(HaveOccurred())
 

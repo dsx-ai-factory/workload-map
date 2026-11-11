@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# Optional example policy. Adjust the duration and severity for the deployment.
+groups:
+  - name: dsx-dashboard-example-alerts
+    interval: 30s
+    rules:
+      - alert: DSXExporterObservationFailure
+        expr: dsx_exporter_observation_valid == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: DSX exporter reports an observation failure
+          description: 'Target {{ $labels.instance }} reports {{ $labels.reason }} for scope {{ $labels.scope }}.'

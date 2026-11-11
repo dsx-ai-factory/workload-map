@@ -1,0 +1,434 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      annotations:
+        kueue.x-k8s.io/is-group-workload: "true"
+      creationTimestamp: "2026-11-08T11:02:56Z"
+      finalizers:
+      - kueue.x-k8s.io/resource-in-use
+      generation: 1
+      name: karta-e2e-workload-running
+      namespace: test-98fgz
+      ownerReferences:
+      - apiVersion: v1
+        kind: Pod
+        name: karta-e2e-workload-running-head
+        uid: b882e539-9c96-42c5-87ce-9dcdcd49b630
+      - apiVersion: v1
+        kind: Pod
+        name: karta-e2e-workload-running-worker
+        uid: 31b11c72-7cb8-4bf5-a566-8fa30bd2c057
+      uid: 09fab7b2-8a93-4d2b-8a5d-008f92a3c931
+    spec:
+      active: true
+      podSets:
+      - count: 2
+        name: 0bd91dee
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - "600"
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              name: worker
+              resources:
+                limits:
+                  cpu: 10m
+                  memory: 16Mi
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            enableServiceLinks: true
+            preemptionPolicy: PreemptLowerPriority
+            priority: 0
+            restartPolicy: Never
+            schedulerName: default-scheduler
+            schedulingGates:
+            - name: kueue.x-k8s.io/admission
+            - name: kueue.x-k8s.io/topology
+            securityContext: {}
+            serviceAccount: default
+            serviceAccountName: default
+            terminationGracePeriodSeconds: 30
+            tolerations:
+            - effect: NoExecute
+              key: node.kubernetes.io/not-ready
+              operator: Exists
+              tolerationSeconds: 300
+            - effect: NoExecute
+              key: node.kubernetes.io/unreachable
+              operator: Exists
+              tolerationSeconds: 300
+        topologyRequest:
+          podIndexLabel: kueue.x-k8s.io/pod-group-pod-index
+      priority: 0
+      queueName: karta-e2e
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-08T11:02:56Z"
+        message: LocalQueue karta-e2e is inactive
+        observedGeneration: 1
+        reason: Suspended
+        status: "False"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T11:02:56Z"
+        message: The workload has no reservation
+        observedGeneration: 1
+        reason: NoReservation
+        status: "False"
+        type: Admitted
+      - lastTransitionTime: "2026-11-08T11:02:56Z"
+        message: Not all pods are ready or succeeded
+        observedGeneration: 1
+        reason: WaitForStart
+        status: "False"
+        type: PodsReady
+  phases:
+  - Initializing
+  resourceVersion: "2204"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      annotations:
+        kueue.x-k8s.io/is-group-workload: "true"
+      creationTimestamp: "2026-11-08T11:02:56Z"
+      finalizers:
+      - kueue.x-k8s.io/resource-in-use
+      generation: 1
+      name: karta-e2e-workload-running
+      namespace: test-98fgz
+      ownerReferences:
+      - apiVersion: v1
+        kind: Pod
+        name: karta-e2e-workload-running-head
+        uid: b882e539-9c96-42c5-87ce-9dcdcd49b630
+      - apiVersion: v1
+        kind: Pod
+        name: karta-e2e-workload-running-worker
+        uid: 31b11c72-7cb8-4bf5-a566-8fa30bd2c057
+      uid: 09fab7b2-8a93-4d2b-8a5d-008f92a3c931
+    spec:
+      active: true
+      podSets:
+      - count: 2
+        name: 0bd91dee
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - "600"
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              name: worker
+              resources:
+                limits:
+                  cpu: 10m
+                  memory: 16Mi
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            enableServiceLinks: true
+            preemptionPolicy: PreemptLowerPriority
+            priority: 0
+            restartPolicy: Never
+            schedulerName: default-scheduler
+            schedulingGates:
+            - name: kueue.x-k8s.io/admission
+            - name: kueue.x-k8s.io/topology
+            securityContext: {}
+            serviceAccount: default
+            serviceAccountName: default
+            terminationGracePeriodSeconds: 30
+            tolerations:
+            - effect: NoExecute
+              key: node.kubernetes.io/not-ready
+              operator: Exists
+              tolerationSeconds: 300
+            - effect: NoExecute
+              key: node.kubernetes.io/unreachable
+              operator: Exists
+              tolerationSeconds: 300
+        topologyRequest:
+          podIndexLabel: kueue.x-k8s.io/pod-group-pod-index
+      priority: 0
+      queueName: karta-e2e
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-08T11:02:56Z"
+        message: Workload is pending evaluation in the scheduling queue
+        observedGeneration: 1
+        reason: PendingEvaluation
+        status: "False"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T11:02:56Z"
+        message: The workload has no reservation
+        observedGeneration: 1
+        reason: NoReservation
+        status: "False"
+        type: Admitted
+      - lastTransitionTime: "2026-11-08T11:02:56Z"
+        message: Not all pods are ready or succeeded
+        observedGeneration: 1
+        reason: WaitForStart
+        status: "False"
+        type: PodsReady
+  phases:
+  - Initializing
+  resourceVersion: "2211"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      annotations:
+        kueue.x-k8s.io/is-group-workload: "true"
+      creationTimestamp: "2026-11-08T11:02:56Z"
+      finalizers:
+      - kueue.x-k8s.io/resource-in-use
+      generation: 1
+      name: karta-e2e-workload-running
+      namespace: test-98fgz
+      ownerReferences:
+      - apiVersion: v1
+        kind: Pod
+        name: karta-e2e-workload-running-head
+        uid: b882e539-9c96-42c5-87ce-9dcdcd49b630
+      - apiVersion: v1
+        kind: Pod
+        name: karta-e2e-workload-running-worker
+        uid: 31b11c72-7cb8-4bf5-a566-8fa30bd2c057
+      uid: 09fab7b2-8a93-4d2b-8a5d-008f92a3c931
+    spec:
+      active: true
+      podSets:
+      - count: 2
+        name: 0bd91dee
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - "600"
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              name: worker
+              resources:
+                limits:
+                  cpu: 10m
+                  memory: 16Mi
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            enableServiceLinks: true
+            preemptionPolicy: PreemptLowerPriority
+            priority: 0
+            restartPolicy: Never
+            schedulerName: default-scheduler
+            schedulingGates:
+            - name: kueue.x-k8s.io/admission
+            - name: kueue.x-k8s.io/topology
+            securityContext: {}
+            serviceAccount: default
+            serviceAccountName: default
+            terminationGracePeriodSeconds: 30
+            tolerations:
+            - effect: NoExecute
+              key: node.kubernetes.io/not-ready
+              operator: Exists
+              tolerationSeconds: 300
+            - effect: NoExecute
+              key: node.kubernetes.io/unreachable
+              operator: Exists
+              tolerationSeconds: 300
+        topologyRequest:
+          podIndexLabel: kueue.x-k8s.io/pod-group-pod-index
+      priority: 0
+      queueName: karta-e2e
+    status:
+      admission:
+        clusterQueue: karta-e2e
+        podSetAssignments:
+        - count: 2
+          flavors:
+            cpu: karta-e2e
+            memory: karta-e2e
+          name: 0bd91dee
+          resourceUsage:
+            cpu: 20m
+            memory: 32Mi
+      conditions:
+      - lastTransitionTime: "2026-11-08T11:02:57Z"
+        message: Quota reserved in ClusterQueue karta-e2e
+        observedGeneration: 1
+        reason: QuotaReserved
+        status: "True"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T11:02:57Z"
+        message: The workload is admitted
+        observedGeneration: 1
+        reason: Admitted
+        status: "True"
+        type: Admitted
+      - lastTransitionTime: "2026-11-08T11:02:56Z"
+        message: Not all pods are ready or succeeded
+        observedGeneration: 1
+        reason: WaitForStart
+        status: "False"
+        type: PodsReady
+  phases:
+  - Undefined
+  resourceVersion: "2213"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: kueue.x-k8s.io/v1beta2
+    kind: Workload
+    metadata:
+      annotations:
+        kueue.x-k8s.io/is-group-workload: "true"
+      creationTimestamp: "2026-11-08T11:02:56Z"
+      finalizers:
+      - kueue.x-k8s.io/resource-in-use
+      generation: 1
+      name: karta-e2e-workload-running
+      namespace: test-98fgz
+      ownerReferences:
+      - apiVersion: v1
+        kind: Pod
+        name: karta-e2e-workload-running-head
+        uid: b882e539-9c96-42c5-87ce-9dcdcd49b630
+      - apiVersion: v1
+        kind: Pod
+        name: karta-e2e-workload-running-worker
+        uid: 31b11c72-7cb8-4bf5-a566-8fa30bd2c057
+      uid: 09fab7b2-8a93-4d2b-8a5d-008f92a3c931
+    spec:
+      active: true
+      podSets:
+      - count: 2
+        name: 0bd91dee
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - "600"
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              name: worker
+              resources:
+                limits:
+                  cpu: 10m
+                  memory: 16Mi
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            enableServiceLinks: true
+            preemptionPolicy: PreemptLowerPriority
+            priority: 0
+            restartPolicy: Never
+            schedulerName: default-scheduler
+            schedulingGates:
+            - name: kueue.x-k8s.io/admission
+            - name: kueue.x-k8s.io/topology
+            securityContext: {}
+            serviceAccount: default
+            serviceAccountName: default
+            terminationGracePeriodSeconds: 30
+            tolerations:
+            - effect: NoExecute
+              key: node.kubernetes.io/not-ready
+              operator: Exists
+              tolerationSeconds: 300
+            - effect: NoExecute
+              key: node.kubernetes.io/unreachable
+              operator: Exists
+              tolerationSeconds: 300
+        topologyRequest:
+          podIndexLabel: kueue.x-k8s.io/pod-group-pod-index
+      priority: 0
+      queueName: karta-e2e
+    status:
+      admission:
+        clusterQueue: karta-e2e
+        podSetAssignments:
+        - count: 2
+          flavors:
+            cpu: karta-e2e
+            memory: karta-e2e
+          name: 0bd91dee
+          resourceUsage:
+            cpu: 20m
+            memory: 32Mi
+      conditions:
+      - lastTransitionTime: "2026-11-08T11:02:57Z"
+        message: Quota reserved in ClusterQueue karta-e2e
+        observedGeneration: 1
+        reason: QuotaReserved
+        status: "True"
+        type: QuotaReserved
+      - lastTransitionTime: "2026-11-08T11:02:57Z"
+        message: The workload is admitted
+        observedGeneration: 1
+        reason: Admitted
+        status: "True"
+        type: Admitted
+      - lastTransitionTime: "2026-11-08T11:03:03Z"
+        message: All pods reached readiness and the workload is running
+        observedGeneration: 1
+        reason: Started
+        status: "True"
+        type: PodsReady
+  phases:
+  - Running
+  resourceVersion: "2248"
+  state: Running
+flow: running
+kartaFile: docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml
+kartaName: kueue-x-k8s-io-workload-v1beta2
+operator: kueue
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Undefined
+- amount: 1
+  phases:
+  - Running
+version: v0.20.5
+want: Running

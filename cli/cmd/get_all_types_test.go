@@ -126,18 +126,19 @@ func discoveryServer(t *testing.T, groups []schema.GroupVersion, failed ...schem
 	return server
 }
 
-// fakeMixedCluster serves JobSet, Deployment, ReplicaSet, Pod, Job and
-// InferenceService. Every other covered type is absent.
+// fakeMixedCluster serves JobSet, Deployment, ReplicaSet, Pod, Job,
+// InferenceService and Kueue Workload. Every other covered type is absent.
 func fakeMixedCluster(t *testing.T, objects ...runtime.Object) (*dynamicfake.FakeDynamicClient, *metadatafake.FakeMetadataClient) {
 	t.Helper()
 
 	served := map[schema.GroupVersionKind]string{
-		jobSetGVK:           "jobsets",
-		appsDeploymentGVK:   "deployments",
-		appsReplicaSetGVK:   "replicasets",
-		podGVK:              "pods",
-		batchJobGVK:         "jobs",
-		inferenceServiceGVK: "inferenceservices",
+		jobSetGVK:                               "jobsets",
+		appsDeploymentGVK:                       "deployments",
+		appsReplicaSetGVK:                       "replicasets",
+		podGVK:                                  "pods",
+		batchJobGVK:                             "jobs",
+		inferenceServiceGVK:                     "inferenceservices",
+		catalog.RootKey(kartas.KueueWorkload()): "workloads",
 	}
 	listKinds := map[schema.GroupVersionResource]string{}
 	// Default versions let an unversioned lookup find a kind, as discovery does.
@@ -436,7 +437,7 @@ func TestGetAllTypesQualifiesASharedKind(t *testing.T) {
 	other.Name = "example-jobset"
 	other.Spec.StructureDefinition.RootComponent.Kind.Group = "example.com"
 	restore := loadDefinitions
-	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
 		return definitions.New([]*v1alpha1.Karta{kartas.Jobset()}, []*v1alpha1.Karta{other}), nil
 	}
 	t.Cleanup(func() { loadDefinitions = restore })
@@ -570,7 +571,7 @@ func TestGetAllTypesWarnsOnAKindServedAtAnUncoveredVersion(t *testing.T) {
 	future.Spec.StructureDefinition.RootComponent.Kind.Version = "v99"
 	embedded := slices.DeleteFunc(slices.Clone(catalog.List()), func(k *v1alpha1.Karta) bool { return k.Name == kartas.Jobset().Name })
 	restore := loadDefinitions
-	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
 		return definitions.New(embedded, []*v1alpha1.Karta{future}), nil
 	}
 	t.Cleanup(func() { loadDefinitions = restore })

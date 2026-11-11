@@ -128,7 +128,7 @@ jobs:
           echo "KUBECTL_VERSION=$KUBECTL_VERSION" >> "$GITHUB_ENV"
 
       - name: Install kind and kubectl
-        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
         with:
           install_only: true
           version: ${{ env.KIND_VERSION }}
@@ -180,3 +180,84 @@ jobs:
 
       - name: Build Headlamp plugin
         run: make headlamp-plugin-build
+
+  exporter-e2e:
+    name: Exporter E2E
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select exporter changes
+        id: changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if ! git cat-file -e "$BASE^{commit}" 2>/dev/null ||
+             ! git diff --quiet "$BASE" HEAD -- dsx-workload-exporter karta/sdk docs/catalog charts/karta hack/e2e Makefile .dockerignore .github/workflows/ci.yaml; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up Go
+        if: steps.changes.outputs.run == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: dsx-workload-exporter/go.mod
+          cache-dependency-path: |
+            dsx-workload-exporter/go.sum
+            karta/sdk/go.sum
+      - name: Install Helm
+        if: steps.changes.outputs.run == 'true'
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+      - name: Read pinned tool versions
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          . ./hack/e2e/global.env
+          echo "KIND_VERSION=$KIND_VERSION" >> "$GITHUB_ENV"
+          echo "KUBECTL_VERSION=$KUBECTL_VERSION" >> "$GITHUB_ENV"
+      - name: Install Kind and kubectl
+        if: steps.changes.outputs.run == 'true'
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          install_only: true
+          version: ${{ env.KIND_VERSION }}
+          kubectl_version: ${{ env.KUBECTL_VERSION }}
+      - name: Install and test exporter
+        timeout-minutes: 12
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          started=$SECONDS
+          make exporter-e2e-up
+          make test-exporter-e2e
+          echo "Exporter setup and tests: $((SECONDS - started)) seconds" >> "$GITHUB_STEP_SUMMARY"
+      - name: Collect Kind diagnostics
+        timeout-minutes: 1
+        if: failure() && steps.changes.outputs.run == 'true'
+        env:
+          KUBECONFIG: ${{ github.workspace }}/.artifacts/exporter-e2e/dsx-exporter-e2e/kubeconfig
+        run: |
+          kubectl --request-timeout=10s get pods -A -o wide > .artifacts/exporter-e2e/pods.txt || true
+          kubectl --request-timeout=10s get events -A --sort-by=.lastTimestamp > .artifacts/exporter-e2e/events.txt || true
+          kind export logs .artifacts/exporter-e2e/kind --name dsx-exporter-e2e || true
+      - name: Upload diagnostics
+        if: failure() && steps.changes.outputs.run == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: exporter-e2e-artifacts
+          path: |
+            .artifacts/exporter-e2e/**/*.log
+            .artifacts/exporter-e2e/**/*.txt
+            .artifacts/exporter-e2e/kind/
+            .artifacts/exporter-e2e/**/workloads.yaml
+            .artifacts/exporter-e2e/**/kartas.yaml
+          include-hidden-files: true
+      - name: Tear down
+        timeout-minutes: 1
+        if: always() && steps.changes.outputs.run == 'true'
+        run: make exporter-e2e-down

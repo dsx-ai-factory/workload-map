@@ -271,6 +271,54 @@ var _ = Describe("kli definitions against a cluster", func() {
 		Expect(rows["cluster-pytorch"].Kind).To(Equal("PyTorchJob"))
 	})
 
+	Describe("with --catalog-only", func() {
+		It("lists the catalog definition instead of the cluster override, without contacting the cluster", func() {
+			getter := &countingGetter{RESTClientGetter: clusterGetter(server)}
+			stdout, stderr, err := runDefinitions(getter, []string{"--" + flagCatalogOnly})
+			Expect(err).NotTo(HaveOccurred())
+
+			rows := rowsFrom(stdout)
+			Expect(rows).NotTo(HaveKey("cluster-pytorch"))
+			Expect(rows).To(HaveKey(pytorchDefinition))
+			for _, row := range rows {
+				Expect(row.Origin).To(Equal(string(definitions.OriginCatalog)))
+			}
+			Expect(stderr).To(BeEmpty())
+			Expect(getter.calls).To(BeZero())
+		})
+
+		It("still narrows with the type filters", func() {
+			getter := &countingGetter{RESTClientGetter: clusterGetter(server)}
+			stdout, _, err := runDefinitions(getter,
+				[]string{"--" + flagCatalogOnly, "--group", "kubeflow.org", "--kind", "PyTorchJob"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tableNames(stdout)).To(Equal([]string{pytorchDefinition}))
+			Expect(getter.calls).To(BeZero())
+		})
+
+		It("still emits json, with the catalog definitions only", func() {
+			getter := &countingGetter{RESTClientGetter: clusterGetter(server)}
+			stdout, _, err := runDefinitions(getter, []string{"--" + flagCatalogOnly, "-o", "json"})
+			Expect(err).NotTo(HaveOccurred())
+
+			names := make([]string, 0)
+			for _, karta := range decodeKartas(stdout) {
+				names = append(names, karta.Name)
+			}
+			Expect(names).To(ContainElement(pytorchDefinition))
+			Expect(names).NotTo(ContainElement("cluster-pytorch"))
+			Expect(getter.calls).To(BeZero())
+		})
+
+		It("addresses a catalog definition by name", func() {
+			getter := &countingGetter{RESTClientGetter: clusterGetter(server)}
+			stdout, _, err := runDefinitions(getter, []string{"--" + flagCatalogOnly, pytorchDefinition})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tableNames(stdout)).To(Equal([]string{pytorchDefinition}))
+			Expect(getter.calls).To(BeZero())
+		})
+	})
+
 	It("drops the catalog definition the cluster one overrides", func() {
 		stdout, _, err := runDefinitions(clusterGetter(server), nil)
 		Expect(err).NotTo(HaveOccurred())

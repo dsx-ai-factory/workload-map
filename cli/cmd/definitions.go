@@ -24,6 +24,8 @@ const (
 	flagGroup   = "group"
 	flagKind    = "kind"
 	flagVersion = "version"
+
+	flagCatalogOnly = "catalog-only"
 )
 
 const (
@@ -51,6 +53,9 @@ validates as it stands.`
   # Which definition covers JobSet?
   kli definitions --group jobset.x-k8s.io --kind JobSet
 
+  # Only the built-in catalog, offline
+  kli definitions --catalog-only
+
   # List every component instead of the first three
   kli definitions --component-limit 0
 
@@ -65,6 +70,8 @@ const (
 	usageGroup   = "Show the definitions covering this API group"
 	usageKind    = "Show the definitions covering this kind; needs --" + flagGroup
 	usageVersion = "Show the definitions covering this version; needs --" + flagKind
+
+	usageCatalogOnly = "List only the built-in catalog definitions, without loading a kubeconfig or contacting the cluster"
 
 	// defaultComponentLimit keeps a definition with many components to a row
 	// that fits on one line.
@@ -99,6 +106,7 @@ var loadDefinitions = definitions.Load
 func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Command {
 	var group, kind, version string
 	var componentLimit int
+	var catalogOnly bool
 	var (
 		output *Enum[generator.Output]
 		filter definitionFilter
@@ -119,7 +127,15 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			resolver, warnings := loadDefinitionsForCommand(cmd, rcg)
+			var (
+				resolver *definitions.Resolver
+				warnings []definitions.Warning
+			)
+			if catalogOnly {
+				resolver = definitions.LoadCatalog(isExperimentalEnabled(cmd))
+			} else {
+				resolver, warnings = loadDefinitionsForCommand(cmd, rcg)
+			}
 			// Warnings go out last, after the table and before main reports any
 			// error, so a long table cannot scroll them out of view.
 			defer func() {
@@ -163,6 +179,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 	cmd.Flags().StringVar(&kind, flagKind, "", usageKind)
 	cmd.Flags().StringVar(&version, flagVersion, "", usageVersion)
 	cmd.Flags().IntVar(&componentLimit, flagComponentLimit, defaultComponentLimit, usageDefinitionsComponentLimit)
+	cmd.Flags().BoolVar(&catalogOnly, flagCatalogOnly, false, usageCatalogOnly)
 
 	return cmd
 }

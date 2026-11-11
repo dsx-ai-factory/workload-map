@@ -63,13 +63,7 @@ func Load(ctx context.Context, rcg genericclioptions.RESTClientGetter, enableExp
 		cluster = nil
 	}
 
-	builtins := catalog.List()
-	if !enableExperimental {
-		builtins = slices.DeleteFunc(builtins, func(karta *v1alpha1.Karta) bool {
-			return karta.Spec.Experimental
-		})
-	}
-	resolver := New(builtins, cluster)
+	resolver := New(builtins(enableExperimental), cluster)
 	for _, c := range resolver.Collisions() {
 		names := make([]string, 0, len(c.Names))
 		for _, name := range c.Names {
@@ -79,6 +73,25 @@ func Load(ctx context.Context, rcg genericclioptions.RESTClientGetter, enableExp
 			len(c.Names), FormatGVK(c.GVK), strings.Join(names, ", "))
 	}
 	return resolver, l.warnings
+}
+
+// LoadCatalog builds a resolver from the built-in catalog alone. It loads no
+// kubeconfig and makes no Kubernetes request, so it works offline; with no
+// cluster definitions there is nothing to collide and nothing to warn about.
+func LoadCatalog(enableExperimental bool) *Resolver {
+	return New(builtins(enableExperimental), nil)
+}
+
+// builtins lists the catalog definitions, without the experimental ones unless
+// enableExperimental is true.
+func builtins(enableExperimental bool) []*v1alpha1.Karta {
+	kartas := catalog.List()
+	if !enableExperimental {
+		kartas = slices.DeleteFunc(kartas, func(karta *v1alpha1.Karta) bool {
+			return karta.Spec.Experimental
+		})
+	}
+	return kartas
 }
 
 // classify turns a cluster read failure into either silence or a warning.

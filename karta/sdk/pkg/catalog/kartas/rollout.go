@@ -19,21 +19,25 @@ import (
 // replica and strategy convergence. Final fallback is "Healthy".
 //
 // Status mapping:
-//   Initializing ← "Progressing" OR "Paused" with spec.paused false: the
-//     latter covers canary pause steps and blue-green promotion waits, which
-//     are part of a normal rollout and resume automatically or on promote.
-//   Running ← "Healthy" AND observedGeneration == generation AND spec.paused
-//     false: all replicas updated and the stable RS matches the pod template
-//     hash. The generation guard prevents reporting Running on stale status
-//     after a spec update. observedGeneration is string-typed in this API
-//     (strconv of generation).
-//   Degraded ← "Degraded": covers InvalidSpec, RolloutAborted, and
-//     ProgressDeadlineExceeded. Not Failed because the controller clears the
-//     state when the cause resolves. The controller checks Degraded before
-//     spec.paused, so a degraded Rollout stays Degraded even if paused.
-//   Suspended ← spec.paused true AND phase is not Degraded: the user
-//     suspended the Rollout via spec.paused (same field kubectl argo rollouts
-//     pause sets). Pausing does not delete pods, so no capacity is freed.
+//
+//	Running ← "Healthy" AND observedGeneration == generation AND spec.paused
+//	  false: all replicas updated and the stable RS matches the pod template
+//	  hash. The generation guard prevents reporting Running on stale status
+//	  after a spec update. observedGeneration is string-typed in this API
+//	  (strconv of generation).
+//	Degraded ← "Degraded" AND observedGeneration == generation: covers
+//	  InvalidSpec, RolloutAborted, and ProgressDeadlineExceeded. Not Failed
+//	  because the controller clears the state when the cause resolves. The
+//	  controller checks Degraded before spec.paused, so a degraded Rollout
+//	  stays Degraded even if paused. The generation guard clears stale
+//	  Degraded immediately after a fix.
+//	Suspended ← spec.paused true AND phase is not Degraded: the user
+//	  suspended the Rollout via spec.paused (same field kubectl argo rollouts
+//	  pause sets). Pausing does not delete pods, so no capacity is freed.
+//	Initializing ← fallback: not Running, not Degraded, not Suspended.
+//	  Covers Progressing, canary/blue-green Paused waits (spec.paused false),
+//	  the brief window before the first status write, and stale-generation
+//	  Healthy or Degraded right after a spec change.
 //
 // Exclusions: workloadRef, analysis resources, pauseConditions (only
 // spec.paused is exposed as suspend; canary/blue-green pause steps are
@@ -76,16 +80,6 @@ func Rollout() *v1alpha1.Karta {
 							ReasonFieldName:  ptr.To("reason"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{
-								{ByPhase: "Progressing"},
-								{
-									ByPhase: "Paused",
-									ByExpression: &v1alpha1.ExpressionMatcher{
-										Expression:     `(.spec.paused // false) | not`,
-										ExpectedResult: "true",
-									},
-								},
-							},
 							Running: []v1alpha1.StatusMatcher{{
 								ByPhase: "Healthy",
 								ByExpression: &v1alpha1.ExpressionMatcher{
@@ -93,10 +87,22 @@ func Rollout() *v1alpha1.Karta {
 									ExpectedResult: "true",
 								},
 							}},
-							Degraded: []v1alpha1.StatusMatcher{{ByPhase: "Degraded"}},
+							Degraded: []v1alpha1.StatusMatcher{{
+								ByPhase: "Degraded",
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     `.status.observedGeneration == (.metadata.generation | tostring)`,
+									ExpectedResult: "true",
+								},
+							}},
 							Suspended: []v1alpha1.StatusMatcher{{
 								ByExpression: &v1alpha1.ExpressionMatcher{
 									Expression:     `(.spec.paused // false) and (.status.phase // "") != "Degraded"`,
+									ExpectedResult: "true",
+								},
+							}},
+							Initializing: []v1alpha1.StatusMatcher{{
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     `((.status.phase // "") != "Healthy" or .status.observedGeneration != (.metadata.generation | tostring) or (.spec.paused // false)) and ((.status.phase // "") != "Degraded" or .status.observedGeneration != (.metadata.generation | tostring)) and (((.spec.paused // false) | not) or (.status.phase // "") == "Degraded")`,
 									ExpectedResult: "true",
 								},
 							}},

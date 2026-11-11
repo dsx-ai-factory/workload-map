@@ -27,10 +27,8 @@ spec:
           reasonFieldName: reason
         statusMappings:
           initializing:
-            - byPhase: Progressing
-            - byPhase: Paused
-              byExpression:
-                expression: (.spec.paused // false) | not
+            - byExpression:
+                expression: ((.status.phase // "") != "Healthy" or .status.observedGeneration != (.metadata.generation | tostring) or (.spec.paused // false)) and ((.status.phase // "") != "Degraded" or .status.observedGeneration != (.metadata.generation | tostring)) and (((.spec.paused // false) | not) or (.status.phase // "") == "Degraded")
                 expectedResult: "true"
           running:
             - byPhase: Healthy
@@ -39,6 +37,9 @@ spec:
                 expectedResult: "true"
           degraded:
             - byPhase: Degraded
+              byExpression:
+                expression: .status.observedGeneration == (.metadata.generation | tostring)
+                expectedResult: "true"
           suspended:
             - byExpression:
                 expression: (.spec.paused // false) and (.status.phase // "") != "Degraded"

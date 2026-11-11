@@ -6,11 +6,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 1
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -43,9 +43,9 @@ events:
                 cpu: 20m
                 memory: 32Mi
   phases:
-  - Undefined
-  resourceVersion: "2463"
-  state: Undefined
+  - Initializing
+  resourceVersion: "98128"
+  state: Initializing
 - kind: STATE
   object:
     apiVersion: argoproj.io/v1alpha1
@@ -53,11 +53,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 1
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -93,16 +93,16 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: Created new replica set "karta-e2e-rollout-canary-pause-85bdcf567c"
         reason: NewReplicaSetCreated
         status: "True"
         type: Progressing
   phases:
-  - Undefined
-  resourceVersion: "2467"
-  state: Undefined
+  - Initializing
+  resourceVersion: "98130"
+  state: Initializing
 - kind: STATE
   object:
     apiVersion: argoproj.io/v1alpha1
@@ -110,11 +110,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 1
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -150,20 +150,20 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: Rollout does not have minimum availability
         reason: AvailableReason
         status: "False"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
@@ -177,7 +177,7 @@ events:
       selector: app=karta-e2e-rollout-canary-pause
   phases:
   - Initializing
-  resourceVersion: "2469"
+  resourceVersion: "98133"
   state: Initializing
 - kind: STATE
   object:
@@ -186,11 +186,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 1
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -226,20 +226,20 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: Rollout does not have minimum availability
         reason: AvailableReason
         status: "False"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
@@ -254,7 +254,7 @@ events:
       stableRS: 85bdcf567c
   phases:
   - Initializing
-  resourceVersion: "2474"
+  resourceVersion: "98136"
   state: Initializing
 - kind: STATE
   object:
@@ -263,11 +263,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 1
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -304,20 +304,20 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: Rollout does not have minimum availability
         reason: AvailableReason
         status: "False"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
@@ -334,7 +334,7 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "2481"
+  resourceVersion: "98146"
   state: Initializing
 - kind: STATE
   object:
@@ -343,11 +343,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 1
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -385,27 +385,27 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" has successfully
           progressed.
         reason: NewReplicaSetAvailable
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
@@ -422,7 +422,7 @@ events:
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "2502"
+  resourceVersion: "98169"
   state: Running
 - action:
     name: Rollout
@@ -455,11 +455,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -497,27 +497,27 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" has successfully
           progressed.
         reason: NewReplicaSetAvailable
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
@@ -533,9 +533,9 @@ events:
       stableRS: 85bdcf567c
       updatedReplicas: 1
   phases:
-  - Undefined
-  resourceVersion: "2503"
-  state: Undefined
+  - Initializing
+  resourceVersion: "98170"
+  state: Initializing
 - kind: STATE
   object:
     apiVersion: argoproj.io/v1alpha1
@@ -543,11 +543,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -585,27 +585,27 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" has successfully
           progressed.
         reason: NewReplicaSetAvailable
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
@@ -621,9 +621,9 @@ events:
       stableRS: 85bdcf567c
       updatedReplicas: 1
   phases:
-  - Undefined
-  resourceVersion: "2506"
-  state: Undefined
+  - Initializing
+  resourceVersion: "98173"
+  state: Initializing
 - kind: STATE
   object:
     apiVersion: argoproj.io/v1alpha1
@@ -631,11 +631,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -673,26 +673,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:49Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:56Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Created new replica set "karta-e2e-rollout-canary-pause-6c5b9b8cd4"
         reason: NewReplicaSetCreated
         status: "True"
@@ -708,9 +708,9 @@ events:
       stableRS: 85bdcf567c
       updatedReplicas: 1
   phases:
-  - Undefined
-  resourceVersion: "2508"
-  state: Undefined
+  - Initializing
+  resourceVersion: "98175"
+  state: Initializing
 - kind: STATE
   object:
     apiVersion: argoproj.io/v1alpha1
@@ -718,11 +718,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -760,26 +760,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
@@ -796,7 +796,7 @@ events:
       stableRS: 85bdcf567c
   phases:
   - Initializing
-  resourceVersion: "2511"
+  resourceVersion: "98178"
   state: Initializing
 - kind: STATE
   object:
@@ -805,11 +805,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -847,26 +847,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:49Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:56Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
@@ -879,7 +879,7 @@ events:
       observedGeneration: "2"
       pauseConditions:
       - reason: CanaryPauseStep
-        startTime: "2026-11-11T15:52:55Z"
+        startTime: "2026-11-11T16:35:59Z"
       phase: Paused
       readyReplicas: 1
       replicas: 1
@@ -887,7 +887,7 @@ events:
       stableRS: 85bdcf567c
   phases:
   - Initializing
-  resourceVersion: "2512"
+  resourceVersion: "98179"
   state: Initializing
 - kind: STATE
   object:
@@ -896,11 +896,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -938,32 +938,32 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is paused
         reason: RolloutPaused
         status: Unknown
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is paused
         reason: RolloutPaused
         status: "True"
@@ -976,7 +976,7 @@ events:
       observedGeneration: "2"
       pauseConditions:
       - reason: CanaryPauseStep
-        startTime: "2026-11-11T15:52:55Z"
+        startTime: "2026-11-11T16:35:59Z"
       phase: Paused
       readyReplicas: 1
       replicas: 1
@@ -984,7 +984,7 @@ events:
       stableRS: 85bdcf567c
   phases:
   - Initializing
-  resourceVersion: "2514"
+  resourceVersion: "98181"
   state: Initializing
 - kind: STATE
   object:
@@ -993,11 +993,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -1035,32 +1035,32 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is paused
         reason: RolloutPaused
         status: "True"
         type: Paused
-      - lastTransitionTime: "2026-11-11T15:53:05Z"
-        lastUpdateTime: "2026-11-11T15:53:05Z"
+      - lastTransitionTime: "2026-11-11T16:36:09Z"
+        lastUpdateTime: "2026-11-11T16:36:09Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
@@ -1077,7 +1077,7 @@ events:
       stableRS: 85bdcf567c
   phases:
   - Initializing
-  resourceVersion: "2547"
+  resourceVersion: "98217"
   state: Initializing
 - kind: STATE
   object:
@@ -1086,11 +1086,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -1128,32 +1128,32 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:53:05Z"
-        lastUpdateTime: "2026-11-11T15:53:05Z"
+      - lastTransitionTime: "2026-11-11T16:36:09Z"
+        lastUpdateTime: "2026-11-11T16:36:09Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:53:05Z"
-        lastUpdateTime: "2026-11-11T15:53:05Z"
+      - lastTransitionTime: "2026-11-11T16:36:09Z"
+        lastUpdateTime: "2026-11-11T16:36:09Z"
         message: Rollout is paused
         reason: RolloutPaused
         status: "False"
@@ -1170,7 +1170,7 @@ events:
       stableRS: 85bdcf567c
   phases:
   - Initializing
-  resourceVersion: "2549"
+  resourceVersion: "98219"
   state: Initializing
 - kind: STATE
   object:
@@ -1179,11 +1179,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -1221,32 +1221,32 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:53:05Z"
-        lastUpdateTime: "2026-11-11T15:53:05Z"
+      - lastTransitionTime: "2026-11-11T16:36:09Z"
+        lastUpdateTime: "2026-11-11T16:36:09Z"
         message: Rollout is paused
         reason: RolloutPaused
         status: "False"
         type: Paused
-      - lastTransitionTime: "2026-11-11T15:53:05Z"
-        lastUpdateTime: "2026-11-11T15:53:05Z"
+      - lastTransitionTime: "2026-11-11T16:36:09Z"
+        lastUpdateTime: "2026-11-11T16:36:09Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
@@ -1264,7 +1264,7 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "2559"
+  resourceVersion: "98233"
   state: Initializing
 - kind: STATE
   object:
@@ -1273,11 +1273,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -1315,32 +1315,32 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:53:05Z"
-        lastUpdateTime: "2026-11-11T15:53:05Z"
+      - lastTransitionTime: "2026-11-11T16:36:09Z"
+        lastUpdateTime: "2026-11-11T16:36:09Z"
         message: Rollout is paused
         reason: RolloutPaused
         status: "False"
         type: Paused
-      - lastTransitionTime: "2026-11-11T15:53:05Z"
-        lastUpdateTime: "2026-11-11T15:53:10Z"
+      - lastTransitionTime: "2026-11-11T16:36:09Z"
+        lastUpdateTime: "2026-11-11T16:36:12Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-11T15:53:10Z"
-        lastUpdateTime: "2026-11-11T15:53:10Z"
+      - lastTransitionTime: "2026-11-11T16:36:12Z"
+        lastUpdateTime: "2026-11-11T16:36:12Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
@@ -1358,7 +1358,7 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "2586"
+  resourceVersion: "98250"
   state: Initializing
 - kind: STATE
   object:
@@ -1367,11 +1367,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-11T15:52:49Z"
+      creationTimestamp: "2026-11-11T16:35:56Z"
       generation: 2
       name: karta-e2e-rollout-canary-pause
-      namespace: test-ckv8w
-      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+      namespace: test-fx85d
+      uid: 48505a83-c0da-4ae4-8cf8-8e0d671457d0
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -1409,32 +1409,32 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-11T15:52:55Z"
-        lastUpdateTime: "2026-11-11T15:52:55Z"
+      - lastTransitionTime: "2026-11-11T16:35:59Z"
+        lastUpdateTime: "2026-11-11T16:35:59Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-11T15:53:05Z"
-        lastUpdateTime: "2026-11-11T15:53:05Z"
+      - lastTransitionTime: "2026-11-11T16:36:09Z"
+        lastUpdateTime: "2026-11-11T16:36:09Z"
         message: Rollout is paused
         reason: RolloutPaused
         status: "False"
         type: Paused
-      - lastTransitionTime: "2026-11-11T15:53:10Z"
-        lastUpdateTime: "2026-11-11T15:53:10Z"
+      - lastTransitionTime: "2026-11-11T16:36:12Z"
+        lastUpdateTime: "2026-11-11T16:36:12Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-11T15:53:10Z"
-        lastUpdateTime: "2026-11-11T15:53:10Z"
+      - lastTransitionTime: "2026-11-11T16:36:12Z"
+        lastUpdateTime: "2026-11-11T16:36:12Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-11T15:53:05Z"
-        lastUpdateTime: "2026-11-11T15:53:10Z"
+      - lastTransitionTime: "2026-11-11T16:36:09Z"
+        lastUpdateTime: "2026-11-11T16:36:12Z"
         message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" has successfully
           progressed.
         reason: NewReplicaSetAvailable
@@ -1452,7 +1452,7 @@ events:
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "2591"
+  resourceVersion: "98257"
   state: Running
 flow: canary-pause
 kartaFile: docs/catalog/argoproj-io-rollout-v1alpha1.yaml
@@ -1462,19 +1462,13 @@ result:
   succeeded: true
 schemaVersion: 1
 summary:
-- amount: 2
-  phases:
-  - Undefined
-- amount: 3
+- amount: 5
   phases:
   - Initializing
 - amount: 1
   phases:
   - Running
-- amount: 3
-  phases:
-  - Undefined
-- amount: 7
+- amount: 10
   phases:
   - Initializing
 - amount: 1

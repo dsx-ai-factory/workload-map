@@ -21,22 +21,25 @@ var _ = Describe("Rollout", Ordered, Label("argo-rollouts", "rollout"), func() {
 		installKarta(ctx, "../../docs/catalog/argoproj-io-rollout-v1alpha1.yaml", "argoproj-io-rollout-v1alpha1")
 		fx = recorder.Fixture{Operator: "argo-rollouts", Version: operatorVersion("argo-rollouts"), KartaName: "argoproj-io-rollout-v1alpha1", KartaFile: "docs/catalog/argoproj-io-rollout-v1alpha1.yaml"}
 		// 5m: canary rollouts create new ReplicaSets and wait for readiness probes.
+		runningCheck := AllOf(
+			PhaseEq("Healthy", "status", "phase"),
+			StringGenerationCurrent(),
+			BoolFalseOrAbsent("spec", "paused"),
+		)
+		degradedCheck := AllOf(
+			PhaseEq("Degraded", "status", "phase"),
+			StringGenerationCurrent(),
+		)
+		suspendedCheck := AllOf(
+			BoolTrue("spec", "paused"),
+			PhaseExclude("Degraded", "status", "phase"),
+		)
 		rec = recorder.New(cfg).
 			SetTimeout(5*time.Minute).
-			AddState(kartav1alpha1.SuspendedStatus, AllOf(
-				BoolTrue("spec", "paused"),
-				PhaseExclude("Degraded", "status", "phase"),
-			)).
-			AddState(kartav1alpha1.InitializingStatus, AllOf(
-				PhaseAny([]string{"Progressing", "Paused"}, "status", "phase"),
-				BoolFalseOrAbsent("spec", "paused"),
-			)).
-			AddState(kartav1alpha1.RunningStatus, AllOf(
-				PhaseEq("Healthy", "status", "phase"),
-				StringGenerationCurrent(), // Argo stores observedGeneration as a string
-				BoolFalseOrAbsent("spec", "paused"),
-			)).
-			AddState(kartav1alpha1.DegradedStatus, PhaseEq("Degraded", "status", "phase"))
+			AddState(kartav1alpha1.InitializingStatus, NoneMatch(runningCheck, degradedCheck, suspendedCheck)).
+			AddState(kartav1alpha1.SuspendedStatus, suspendedCheck).
+			AddState(kartav1alpha1.RunningStatus, runningCheck).
+			AddState(kartav1alpha1.DegradedStatus, degradedCheck)
 	})
 
 	// Scaling may enter Progressing between each settled replica count, unlike Deployment

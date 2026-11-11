@@ -26,6 +26,19 @@ func AllOf(checks ...recorder.StateCheck) recorder.StateCheck {
 	}
 }
 
+// NoneMatch matches when none of the given checks match, for a fallback state that covers everything
+// the explicit states do not (a Rollout is Initializing when it is not Running, Degraded or Suspended).
+func NoneMatch(checks ...recorder.StateCheck) recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		for _, c := range checks {
+			if c(u) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
 // CondTrue matches when any of the given condition types is present with status True.
 func CondTrue(condTypes ...string) recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {

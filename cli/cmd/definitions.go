@@ -99,6 +99,7 @@ var loadDefinitions = definitions.Load
 func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Command {
 	var group, kind, version string
 	var componentLimit int
+	var noHeaders bool
 	var (
 		output *Enum[generator.Output]
 		filter definitionFilter
@@ -152,7 +153,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 				kartas = append(kartas, def.Karta)
 			}
 			table := func(out io.Writer) error {
-				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit)
+				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit, noHeaders)
 			}
 			return generator.Render(cmd.OutOrStdout(), output.Get(), kartas, len(args) == 1, table)
 		},
@@ -163,6 +164,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 	cmd.Flags().StringVar(&kind, flagKind, "", usageKind)
 	cmd.Flags().StringVar(&version, flagVersion, "", usageVersion)
 	cmd.Flags().IntVar(&componentLimit, flagComponentLimit, defaultComponentLimit, usageDefinitionsComponentLimit)
+	withNoHeaders(cmd.Flags(), &noHeaders)
 
 	return cmd
 }
@@ -264,13 +266,15 @@ func definitionRows(defs []definitions.Definition) []definitionRow {
 
 // renderDefinitions writes the table. The empty note goes to errOut so stdout
 // stays parseable.
-func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int) error {
+func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int, noHeaders bool) error {
 	if len(rows) == 0 {
 		fmt.Fprintln(errOut, "No Karta definitions found.")
 		return nil
 	}
 	w := tabwriter.NewWriter(out, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tKIND\tORIGIN\tCOMPONENTS")
+	if !noHeaders {
+		fmt.Fprintln(w, "NAME\tKIND\tORIGIN\tCOMPONENTS")
+	}
 	for _, row := range rows {
 		// Still listed, so its author can see the one they wrote.
 		kind := row.Kind

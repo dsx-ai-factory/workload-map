@@ -308,7 +308,7 @@ var _ = Describe("a definition that names no workload type", func() {
 	It("appears in the table with a placeholder kind", func() {
 		var stdout, stderr bytes.Buffer
 		rows := definitionRows(definitions.New(nil, []*v1alpha1.Karta{rootless("broken-karta")}).List())
-		Expect(renderDefinitions(&stdout, &stderr, rows, 0)).To(Succeed())
+		Expect(renderDefinitions(&stdout, &stderr, rows, 0, false)).To(Succeed())
 
 		Expect(tableNames(stdout.String())).To(Equal([]string{"broken-karta"}))
 		Expect(stdout.String()).To(ContainSubstring("<none>"))
@@ -368,10 +368,34 @@ var _ = Describe("definitionRows over a merged resolver", func() {
 	})
 })
 
+var _ = Describe("rendering definitions without headers", func() {
+	It("writes only the data rows, in the same order", func() {
+		rows := []definitionRow{
+			{Name: "alpha", Kind: "Deployment", Origin: "catalog", Components: []string{"deployment"}},
+			{Name: "zulu", Kind: "JobSet", Origin: "cluster", Components: []string{"jobset"}},
+		}
+		var withHeaders, noHeaders, stderr bytes.Buffer
+		Expect(renderDefinitions(&withHeaders, &stderr, rows, 0, false)).To(Succeed())
+		Expect(renderDefinitions(&noHeaders, &stderr, rows, 0, true)).To(Succeed())
+
+		lines := strings.Split(strings.TrimRight(withHeaders.String(), "\n"), "\n")
+		Expect(strings.Fields(lines[0])).To(Equal([]string{"NAME", "KIND", "ORIGIN", "COMPONENTS"}))
+		Expect(noHeaders.String()).To(Equal(strings.Join(lines[1:], "\n") + "\n"))
+		Expect(stderr.Len()).To(BeZero())
+	})
+
+	It("keeps the empty note on stderr", func() {
+		var stdout, stderr bytes.Buffer
+		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0, true)).To(Succeed())
+		Expect(stdout.String()).To(BeEmpty())
+		Expect(stderr.String()).To(ContainSubstring("No Karta definitions found."))
+	})
+})
+
 var _ = Describe("rendering an empty definition list", func() {
 	It("notes the empty table on stderr and writes nothing to stdout", func() {
 		var stdout, stderr bytes.Buffer
-		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0)).To(Succeed())
+		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0, false)).To(Succeed())
 		Expect(stdout.String()).To(BeEmpty())
 		Expect(stderr.String()).To(ContainSubstring("No Karta definitions found."))
 	})

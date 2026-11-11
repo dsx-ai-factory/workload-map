@@ -8,7 +8,6 @@
 package catalog
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +15,7 @@ import (
 	"slices"
 	"strings"
 
-	yamlv3 "go.yaml.in/yaml/v3"
+	yamlv4 "go.yaml.in/yaml/v4"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	v1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
@@ -170,27 +169,21 @@ func MarshalYAML(k *v1alpha1.Karta) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshal Karta %q: %w", k.Name, err)
 	}
-	var node yamlv3.Node
-	if err := yamlv3.Unmarshal(jsonBytes, &node); err != nil {
+	var node yamlv4.Node
+	if err := yamlv4.Unmarshal(jsonBytes, &node); err != nil {
 		return nil, fmt.Errorf("re-parse Karta %q: %w", k.Name, err)
 	}
 	clearStyle(&node)
 	dropMapKey(node.Content[0], "status")
-	var buf bytes.Buffer
-	buf.WriteString(yamlHeader)
-	enc := yamlv3.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(&node); err != nil {
+	out, err := yamlv4.Dump(&node, yamlv4.WithV3Defaults(), yamlv4.WithIndent(2), yamlv4.WithLineWidth(-1))
+	if err != nil {
 		return nil, fmt.Errorf("encode Karta %q: %w", k.Name, err)
 	}
-	if err := enc.Close(); err != nil {
-		return nil, fmt.Errorf("encode Karta %q: %w", k.Name, err)
-	}
-	return buf.Bytes(), nil
+	return append([]byte(yamlHeader), out...), nil
 }
 
 // dropMapKey removes key and its value from a mapping node.
-func dropMapKey(mapping *yamlv3.Node, key string) {
+func dropMapKey(mapping *yamlv4.Node, key string) {
 	for i := 0; i+1 < len(mapping.Content); i += 2 {
 		if mapping.Content[i].Value == key {
 			mapping.Content = append(mapping.Content[:i], mapping.Content[i+2:]...)
@@ -201,7 +194,7 @@ func dropMapKey(mapping *yamlv3.Node, key string) {
 
 // clearStyle strips per-node style recursively so JSON flow syntax ({...}, "...")
 // re-renders as block-style YAML.
-func clearStyle(n *yamlv3.Node) {
+func clearStyle(n *yamlv4.Node) {
 	// The JSON parse stamps each node with flow style (the {...} JSON form).
 	// Converting to block style, the zero value of Style, makes the encoder
 	// render indented YAML instead.

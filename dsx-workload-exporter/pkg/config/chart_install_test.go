@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/onsi/ginkgo/v2"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	sigsyaml "sigs.k8s.io/yaml"

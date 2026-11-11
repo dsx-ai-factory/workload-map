@@ -31,10 +31,10 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v0.6.0
 - License: Apache-2.0
 
-### go.yaml.in/yaml/v3
-- Name: go.yaml.in/yaml/v3
-- Version: v3.0.6
-- License: MIT
+### go.yaml.in/yaml/v4
+- Name: go.yaml.in/yaml/v4
+- Version: v4.0.0
+- License: Apache-2.0
 
 ### k8s.io/api
 - Name: k8s.io/api
@@ -115,6 +115,11 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Name: go.yaml.in/yaml/v2
 - Version: v2.4.4
 - License: Apache-2.0
+
+### go.yaml.in/yaml/v3
+- Name: go.yaml.in/yaml/v3
+- Version: v3.0.6
+- License: MIT
 
 ### golang.org/x/mod
 - Name: golang.org/x/mod

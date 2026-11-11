@@ -136,6 +136,13 @@ var _ = Describe("newCatalog", func() {
 })
 
 var _ = Describe("MarshalYAML", func() {
+	It("keeps long expressions on one line", func() {
+		out, err := MarshalYAML(kartas.BatchJob())
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(out)).To(ContainSubstring("expression: .spec.parallelism > 1 and (.status.ready // 0) < .spec.parallelism and ((.status.succeeded // 0) > 0 or (.status.failed // 0) > 0)\n"))
+	})
+
 	It("renders fields in struct declaration order", func() {
 		out, err := MarshalYAML(kartas.BatchJob())
 

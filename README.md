@@ -193,56 +193,62 @@ spec:
       instanceIdPath: .spec.replicatedJobs[].name  # Instances: "master", "worker"
 ```
 
-### Extract workload information
+### Read a workload
+
+`pkg/karta` is the entry point. `karta.Load` binds a deep copy of the workload
+object to its Karta definition and returns a `karta.Workload`.
 
 ```go
-import "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
+import "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/karta"
 
-// Create a factory from your Karta and workload object
-factory := resource.NewComponentFactoryFromObject(karta, jobSetObject)
+w, err := karta.Load(definition, jobSetObject)
 
-// Get the child component which has the per-instance data
-component, _ := factory.GetComponent("replicatedjob")
-summaries, _ := component.GetExtractedInstances(ctx)
+snapshot, err := w.Read(ctx)
+// snapshot.Status.MatchedStatuses: matched statuses (e.g. ["Running"])
+// snapshot.Status.Phase and .Conditions: the raw values they were matched from
 
-// Access pod template specs, metadata, and scale info for each instance
-for instanceID, summary := range summaries {
-    // instanceID will be "master" or "worker"
-    if summary.PodTemplateSpec != nil {
-        fmt.Printf("Instance %s image: %s\n", instanceID, summary.PodTemplateSpec.Spec.Containers[0].Image)
-    }
+job, _ := snapshot.Get("replicatedjob")
+for _, instance := range job.Instances {
+    // instance.ID is "master" or "worker". instance.Pod is the pod template
+    // however the definition locates it: a whole template, a pod spec, or
+    // fields scattered across the CR.
+    fmt.Printf("%s image: %s\n", instance.ID, instance.Pod.Spec.Containers[0].Image)
 }
-
-// Get status from the root component
-rootComponent, _ := factory.GetRootComponent()
-status, _ := rootComponent.GetStatus(ctx)
-// status.MatchedStatuses: matched statuses based on conditions (e.g., ["running"])
-// status.Phase: raw phase string from the workload
-// status.Conditions: []Condition with Type, Status, Message fields
 ```
 
-### Update workload specs
+Use `karta.Compile` once per definition and `Definition.Load` per object when
+loading many objects of one kind.
 
-The same paths defined in `specDefinition` are used for both extraction and updates:
+### Update a workload
+
+`MutatePodTemplates` hands each instance's pod template to plain Go code and writes
+back only the fields that changed, at the paths the definition declares:
 
 ```go
-// Prepare updates per instance
-updates := map[string]resource.FragmentedPodSpec{
-    "master": {
-        SchedulerName: "my-custom-scheduler",
-        Labels: map[string]string{"my-label": "true"},
-    },
-    "worker": {
-        SchedulerName: "my-custom-scheduler",
-    },
+changed, err := w.MutatePodTemplates(ctx, "replicatedjob", func(_ string, pod *corev1.PodTemplateSpec) error {
+    pod.Spec.SchedulerName = "my-custom-scheduler"
+    pod.Spec.Tolerations = append(pod.Spec.Tolerations, gpuToleration)
+    return nil
+}, karta.OnInstances("worker"))
+
+if changed {
+    err = k8sClient.Update(ctx, w.Object())
 }
-
-// Apply updates - modifies the underlying unstructured object
-err := component.UpdateFragmentedPodSpec(ctx, updates)
-
-// Get the updated object to apply back to the cluster
-updatedObject, _ := factory.GetObject()
 ```
+
+Each call is all or nothing: on any error the object is unchanged. A field the
+definition cannot write fails with `karta.ErrFieldNotRoutable` and names the
+field; `ComponentInfo.Writable` lists the writable fields up front. `Suspend`
+and `Resume` apply the definition's suspend actions, or fail with
+`karta.ErrSuspendNotSupported`.
+
+The template the callback leaves is the template written. A field the callback
+removes or clears is deleted, and an empty value means unset. Lists of named
+objects, such as containers, change entry by entry; other lists are replaced
+whole. Edit only the fields to change.
+
+The lower-level `pkg/resource` and `pkg/tree` packages remain available for
+callers that need the raw extraction API.
 
 ## Pre-built Karta Definitions
 

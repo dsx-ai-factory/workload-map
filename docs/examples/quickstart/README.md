@@ -29,13 +29,12 @@ With Karta:
 
 ```go
 // With Karta — identical for every workload type
-for _, comp := range children {
-    pts, _ := comp.GetPodTemplateSpec(ctx)
-    for id, t := range pts {
-        t.Spec.SchedulerName = scheduler
-        pts[id] = t
-    }
-    comp.UpdatePodTemplateSpec(ctx, pts)
+w, _ := karta.Load(definition, obj)
+for _, comp := range w.Definition().Components() {
+    w.MutatePodTemplates(ctx, comp.Name, func(_ string, pod *corev1.PodTemplateSpec) error {
+        pod.Spec.SchedulerName = scheduler
+        return nil
+    }, karta.SkipAbsent())
 }
 ```
 
@@ -87,7 +86,7 @@ Default expected output:
   replicatedjob[leader]        schedulerName="kai-scheduler"      managed-by="karta"
   replicatedjob[workers]       schedulerName="kai-scheduler"      managed-by="karta"
 
-  → In a real controller: k8sClient.Update(ctx, updated)
+  → In a real controller: if w.Modified() { k8sClient.Update(ctx, updated) }
 
 ══════════════════════════════════════════
   LeaderWorkerSet  (scheduler: kai-scheduler)
@@ -113,18 +112,18 @@ Default expected output:
   leader                       schedulerName="kai-scheduler"      managed-by="karta"
   worker                       schedulerName="kai-scheduler"      managed-by="karta"
 
-  → In a real controller: k8sClient.Update(ctx, updated)
+  → In a real controller: if w.Modified() { k8sClient.Update(ctx, updated) }
 ```
 
 ## What the example does
 
 | Step | How | What it shows |
 |------|-----|---------------|
-| 1 | `tree.Build()` → `wt.Status.Phases` | Unified `Running/Initializing/Failed` — no per-CRD condition parsing |
-| 2 | `tree.Build()` → walk `wt.Children` | Replica counts regardless of where the CRD stores them; LWS worker total computed via a JQ formula; virtual components labelled |
-| 3 | `inst.ExtractedInstance.PodTemplateSpec` | Resource requests per container — GPUs for JobSet, CPU for LWS — same traversal, different CRDs |
-| 4 | `comp.GetPodTemplateSpec` → mutate → `UpdatePodTemplateSpec` | Inject scheduler name and a pod label in one pass via real `corev1` types |
-| 5 | `comp.GetPodTemplateSpec` read-back + `factory.GetResource()` | Confirm both mutations landed at the right paths; retrieve the object for `k8sClient.Update` |
+| 1 | `karta.Load()` → `w.Read()` → `snapshot.Status` | Unified `Running/Initializing/Failed` — no per-CRD condition parsing |
+| 2 | walk `snapshot.Components[].Instances` | Replica counts regardless of where the CRD stores them; LWS worker total computed via a JQ formula; virtual components labelled |
+| 3 | `instance.Pod` | Resource requests per container — GPUs for JobSet, CPU for LWS — same traversal, different CRDs |
+| 4 | `w.MutatePodTemplates()` | Inject scheduler name and a pod label in one pass via real `corev1` types; only changed fields are written |
+| 5 | `w.Read()` read-back + `w.Object()` | Confirm both mutations landed at the right paths; retrieve the object for `k8sClient.Update` |
 
 ## File layout
 

@@ -43,7 +43,7 @@ workload Karta can describe:
    Kubernetes Event on each real status transition (a single canonical phase, so
    no churn through transient or simultaneous states).
 5. Inject a pod-template label into every pod-bearing component (leader and
-   worker) through Karta `UpdatePodTemplateSpec`.
+   worker) through Karta `MutatePodTemplates`.
 
 There is no `switch` on workload kind anywhere in the reconciler.
 
@@ -57,7 +57,7 @@ to the right path in the workload.
 
 The bundled [lws Karta definition](../../catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml) maps the leader and
 worker templates and the computed worker replica count, so the controller reads
-and writes them with plain `GetPodTemplateSpec` / `UpdatePodTemplateSpec` calls.
+and writes them with plain `Read` and `MutatePodTemplates` calls.
 
 ## Prerequisites
 

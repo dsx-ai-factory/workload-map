@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -22,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
-	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/karta"
 )
 
 // Annotation keys written back to every reconciled workload. The controller
@@ -86,7 +87,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 	// controller does not assume a Karta name: it selects the Karta whose root
 	// component matches this workload's GVK, the same way a real consumer
 	// resolves a definition for an arbitrary workload type.
-	karta, err := r.kartaForGVK(ctx, r.GVK)
+	definition, err := r.kartaForGVK(ctx, r.GVK)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("no Karta describes this workload; apply one before workloads", "gvk", r.GVK.String())
@@ -108,34 +109,31 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 	previousStatus := obj.GetAnnotations()[annotationStatus]
 
 	// Step 2: the single Karta entry point for all read and write operations.
-	factory := resource.NewComponentFactoryFromObject(karta, obj)
-	components, err := allComponents(factory)
+	// Load works on a deep copy, so obj is untouched until the mutation is
+	// taken back with w.Object().
+	w, err := karta.Load(definition, obj)
 	if err != nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("load %s %s: %w", r.GVK.Kind, req.NamespacedName, err)
 	}
 
 	// Step 3: inspect status, scale and resource requests uniformly across every
 	// component (root and children), regardless of where pods are defined.
-	summary, err := inspect(ctx, factory, components)
+	snapshot, err := w.Read(ctx)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+	summary := inspect(snapshot)
 
 	// Step 4: inject the managed-by label into every pod-bearing component
 	// through Karta. Karta routes each update to the right path in the workload.
-	labelChanged, err := injectPodTemplateLabels(ctx, components)
-	if err != nil {
+	if err := injectPodTemplateLabels(ctx, w); err != nil {
 		return reconcile.Result{}, err
 	}
+	labelChanged := w.Modified()
 	if labelChanged {
-		// GetResource hands back the full mutated object (all component updates
-		// applied); continue on it so a single Update persists both the labels
-		// and the annotations below.
-		mutated, err := factory.GetResource()
-		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("get mutated resource: %w", err)
-		}
-		obj = mutated.(*unstructured.Unstructured)
+		// Object hands back the full mutated object; continue on it so a
+		// single Update persists both the labels and the annotations below.
+		obj = w.Object()
 		r.Recorder.Eventf(obj, nil, corev1.EventTypeNormal, "PodTemplateLabeled", "InjectLabel",
 			"Injected pod-template label %s=%s via Karta", managedByLabelKey, managedByLabelValue)
 	}
@@ -174,61 +172,30 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 	return reconcile.Result{}, nil
 }
 
-// allComponents returns every component of the workload (children plus root),
-// mirroring how a real consumer walks the full structure rather than assuming
-// pods live on the root.
-func allComponents(factory *resource.ComponentFactory) ([]*resource.Component, error) {
-	children, err := factory.GetChildComponents()
-	if err != nil {
-		return nil, fmt.Errorf("get child components: %w", err)
-	}
-	root, err := factory.GetRootComponent()
-	if err != nil {
-		return nil, fmt.Errorf("get root component: %w", err)
-	}
-	return append(children, root), nil
-}
-
 // inspect reads the unified status from the root and aggregates replica counts
 // and resource requests across all components. It returns the annotation summary
 // to write back to the workload.
-func inspect(ctx context.Context, factory *resource.ComponentFactory, components []*resource.Component) (map[string]string, error) {
-	root, err := factory.GetRootComponent()
-	if err != nil {
-		return nil, fmt.Errorf("get root component: %w", err)
-	}
-	status, err := root.GetStatus(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get status: %w", err)
-	}
-
-	matched := make(map[v1alpha1.ResourceStatus]bool, len(status.MatchedStatuses))
-	for _, s := range status.MatchedStatuses {
-		matched[s] = true
+func inspect(snapshot *karta.Snapshot) map[string]string {
+	matched := map[v1alpha1.ResourceStatus]bool{}
+	if snapshot.Status != nil {
+		for _, s := range snapshot.Status.MatchedStatuses {
+			matched[s] = true
+		}
 	}
 
 	replicas := int32(0)
 	cpu, mem, gpu := apiresource.Quantity{}, apiresource.Quantity{}, apiresource.Quantity{}
-	for _, comp := range components {
-		scales, err := comp.GetScale(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("get scale for %s: %w", comp.Name(), err)
-		}
-		for _, scale := range scales {
-			if scale.Replicas != nil {
-				replicas += *scale.Replicas
+	for _, comp := range snapshot.Components {
+		for _, inst := range comp.Instances {
+			if inst.Scale != nil && inst.Scale.Replicas != nil {
+				replicas += *inst.Scale.Replicas
 			}
-		}
-
-		if !comp.HasPodDefinition() {
-			continue
-		}
-		podTemplateSpecs, err := comp.GetPodTemplateSpec(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("get pod template spec for %s: %w", comp.Name(), err)
-		}
-		for _, pts := range podTemplateSpecs {
-			for _, c := range pts.Spec.Containers {
+			// Pod is set for every present instance, whether the definition
+			// holds a whole template, a pod spec, or fragments.
+			if inst.Pod == nil {
+				continue
+			}
+			for _, c := range inst.Pod.Spec.Containers {
 				req := c.Resources.Requests
 				cpu.Add(*req.Cpu())
 				mem.Add(*req.Memory())
@@ -253,7 +220,7 @@ func inspect(ctx context.Context, factory *resource.ComponentFactory, components
 	if canonical := canonicalStatus(matched); canonical != "" {
 		summary[annotationStatus] = canonical
 	}
-	return summary, nil
+	return summary
 }
 
 // statusPriority orders Karta statuses from most to least significant. A
@@ -302,39 +269,26 @@ func applyAnnotations(obj *unstructured.Unstructured, summary map[string]string)
 
 // injectPodTemplateLabels adds the managed-by label to every pod template of
 // every pod-bearing component through Karta, regardless of where the templates
-// live in the underlying CRD. It reports whether any template actually changed
-// so callers can skip a no-op Update.
-func injectPodTemplateLabels(ctx context.Context, components []*resource.Component) (bool, error) {
-	changed := false
-	for _, comp := range components {
-		if !comp.HasPodDefinition() {
+// live in the underlying CRD. w.Modified() reports afterwards whether anything
+// changed, so callers can skip a no-op Update. A component whose definition
+// has no route for pod labels is skipped.
+func injectPodTemplateLabels(ctx context.Context, w karta.Workload) error {
+	for _, comp := range w.Definition().Components() {
+		if comp.PodSource == karta.PodSourceNone {
 			continue
 		}
-		podTemplateSpecs, err := comp.GetPodTemplateSpec(ctx)
-		if err != nil {
-			return false, fmt.Errorf("get pod template spec for %s: %w", comp.Name(), err)
-		}
-		compChanged := false
-		updates := make(map[string]corev1.PodTemplateSpec, len(podTemplateSpecs))
-		for id, pts := range podTemplateSpecs {
-			if pts.Labels[managedByLabelKey] != managedByLabelValue {
-				if pts.Labels == nil {
-					pts.Labels = map[string]string{}
-				}
-				pts.Labels[managedByLabelKey] = managedByLabelValue
-				compChanged = true
+		_, err := w.MutatePodTemplates(ctx, comp.Name, func(_ string, pod *corev1.PodTemplateSpec) error {
+			if pod.Labels == nil {
+				pod.Labels = map[string]string{}
 			}
-			updates[id] = pts
+			pod.Labels[managedByLabelKey] = managedByLabelValue
+			return nil
+		}, karta.SkipAbsent())
+		if err != nil && !errors.Is(err, karta.ErrFieldNotRoutable) {
+			return fmt.Errorf("label pods of %s: %w", comp.Name, err)
 		}
-		if !compChanged {
-			continue
-		}
-		if err := comp.UpdatePodTemplateSpec(ctx, updates); err != nil {
-			return false, fmt.Errorf("update pod template spec for %s: %w", comp.Name(), err)
-		}
-		changed = true
 	}
-	return changed, nil
+	return nil
 }
 
 // kartaForGVK selects the Karta whose root component describes the given GVK.
@@ -354,8 +308,8 @@ func (r *WorkloadReconciler) kartaForGVK(ctx context.Context, gvk schema.GroupVe
 }
 
 // rootComponentGVK returns the GVK of a Karta's root component, or nil if unset.
-func rootComponentGVK(karta *v1alpha1.Karta) *schema.GroupVersionKind {
-	kind := karta.Spec.StructureDefinition.RootComponent.Kind
+func rootComponentGVK(definition *v1alpha1.Karta) *schema.GroupVersionKind {
+	kind := definition.Spec.StructureDefinition.RootComponent.Kind
 	if kind == nil {
 		return nil
 	}
@@ -381,18 +335,18 @@ func (r *WorkloadReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // workloadsForKarta enqueues all workloads of this reconciler's GVK when a Karta
 // describing that GVK changes.
 func (r *WorkloadReconciler) workloadsForKarta(ctx context.Context, obj client.Object) []reconcile.Request {
-	karta, ok := obj.(*v1alpha1.Karta)
+	definition, ok := obj.(*v1alpha1.Karta)
 	if !ok {
 		return nil
 	}
-	if rootGVK := rootComponentGVK(karta); rootGVK == nil || *rootGVK != r.GVK {
+	if rootGVK := rootComponentGVK(definition); rootGVK == nil || *rootGVK != r.GVK {
 		return nil
 	}
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(r.GVK.GroupVersion().WithKind(r.GVK.Kind + "List"))
 	if err := r.List(ctx, list); err != nil {
 		log.FromContext(ctx).Error(err, "list workloads for Karta change",
-			"gvk", r.GVK.String(), "karta", karta.GetName())
+			"gvk", r.GVK.String(), "karta", definition.GetName())
 		return nil
 	}
 	requests := make([]reconcile.Request, 0, len(list.Items))

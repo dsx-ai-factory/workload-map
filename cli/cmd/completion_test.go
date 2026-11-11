@@ -250,3 +250,46 @@ func TestCompleteGivesUpOnDiscoveryThatDoesNotAnswer(t *testing.T) {
 		t.Fatal("completion did not give up on discovery that never answers")
 	}
 }
+
+func TestCompleteOffersDefinitionNames(t *testing.T) {
+	fakeCluster(t)
+
+	deployment := kartas.Deployment()
+	restore := loadDefinitions
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
+		return definitions.New([]*v1alpha1.Karta{kartas.Jobset(), deployment}, nil), nil
+	}
+	t.Cleanup(func() { loadDefinitions = restore })
+
+	all := []string{deployment.Name, kartas.Jobset().Name}
+	slices.Sort(all)
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"every name, sorted", []string{"definitions", ""}, all},
+		{"a prefix", []string{"definitions", deployment.Name[:4]}, []string{deployment.Name}},
+		{"a prefix nothing matches", []string{"definitions", "zz-no-such"}, nil},
+		{"after one name", []string{"definitions", deployment.Name, ""}, nil},
+		{"with --group", []string{"definitions", "--group", "apps", ""}, nil},
+		{"with --group ''", []string{"definitions", "--group", "", ""}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := complete(t, tc.args...); !slices.Equal(got, tc.want) {
+				t.Errorf("expected %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+// Without a cluster the names still come from the built-in catalog.
+func TestCompleteOffersCatalogDefinitionNamesWithoutACluster(t *testing.T) {
+	fakeCluster(t)
+
+	got := complete(t, "definitions", kartas.Jobset().Name)
+	if !slices.Contains(got, kartas.Jobset().Name) {
+		t.Errorf("expected %q among %v", kartas.Jobset().Name, got)
+	}
+}

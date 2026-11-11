@@ -6,6 +6,8 @@ import type { Definition } from '../../../lib/karta/definitions';
 import type { Karta, Workload } from '../../../lib/karta/karta.types';
 import { buildWorkloadRow } from './buildRow';
 
+const pytorchJobGVK = { group: 'kubeflow.org', version: 'v1', kind: 'PyTorchJob' };
+
 function karta(childComponents?: { name: string }[]): Karta {
   return {
     apiVersion: 'run.ai/v1alpha1',
@@ -30,7 +32,11 @@ function workload(): Workload {
 
 describe('buildWorkloadRow', () => {
   it('projects a live workload + definition into a row', () => {
-    const definition: Definition = { karta: karta([{ name: 'master' }, { name: 'worker' }]), origin: 'catalog' };
+    const definition: Definition = {
+      karta: karta([{ name: 'master' }, { name: 'worker' }]),
+      origin: 'catalog',
+      rootKind: pytorchJobGVK,
+    };
 
     const row = buildWorkloadRow(definition, workload(), 'local');
 
@@ -50,6 +56,7 @@ describe('buildWorkloadRow', () => {
   // and a cluster serving both lists the same object under each, so the id has
   // to separate them or the two rows collide.
   it('gives the same object distinct ids when listed under two api versions', () => {
+    const dynamoGVK = (version: string) => ({ group: 'nvidia.com', version, kind: 'DynamoGraphDeployment' });
     const dynamo = (version: string): Karta => ({
       apiVersion: 'run.ai/v1alpha1',
       kind: 'Karta',
@@ -57,7 +64,7 @@ describe('buildWorkloadRow', () => {
       spec: {
         structureDefinition: {
           rootComponent: {
-            kind: { group: 'nvidia.com', version, kind: 'DynamoGraphDeployment' },
+            kind: dynamoGVK(version),
           },
         },
       },
@@ -68,14 +75,14 @@ describe('buildWorkloadRow', () => {
       metadata: { name: 'llama', namespace: 'default' },
     });
 
-    const alpha = buildWorkloadRow({ karta: dynamo('v1alpha1'), origin: 'catalog' }, instance('v1alpha1'), 'local');
-    const beta = buildWorkloadRow({ karta: dynamo('v1beta1'), origin: 'catalog' }, instance('v1beta1'), 'local');
+    const alpha = buildWorkloadRow({ karta: dynamo('v1alpha1'), origin: 'catalog', rootKind: dynamoGVK('v1alpha1') }, instance('v1alpha1'), 'local');
+    const beta = buildWorkloadRow({ karta: dynamo('v1beta1'), origin: 'catalog', rootKind: dynamoGVK('v1beta1') }, instance('v1beta1'), 'local');
 
     expect(alpha.id).not.toBe(beta.id);
   });
 
   it('counts only the root component when there are no child components', () => {
-    const definition: Definition = { karta: karta(undefined), origin: 'catalog' };
+    const definition: Definition = { karta: karta(undefined), origin: 'catalog', rootKind: pytorchJobGVK };
 
     const row = buildWorkloadRow(definition, workload(), 'local');
 

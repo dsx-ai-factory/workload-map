@@ -49,16 +49,16 @@ describe('WorkloadsTable', () => {
   it('opens sorted newest first', () => {
     render(<WorkloadsTable rows={[]} loading={false} />);
 
-    expect(dataTableProps.at(-1)?.initialSortColumnId).toBe('age');
-    expect(dataTableProps.at(-1)?.initialSortDesc).toBe(false);
+    expect(dataTableProps.slice(-1)[0]?.initialSortColumnId).toBe('age');
+    expect(dataTableProps.slice(-1)[0]?.initialSortDesc).toBe(false);
   });
 
   it('shows the cluster column only when more than one cluster is selected', () => {
     render(<WorkloadsTable rows={[]} loading={false} />);
-    expect(dataTableProps.at(-1)?.columns.some((c: any) => c.id === 'cluster')).toBe(false);
+    expect(dataTableProps.slice(-1)[0]?.columns.some((c: any) => c.id === 'cluster')).toBe(false);
 
     clustersRef.current = ['cluster-a', 'cluster-b'];
     render(<WorkloadsTable rows={[]} loading={false} />);
-    expect(dataTableProps.at(-1)?.columns.some((c: any) => c.id === 'cluster')).toBe(true);
+    expect(dataTableProps.slice(-1)[0]?.columns.some((c: any) => c.id === 'cluster')).toBe(true);
   });
 });

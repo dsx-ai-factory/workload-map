@@ -374,6 +374,11 @@ func (c *Component) GetInstanceIds(ctx context.Context) ([]string, error) {
 
 // zipWithInstanceIds is a generic method to zip instance IDs with extraction results
 func zipWithInstanceIds[T any](instanceIds []string, results []T) (map[string]T, error) {
+	// A single-instance component whose path selects nothing, such as
+	// select(.spec.worker == null) on a multi-node object, is absent.
+	if len(results) == 0 && len(instanceIds) == 1 && instanceIds[0] == "" {
+		return map[string]T{}, nil
+	}
 	if len(instanceIds) != len(results) {
 		return nil, fmt.Errorf("instance ids count (%d) does not match results count (%d)", len(instanceIds), len(results))
 	}

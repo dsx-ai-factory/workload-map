@@ -347,6 +347,20 @@ var _ = Describe("Component", func() {
 				Expect(err.Error()).To(ContainSubstring("instance ids count (2) does not match results count (1)"))
 				Expect(result).To(BeNil())
 			})
+
+			It("should treat a single-instance component that selects nothing as absent", func() {
+				mockAccessor.EXPECT().
+					ExtractPodTemplateSpec(ctx, component.definition).
+					Return(nil, nil)
+
+				mockAccessor.EXPECT().
+					ExtractInstanceIds(ctx, component.definition).
+					Return(nil, DefinitionNotFoundError("no instance id path defined"))
+
+				result, err := component.GetPodTemplateSpec(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result).To(BeEmpty())
+			})
 		})
 
 		Context("GetScale", func() {

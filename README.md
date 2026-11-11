@@ -154,7 +154,9 @@ apps-statefulset-v1                             StatefulSet            catalog  
 ...
 ```
 
-Only the first rows are shown. `kli get` and `kli describe` inspect live
+Only the first rows are shown. Without a reachable cluster, `kli` also prints a
+warning that it could not read definitions from the cluster and shows the
+built-in ones only. This is expected. `kli get` and `kli describe` inspect live
 workloads and need a cluster.
 
 See the [CLI Guide](docs/CLI%20Guide.md) for shell completion and for installing

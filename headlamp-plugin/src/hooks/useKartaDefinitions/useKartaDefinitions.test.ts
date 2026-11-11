@@ -18,25 +18,28 @@ vi.mock('../../config', () => ({ useKartaConfig }));
 import type { Karta } from '../../lib/karta/karta.types';
 import { useKartaDefinitions } from './useKartaDefinitions';
 
-function karta(name: string, kind?: { group: string; version: string; kind: string }): Karta {
+function karta(
+  name: string,
+  kind?: { group: string; version: string; kind: string },
+  experimental?: boolean
+): Karta {
   return {
     apiVersion: 'run.ai/v1alpha1',
     kind: 'Karta',
     metadata: { name },
-    spec: { structureDefinition: { rootComponent: { kind } } },
+    spec: { experimental, structureDefinition: { rootComponent: { kind } } },
   };
 }
 
 const deploymentGVK = { group: 'apps', version: 'v1', kind: 'Deployment' };
+const jobGVK = { group: 'batch', version: 'v1', kind: 'Job' };
 
 beforeEach(() => useKartaConfig.mockReturnValue(undefined));
 
 describe('useKartaDefinitions', () => {
   it('reacts to the saved experimental setting for catalog and cluster definitions', async () => {
-    const catalogDeployment = karta('catalog-deployment', deploymentGVK);
-    const clusterJob = karta('cluster-job', { group: 'batch', version: 'v1', kind: 'Job' });
-    catalogDeployment.spec.experimental = true;
-    clusterJob.spec.experimental = true;
+    const catalogDeployment = karta('catalog-deployment', deploymentGVK, true);
+    const clusterJob = karta('cluster-job', jobGVK, true);
     listCatalog.mockResolvedValue([catalogDeployment]);
     useListMock.mockReturnValue([[{ jsonData: clusterJob }], null]);
 
@@ -47,8 +50,8 @@ describe('useKartaDefinitions', () => {
     useKartaConfig.mockReturnValue({ enableExperimental: true });
     rerender();
     expect(result.current.definitions).toEqual([
-      { karta: catalogDeployment, origin: 'catalog' },
-      { karta: clusterJob, origin: 'cluster' },
+      { karta: catalogDeployment, origin: 'catalog', rootKind: deploymentGVK },
+      { karta: clusterJob, origin: 'cluster', rootKind: jobGVK },
     ]);
 
     useKartaConfig.mockReturnValue({ enableExperimental: false });

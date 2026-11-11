@@ -47,6 +47,7 @@ import './index';
 const loadCalls = {
   registerRoute: [...registerRoute.mock.calls],
   registerSidebarEntry: [...registerSidebarEntry.mock.calls],
+  registerPluginSettings: [...registerPluginSettings.mock.calls],
   getKartaWasm: [...getKartaWasm.mock.calls],
 };
 
@@ -67,6 +68,6 @@ describe('plugin registration', () => {
   });
 
   it('registers settings with Headlamp saving enabled', () => {
-    expect(registerPluginSettings).toHaveBeenCalledWith('karta', expect.any(Function), true);
+    expect(loadCalls.registerPluginSettings).toContainEqual(['karta', expect.any(Function), true]);
   });
 });

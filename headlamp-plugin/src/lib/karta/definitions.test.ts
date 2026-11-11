@@ -10,12 +10,16 @@ vi.mock('@kinvolk/headlamp-plugin/lib', () => ({
 import { mergeDefinitions, rootGVKKey } from './definitions';
 import type { Karta } from './karta.types';
 
-function karta(name: string, kind?: { group: string; version: string; kind: string }): Karta {
+function karta(
+  name: string,
+  kind?: { group: string; version: string; kind: string },
+  experimental?: boolean
+): Karta {
   return {
     apiVersion: 'run.ai/v1alpha1',
     kind: 'Karta',
     metadata: { name },
-    spec: { structureDefinition: { rootComponent: { kind } } },
+    spec: { experimental, structureDefinition: { rootComponent: { kind } } },
   };
 }
 
@@ -50,37 +54,31 @@ describe('rootGVKKey', () => {
 
 describe('mergeDefinitions', () => {
   it('excludes experimental definitions from both sources by default', () => {
-    const catalogDeployment = karta('catalog-deployment', deploymentGVK);
-    const clusterJob = karta('cluster-job', jobGVK);
-    catalogDeployment.spec.experimental = true;
-    clusterJob.spec.experimental = true;
+    const catalogDeployment = karta('catalog-deployment', deploymentGVK, true);
+    const clusterJob = karta('cluster-job', jobGVK, true);
 
     expect(mergeDefinitions([catalogDeployment], [clusterJob])).toEqual([]);
   });
 
   it('includes experimental definitions from both sources when enabled', () => {
-    const catalogDeployment = karta('catalog-deployment', deploymentGVK);
-    const clusterJob = karta('cluster-job', jobGVK);
-    catalogDeployment.spec.experimental = true;
-    clusterJob.spec.experimental = true;
+    const catalogDeployment = karta('catalog-deployment', deploymentGVK, true);
+    const clusterJob = karta('cluster-job', jobGVK, true);
 
     expect(mergeDefinitions([catalogDeployment], [clusterJob], true)).toEqual([
-      { karta: catalogDeployment, origin: 'catalog' },
-      { karta: clusterJob, origin: 'cluster' },
+      { karta: catalogDeployment, origin: 'catalog', rootKind: deploymentGVK },
+      { karta: clusterJob, origin: 'cluster', rootKind: jobGVK },
     ]);
   });
 
   it('keeps a stable catalog definition when its cluster override is experimental', () => {
-    const catalogDeployment = karta('catalog-deployment', deploymentGVK);
-    const clusterDeployment = karta('cluster-deployment', deploymentGVK);
-    catalogDeployment.spec.experimental = false;
-    clusterDeployment.spec.experimental = true;
+    const catalogDeployment = karta('catalog-deployment', deploymentGVK, false);
+    const clusterDeployment = karta('cluster-deployment', deploymentGVK, true);
 
     expect(mergeDefinitions([catalogDeployment], [clusterDeployment])).toEqual([
-      { karta: catalogDeployment, origin: 'catalog' },
+      { karta: catalogDeployment, origin: 'catalog', rootKind: deploymentGVK },
     ]);
     expect(mergeDefinitions([catalogDeployment], [clusterDeployment], true)).toEqual([
-      { karta: clusterDeployment, origin: 'cluster' },
+      { karta: clusterDeployment, origin: 'cluster', rootKind: deploymentGVK },
     ]);
   });
 

@@ -111,6 +111,15 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 		Long:    definitionsLong,
 		Example: definitionsExample,
 		Args:    usageArgs(cobra.MaximumNArgs(1)),
+		// One NAME addresses one definition, and a NAME cannot be combined with
+		// the type filters, so only a first argument without them is completed.
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) > 0 || cmd.Flags().Changed(flagGroup) || cmd.Flags().Changed(flagKind) ||
+				cmd.Flags().Changed(flagVersion) {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return completeDefinitionNames(cmd, toComplete), cobra.ShellCompDirectiveNoFileComp
+		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if componentLimit < 0 {
 				return usageError(cmd, fmt.Errorf("--%s must not be negative", flagComponentLimit))

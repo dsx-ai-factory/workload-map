@@ -67,6 +67,35 @@ func completeWorkloads(cmd *cobra.Command, args []string, toComplete string) ([]
 	return candidates, cobra.ShellCompDirectiveNoFileComp
 }
 
+// completeDefinitionNames offers the names of the definitions the CLI
+// understands, matching prefix. An unreachable cluster falls back to the catalog
+// quietly, within completionTimeout, the way the definitions command does.
+func completeDefinitionNames(cmd *cobra.Command, prefix string) []string {
+	// Cobra skips the root pre-run for completion, but definition visibility
+	// must still follow the same flags, environment and config file.
+	var err error
+	config, err = buildConfig(cmd)
+	if err != nil {
+		cobra.CompDebugln(err.Error(), true)
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(cmd.Context(), completionTimeout)
+	defer cancel()
+	cmd.SetContext(ctx)
+	boundRequests(cmd)
+
+	resolver, _ := loadDefinitionsForCommand(cmd, clusterAccess())
+
+	var names []string
+	for _, def := range resolver.List() {
+		if name := def.Karta.Name; strings.HasPrefix(name, prefix) {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
 // completeNamespaces completes the -n/--namespace flag with the namespaces of
 // the cluster, matching prefix.
 func completeNamespaces(cmd *cobra.Command, _ []string, prefix string) ([]string, cobra.ShellCompDirective) {

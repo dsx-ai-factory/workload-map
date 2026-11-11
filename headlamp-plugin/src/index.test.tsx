@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { registerRoute, registerSidebarEntry, getKartaWasm } = vi.hoisted(() => ({
   registerRoute: vi.fn(),
@@ -38,7 +38,10 @@ vi.mock('./lib/karta/karta', () => ({ getKartaWasm }));
 
 // WorkloadsPage is deliberately not mocked: the point is that nothing in the
 // page's import graph loads the engine at module scope either.
-import './index';
+beforeEach(async () => {
+  vi.resetModules();
+  await vi.importActual('./index');
+});
 
 describe('plugin registration', () => {
   // The engine is ~19MB, and every Headlamp user would pay for it at startup

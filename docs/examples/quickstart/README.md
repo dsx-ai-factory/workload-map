@@ -43,6 +43,8 @@ The same code in `main.go` runs over two completely different CRD types — **no
 
 ## Run it
 
+Prerequisite: Go 1.27.3 or later (the version in this example's `go.mod`). Check with `go version`; install from [go.dev/doc/install](https://go.dev/doc/install). No cluster, kubectl, or Homebrew is needed.
+
 From the `docs/examples/quickstart` directory:
 
 This example is a standalone module. Its local `replace` directive selects the

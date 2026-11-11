@@ -220,16 +220,29 @@ var _ = Describe("kli definitions", func() {
 			Expect(decodeKartas(yamlOut)).To(Equal(decodeKartas(jsonOut)))
 		})
 
-		It("rejects wide, which the root enum accepts for other commands", func() {
-			_, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide"})
-			Expect(exitStatus(err)).To(Equal(ExitUsage))
-			// The flag lists what this command renders, so wide never parses here.
-			Expect(err.Error()).To(ContainSubstring("must be one of table, json, yaml"))
+		It("adds API versions to wide table output", func() {
+			stdout, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide"})
+			Expect(err).NotTo(HaveOccurred())
+
+			header := strings.Fields(strings.SplitN(stdout, "\n", 2)[0])
+			Expect(header).To(Equal([]string{"NAME", "KIND", "APIVERSION", "ORIGIN", "COMPONENTS"}))
+			Expect(stdout).To(ContainSubstring("apps/v1"))
+
+			var coreRow []string
+			for _, line := range strings.Split(stdout, "\n") {
+				fields := strings.Fields(line)
+				if len(fields) > 0 && fields[0] == "core-pod-v1" {
+					coreRow = fields
+					break
+				}
+			}
+			Expect(coreRow).To(HaveLen(5))
+			Expect(coreRow[2]).To(Equal("v1"))
 		})
 
 		It("rejects an unsupported format before reading the cluster", func() {
 			getter := &countingGetter{RESTClientGetter: noClusterGetter()}
-			_, _, err := runDefinitions(getter, []string{"-o", "wide"})
+			_, _, err := runDefinitions(getter, []string{"-o", "unsupported"})
 			Expect(exitStatus(err)).To(Equal(ExitUsage))
 			// A format the command cannot render must cost no round trip.
 			Expect(getter.calls).To(BeZero())
@@ -308,10 +321,16 @@ var _ = Describe("a definition that names no workload type", func() {
 	It("appears in the table with a placeholder kind", func() {
 		var stdout, stderr bytes.Buffer
 		rows := definitionRows(definitions.New(nil, []*v1alpha1.Karta{rootless("broken-karta")}).List())
-		Expect(renderDefinitions(&stdout, &stderr, rows, 0, false)).To(Succeed())
+		Expect(renderDefinitions(&stdout, &stderr, rows, 0, false, false)).To(Succeed())
 
 		Expect(tableNames(stdout.String())).To(Equal([]string{"broken-karta"}))
 		Expect(stdout.String()).To(ContainSubstring("<none>"))
+
+		var wideOut bytes.Buffer
+		Expect(renderDefinitions(&wideOut, &stderr, rows, 0, true, false)).To(Succeed())
+		wideRows := strings.Split(strings.TrimSpace(wideOut.String()), "\n")
+		Expect(strings.Fields(wideRows[0])).To(Equal([]string{"NAME", "KIND", "APIVERSION", "ORIGIN", "COMPONENTS"}))
+		Expect(strings.Fields(wideRows[1])).To(Equal([]string{"broken-karta", "<none>", "<none>", "cluster", "mystery"}))
 	})
 
 	It("never leaks the table placeholder into a machine format", func() {
@@ -335,6 +354,7 @@ var _ = Describe("definitionRows over a merged resolver", func() {
 		Expect(definitionRows(resolver.List())).To(Equal([]definitionRow{{
 			Name:       "cluster-pytorch",
 			Kind:       "PyTorchJob",
+			APIVersion: "kubeflow.org/v1",
 			Origin:     string(definitions.OriginCluster),
 			Components: []string{"pytorchjob", "runner"},
 		}}))
@@ -375,8 +395,8 @@ var _ = Describe("rendering definitions without headers", func() {
 			{Name: "zulu", Kind: "JobSet", Origin: "cluster", Components: []string{"jobset"}},
 		}
 		var withHeaders, noHeaders, stderr bytes.Buffer
-		Expect(renderDefinitions(&withHeaders, &stderr, rows, 0, false)).To(Succeed())
-		Expect(renderDefinitions(&noHeaders, &stderr, rows, 0, true)).To(Succeed())
+		Expect(renderDefinitions(&withHeaders, &stderr, rows, 0, false, false)).To(Succeed())
+		Expect(renderDefinitions(&noHeaders, &stderr, rows, 0, false, true)).To(Succeed())
 
 		lines := strings.Split(strings.TrimRight(withHeaders.String(), "\n"), "\n")
 		Expect(strings.Fields(lines[0])).To(Equal([]string{"NAME", "KIND", "ORIGIN", "COMPONENTS"}))
@@ -386,7 +406,7 @@ var _ = Describe("rendering definitions without headers", func() {
 
 	It("keeps the empty note on stderr", func() {
 		var stdout, stderr bytes.Buffer
-		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0, true)).To(Succeed())
+		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0, false, true)).To(Succeed())
 		Expect(stdout.String()).To(BeEmpty())
 		Expect(stderr.String()).To(ContainSubstring("No Karta definitions found."))
 	})
@@ -395,7 +415,7 @@ var _ = Describe("rendering definitions without headers", func() {
 var _ = Describe("rendering an empty definition list", func() {
 	It("notes the empty table on stderr and writes nothing to stdout", func() {
 		var stdout, stderr bytes.Buffer
-		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0, false)).To(Succeed())
+		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0, false, false)).To(Succeed())
 		Expect(stdout.String()).To(BeEmpty())
 		Expect(stderr.String()).To(ContainSubstring("No Karta definitions found."))
 	})

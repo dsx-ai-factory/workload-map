@@ -2,13 +2,18 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { K8s } from '@kinvolk/headlamp-plugin/lib';
-import type { Karta } from './karta.types';
+import { gvkKey } from './gvkKey';
+import type { GroupVersionKind, Karta } from './karta.types';
 
 export type DefinitionOrigin = 'catalog' | 'cluster';
 
 export interface Definition {
   karta: Karta;
   origin: DefinitionOrigin;
+  // The workload kind the definition describes. mergeDefinitions only
+  // produces definitions that have one, so readers need not re-check the
+  // optional chain on karta.spec.
+  rootKind: GroupVersionKind;
 }
 
 // KartaCR is the kartas.run.ai CRD, cluster-scoped per
@@ -21,11 +26,10 @@ export const KartaCR = K8s.crd.makeCustomResourceClass({
   isNamespaced: false,
 });
 
-// rootGVKKey mirrors pkg/catalog.RootKey's key shape, so a cluster CR and a
-// catalog entry describing the same workload kind collide on the same key.
-// Group is empty for core kinds such as Pod, but pkg/catalog requires a version
-// and a kind: without them the definition names no workload, so it has no key.
-export function rootGVKKey(karta: Karta): string | null {
+// namedRootKind returns the root kind only when it names a workload. Group is
+// empty for core kinds such as Pod, but pkg/catalog requires a version and a
+// kind: without them the definition names no workload.
+function namedRootKind(karta: Karta): GroupVersionKind | null {
   // Every step is guarded because the CRD does not require spec: with the
   // validating webhook disabled the API server accepts a Karta without one,
   // and reading through it would throw before the missing-kind check, taking
@@ -34,7 +38,12 @@ export function rootGVKKey(karta: Karta): string | null {
   if (!kind?.version || !kind.kind) {
     return null;
   }
-  return `${kind.group}/${kind.version}, Kind=${kind.kind}`;
+  return kind;
+}
+
+export function rootGVKKey(karta: Karta): string | null {
+  const kind = namedRootKind(karta);
+  return kind && gvkKey(kind);
 }
 
 // mergeDefinitions indexes catalogKartas by their root GVK, then lets
@@ -58,8 +67,9 @@ export function mergeDefinitions(
         continue;
       }
       const key = rootGVKKey(karta);
-      if (key !== null) {
-        byKey.set(key, { karta, origin });
+      const rootKind = namedRootKind(karta);
+      if (key !== null && rootKind !== null) {
+        byKey.set(key, { karta, origin, rootKind });
       }
     }
   };

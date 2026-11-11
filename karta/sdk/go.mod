@@ -4,7 +4,7 @@ go 1.27.3
 
 require (
 	github.com/itchyny/gojq v0.12.20
-	github.com/onsi/ginkgo/v2 v2.33.1
+	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
 	github.com/samber/lo v1.53.0
 	go.uber.org/mock v0.6.0

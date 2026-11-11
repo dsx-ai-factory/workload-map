@@ -534,6 +534,125 @@ func gpuContainer(gpus string) corev1.Container {
 	}
 }
 
+// A native sidecar declared before an init container never exits, so it runs beside
+// that init container: the pod's peak is their sum. Declared after it, the sidecar
+// waits for it to finish and the two never overlap.
+var _ = Describe("podRequest", func() {
+	It("stacks a native sidecar onto the init container that follows it", func() {
+		spec := corev1.PodSpec{
+			InitContainers: []corev1.Container{
+				podSidecar("proxy", "1", "1Gi"),
+				podInitContainer("setup", "4", "4Gi"),
+			},
+			Containers: []corev1.Container{podContainer("app", "1", "1Gi")},
+		}
+
+		request := podRequest(spec)
+
+		Expect(request.CPUMillis).To(Equal(resourceMillis("5")))
+		Expect(request.MemoryBytes).To(Equal(resourceBytes("5Gi")))
+	})
+
+	It("does not stack a sidecar onto an init container that ran before it", func() {
+		spec := corev1.PodSpec{
+			InitContainers: []corev1.Container{
+				podInitContainer("setup", "4", "4Gi"),
+				podSidecar("proxy", "1", "1Gi"),
+			},
+			Containers: []corev1.Container{podContainer("app", "1", "1Gi")},
+		}
+
+		request := podRequest(spec)
+
+		Expect(request.CPUMillis).To(Equal(resourceMillis("4")))
+		Expect(request.MemoryBytes).To(Equal(resourceBytes("4Gi")))
+	})
+
+	It("adds every sidecar that precedes an init container", func() {
+		spec := corev1.PodSpec{
+			InitContainers: []corev1.Container{
+				podSidecar("proxy", "1", "1Gi"),
+				podSidecar("dns", "1", "512Mi"),
+				podInitContainer("setup", "4", "4Gi"),
+			},
+			Containers: []corev1.Container{podContainer("app", "1", "1Gi")},
+		}
+
+		request := podRequest(spec)
+
+		Expect(request.CPUMillis).To(Equal(resourceMillis("6")))
+		Expect(request.MemoryBytes).To(Equal(
+			resourceBytes("4Gi") + resourceBytes("1Gi") + resourceBytes("512Mi")))
+	})
+
+	It("counts sidecars in the steady state, beside the regular containers", func() {
+		spec := corev1.PodSpec{
+			InitContainers: []corev1.Container{podSidecar("proxy", "1", "1Gi")},
+			Containers:     []corev1.Container{podContainer("app", "2", "2Gi")},
+		}
+
+		request := podRequest(spec)
+
+		Expect(request.CPUMillis).To(Equal(resourceMillis("3")))
+		Expect(request.MemoryBytes).To(Equal(resourceBytes("3Gi")))
+	})
+
+	It("counts a sidecar that requests nothing as nothing", func() {
+		spec := corev1.PodSpec{
+			InitContainers: []corev1.Container{
+				podSidecar("proxy", "", ""),
+				podInitContainer("setup", "4", "4Gi"),
+			},
+			Containers: []corev1.Container{podContainer("app", "1", "1Gi")},
+		}
+
+		request := podRequest(spec)
+
+		Expect(request.CPUMillis).To(Equal(resourceMillis("4")))
+		Expect(request.MemoryBytes).To(Equal(resourceBytes("4Gi")))
+	})
+})
+
+// podContainer builds a regular container with requests, as a manifest spells them.
+func podContainer(name, cpu, memory string) corev1.Container {
+	return corev1.Container{Name: name, Resources: podRequests(cpu, memory)}
+}
+
+// podInitContainer builds an init container, which runs alone and must finish.
+func podInitContainer(name, cpu, memory string) corev1.Container {
+	return corev1.Container{Name: name, Resources: podRequests(cpu, memory)}
+}
+
+// podSidecar builds a native sidecar: an init container that never exits.
+func podSidecar(name, cpu, memory string) corev1.Container {
+	container := podInitContainer(name, cpu, memory)
+	container.RestartPolicy = ptr.To(corev1.ContainerRestartPolicyAlways)
+	return container
+}
+
+// podRequests turns the literal quantities a test spells into a request list.
+func podRequests(cpu, memory string) corev1.ResourceRequirements {
+	requests := corev1.ResourceList{}
+	if cpu != "" {
+		requests[corev1.ResourceCPU] = resourceQuantity(cpu)
+	}
+	if memory != "" {
+		requests[corev1.ResourceMemory] = resourceQuantity(memory)
+	}
+	return corev1.ResourceRequirements{Requests: requests}
+}
+
+// resourceMillis and resourceBytes read a quantity the way the request table does.
+func resourceMillis(value string) int64 {
+	quantity := resourceQuantity(value)
+	return quantity.MilliValue()
+}
+
+func resourceBytes(value string) int64 {
+	quantity := resourceQuantity(value)
+	return quantity.Value()
+}
+
 // resourceQuantity parses a quantity a fixture spells as a string.
 func resourceQuantity(value string) apiresource.Quantity {
 	GinkgoHelper()

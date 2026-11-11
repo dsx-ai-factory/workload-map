@@ -539,22 +539,32 @@ func fragmentedRequest(spec resource.FragmentedPodSpec) Resources {
 }
 
 // podRequest mirrors the effective pod request Kubernetes schedules against:
-// max(largest init container, regular containers plus sidecars).
+// max(largest init phase, regular containers plus sidecars).
+//
+// Init containers run in declaration order, and a native sidecar starts at its own
+// position and never exits: it is running beside every init container that comes
+// after it, but not beside one that came before. So a phase's cost is that init
+// container plus the sidecars already started, never plus the ones declared later.
 func podRequest(spec corev1.PodSpec) Resources {
 	running := sumContainers(spec.Containers)
 
 	var largestInit Resources
+	var startedSidecars Resources
 	for _, container := range spec.InitContainers {
 		request := requirementsOf(container.Resources)
-		// A sidecar never exits, so it accumulates rather than peaking.
+		// A sidecar never exits, so it accumulates rather than peaking: it joins the
+		// steady state and every later init phase.
 		if container.RestartPolicy != nil && *container.RestartPolicy == corev1.ContainerRestartPolicyAlways {
+			startedSidecars.add(request)
 			running.add(request)
 			continue
 		}
+		phase := startedSidecars
+		phase.add(request)
 		largestInit = Resources{
-			GPUs:        max(largestInit.GPUs, request.GPUs),
-			CPUMillis:   max(largestInit.CPUMillis, request.CPUMillis),
-			MemoryBytes: max(largestInit.MemoryBytes, request.MemoryBytes),
+			GPUs:        max(largestInit.GPUs, phase.GPUs),
+			CPUMillis:   max(largestInit.CPUMillis, phase.CPUMillis),
+			MemoryBytes: max(largestInit.MemoryBytes, phase.MemoryBytes),
 		}
 	}
 

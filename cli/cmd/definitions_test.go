@@ -412,6 +412,31 @@ var _ = Describe("rendering definitions without headers", func() {
 	})
 })
 
+var _ = Describe("kli definitions --no-headers", func() {
+	It("drops only the header row, keeping the data rows in order", func() {
+		withHeaders, _, err := runDefinitions(noClusterGetter(), nil)
+		Expect(err).NotTo(HaveOccurred())
+		out, stderr, err := runDefinitions(noClusterGetter(), []string{"--no-headers"})
+		Expect(err).NotTo(HaveOccurred())
+
+		lines := strings.Split(strings.TrimRight(withHeaders, "\n"), "\n")
+		Expect(strings.Fields(lines[0])[0]).To(Equal("NAME"))
+		Expect(tableCells(out)).To(Equal(tableCells(strings.Join(lines[1:], "\n"))))
+		Expect(stderr).NotTo(ContainSubstring("NAME"))
+	})
+
+	It("drops the wide header too", func() {
+		withHeaders, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide"})
+		Expect(err).NotTo(HaveOccurred())
+		out, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide", "--no-headers"})
+		Expect(err).NotTo(HaveOccurred())
+
+		lines := strings.Split(strings.TrimRight(withHeaders, "\n"), "\n")
+		Expect(strings.Fields(lines[0])).To(ContainElement("APIVERSION"))
+		Expect(tableCells(out)).To(Equal(tableCells(strings.Join(lines[1:], "\n"))))
+	})
+})
+
 var _ = Describe("rendering an empty definition list", func() {
 	It("notes the empty table on stderr and writes nothing to stdout", func() {
 		var stdout, stderr bytes.Buffer

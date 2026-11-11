@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -291,5 +292,42 @@ func TestCompleteOffersCatalogDefinitionNamesWithoutACluster(t *testing.T) {
 	got := complete(t, "definitions", kartas.Jobset().Name)
 	if !slices.Contains(got, kartas.Jobset().Name) {
 		t.Errorf("expected %q among %v", kartas.Jobset().Name, got)
+	}
+}
+
+// A configured cluster that refuses the definitions request still completes
+// from the catalog, quietly: stderr has only cobra's directive line.
+func TestCompleteOffersCatalogDefinitionNamesWhenTheClusterRefuses(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		http.Error(w, `{"kind":"Status","apiVersion":"v1","status":"Failure","reason":"Forbidden","code":403}`,
+			http.StatusForbidden)
+	}))
+	t.Cleanup(server.Close)
+
+	restore := clusterAccess
+	clusterAccess = func() genericclioptions.RESTClientGetter { return clusterGetter(server) }
+	t.Cleanup(func() { clusterAccess = restore })
+
+	name := kartas.Jobset().Name
+	out, errOut, code := runCmd(t, "__complete", "definitions", name[:len(name)-1])
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	got := candidates(out)
+	if !slices.Contains(got, name) {
+		t.Errorf("expected %q among %v", name, got)
+	}
+	for _, candidate := range got {
+		if !strings.HasPrefix(candidate, name[:len(name)-1]) {
+			t.Errorf("candidate %q does not match the prefix %q", candidate, name[:len(name)-1])
+		}
+	}
+	if requests.Load() == 0 {
+		t.Error("expected completion to ask the cluster for its definitions")
+	}
+	if want := "Completion ended with directive: ShellCompDirectiveNoFileComp\n"; errOut != want {
+		t.Errorf("expected stderr %q, got %q", want, errOut)
 	}
 }

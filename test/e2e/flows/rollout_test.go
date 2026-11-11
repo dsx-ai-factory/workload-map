@@ -23,10 +23,18 @@ var _ = Describe("Rollout", Ordered, Label("argo-rollouts", "rollout"), func() {
 		// 5m: canary rollouts create new ReplicaSets and wait for readiness probes.
 		rec = recorder.New(cfg).
 			SetTimeout(5*time.Minute).
-			AddState(kartav1alpha1.InitializingStatus, PhaseEq("Progressing", "status", "phase")).
+			AddState(kartav1alpha1.SuspendedStatus, AllOf(
+				BoolTrue("spec", "paused"),
+				PhaseExclude("Degraded", "status", "phase"),
+			)).
+			AddState(kartav1alpha1.InitializingStatus, AllOf(
+				PhaseAny([]string{"Progressing", "Paused"}, "status", "phase"),
+				BoolFalseOrAbsent("spec", "paused"),
+			)).
 			AddState(kartav1alpha1.RunningStatus, AllOf(
 				PhaseEq("Healthy", "status", "phase"),
 				StringGenerationCurrent(), // Argo stores observedGeneration as a string
+				BoolFalseOrAbsent("spec", "paused"),
 			)).
 			AddState(kartav1alpha1.DegradedStatus, PhaseEq("Degraded", "status", "phase"))
 	})
@@ -67,6 +75,37 @@ var _ = Describe("Rollout", Ordered, Label("argo-rollouts", "rollout"), func() {
 			)),
 			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(), // recovery rollout can settle before first poll
 			recorder.Reaches(kartav1alpha1.RunningStatus),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
+	// Canary timed pause: the initial deploy skips canary steps; the image update triggers the
+	// pause step, which holds the Rollout at phase=Paused for 10s before auto-resuming.
+	It("canary-pause", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "canary-pause", "testdata/rollout/canary-pause.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(), // initial rollout can settle before first poll
+			recorder.Reaches(kartav1alpha1.RunningStatus).With(ReplicasReady(1)).Do(RolloutImage(
+				`{"name":"worker","image":"busybox:1.37","command":["sh","-c","sleep infinity"],"resources":{"requests":{"cpu":"20m","memory":"32Mi"},"limits":{"cpu":"20m","memory":"32Mi"}}}`,
+			)),
+			recorder.Reaches(kartav1alpha1.InitializingStatus), // canary pause step (phase=Paused, spec.paused=false)
+			recorder.Reaches(kartav1alpha1.RunningStatus).With(ReplicasReady(1)),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
+	// Suspend and resume via spec.paused, the same field kubectl argo rollouts pause/resume sets.
+	It("suspended", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "suspended", "testdata/rollout/running.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(), // initial rollout can settle before first poll
+			recorder.Reaches(kartav1alpha1.RunningStatus).With(ReplicasReady(1)).Do(SuspendPaused()),
+			recorder.Reaches(kartav1alpha1.SuspendedStatus).Do(ResumePaused()),
+			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(), // resume can trigger brief Progressing
+			recorder.Reaches(kartav1alpha1.RunningStatus).With(AllOf(
+				ReplicasReady(1),
+				StringGenerationCurrent(), // generation bumps from spec.paused changes
+			)),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
 		Expect(err).To(Succeed())

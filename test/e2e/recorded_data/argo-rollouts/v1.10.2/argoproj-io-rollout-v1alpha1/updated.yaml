@@ -6,11 +6,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 2
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -41,7 +41,7 @@ events:
                 memory: 32Mi
   phases:
   - Undefined
-  resourceVersion: "1590"
+  resourceVersion: "2208"
   state: Undefined
 - kind: STATE
   object:
@@ -50,11 +50,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 2
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -87,15 +87,15 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: Created new replica set "karta-e2e-rollout-58cf8d6799"
         reason: NewReplicaSetCreated
         status: "True"
         type: Progressing
   phases:
   - Undefined
-  resourceVersion: "1592"
+  resourceVersion: "2211"
   state: Undefined
 - kind: STATE
   object:
@@ -104,11 +104,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 2
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -141,20 +141,20 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: ReplicaSet "karta-e2e-rollout-58cf8d6799" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: Rollout does not have minimum availability
         reason: AvailableReason
         status: "False"
         type: Available
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
@@ -167,7 +167,7 @@ events:
       selector: app=karta-e2e-rollout
   phases:
   - Initializing
-  resourceVersion: "1595"
+  resourceVersion: "2214"
   state: Initializing
 - kind: STATE
   object:
@@ -176,11 +176,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 2
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -213,20 +213,20 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: Rollout does not have minimum availability
         reason: AvailableReason
         status: "False"
         type: Available
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: ReplicaSet "karta-e2e-rollout-58cf8d6799" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
@@ -240,7 +240,7 @@ events:
       stableRS: 58cf8d6799
   phases:
   - Initializing
-  resourceVersion: "1599"
+  resourceVersion: "2218"
   state: Initializing
 - kind: STATE
   object:
@@ -249,11 +249,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 2
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -287,20 +287,20 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: Rollout does not have minimum availability
         reason: AvailableReason
         status: "False"
         type: Available
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: ReplicaSet "karta-e2e-rollout-58cf8d6799" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
@@ -316,7 +316,7 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "1607"
+  resourceVersion: "2226"
   state: Initializing
 - kind: STATE
   object:
@@ -325,11 +325,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 2
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -364,26 +364,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: ReplicaSet "karta-e2e-rollout-58cf8d6799" has successfully progressed.
         reason: NewReplicaSetAvailable
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
@@ -399,7 +399,7 @@ events:
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "1628"
+  resourceVersion: "2251"
   state: Running
 - action:
     name: Rollout
@@ -432,11 +432,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "1"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 3
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -471,26 +471,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: ReplicaSet "karta-e2e-rollout-58cf8d6799" has successfully progressed.
         reason: NewReplicaSetAvailable
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
@@ -506,7 +506,7 @@ events:
       updatedReplicas: 1
   phases:
   - Undefined
-  resourceVersion: "1629"
+  resourceVersion: "2252"
   state: Undefined
 - kind: STATE
   object:
@@ -515,11 +515,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 3
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -554,26 +554,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: ReplicaSet "karta-e2e-rollout-58cf8d6799" has successfully progressed.
         reason: NewReplicaSetAvailable
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
@@ -589,7 +589,7 @@ events:
       updatedReplicas: 1
   phases:
   - Undefined
-  resourceVersion: "1633"
+  resourceVersion: "2255"
   state: Undefined
 - kind: STATE
   object:
@@ -598,11 +598,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 3
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -637,26 +637,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:29Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:14Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Created new replica set "karta-e2e-rollout-7b699d4d6"
         reason: NewReplicaSetCreated
         status: "True"
@@ -672,7 +672,7 @@ events:
       updatedReplicas: 1
   phases:
   - Undefined
-  resourceVersion: "1635"
+  resourceVersion: "2257"
   state: Undefined
 - kind: STATE
   object:
@@ -681,11 +681,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 3
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -720,26 +720,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-09T21:43:35Z"
-        lastUpdateTime: "2026-11-09T21:43:35Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:35Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: ReplicaSet "karta-e2e-rollout-7b699d4d6" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-09T21:43:35Z"
-        lastUpdateTime: "2026-11-09T21:43:35Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
@@ -755,7 +755,7 @@ events:
       stableRS: 58cf8d6799
   phases:
   - Initializing
-  resourceVersion: "1638"
+  resourceVersion: "2260"
   state: Initializing
 - kind: STATE
   object:
@@ -764,11 +764,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 3
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -803,26 +803,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-09T21:43:35Z"
-        lastUpdateTime: "2026-11-09T21:43:35Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-09T21:43:35Z"
-        lastUpdateTime: "2026-11-09T21:43:35Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "False"
         type: Completed
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:35Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: ReplicaSet "karta-e2e-rollout-7b699d4d6" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
@@ -839,7 +839,7 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "1648"
+  resourceVersion: "2271"
   state: Initializing
 - kind: STATE
   object:
@@ -848,11 +848,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 3
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -887,26 +887,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-09T21:43:35Z"
-        lastUpdateTime: "2026-11-09T21:43:35Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout is not healthy
         reason: RolloutHealthy
         status: "False"
         type: Healthy
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:48Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:29Z"
         message: ReplicaSet "karta-e2e-rollout-7b699d4d6" is progressing.
         reason: ReplicaSetUpdated
         status: "True"
         type: Progressing
-      - lastTransitionTime: "2026-11-09T21:43:48Z"
-        lastUpdateTime: "2026-11-09T21:43:48Z"
+      - lastTransitionTime: "2026-11-11T15:52:29Z"
+        lastUpdateTime: "2026-11-11T15:52:29Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
@@ -923,7 +923,7 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "1692"
+  resourceVersion: "2303"
   state: Initializing
 - kind: STATE
   object:
@@ -932,11 +932,11 @@ events:
     metadata:
       annotations:
         rollout.argoproj.io/revision: "2"
-      creationTimestamp: "2026-11-09T21:43:29Z"
+      creationTimestamp: "2026-11-11T15:52:14Z"
       generation: 3
       name: karta-e2e-rollout
-      namespace: test-fzhb9
-      uid: ff88273b-d1b8-4ec1-b6f0-2e39c29cb9d7
+      namespace: test-ckv8w
+      uid: 431759c1-2dab-403e-8658-2ca382b71514
     spec:
       replicas: 1
       revisionHistoryLimit: 1
@@ -971,26 +971,26 @@ events:
       blueGreen: {}
       canary: {}
       conditions:
-      - lastTransitionTime: "2026-11-09T21:43:34Z"
-        lastUpdateTime: "2026-11-09T21:43:34Z"
+      - lastTransitionTime: "2026-11-11T15:52:20Z"
+        lastUpdateTime: "2026-11-11T15:52:20Z"
         message: Rollout has minimum availability
         reason: AvailableReason
         status: "True"
         type: Available
-      - lastTransitionTime: "2026-11-09T21:43:48Z"
-        lastUpdateTime: "2026-11-09T21:43:48Z"
+      - lastTransitionTime: "2026-11-11T15:52:29Z"
+        lastUpdateTime: "2026-11-11T15:52:29Z"
         message: RolloutCompleted
         reason: RolloutCompleted
         status: "True"
         type: Completed
-      - lastTransitionTime: "2026-11-09T21:43:48Z"
-        lastUpdateTime: "2026-11-09T21:43:48Z"
+      - lastTransitionTime: "2026-11-11T15:52:29Z"
+        lastUpdateTime: "2026-11-11T15:52:29Z"
         message: Rollout is healthy
         reason: RolloutHealthy
         status: "True"
         type: Healthy
-      - lastTransitionTime: "2026-11-09T21:43:29Z"
-        lastUpdateTime: "2026-11-09T21:43:48Z"
+      - lastTransitionTime: "2026-11-11T15:52:14Z"
+        lastUpdateTime: "2026-11-11T15:52:29Z"
         message: ReplicaSet "karta-e2e-rollout-7b699d4d6" has successfully progressed.
         reason: NewReplicaSetAvailable
         status: "True"
@@ -1006,7 +1006,7 @@ events:
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "1695"
+  resourceVersion: "2309"
   state: Running
 flow: updated
 kartaFile: docs/catalog/argoproj-io-rollout-v1alpha1.yaml

@@ -3,7 +3,7 @@
 # Copyright (c) 2026 NVIDIA Corporation
 #
 # Argo Rollouts controller (github.com/argoproj/argo-rollouts).
-# Installs the namespace-scoped manifest from the GitHub release asset.
+# Installs the cluster-wide manifest (install.yaml) from the GitHub release asset.
 # shellcheck disable=SC2154  # ARGO_ROLLOUTS_VERSION comes from global.env via _common.sh
 set -euo pipefail
 MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

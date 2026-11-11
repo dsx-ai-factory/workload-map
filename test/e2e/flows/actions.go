@@ -56,6 +56,17 @@ func ResumeSandbox() *recorder.Action {
 	return &recorder.Action{Type: recorder.ActionResume, Patch: []byte(`{"spec":{"operatingMode":"Running"}}`)}
 }
 
+// SuspendPaused sets spec.paused so a running workload pauses (Argo Rollouts uses spec.paused
+// instead of spec.suspend).
+func SuspendPaused() *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionSuspend, Patch: []byte(`{"spec":{"paused":true}}`)}
+}
+
+// ResumePaused clears spec.paused so a paused workload resumes.
+func ResumePaused() *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionResume, Patch: []byte(`{"spec":{"paused":false}}`)}
+}
+
 // RolloutImage patches spec.template to trigger a rollout with a new container image. JSON
 // merge patch replaces the entire containers array, so containerJSON must be the complete
 // container object with only the image changed.

@@ -19,24 +19,32 @@ import (
 // replica and strategy convergence. Final fallback is "Healthy".
 //
 // Status mapping:
-//   Initializing ← "Progressing": scaling, stepping canary/blue-green, or
-//     waiting for pods.
-//   Running ← "Healthy" AND observedGeneration == generation: all replicas
-//     updated and the stable RS matches the pod template hash. The generation
-//     guard prevents reporting Running on stale status after a spec update.
-//     observedGeneration is string-typed in this API (strconv of generation).
+//   Initializing ← "Progressing" OR "Paused" with spec.paused false: the
+//     latter covers canary pause steps and blue-green promotion waits, which
+//     are part of a normal rollout and resume automatically or on promote.
+//   Running ← "Healthy" AND observedGeneration == generation AND spec.paused
+//     false: all replicas updated and the stable RS matches the pod template
+//     hash. The generation guard prevents reporting Running on stale status
+//     after a spec update. observedGeneration is string-typed in this API
+//     (strconv of generation).
 //   Degraded ← "Degraded": covers InvalidSpec, RolloutAborted, and
 //     ProgressDeadlineExceeded. Not Failed because the controller clears the
-//     state when the cause resolves.
+//     state when the cause resolves. The controller checks Degraded before
+//     spec.paused, so a degraded Rollout stays Degraded even if paused.
+//   Suspended ← spec.paused true AND phase is not Degraded: the user
+//     suspended the Rollout via spec.paused (same field kubectl argo rollouts
+//     pause sets). Pausing does not delete pods, so no capacity is freed.
 //
-// Exclusions (initial scope): "Paused" phase unmapped, suspension
-// (spec.paused, pauseConditions), workloadRef, analysis resources.
+// Exclusions: workloadRef, analysis resources, pauseConditions (only
+// spec.paused is exposed as suspend; canary/blue-green pause steps are
+// mapped as Initializing).
 //
-// Recorded: deadline recovery (ProgressDeadlineExceeded → image fix → Healthy)
-// via direct Kubernetes patches to spec.template and spec.replicas.
-// Unrecorded: InvalidSpec and RolloutAborted degraded causes; live writes
-// through the SDK (only direct patches demonstrated).
-
+// Recorded: deadline recovery (ProgressDeadlineExceeded → image fix →
+// Healthy), canary timed pause step, suspend/resume via spec.paused.
+// Unrecorded: InvalidSpec and RolloutAborted degraded causes, abort
+// (status.abort is a status patch the recorder cannot apply), promote
+// (also a status patch); live writes through the SDK (only direct patches
+// demonstrated).
 func Rollout() *v1alpha1.Karta {
 	return &v1alpha1.Karta{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "run.ai/v1alpha1", Kind: "Karta"},
@@ -52,6 +60,10 @@ func Rollout() *v1alpha1.Karta {
 					SpecDefinition: &v1alpha1.SpecDefinition{
 						PodTemplateSpecPath: ptr.To(".spec.template"),
 					},
+					SuspendDefinition: &v1alpha1.SuspendDefinition{
+						SuspendActions: []v1alpha1.SuspendAction{{Path: ".spec.paused", Value: "true"}},
+						ResumeActions:  []v1alpha1.SuspendAction{{Path: ".spec.paused", Value: "false"}},
+					},
 					StatusDefinition: &v1alpha1.StatusDefinition{
 						PhaseDefinition: &v1alpha1.PhaseDefinition{
 							Path: ".status.phase",
@@ -64,15 +76,30 @@ func Rollout() *v1alpha1.Karta {
 							ReasonFieldName:  ptr.To("reason"),
 						},
 						StatusMappings: v1alpha1.StatusMappings{
-							Initializing: []v1alpha1.StatusMatcher{{ByPhase: "Progressing"}},
+							Initializing: []v1alpha1.StatusMatcher{
+								{ByPhase: "Progressing"},
+								{
+									ByPhase: "Paused",
+									ByExpression: &v1alpha1.ExpressionMatcher{
+										Expression:     `(.spec.paused // false) | not`,
+										ExpectedResult: "true",
+									},
+								},
+							},
 							Running: []v1alpha1.StatusMatcher{{
 								ByPhase: "Healthy",
 								ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     `.status.observedGeneration == (.metadata.generation | tostring)`,
+									Expression:     `.status.observedGeneration == (.metadata.generation | tostring) and ((.spec.paused // false) | not)`,
 									ExpectedResult: "true",
 								},
 							}},
 							Degraded: []v1alpha1.StatusMatcher{{ByPhase: "Degraded"}},
+							Suspended: []v1alpha1.StatusMatcher{{
+								ByExpression: &v1alpha1.ExpressionMatcher{
+									Expression:     `(.spec.paused // false) and (.status.phase // "") != "Degraded"`,
+									ExpectedResult: "true",
+								},
+							}},
 						},
 					},
 				},

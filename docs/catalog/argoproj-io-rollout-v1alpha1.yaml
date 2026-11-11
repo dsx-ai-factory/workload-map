@@ -28,13 +28,28 @@ spec:
         statusMappings:
           initializing:
             - byPhase: Progressing
+            - byPhase: Paused
+              byExpression:
+                expression: (.spec.paused // false) | not
+                expectedResult: "true"
           running:
             - byPhase: Healthy
               byExpression:
-                expression: .status.observedGeneration == (.metadata.generation | tostring)
+                expression: .status.observedGeneration == (.metadata.generation | tostring) and ((.spec.paused // false) | not)
                 expectedResult: "true"
           degraded:
             - byPhase: Degraded
+          suspended:
+            - byExpression:
+                expression: (.spec.paused // false) and (.status.phase // "") != "Degraded"
+                expectedResult: "true"
+      suspendDefinition:
+        suspendActions:
+          - path: .spec.paused
+            value: "true"
+        resumeActions:
+          - path: .spec.paused
+            value: "false"
     childComponents:
       - name: replicaset
         kind:

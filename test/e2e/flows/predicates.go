@@ -129,6 +129,15 @@ func PhaseEq(want string, path ...string) recorder.StateCheck {
 	}
 }
 
+// PhaseExclude matches when the string at the path does not equal the excluded value (including absent
+// or empty, which are never equal to the excluded value).
+func PhaseExclude(exclude string, path ...string) recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		got, _, _ := unstructured.NestedString(u.Object, path...)
+		return got != exclude
+	}
+}
+
 // PhaseAny matches when the string at the path equals any of wants (some operators map one state from
 // several phase strings).
 func PhaseAny(wants []string, path ...string) recorder.StateCheck {
@@ -163,6 +172,17 @@ func BoolTrue(path ...string) recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {
 		got, found, err := unstructured.NestedBool(u.Object, path...)
 		return err == nil && found && got
+	}
+}
+
+// BoolFalseOrAbsent matches when the bool field at the given path is false or not present.
+func BoolFalseOrAbsent(path ...string) recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		got, found, err := unstructured.NestedBool(u.Object, path...)
+		if err != nil || !found {
+			return true
+		}
+		return !got
 	}
 }
 

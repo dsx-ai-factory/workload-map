@@ -1,0 +1,1484 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 1
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+  phases:
+  - Undefined
+  resourceVersion: "2463"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 1
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: Created new replica set "karta-e2e-rollout-canary-pause-85bdcf567c"
+        reason: NewReplicaSetCreated
+        status: "True"
+        type: Progressing
+  phases:
+  - Undefined
+  resourceVersion: "2467"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 1
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      currentPodHash: 85bdcf567c
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 0
+      message: more replicas need to be updated
+      observedGeneration: "1"
+      phase: Progressing
+      selector: app=karta-e2e-rollout-canary-pause
+  phases:
+  - Initializing
+  resourceVersion: "2469"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 1
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      currentPodHash: 85bdcf567c
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      message: more replicas need to be updated
+      observedGeneration: "1"
+      phase: Progressing
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+  phases:
+  - Initializing
+  resourceVersion: "2474"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 1
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: Rollout does not have minimum availability
+        reason: AvailableReason
+        status: "False"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      currentPodHash: 85bdcf567c
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      message: updated replicas are still becoming available
+      observedGeneration: "1"
+      phase: Progressing
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "2481"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 1
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" has successfully
+          progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      currentPodHash: 85bdcf567c
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      observedGeneration: "1"
+      phase: Healthy
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+      updatedReplicas: 1
+  phases:
+  - Running
+  resourceVersion: "2502"
+  state: Running
+- action:
+    name: Rollout
+    operation:
+      patchType: application/merge-patch+json
+      payload:
+        spec:
+          template:
+            spec:
+              containers:
+              - command:
+                - sh
+                - -c
+                - sleep infinity
+                image: busybox:1.37
+                name: worker
+                resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+      verb: PATCH
+  kind: ACTION
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "1"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" has successfully
+          progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      currentPodHash: 85bdcf567c
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      observedGeneration: "1"
+      phase: Healthy
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+      updatedReplicas: 1
+  phases:
+  - Undefined
+  resourceVersion: "2503"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-85bdcf567c" has successfully
+          progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      currentPodHash: 85bdcf567c
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      observedGeneration: "1"
+      phase: Healthy
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+      updatedReplicas: 1
+  phases:
+  - Undefined
+  resourceVersion: "2506"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:49Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Created new replica set "karta-e2e-rollout-canary-pause-6c5b9b8cd4"
+        reason: NewReplicaSetCreated
+        status: "True"
+        type: Progressing
+      currentPodHash: 85bdcf567c
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      observedGeneration: "1"
+      phase: Healthy
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+      updatedReplicas: 1
+  phases:
+  - Undefined
+  resourceVersion: "2508"
+  state: Undefined
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      currentPodHash: 6c5b9b8cd4
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 0
+      message: more replicas need to be updated
+      observedGeneration: "2"
+      phase: Progressing
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+  phases:
+  - Initializing
+  resourceVersion: "2511"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:49Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      controllerPause: true
+      currentPodHash: 6c5b9b8cd4
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 0
+      message: CanaryPauseStep
+      observedGeneration: "2"
+      pauseConditions:
+      - reason: CanaryPauseStep
+        startTime: "2026-11-11T15:52:55Z"
+      phase: Paused
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+  phases:
+  - Initializing
+  resourceVersion: "2512"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is paused
+        reason: RolloutPaused
+        status: Unknown
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is paused
+        reason: RolloutPaused
+        status: "True"
+        type: Paused
+      controllerPause: true
+      currentPodHash: 6c5b9b8cd4
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 0
+      message: CanaryPauseStep
+      observedGeneration: "2"
+      pauseConditions:
+      - reason: CanaryPauseStep
+        startTime: "2026-11-11T15:52:55Z"
+      phase: Paused
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+  phases:
+  - Initializing
+  resourceVersion: "2514"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is paused
+        reason: RolloutPaused
+        status: "True"
+        type: Paused
+      - lastTransitionTime: "2026-11-11T15:53:05Z"
+        lastUpdateTime: "2026-11-11T15:53:05Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      currentPodHash: 6c5b9b8cd4
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      message: more replicas need to be updated
+      observedGeneration: "2"
+      phase: Progressing
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+  phases:
+  - Initializing
+  resourceVersion: "2547"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:53:05Z"
+        lastUpdateTime: "2026-11-11T15:53:05Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:53:05Z"
+        lastUpdateTime: "2026-11-11T15:53:05Z"
+        message: Rollout is paused
+        reason: RolloutPaused
+        status: "False"
+        type: Paused
+      currentPodHash: 6c5b9b8cd4
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      message: more replicas need to be updated
+      observedGeneration: "2"
+      phase: Progressing
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+  phases:
+  - Initializing
+  resourceVersion: "2549"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 2
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "False"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:53:05Z"
+        lastUpdateTime: "2026-11-11T15:53:05Z"
+        message: Rollout is paused
+        reason: RolloutPaused
+        status: "False"
+        type: Paused
+      - lastTransitionTime: "2026-11-11T15:53:05Z"
+        lastUpdateTime: "2026-11-11T15:53:05Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      currentPodHash: 6c5b9b8cd4
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      message: old replicas are pending termination
+      observedGeneration: "2"
+      phase: Progressing
+      readyReplicas: 1
+      replicas: 2
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 85bdcf567c
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "2559"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 2
+      availableReplicas: 2
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout is not healthy
+        reason: RolloutHealthy
+        status: "False"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:53:05Z"
+        lastUpdateTime: "2026-11-11T15:53:05Z"
+        message: Rollout is paused
+        reason: RolloutPaused
+        status: "False"
+        type: Paused
+      - lastTransitionTime: "2026-11-11T15:53:05Z"
+        lastUpdateTime: "2026-11-11T15:53:10Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" is progressing.
+        reason: ReplicaSetUpdated
+        status: "True"
+        type: Progressing
+      - lastTransitionTime: "2026-11-11T15:53:10Z"
+        lastUpdateTime: "2026-11-11T15:53:10Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      currentPodHash: 6c5b9b8cd4
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      message: old replicas are pending termination
+      observedGeneration: "2"
+      phase: Progressing
+      readyReplicas: 2
+      replicas: 2
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 6c5b9b8cd4
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "2586"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      annotations:
+        rollout.argoproj.io/revision: "2"
+      creationTimestamp: "2026-11-11T15:52:49Z"
+      generation: 2
+      name: karta-e2e-rollout-canary-pause
+      namespace: test-ckv8w
+      uid: 46f724c0-b9b0-4a08-9d30-bfec36d5a031
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 1
+      selector:
+        matchLabels:
+          app: karta-e2e-rollout-canary-pause
+      strategy:
+        canary:
+          steps:
+          - pause:
+              duration: 10s
+      template:
+        metadata:
+          labels:
+            app: karta-e2e-rollout-canary-pause
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+    status:
+      HPAReplicas: 1
+      availableReplicas: 1
+      blueGreen: {}
+      canary: {}
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:52:55Z"
+        lastUpdateTime: "2026-11-11T15:52:55Z"
+        message: Rollout has minimum availability
+        reason: AvailableReason
+        status: "True"
+        type: Available
+      - lastTransitionTime: "2026-11-11T15:53:05Z"
+        lastUpdateTime: "2026-11-11T15:53:05Z"
+        message: Rollout is paused
+        reason: RolloutPaused
+        status: "False"
+        type: Paused
+      - lastTransitionTime: "2026-11-11T15:53:10Z"
+        lastUpdateTime: "2026-11-11T15:53:10Z"
+        message: RolloutCompleted
+        reason: RolloutCompleted
+        status: "True"
+        type: Completed
+      - lastTransitionTime: "2026-11-11T15:53:10Z"
+        lastUpdateTime: "2026-11-11T15:53:10Z"
+        message: Rollout is healthy
+        reason: RolloutHealthy
+        status: "True"
+        type: Healthy
+      - lastTransitionTime: "2026-11-11T15:53:05Z"
+        lastUpdateTime: "2026-11-11T15:53:10Z"
+        message: ReplicaSet "karta-e2e-rollout-canary-pause-6c5b9b8cd4" has successfully
+          progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      currentPodHash: 6c5b9b8cd4
+      currentStepHash: 5f95fd96d5
+      currentStepIndex: 1
+      observedGeneration: "2"
+      phase: Healthy
+      readyReplicas: 1
+      replicas: 1
+      selector: app=karta-e2e-rollout-canary-pause
+      stableRS: 6c5b9b8cd4
+      updatedReplicas: 1
+  phases:
+  - Running
+  resourceVersion: "2591"
+  state: Running
+flow: canary-pause
+kartaFile: docs/catalog/argoproj-io-rollout-v1alpha1.yaml
+kartaName: argoproj-io-rollout-v1alpha1
+operator: argo-rollouts
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Undefined
+- amount: 3
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+- amount: 3
+  phases:
+  - Undefined
+- amount: 7
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+version: v1.10.2
+want: Running

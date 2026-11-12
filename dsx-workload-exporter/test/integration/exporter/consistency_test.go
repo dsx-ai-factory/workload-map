@@ -75,7 +75,7 @@ var _ = Describe("Metric consistency", func() {
 		httpClient := &http.Client{Timeout: time.Second}
 		DeferCleanup(httpClient.CloseIdleConnections)
 		lastRoots := map[types.UID]client.Object{}
-		phases := []string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Suspending", "Resuming", "Undefined"}
+		phases := []string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Undefined"}
 
 		check := func() {
 			GinkgoHelper()

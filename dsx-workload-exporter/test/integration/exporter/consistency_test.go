@@ -77,7 +77,7 @@ var _ = Describe("Metric consistency", func() {
 		lastRoots := map[types.UID]client.Object{}
 		phases := []string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Undefined"}
 
-		check := func() {
+		checkMetrics := func() {
 			GinkgoHelper()
 			// No controller writes these fixtures. Read the expected graph before polling HTTP.
 			deployments, replicaSets, pods := &appsv1.DeploymentList{}, &appsv1.ReplicaSetList{}, &corev1.PodList{}
@@ -193,12 +193,6 @@ var _ = Describe("Metric consistency", func() {
 			Consistently(assertMetrics, 300*time.Millisecond).Should(Succeed())
 		}
 
-		By("publishing both roots, two owned Pods and a standalone Pod")
-		check()
-		By("reparenting only the ReplicaSet from root A to root B")
-		rs.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(rootB, deployGVK)}
-		Expect(api.Update(ctx, rs)).To(Succeed())
-		check()
 		checkPodsUnchanged := func() {
 			GinkgoHelper()
 			for _, original := range []*corev1.Pod{first, second} {
@@ -209,35 +203,42 @@ var _ = Describe("Metric consistency", func() {
 				Expect(current.OwnerReferences).To(Equal(original.OwnerReferences))
 			}
 		}
+
+		By("publishing both roots, two owned Pods and a standalone Pod")
+		checkMetrics()
+		By("reparenting only the ReplicaSet from root A to root B")
+		rs.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(rootB, deployGVK)}
+		Expect(api.Update(ctx, rs)).To(Succeed())
+		checkMetrics()
 		checkPodsUnchanged()
 
 		By("retaining confirmed Pod rows as invalid when their ReplicaSet disappears")
 		oldSetUID := rs.UID
 		deleteObjects(ctx, rs)
-		check()
+		checkMetrics()
 		checkPodsUnchanged()
 		By("rejecting a same-name ReplicaSet with a different UID")
 		rs = replicaSet(ctx, rootB, rs.Name)
 		Expect(rs.UID).NotTo(Equal(oldSetUID))
-		check()
+		checkMetrics()
 		checkPodsUnchanged()
 		By("recovering after both Pod owner references point to the new UID")
 		for _, p := range []*corev1.Pod{first, second} {
 			p.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(rs, appsv1.SchemeGroupVersion.WithKind("ReplicaSet"))}
 			Expect(api.Update(ctx, p)).To(Succeed())
 		}
-		check()
+		checkMetrics()
 
 		By("removing a deleted Pod UID before recreating its name")
 		oldPodUID := first.UID
 		deleteObjects(ctx, first)
-		check()
+		checkMetrics()
 		first = pod(ctx, rs, first.Name)
 		Expect(first.UID).NotTo(Equal(oldPodUID))
-		check()
+		checkMetrics()
 		By("removing workload metrics after all fixture objects are deleted")
 		deleteObjects(ctx, first, second, standalone, rs, rootA, rootB)
-		check()
+		checkMetrics()
 	})
 })
 

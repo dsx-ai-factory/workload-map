@@ -1,0 +1,788 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 1
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 0
+        type: ReCreate
+    status:
+      availableReplicas: 0
+      collisionCount: 0
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 3
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 1
+      readyReplicas: 0
+      replicas: 0
+      updateRevision: karta-e2e-cloneset-partition-5896d54687
+      updatedReadyReplicas: 0
+      updatedReplicas: 0
+  phases:
+  - Initializing
+  resourceVersion: "145607"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 1
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 0
+        type: ReCreate
+    status:
+      availableReplicas: 0
+      collisionCount: 0
+      conditions:
+      - lastTransitionTime: "2026-11-13T16:14:04Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-partition-64gsl":
+          the object has been modified; please apply your changes to the latest version
+          and try again'
+        status: "True"
+        type: FailedUpdate
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 3
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 1
+      readyReplicas: 0
+      replicas: 3
+      updateRevision: karta-e2e-cloneset-partition-5896d54687
+      updatedReadyReplicas: 0
+      updatedReplicas: 3
+  phases:
+  - Initializing
+  resourceVersion: "145632"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 1
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 0
+        type: ReCreate
+    status:
+      availableReplicas: 1
+      collisionCount: 0
+      conditions:
+      - lastTransitionTime: "2026-11-13T16:14:04Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-partition-64gsl":
+          the object has been modified; please apply your changes to the latest version
+          and try again'
+        status: "True"
+        type: FailedUpdate
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 3
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 1
+      readyReplicas: 1
+      replicas: 3
+      updateRevision: karta-e2e-cloneset-partition-5896d54687
+      updatedAvailableReplicas: 1
+      updatedReadyReplicas: 1
+      updatedReplicas: 3
+  phases:
+  - Initializing
+  resourceVersion: "145707"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 1
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 0
+        type: ReCreate
+    status:
+      availableReplicas: 2
+      collisionCount: 0
+      conditions:
+      - lastTransitionTime: "2026-11-13T16:14:04Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-partition-64gsl":
+          the object has been modified; please apply your changes to the latest version
+          and try again'
+        status: "True"
+        type: FailedUpdate
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 3
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 1
+      readyReplicas: 2
+      replicas: 3
+      updateRevision: karta-e2e-cloneset-partition-5896d54687
+      updatedAvailableReplicas: 2
+      updatedReadyReplicas: 2
+      updatedReplicas: 3
+  phases:
+  - Initializing
+  resourceVersion: "145723"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 1
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 0
+        type: ReCreate
+    status:
+      availableReplicas: 3
+      collisionCount: 0
+      conditions:
+      - lastTransitionTime: "2026-11-13T16:14:04Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-partition-64gsl":
+          the object has been modified; please apply your changes to the latest version
+          and try again'
+        status: "True"
+        type: FailedUpdate
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 3
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 1
+      readyReplicas: 3
+      replicas: 3
+      updateRevision: karta-e2e-cloneset-partition-5896d54687
+      updatedAvailableReplicas: 3
+      updatedReadyReplicas: 3
+      updatedReplicas: 3
+  phases:
+  - Running
+  resourceVersion: "145727"
+  state: Running
+- action:
+    name: Rollout
+    operation:
+      patchType: application/merge-patch+json
+      payload:
+        spec:
+          template:
+            spec:
+              containers:
+              - command:
+                - sh
+                - -c
+                - sleep infinity
+                image: busybox:1.37
+                name: worker
+                resources:
+                  limits:
+                    cpu: 20m
+                    memory: 32Mi
+                  requests:
+                    cpu: 20m
+                    memory: 32Mi
+          updateStrategy:
+            partition: 2
+      verb: PATCH
+  kind: ACTION
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 2
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 2
+        type: ReCreate
+    status:
+      availableReplicas: 3
+      collisionCount: 0
+      conditions:
+      - lastTransitionTime: "2026-11-13T16:14:04Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-partition-64gsl":
+          the object has been modified; please apply your changes to the latest version
+          and try again'
+        status: "True"
+        type: FailedUpdate
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 3
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 1
+      readyReplicas: 3
+      replicas: 3
+      updateRevision: karta-e2e-cloneset-partition-5896d54687
+      updatedAvailableReplicas: 3
+      updatedReadyReplicas: 3
+      updatedReplicas: 3
+  phases:
+  - Initializing
+  resourceVersion: "145728"
+  staleObservedGeneration: true
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 2
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 2
+        type: ReCreate
+    status:
+      availableReplicas: 3
+      collisionCount: 0
+      conditions:
+      - lastTransitionTime: "2026-11-13T16:14:04Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-partition-64gsl":
+          the object has been modified; please apply your changes to the latest version
+          and try again'
+        status: "True"
+        type: FailedUpdate
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 1
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 2
+      readyReplicas: 3
+      replicas: 3
+      updateRevision: karta-e2e-cloneset-partition-6bc96d696d
+      updatedReadyReplicas: 0
+      updatedReplicas: 0
+  phases:
+  - Initializing
+  resourceVersion: "145732"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 2
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 2
+        type: ReCreate
+    status:
+      availableReplicas: 2
+      collisionCount: 0
+      conditions:
+      - lastTransitionTime: "2026-11-13T16:14:04Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-partition-64gsl":
+          the object has been modified; please apply your changes to the latest version
+          and try again'
+        status: "True"
+        type: FailedUpdate
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 1
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 2
+      readyReplicas: 2
+      replicas: 2
+      updateRevision: karta-e2e-cloneset-partition-6bc96d696d
+      updatedReadyReplicas: 0
+      updatedReplicas: 0
+  phases:
+  - Initializing
+  resourceVersion: "145739"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 2
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 2
+        type: ReCreate
+    status:
+      availableReplicas: 2
+      collisionCount: 0
+      conditions:
+      - lastTransitionTime: "2026-11-13T16:14:04Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-partition-64gsl":
+          the object has been modified; please apply your changes to the latest version
+          and try again'
+        status: "True"
+        type: FailedUpdate
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 1
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 2
+      readyReplicas: 2
+      replicas: 3
+      updateRevision: karta-e2e-cloneset-partition-6bc96d696d
+      updatedReadyReplicas: 0
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "145742"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:14:03Z"
+      generation: 2
+      name: karta-e2e-cloneset-partition
+      namespace: test-j5btt
+      uid: 6f10e9c9-4636-40a1-9773-7a024ccbbae9
+    spec:
+      replicas: 3
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-partition
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-partition
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.37
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 2
+        type: ReCreate
+    status:
+      availableReplicas: 3
+      collisionCount: 0
+      conditions:
+      - lastTransitionTime: "2026-11-13T16:14:04Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-partition-64gsl":
+          the object has been modified; please apply your changes to the latest version
+          and try again'
+        status: "True"
+        type: FailedUpdate
+      currentRevision: karta-e2e-cloneset-partition-5896d54687
+      expectedUpdatedReplicas: 1
+      labelSelector: app=karta-e2e-cloneset-partition
+      observedGeneration: 2
+      readyReplicas: 3
+      replicas: 3
+      updateRevision: karta-e2e-cloneset-partition-6bc96d696d
+      updatedAvailableReplicas: 1
+      updatedReadyReplicas: 1
+      updatedReplicas: 1
+  phases:
+  - Running
+  resourceVersion: "145762"
+  state: Running
+flow: partition
+kartaFile: docs/catalog/apps-kruise-io-cloneset-v1alpha1.yaml
+kartaName: apps-kruise-io-cloneset-v1alpha1
+operator: openkruise
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 4
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+- amount: 4
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+version: 1.9.3
+want: Running

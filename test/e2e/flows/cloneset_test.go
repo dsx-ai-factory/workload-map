@@ -30,7 +30,18 @@ var _ = Describe("CloneSet", Ordered, Label("openkruise", "cloneset"), func() {
 				IntAtLeast(1, "status", "observedGeneration"),
 				GenerationCurrent(),
 				FullyAvailable(),
+				AvailableReady(),
 				RevisionsCurrent(),
+			)).
+			AddState(kartav1alpha1.RunningStatus, AllOf(
+				IntAtLeast(1, "status", "observedGeneration"),
+				GenerationCurrent(),
+				PartitionReady(),
+			)).
+			AddState(kartav1alpha1.RunningStatus, AllOf(
+				IntAtLeast(1, "status", "observedGeneration"),
+				GenerationCurrent(),
+				PausedReady(),
 			))
 	})
 
@@ -75,15 +86,45 @@ var _ = Describe("CloneSet", Ordered, Label("openkruise", "cloneset"), func() {
 
 	It("stuck", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "stuck", "testdata/cloneset/stuck.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus).With(IntEq(0, "status", "readyReplicas")),
+			recorder.Reaches(kartav1alpha1.InitializingStatus).With(AllOf(
+				IntAtLeast(1, "status", "replicas"),
+				IntAtLeast(1, "status", "updatedReplicas"),
+				IntEq(0, "status", "readyReplicas"),
+			)),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
 		Expect(err).To(Succeed())
 	})
 
-	It("degraded", func(ctx SpecContext) {
-		out, err := recorder.NewFlow(rec, "degraded", "testdata/cloneset/degraded.yaml").Through(
-			recorder.Reaches(kartav1alpha1.InitializingStatus).With(IntEq(2, "status", "readyReplicas")),
+	It("unready", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "unready", "testdata/cloneset/unready.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).With(AllOf(IntAtLeast(1, "status", "replicas"), IntEq(0, "status", "readyReplicas"))),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
+	It("partition", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "partition", "testdata/cloneset/partition.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.RunningStatus).With(ReplicasReady(3)).Do(PartitionRollout(2,
+				`{"name":"worker","image":"busybox:1.37","command":["sh","-c","sleep infinity"],"resources":{"requests":{"cpu":"20m","memory":"32Mi"},"limits":{"cpu":"20m","memory":"32Mi"}}}`,
+			)),
+			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.RunningStatus).With(PartitionReady()),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
+	It("paused", func(ctx SpecContext) {
+		out, err := recorder.NewFlow(rec, "paused", "testdata/cloneset/paused.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.RunningStatus).With(ReplicasReady(1)).Do(PauseRollout(
+				`{"name":"worker","image":"busybox:1.37","command":["sh","-c","sleep infinity"],"resources":{"requests":{"cpu":"20m","memory":"32Mi"},"limits":{"cpu":"20m","memory":"32Mi"}}}`,
+			)),
+			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.RunningStatus).With(PausedReady()),
 		).Run(ctx)
 		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
 		Expect(err).To(Succeed())

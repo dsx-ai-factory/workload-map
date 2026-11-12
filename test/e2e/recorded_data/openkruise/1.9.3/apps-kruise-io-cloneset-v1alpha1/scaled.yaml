@@ -4,11 +4,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 1
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -64,18 +64,18 @@ events:
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "14752"
+  resourceVersion: "145368"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 1
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -121,8 +121,8 @@ events:
       availableReplicas: 0
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:48Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-lktxr":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -138,18 +138,85 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "14757"
+  resourceVersion: "145372"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 1
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 10
+      scaleStrategy: {}
+      selector:
+        matchLabels:
+          app: karta-e2e-cloneset-running
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: karta-e2e-cloneset-running
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - sh
+            - -c
+            - sleep infinity
+            image: busybox:1.36
+            imagePullPolicy: Always
+            name: worker
+            resources:
+              limits:
+                cpu: 20m
+                memory: 32Mi
+              requests:
+                cpu: 20m
+                memory: 32Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        maxSurge: 0
+        maxUnavailable: 20%
+        partition: 0
+        type: ReCreate
+    status:
+      availableReplicas: 0
+      collisionCount: 0
+      currentRevision: karta-e2e-cloneset-running-8c4fffc86
+      expectedUpdatedReplicas: 1
+      labelSelector: app=karta-e2e-cloneset-running
+      observedGeneration: 1
+      readyReplicas: 0
+      replicas: 1
+      updateRevision: karta-e2e-cloneset-running-8c4fffc86
+      updatedReadyReplicas: 0
+      updatedReplicas: 1
+  phases:
+  - Initializing
+  resourceVersion: "145375"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      creationTimestamp: "2026-11-13T16:13:48Z"
+      generation: 1
+      name: karta-e2e-cloneset-running
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -194,13 +261,6 @@ events:
     status:
       availableReplicas: 1
       collisionCount: 0
-      conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
-          the object has been modified; please apply your changes to the latest version
-          and try again'
-        status: "True"
-        type: FailedUpdate
       currentRevision: karta-e2e-cloneset-running-8c4fffc86
       expectedUpdatedReplicas: 1
       labelSelector: app=karta-e2e-cloneset-running
@@ -213,7 +273,7 @@ events:
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "14780"
+  resourceVersion: "145392"
   state: Running
 - action:
     name: Scale
@@ -229,11 +289,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 2
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 3
       revisionHistoryLimit: 10
@@ -278,13 +338,6 @@ events:
     status:
       availableReplicas: 1
       collisionCount: 0
-      conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
-          the object has been modified; please apply your changes to the latest version
-          and try again'
-        status: "True"
-        type: FailedUpdate
       currentRevision: karta-e2e-cloneset-running-8c4fffc86
       expectedUpdatedReplicas: 1
       labelSelector: app=karta-e2e-cloneset-running
@@ -297,7 +350,7 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "14781"
+  resourceVersion: "145393"
   staleObservedGeneration: true
   state: Initializing
 - kind: STATE
@@ -305,11 +358,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 2
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 3
       revisionHistoryLimit: 10
@@ -354,13 +407,6 @@ events:
     status:
       availableReplicas: 1
       collisionCount: 0
-      conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
-          the object has been modified; please apply your changes to the latest version
-          and try again'
-        status: "True"
-        type: FailedUpdate
       currentRevision: karta-e2e-cloneset-running-8c4fffc86
       expectedUpdatedReplicas: 3
       labelSelector: app=karta-e2e-cloneset-running
@@ -373,18 +419,18 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "14790"
+  resourceVersion: "145400"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 2
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 3
       revisionHistoryLimit: 10
@@ -430,8 +476,8 @@ events:
       availableReplicas: 1
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -448,18 +494,18 @@ events:
       updatedReplicas: 3
   phases:
   - Initializing
-  resourceVersion: "14795"
+  resourceVersion: "145408"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 2
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 3
       revisionHistoryLimit: 10
@@ -505,8 +551,8 @@ events:
       availableReplicas: 2
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -523,18 +569,18 @@ events:
       updatedReplicas: 3
   phases:
   - Initializing
-  resourceVersion: "14818"
+  resourceVersion: "145427"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 2
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 3
       revisionHistoryLimit: 10
@@ -580,8 +626,8 @@ events:
       availableReplicas: 3
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -598,7 +644,7 @@ events:
       updatedReplicas: 3
   phases:
   - Running
-  resourceVersion: "14823"
+  resourceVersion: "145434"
   state: Running
 - action:
     name: Scale
@@ -614,11 +660,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 3
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -664,8 +710,8 @@ events:
       availableReplicas: 3
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -682,7 +728,7 @@ events:
       updatedReplicas: 3
   phases:
   - Initializing
-  resourceVersion: "14824"
+  resourceVersion: "145436"
   staleObservedGeneration: true
   state: Initializing
 - kind: STATE
@@ -690,11 +736,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 3
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -740,8 +786,8 @@ events:
       availableReplicas: 3
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -758,18 +804,18 @@ events:
       updatedReplicas: 3
   phases:
   - Initializing
-  resourceVersion: "14829"
+  resourceVersion: "145440"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 3
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -815,8 +861,8 @@ events:
       availableReplicas: 1
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -833,7 +879,7 @@ events:
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "14830"
+  resourceVersion: "145442"
   state: Running
 - action:
     name: Scale
@@ -849,11 +895,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 4
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 0
       revisionHistoryLimit: 10
@@ -899,8 +945,8 @@ events:
       availableReplicas: 1
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -916,20 +962,20 @@ events:
       updatedReadyReplicas: 1
       updatedReplicas: 1
   phases:
-  - Undefined
-  resourceVersion: "14831"
+  - Initializing
+  resourceVersion: "145443"
   staleObservedGeneration: true
-  state: Undefined
+  state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 4
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 0
       revisionHistoryLimit: 10
@@ -975,8 +1021,8 @@ events:
       availableReplicas: 1
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -992,18 +1038,18 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "14835"
+  resourceVersion: "145446"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 4
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 0
       revisionHistoryLimit: 10
@@ -1049,8 +1095,8 @@ events:
       availableReplicas: 0
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -1065,7 +1111,7 @@ events:
       updatedReplicas: 0
   phases:
   - Running
-  resourceVersion: "14836"
+  resourceVersion: "145448"
   state: Running
 - action:
     name: Scale
@@ -1081,11 +1127,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 5
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -1131,8 +1177,8 @@ events:
       availableReplicas: 0
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -1147,7 +1193,7 @@ events:
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "14838"
+  resourceVersion: "145450"
   staleObservedGeneration: true
   state: Initializing
 - kind: STATE
@@ -1155,11 +1201,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 5
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -1205,8 +1251,8 @@ events:
       availableReplicas: 0
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -1222,18 +1268,18 @@ events:
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "14842"
+  resourceVersion: "145453"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 5
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -1279,8 +1325,8 @@ events:
       availableReplicas: 0
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -1296,18 +1342,18 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "14845"
+  resourceVersion: "145458"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-09T23:00:26Z"
+      creationTimestamp: "2026-11-13T16:13:48Z"
       generation: 5
       name: karta-e2e-cloneset-running
-      namespace: test-ck848
-      uid: 47e7d352-2272-4231-b1d1-8c6d6c43fd9c
+      namespace: test-j5btt
+      uid: ac41de8a-9d57-4b02-a063-1ef66b251a06
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -1353,8 +1399,8 @@ events:
       availableReplicas: 1
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-09T23:00:26Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-rmt24":
+      - lastTransitionTime: "2026-11-13T16:13:51Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-running-vxt2h":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -1371,7 +1417,7 @@ events:
       updatedReplicas: 1
   phases:
   - Running
-  resourceVersion: "14871"
+  resourceVersion: "145478"
   state: Running
 flow: scaled
 kartaFile: docs/catalog/apps-kruise-io-cloneset-v1alpha1.yaml
@@ -1381,7 +1427,7 @@ result:
   succeeded: true
 schemaVersion: 1
 summary:
-- amount: 2
+- amount: 3
   phases:
   - Initializing
 - amount: 1
@@ -1399,10 +1445,7 @@ summary:
 - amount: 1
   phases:
   - Running
-- amount: 1
-  phases:
-  - Undefined
-- amount: 1
+- amount: 2
   phases:
   - Initializing
 - amount: 1

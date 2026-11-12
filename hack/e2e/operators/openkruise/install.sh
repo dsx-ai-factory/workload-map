@@ -4,6 +4,7 @@
 #
 # Install the OpenKruise controller-manager via Helm.
 set -euo pipefail
+# shellcheck source=/dev/null
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/_common.sh"
 
 helm repo add openkruise https://openkruise.github.io/charts/ 2>/dev/null || true

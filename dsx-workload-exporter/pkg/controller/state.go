@@ -275,6 +275,7 @@ func (r *controllerState) requeueScope(namespace string) error {
 	return nil
 }
 
+// unregisterAbsentObject removes membership only after API absence is confirmed.
 func (r *controllerState) unregisterAbsentObject(key objectJobKey) bool {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()

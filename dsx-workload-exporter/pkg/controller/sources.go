@@ -58,7 +58,7 @@ func (r *controllerState) syncWatches(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// Prepare definitions before locking state, then commit source changes together.
+// prepareWatchRequests confirms API absence before committing source changes together.
 // API discovery runs before the lock; watch startup runs after it.
 func (r *controllerState) prepareWatchRequests(ctx context.Context) ([]discovery.WatchRequest, error) {
 	definitions, sourceErr := r.prepareDefinitions()
@@ -69,13 +69,46 @@ func (r *controllerState) prepareWatchRequests(ctx context.Context) ([]discovery
 	}
 	absentKinds := map[schema.GroupVersionKind]bool{}
 	var absentErr error
+	var resources []*metav1.APIResourceList
+	var discoveryErr error
+	discoveryChecked := false
 	for _, selection := range definitions {
 		if selection.GVK.Version == "" || selection.GVK.Kind == "" || selection.Explicit || r.requiredWatch(selection.GVK) {
 			continue
 		}
 		if _, err := r.reader.restMapping(ctx, selection.GVK); meta.IsNoMatchError(err) {
-			absentKinds[selection.GVK] = true
-			absentErr = err
+			// A mapper can omit resources after partial discovery. Confirm with
+			// a fresh, complete resource list before removing accepted state.
+			if !discoveryChecked {
+				discoveryChecked = true
+				if r.reader.clients.Discovery == nil {
+					discoveryErr = errors.New("API resource discovery is unavailable")
+				} else {
+					requestCtx, cancel := context.WithTimeout(ctx, r.reader.options.RequestTimeout)
+					_, resources, discoveryErr = r.reader.clients.Discovery.ServerGroupsAndResourcesWithContext(requestCtx)
+					cancel()
+				}
+			}
+			absentErr = errors.Join(absentErr, err, discoveryErr)
+			if discoveryErr != nil {
+				continue
+			}
+			installed := false
+			for _, list := range resources {
+				gv, parseErr := schema.ParseGroupVersion(list.GroupVersion)
+				if parseErr != nil {
+					discoveryErr = parseErr
+					break
+				}
+				for _, resource := range list.APIResources {
+					if gv.Group == selection.GVK.Group && resource.Kind == selection.GVK.Kind {
+						installed = true
+					}
+				}
+			}
+			if !installed && discoveryErr == nil {
+				absentKinds[selection.GVK] = true
+			}
 		}
 	}
 	r.stateMu.Lock()

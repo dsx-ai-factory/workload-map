@@ -4,6 +4,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	kubediscovery "k8s.io/client-go/discovery"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	clienttesting "k8s.io/client-go/testing"
 
@@ -32,6 +34,15 @@ type availabilityInventory struct {
 
 func (i availabilityInventory) List() ([]inventory.SelectionResult, error) {
 	return []inventory.SelectionResult{{Selection: i.selection}}, nil
+}
+
+type availabilityDiscovery struct {
+	resources []*metav1.APIResourceList
+	err       error
+}
+
+func (d availabilityDiscovery) ServerGroupsAndResourcesWithContext(context.Context) ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
+	return nil, d.resources, d.err
 }
 
 type availabilityMapper struct {
@@ -70,6 +81,7 @@ func TestMissingOptionalAPIsAreSkippedBeforeNamespaceExpansion(t *testing.T) {
 				cfg.RequiredKinds = []schema.GroupVersionKind{lifetimeDeploymentGVK}
 			}
 			r := newRootLifetimeRuntime(t, cfg)
+			r.state.reader.clients.Discovery = availabilityDiscovery{}
 			definition, err := catalog.Get(lifetimeDeploymentGVK)
 			require.NoError(t, err)
 			r.state.deps.Inventory = availabilityInventory{selection: inventory.Selection{Definition: definition, GVK: lifetimeDeploymentGVK, Explicit: tc.explicit}}
@@ -106,6 +118,7 @@ func TestMissingOptionalAPIsAreSkippedBeforeNamespaceExpansion(t *testing.T) {
 
 func TestOptionalAPIDisappearanceRemovesStaleRecordsAndRetries(t *testing.T) {
 	r := newRootLifetimeRuntime(t, Config{})
+	r.state.reader.clients.Discovery = availabilityDiscovery{}
 	definition, err := catalog.Get(lifetimeDeploymentGVK)
 	require.NoError(t, err)
 	r.state.deps.Inventory = availabilityInventory{selection: inventory.Selection{Definition: definition, GVK: lifetimeDeploymentGVK}}
@@ -154,6 +167,7 @@ func TestOptionalAPIDisappearanceRemovesStaleRecordsAndRetries(t *testing.T) {
 
 func TestAbsentOptionalAPIStillReportsAnActualOwnerDependency(t *testing.T) {
 	r := newRootLifetimeRuntime(t, Config{})
+	r.state.reader.clients.Discovery = availabilityDiscovery{}
 	r.state.absentKinds[lifetimeDeploymentGVK] = true
 	_, err := r.state.reader.GetMetadata(t.Context(), discovery.ObjectRef{GVK: lifetimeDeploymentGVK, Namespace: "ns", Name: "owner"})
 	require.True(t, meta.IsNoMatchError(err))
@@ -164,6 +178,7 @@ func TestAbsentOptionalAPIStillReportsAnActualOwnerDependency(t *testing.T) {
 
 func TestOptionalAPIDisappearanceKeepsDependentPodErrors(t *testing.T) {
 	r := newRootLifetimeRuntime(t, Config{})
+	r.state.reader.clients.Discovery = availabilityDiscovery{}
 	definition, err := catalog.Get(lifetimeDeploymentGVK)
 	require.NoError(t, err)
 	r.state.deps.Inventory = availabilityInventory{selection: inventory.Selection{Definition: definition, GVK: lifetimeDeploymentGVK}}
@@ -189,4 +204,38 @@ func TestOptionalAPIDisappearanceKeepsDependentPodErrors(t *testing.T) {
 	require.Equal(t, root.GetUID(), result.Record.Workload.UID)
 	require.Equal(t, store.ReasonAPIUnavailable, result.Error)
 	require.Nil(t, r.state.deps.Publications.Workload(root.GetUID()))
+}
+
+func TestUnconfirmedAPIAbsencePreservesAcceptedState(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		discovery APIResourceDiscoverer
+	}{
+		{name: "discovery unavailable"},
+		{name: "partial discovery", discovery: availabilityDiscovery{err: &kubediscovery.ErrGroupDiscoveryFailed{Groups: map[schema.GroupVersion]error{{Group: "apps", Version: "v1"}: errors.New("discovery unavailable")}}}},
+		{name: "another served version", discovery: availabilityDiscovery{resources: []*metav1.APIResourceList{{GroupVersion: "apps/v1beta1", APIResources: []metav1.APIResource{{Name: "deployments", Kind: "Deployment"}}}}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRootLifetimeRuntime(t, Config{})
+			definition, err := catalog.Get(lifetimeDeploymentGVK)
+			require.NoError(t, err)
+			r.state.deps.Inventory = availabilityInventory{selection: inventory.Selection{Definition: definition, GVK: lifetimeDeploymentGVK}}
+			rootLifetimeWatch(t, r, podGVK, "", true)
+			w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "", true)
+			root := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "root", "root")
+			require.NoError(t, r.state.applyWatchEvent(w, root, false))
+			drainRootLifetimeQueues(t, r)
+			require.NotNil(t, r.state.deps.Publications.Workload(root.GetUID()))
+			r.state.reader.clients.Mapper = &availabilityMapper{RESTMapper: r.state.reader.clients.Mapper, gvk: lifetimeDeploymentGVK, err: &meta.NoKindMatchError{GroupKind: lifetimeDeploymentGVK.GroupKind(), SearchedVersions: []string{"v1"}}}
+			r.state.reader.clients.Discovery = tc.discovery
+			require.Error(t, r.state.syncWatches(t.Context()))
+			require.Empty(t, r.state.absentKinds)
+			require.Contains(t, r.state.watches, w.key)
+			require.NotNil(t, r.state.deps.Publications.Workload(root.GetUID()))
+			require.NotEmpty(t, r.state.selectedObjectRoots)
+			view := r.state.deps.Publications.(store.Capturer).Capture()
+			require.NotEmpty(t, view.Failures)
+			require.Equal(t, store.ReasonAPIUnavailable, view.Failures[0].Error)
+		})
+	}
 }

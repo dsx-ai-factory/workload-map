@@ -35,10 +35,17 @@ type Reader struct {
 	lastMapperReset time.Time
 }
 type Clients struct {
-	Dynamic  dynamic.Interface
-	Metadata metadata.Interface
-	Mapper   meta.RESTMapper
+	Dynamic   dynamic.Interface
+	Metadata  metadata.Interface
+	Mapper    meta.RESTMapper
+	Discovery APIResourceDiscoverer
 }
+
+// APIResourceDiscoverer confirms absence only after complete API discovery.
+type APIResourceDiscoverer interface {
+	ServerGroupsAndResourcesWithContext(context.Context) ([]*metav1.APIGroup, []*metav1.APIResourceList, error)
+}
+
 type ReaderOptions struct{ RequestTimeout time.Duration }
 type objectKey struct {
 	GVK             schema.GroupVersionKind

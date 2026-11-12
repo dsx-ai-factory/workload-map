@@ -614,6 +614,7 @@ func (i *Inventory) notify() {
 	}
 }
 
+// selection copies the winning definition and records whether an include list selected it.
 func (i *Inventory) selection(k *v1alpha1.Karta, source Source) Selection {
 	if k == nil {
 		return Selection{}

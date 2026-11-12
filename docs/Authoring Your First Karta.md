@@ -213,6 +213,10 @@ spec:
         replicasPath: .spec.parallelism // 1
 ```
 
+This minimal file does not map suspended Jobs, so a suspended Job resolves to
+`Undefined`. The shipped definition in `docs/catalog/batch-job-v1.yaml` adds a
+`suspended` mapping and suspend and resume actions.
+
 ## Step 6 (optional, experimental): Add scheduling instructions
 
 `optimizationInstructions` is optional and used by schedulers. For gang

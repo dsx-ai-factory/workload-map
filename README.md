@@ -133,13 +133,15 @@ arm64, with a `checksums.txt` manifest, on the
 [GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
 The archives are named `karta_<version>_<os>_<arch>.tar.gz` and contain the
 `kli` executable. To install without Homebrew, set the release version and your
-platform, then download, check and extract:
+platform, then download, check and extract. `OS` is `darwin` or `linux`, and
+`ARCH` is `amd64` or `arm64`. The archive is extracted only if its checksum
+matches. On Linux, use `sha256sum -c` in place of `shasum -a 256 -c`.
 
 ```bash
-VERSION=0.3.0 OS=darwin ARCH=arm64   # release to install; OS: darwin or linux; ARCH: amd64 or arm64
-curl -fsSLO "https://github.com/dsx-ai-factory/workload-map/releases/download/v${VERSION}/karta_${VERSION}_${OS}_${ARCH}.tar.gz"
-curl -fsSLO "https://github.com/dsx-ai-factory/workload-map/releases/download/v${VERSION}/checksums.txt"
-shasum -a 256 -c --ignore-missing checksums.txt   # on Linux: sha256sum -c --ignore-missing checksums.txt
+VERSION=0.3.0 OS=darwin ARCH=arm64
+curl -fsSLO "https://github.com/dsx-ai-factory/workload-map/releases/download/v${VERSION}/karta_${VERSION}_${OS}_${ARCH}.tar.gz" &&
+curl -fsSLO "https://github.com/dsx-ai-factory/workload-map/releases/download/v${VERSION}/checksums.txt" &&
+shasum -a 256 -c --ignore-missing checksums.txt &&
 tar -xzf "karta_${VERSION}_${OS}_${ARCH}.tar.gz" kli
 ```
 

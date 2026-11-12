@@ -496,6 +496,11 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v1.2.2
 - License: Apache-2.0
 
+### github.com/kylelemons/godebug
+- Name: github.com/kylelemons/godebug
+- Version: v1.1.0
+- License: Apache-2.0
+
 ### github.com/pandatix/go-abnf
 - Name: github.com/pandatix/go-abnf
 - Version: v0.5.3

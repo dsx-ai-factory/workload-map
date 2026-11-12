@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/discovery"
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/exportermetrics"
 	inventory "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/kartadefinitioninventory"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelresolver"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
@@ -254,7 +255,7 @@ func (r *controllerState) hasRequiredWatches(namespace string) bool {
 	return true
 }
 func newQueue[T comparable](name string) workqueue.TypedRateLimitingInterface[T] {
-	return workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.NewTypedItemExponentialFailureRateLimiter[T](10*time.Millisecond, 10*time.Second), workqueue.TypedRateLimitingQueueConfig[T]{Name: name})
+	return workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.NewTypedItemExponentialFailureRateLimiter[T](10*time.Millisecond, 10*time.Second), workqueue.TypedRateLimitingQueueConfig[T]{Name: name, MetricsProvider: exportermetrics.Workqueue})
 }
 func selector(value *metav1.LabelSelector) (labels.Selector, error) {
 	if value == nil {

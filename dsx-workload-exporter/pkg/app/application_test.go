@@ -326,6 +326,14 @@ func TestHTTPMetricsPublicationRemovalAndReadiness(t *testing.T) {
 	}
 }
 
+func TestHTTPMetricsServesExporterMetrics(t *testing.T) {
+	h := startHTTPApplication(t, store.New(), nil)
+	families := h.scrapeAll(t)
+	for _, name := range []string{"go_goroutines", "go_memstats_heap_inuse_bytes"} {
+		require.Contains(t, families, name)
+	}
+}
+
 func TestHTTPMetricsExcludesConfiguredPhases(t *testing.T) {
 	publications := store.New()
 	publications.UpsertWorkload(&store.WorkloadResult{
@@ -461,7 +469,7 @@ func TestHTTPOverlappingScrapesKeepIndependentSnapshots(t *testing.T) {
 		parser := expfmt.NewTextParser(model.UTF8Validation)
 		families, err := parser.TextToMetricFamilies(strings.NewReader(response.body))
 		require.NoError(t, err)
-		checkHTTPMetrics(t, families, oldSnapshot)
+		checkHTTPMetrics(t, exporterFamilies(families), oldSnapshot)
 	case <-time.After(5 * time.Second):
 		t.Fatal("first scrape did not finish")
 	}
@@ -533,7 +541,7 @@ func lifecycleApplication(t *testing.T, runtime controller.Runner) *Application 
 	return application
 }
 
-func lifecycleListener(t *testing.T) net.Listener {
+func lifecycleListener(t testing.TB) net.Listener {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -573,7 +581,7 @@ func (s *blockedCaptureStore) Capture() store.CapturedView {
 	return s.PublicationStore.Capture()
 }
 
-func startHTTPApplication(t *testing.T, publications store.PublicationStore, wrapHandler func(http.Handler) http.Handler, excludeStatuses ...v1alpha1.ResourceStatus) *httpApplication {
+func startHTTPApplication(t testing.TB, publications store.PublicationStore, wrapHandler func(http.Handler) http.Handler, excludeStatuses ...v1alpha1.ResourceStatus) *httpApplication {
 	t.Helper()
 	runtime := &httpTestRuntime{started: make(chan struct{}), stopped: make(chan struct{})}
 	application, err := New(Components{Runtime: runtime, Store: publications, Definitions: definitionRunner{}, ExcludeStatuses: excludeStatuses})
@@ -608,7 +616,7 @@ func startHTTPApplication(t *testing.T, publications store.PublicationStore, wra
 	return h
 }
 
-func (h *httpApplication) stop(t *testing.T) {
+func (h *httpApplication) stop(t testing.TB) {
 	t.Helper()
 	h.cancel()
 	select {
@@ -637,6 +645,22 @@ func (h *httpApplication) status(t *testing.T, path string, expected int) {
 }
 
 func (h *httpApplication) scrape(t *testing.T) map[string]*dto.MetricFamily {
+	t.Helper()
+	return exporterFamilies(h.scrapeAll(t))
+}
+
+// exporterFamilies returns the dsx_* families; exporter metrics have their own test.
+func exporterFamilies(families map[string]*dto.MetricFamily) map[string]*dto.MetricFamily {
+	selected := make(map[string]*dto.MetricFamily, len(families))
+	for name, family := range families {
+		if strings.HasPrefix(name, "dsx_") {
+			selected[name] = family
+		}
+	}
+	return selected
+}
+
+func (h *httpApplication) scrapeAll(t *testing.T) map[string]*dto.MetricFamily {
 	t.Helper()
 	response, err := h.client.Get("http://" + h.address + "/metrics")
 	if err != nil {

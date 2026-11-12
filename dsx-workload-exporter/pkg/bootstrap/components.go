@@ -61,9 +61,10 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 	}
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(discoveryClient))
 	reader, err := controller.NewReader(controller.Clients{
-		Dynamic:  dynamicClient,
-		Metadata: metadataClient,
-		Mapper:   mapper,
+		Dynamic:   dynamicClient,
+		Metadata:  metadataClient,
+		Mapper:    mapper,
+		Discovery: discoveryClient,
 	}, controller.ReaderOptions{RequestTimeout: timeout})
 	if err != nil {
 		return app.Components{}, err

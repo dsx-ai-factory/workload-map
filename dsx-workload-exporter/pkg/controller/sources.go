@@ -41,7 +41,8 @@ func (r *controllerState) syncWatches(ctx context.Context) error {
 			return err
 		}
 	}
-	requests, preparationErr := r.prepareWatchRequests()
+	r.reader.resetMapperIfNeeded(ctx)
+	requests, preparationErr := r.prepareWatchRequests(ctx)
 	if requests == nil {
 		return preparationErr
 	}
@@ -57,13 +58,57 @@ func (r *controllerState) syncWatches(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// Prepare definitions before locking state, then commit source changes together.
-// REST mapping and watch startup run after the lock is released.
-func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, error) {
+// prepareWatchRequests confirms API absence before committing source changes together.
+// API discovery runs before the lock; watch startup runs after it.
+func (r *controllerState) prepareWatchRequests(ctx context.Context) ([]discovery.WatchRequest, error) {
 	definitions, sourceErr := r.prepareDefinitions()
+	if sourceErr != nil {
+		r.stateMu.RLock()
+		definitions = r.selectedDefinitions
+		r.stateMu.RUnlock()
+	}
+	absentKinds := map[schema.GroupVersionKind]bool{}
+	var absentErr error
+	var resources []*metav1.APIResourceList
+	var discoveryErr error
+	discoveryChecked := false
+	for _, selection := range definitions {
+		if selection.GVK.Version == "" || selection.GVK.Kind == "" || selection.Explicit || r.requiredWatch(selection.GVK) {
+			continue
+		}
+		if _, err := r.reader.restMapping(ctx, selection.GVK); meta.IsNoMatchError(err) {
+			// A mapper can omit resources after partial discovery. Confirm with
+			// a complete resource list before removing accepted state.
+			if !discoveryChecked {
+				discoveryChecked = true
+				resources, discoveryErr = r.reader.apiResources(ctx)
+			}
+			absentErr = errors.Join(absentErr, err, discoveryErr)
+			if discoveryErr != nil {
+				continue
+			}
+			installed := false
+			for _, list := range resources {
+				gv, parseErr := schema.ParseGroupVersion(list.GroupVersion)
+				if parseErr != nil {
+					discoveryErr = parseErr
+					break
+				}
+				for _, resource := range list.APIResources {
+					if gv.Group == selection.GVK.Group && resource.Kind == selection.GVK.Kind {
+						installed = true
+					}
+				}
+			}
+			if !installed && discoveryErr == nil {
+				absentKinds[selection.GVK] = true
+			}
+		}
+	}
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	definitionErr := r.refreshDefinitions(definitions, sourceErr)
+	r.absentKinds = absentKinds
 	if r.config.NamespaceSelector != nil {
 		namespaceWatchReady := false
 		admittedNamespaces := map[string]bool{}
@@ -95,16 +140,16 @@ func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, erro
 	}
 	kinds := map[schema.GroupVersionKind]bool{podGVK: true}
 	for _, selection := range r.selectedDefinitions {
-		if selection.GVK.Version != "" && selection.GVK.Kind != "" {
+		if selection.GVK.Version != "" && selection.GVK.Kind != "" && !absentKinds[selection.GVK] {
 			kinds[selection.GVK] = true
 		}
 	}
 	for _, gvk := range r.config.RequiredKinds {
 		kinds[gvk] = true
 	}
-	// Sources encountered during traversal live for the admitted namespace's lifetime.
+	// Sources live while their API and namespace remain available.
 	for key, w := range r.watches {
-		if key.Namespace != "" && !r.scopes[key.Namespace] {
+		if absentKinds[w.gvk] || (key.Namespace != "" && !r.scopes[key.Namespace]) {
 			r.retireWatch(w)
 			if replacement := r.replacements[key]; replacement != nil {
 				replacement.cancel()
@@ -113,9 +158,19 @@ func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, erro
 		}
 	}
 	for request := range r.watchFailures {
-		if request.Namespace != "" && !r.scopes[request.Namespace] {
+		if absentKinds[request.GVK] || (request.Namespace != "" && !r.scopes[request.Namespace]) {
 			delete(r.watchFailures, request)
 			r.deps.Publications.RemoveDiscoveryFailure(sourceFailureUID(request.GVK, request.Namespace))
+		}
+	}
+	for uid, root := range r.roots {
+		if absentKinds[root.ref.GVK] {
+			r.removeRoot(uid)
+		}
+	}
+	for key := range r.selectedObjectRoots {
+		if absentKinds[key.Object.GVK] {
+			r.removeSelectedObjectMembership(key)
 		}
 	}
 	requests := make([]discovery.WatchRequest, 0, len(kinds)*len(scopes))
@@ -124,7 +179,7 @@ func (r *controllerState) prepareWatchRequests() ([]discovery.WatchRequest, erro
 			requests = append(requests, discovery.WatchRequest{GVK: gvk, Namespace: namespace})
 		}
 	}
-	return requests, definitionErr
+	return requests, errors.Join(definitionErr, absentErr)
 }
 
 func (r *controllerState) ensureWatch(ctx context.Context, gvk schema.GroupVersionKind, namespace string, metadataOnly bool) (watchKey, error) {
@@ -224,6 +279,8 @@ func (r *controllerState) updateWatchHealth(w *resourceWatch, err error) {
 	}
 	if w.gvk == namespaceGVK {
 		r.watchSyncQueue.Add("sources")
+	} else if apierrors.IsNotFound(err) {
+		r.watchSyncQueue.AddAfter("sources", mapperResetInterval)
 	}
 }
 

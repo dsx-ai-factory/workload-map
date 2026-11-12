@@ -39,6 +39,7 @@ type controllerState struct {
 	watches       map[watchKey]*resourceWatch
 	replacements  map[watchKey]*resourceWatch
 	watchFailures map[discovery.WatchRequest]error
+	absentKinds   map[schema.GroupVersionKind]bool
 	scopes        map[string]bool
 
 	roots        map[types.UID]*rootState
@@ -94,6 +95,7 @@ func newControllerState(objects *objectCache) *controllerState {
 		watches:                map[watchKey]*resourceWatch{},
 		replacements:           map[watchKey]*resourceWatch{},
 		watchFailures:          map[discovery.WatchRequest]error{},
+		absentKinds:            map[schema.GroupVersionKind]bool{},
 		roots:                  map[types.UID]*rootState{},
 		podRoots:               map[types.UID]types.UID{},
 		ancestorPods:           map[types.UID]bool{},
@@ -155,6 +157,10 @@ func (r *controllerState) failPodEvaluation(key objectJobKey, path []discovery.O
 func (r *controllerState) failSelectedObjectDiscovery(key objectJobKey, err error) {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
+	if r.absentKinds[key.Object.GVK] {
+		r.removeSelectedObjectMembership(key)
+		return
+	}
 	r.deps.Publications.SetDiscoveryFailure(storedRef(key.ref()), failureReason(err))
 }
 
@@ -267,6 +273,17 @@ func (r *controllerState) requeueScope(namespace string) error {
 		}
 	}
 	return nil
+}
+
+// unregisterAbsentObject removes membership only after API absence is confirmed.
+func (r *controllerState) unregisterAbsentObject(key objectJobKey) bool {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	if !r.absentKinds[key.Object.GVK] {
+		return false
+	}
+	r.removeSelectedObjectMembership(key)
+	return true
 }
 
 func (r *controllerState) trackSelectedObject(key objectJobKey) {

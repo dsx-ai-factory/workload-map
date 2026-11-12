@@ -21,6 +21,8 @@
 [![Latest release](https://img.shields.io/github/v/release/dsx-ai-factory/workload-map)](https://github.com/dsx-ai-factory/workload-map/releases)
 [![License](https://img.shields.io/github/license/dsx-ai-factory/workload-map)](LICENSE)
 
+Names: Workload-Map is the project and the repository, formerly called Karta. `Karta` is still the name of the CRD kind and of its definitions, `kli` is the CLI, and the Go library is the module `github.com/dsx-ai-factory/workload-map/karta/sdk`.
+
 Karta lets you define a portable, declarative blueprint for any Kubernetes workload - whether it's a simple Deployment, a distributed PyTorchJob, or a custom CRD. Controllers and platforms can then use that blueprint to inspect, modify, and manage workloads without hard-coding knowledge of each type.
 
 ## The Problem
@@ -44,7 +46,7 @@ Karta (*a map to navigate resources*) introduces a CRD that maps the structure o
 - **Update** pod specs, labels, and annotations across all instances
 - **Understand** workload hierarchy (e.g., a JobSet with master + worker groups)
 
-In addition to the CRD, Karta provides a **Go package** that performs the core processing logic: query evaluation to dynamically interpret custom resource schemas, resource extraction that traverses workload hierarchies to identify and group pods, and optimization instruction processors that apply strategies such as gang scheduling to ensure coordinated placement of pods for distributed workloads.
+In addition to the CRD, Karta provides a **Go package** that performs the core processing logic: query evaluation to dynamically interpret custom resource schemas, resource extraction that traverses workload hierarchies to identify and group pods, and optimization instruction processors that apply strategies such as gang scheduling (admitting all the pods of a distributed workload together, or none of them) to ensure coordinated placement of pods for distributed workloads.
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -100,6 +102,17 @@ The structure in this view comes from Karta path expressions: the group, leader,
 
 ## Quick Start
 
+Start here, no cluster needed: run the [offline quickstart](docs/examples/quickstart/). It needs only Go, and its README shows the full expected output.
+
+Pick the path that matches what you want to do:
+
+| Path | Use it to | You need |
+|---|---|---|
+| [Offline quickstart](docs/examples/quickstart/) | See the uniform API read and mutate a JobSet and a LeaderWorkerSet | Go 1.27.3 or later |
+| [Install the CLI](#install-the-cli) | List definitions and inspect workloads with `kli` | Homebrew, or a release archive. Inspecting live workloads also needs a cluster and `kubectl` context |
+| [Install the CRD](#install-the-crd) | Register Karta definitions in a cluster | A cluster and `kubectl` context |
+| [Use the Go library](#use-the-go-library) | Call Karta from your own controller or tool | Go 1.27.3 or later |
+
 ### Install the CLI
 
 Install `kli` with Homebrew on macOS or Linux. This repository is its own tap,
@@ -123,6 +136,25 @@ against `checksums.txt`, and put the `kli` executable on your `PATH`.
 
 Run `kli --version` to print the release version. `go install` is not a
 supported way to install the CLI.
+
+Then list the definitions the CLI ships with. This works without a cluster:
+
+```bash
+kli definitions
+```
+
+```text
+NAME                                         KIND                   ORIGIN   COMPONENTS
+apps-deployment-v1                           Deployment             catalog  deployment, replicaset
+apps-nvidia-com-nimcache-v1alpha1            NIMCache               catalog  nimcache
+apps-nvidia-com-nimservice-v1alpha1          NIMService             catalog  nimservice
+apps-statefulset-v1                          StatefulSet            catalog  statefulset
+batch-cronjob-v1                             CronJob                catalog  cronjob, job
+...
+```
+
+Only the first rows are shown. `kli get` and `kli describe` inspect live
+workloads and need a cluster.
 
 See the [CLI Guide](docs/CLI%20Guide.md) for shell completion and for installing
 from a clone with make.
@@ -266,6 +298,7 @@ Karta supports any workload type. The following are pre-built and tested Karta d
 | DynamoGraphDeployment | NVIDIA Dynamo |
 | PodCliqueSet | Grove |
 | Sandbox | Kubernetes Agent Sandbox |
+| [Workload](docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | Kueue (v1beta2, experimental; requires opt-in) |
 
 See [`docs/catalog/`](docs/catalog/) for the full Karta definitions.
 

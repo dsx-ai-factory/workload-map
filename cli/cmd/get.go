@@ -70,9 +70,6 @@ arrive with the describe command.`
   kli get --all-types --phase Running`
 )
 
-// loadDefinitions is a variable so tests can supply a definition set.
-var loadDefinitions = definitions.Load
-
 // newDynamicClient is a variable so tests can inject a fake cluster.
 var newDynamicClient = func(rcg genericclioptions.RESTClientGetter) (dynamic.Interface, error) {
 	cfg, err := RESTConfig(rcg)
@@ -113,6 +110,7 @@ type getOptions struct {
 	selector  string
 	chunkSize int64
 	allTypes  bool
+	noHeaders bool
 }
 
 // newGetCommand builds the "kli get" command: one row per workload root.
@@ -164,6 +162,7 @@ func newGetCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.selector, flagSelector, "l", "", usageSelector)
 	cmd.Flags().Int64Var(&opts.chunkSize, flagChunkSize, defaultChunkSize, usageChunkSize)
 	cmd.Flags().BoolVar(&opts.allTypes, flagAllTypes, false, usageAllTypes)
+	withNoHeaders(cmd.Flags(), &opts.noHeaders)
 
 	return cmd
 }
@@ -263,6 +262,7 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) (err 
 		// spanned the cluster.
 		AllNamespaces: searched == "",
 		TypeOf:        typeOf,
+		NoHeaders:     opts.noHeaders,
 	})
 }
 
@@ -292,7 +292,7 @@ func resolveLookup(cmd *cobra.Command, opts *getOptions) (lookup, []string, erro
 		return lookup{}, nil, fmt.Errorf("resolve namespace: %w", err)
 	}
 
-	resolver, loadWarnings := loadDefinitions(cmd.Context(), access)
+	resolver, loadWarnings := loadDefinitionsForCommand(cmd, access)
 	warnings := warningMessages(loadWarnings)
 	if len(resolver.List()) == 0 {
 		return lookup{}, warnings, exitError{code: ExitNotFound, err: errNoDefinitions}

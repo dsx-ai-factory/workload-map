@@ -14,8 +14,12 @@ import (
 )
 
 const (
-	flagConfig = "config"
-	flagOutput = "output"
+	flagConfig                         = "config"
+	flagOutput                         = "output"
+	flagCatalogExperimentalDefinitions = "catalog-experimental-definitions"
+	flagNoHeaders                      = "no-headers"
+
+	usageNoHeaders = "Omit the table header row; has no effect on json or yaml output"
 )
 
 var kubeFlags *genericclioptions.ConfigFlags
@@ -38,10 +42,20 @@ func withOutput(cmd *cobra.Command, flags *pflag.FlagSet, supportsWide bool) *En
 	return out
 }
 
+// withNoHeaders registers the --no-headers flag on flags, backed by target.
+func withNoHeaders(flags *pflag.FlagSet, target *bool) {
+	flags.BoolVar(target, flagNoHeaders, false, usageNoHeaders)
+}
+
 // withConfig registers the --config persistent flag on cmd.
 func withConfig(cmd *cobra.Command) {
 	cmd.PersistentFlags().String(flagConfig, "",
 		"Path to the config file (default $KARTA_CONFIG or $HOME/.karta/config.yaml)")
+}
+
+func isExperimentalEnabled(cmd *cobra.Command) bool {
+	enabled, _ := cmd.Flags().GetBool(flagCatalogExperimentalDefinitions)
+	return enabled
 }
 
 // withPhase registers the repeatable --phase enum flag on flags, along with its

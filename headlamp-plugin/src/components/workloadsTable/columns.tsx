@@ -5,6 +5,7 @@ import { DateLabel, type TableColumn } from '@kinvolk/headlamp-plugin/lib/Common
 import { WorkloadRow } from '../../hooks/useWorkloadRows/workloadRow.types';
 import {
   KARTA_PHASES,
+  STATUS_UNAVAILABLE_LABEL,
   StatusPhaseChips,
   worstPhaseSeverity,
 } from '../statusPhaseChips/StatusPhaseChips';
@@ -64,7 +65,14 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
     {
       id: 'status',
       header: 'Status',
-      accessorFn: row => row.phases.join(','),
+      // Headlamp skips cells whose value is unchanged, and phases stay [] across a failure.
+      // The label keeps the cell's visible text searchable.
+      accessorFn: row =>
+        JSON.stringify(
+          row.statusError === undefined
+            ? row.phases
+            : [row.phases, STATUS_UNAVAILABLE_LABEL, row.statusError]
+        ),
       // Sorted by the worst phase, so the order matches what the chips show.
       // The accessor joins them, which would otherwise sort alphabetically.
       sortingFn: (a, b) =>
@@ -75,7 +83,9 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       filterSelectOptions: KARTA_PHASES,
       filterFn: (row, _columnId, filterValue: string[]) =>
         filterValue.length === 0 || filterValue.some(phase => row.original.phases.includes(phase)),
-      Cell: ({ row }) => <StatusPhaseChips phases={row.original.phases} />,
+      Cell: ({ row }) => (
+        <StatusPhaseChips phases={row.original.phases} error={row.original.statusError} />
+      ),
       gridTemplate: 'auto',
     },
     {

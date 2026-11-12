@@ -51,7 +51,9 @@ runtime ownership and verification.
 | `dsx_exporter_observation_valid` | Gauge | Resource-type collection: `1` or `0`. Workload/discovery failures: `0` only. | Report collection health and failure reasons. Healthy workloads have no separate health row. |
 
 Without a selected Karta definition, a verified root still supplies Pod identity,
-creation time and all nine status phase gauges with value `0`. The status labels
+creation time and each enabled status phase gauge with value `0`.
+The [status phase configuration](../../dsx-workload-exporter/configuration.md#status-phases)
+controls which of the nine phases are emitted. The status labels
 `karta` and `karta_source` are empty. Zero means no phase matched; it does not
 assert an evaluated application state. Workload label rules still apply.
 Component and instance are `<unknown>`; group is empty. Missing a definition
@@ -167,9 +169,10 @@ use a Pod source because there is no single Pod to choose. The first nonempty
 value wins within a rule. Later successful rules for the same label replace earlier
 values; an empty result does not erase an earlier rule's value.
 
-Names starting with `__` are rejected. Rules cannot override a metric's built-in
-labels, such as `namespace` and `workload_uid`, `pod_name` on Pod info, or `phase`
-on workload status. See [Labels](#labels) for the full list per metric.
+Names starting with `__` are rejected. Nonempty rule values can override
+unprotected labels, including Pod component labels. Built-in identity, status
+and observation labels stay unchanged. See [configured labels](../../dsx-workload-exporter/configuration.md#configured-labels)
+for the protected names and examples.
 
 A label error can retain the previous metric result with
 `observation_valid="false"`. With no prior result, that output can be absent.

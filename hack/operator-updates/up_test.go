@@ -32,7 +32,7 @@ type provisionResult struct {
 }
 
 func TestInfrastructureInstallPlan(t *testing.T) {
-	all := "lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox"
+	all := "lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue"
 	cases := []struct {
 		name      string
 		workloads []string
@@ -44,6 +44,7 @@ func TestInfrastructureInstallPlan(t *testing.T) {
 		{name: "all", workloads: []string{"all"}, infra: "cert-manager fake-gpu-operator kai-scheduler", plan: all},
 		{name: "none", workloads: []string{"none"}, infra: "fake-gpu-operator", plan: "(none)"},
 		{name: "jobset", workloads: []string{"jobset"}, infra: "fake-gpu-operator", plan: "jobset"},
+		{name: "kueue", workloads: []string{"kueue"}, infra: "fake-gpu-operator", plan: "kueue"},
 		{name: "grove", workloads: []string{"grove"}, infra: "fake-gpu-operator kai-scheduler", plan: "grove"},
 		{name: "dynamo dependency", workloads: []string{"dynamo"}, infra: "fake-gpu-operator kai-scheduler", plan: "grove dynamo"},
 		{name: "kserve dependency", workloads: []string{"kserve"}, infra: "cert-manager fake-gpu-operator", plan: "knative kserve"},
@@ -113,6 +114,11 @@ func TestInfrastructureProvisioning(t *testing.T) {
 		{
 			name: "base only", workload: "none", components: []string{"infra/fake-gpu-operator", "karta-operator"},
 			versions: []string{"fake-gpu-operator=9.2.0"},
+		},
+		{
+			name: "Kueue uses the effective pin", workload: "kueue", env: []string{"KUEUE_VERSION=v0.20.6"},
+			components: []string{"infra/fake-gpu-operator", "operators/kueue", "karta-operator"},
+			versions:   []string{"fake-gpu-operator=9.2.0", "kueue=v0.20.6"},
 		},
 		{
 			name: "all infra before grove and dynamo", workload: "dynamo", env: []string{"CERT_MANAGER=true"},
@@ -207,7 +213,7 @@ func runProvision(t *testing.T, args []string, env ...string) provisionResult {
 		"CLUSTER_NAME=karta-e2e", "KUBECONFIG="+filepath.Join(fixture.root, "kubeconfig"), "GO_VERSION=1.26.8",
 		"KARTA_WEBHOOK_MODE=auto", "CERT_MANAGER=auto", "GITHUB_ACTIONS=", "GITHUB_STEP_SUMMARY="+filepath.Join(fixture.root, "summary"),
 		"CERT_MANAGER_VERSION=v9.1.0", "FAKE_GPU_VERSION=9.2.0", "KAI_SCHEDULER_VERSION=v9.3.0", "GROVE_VERSION=v9.4.0",
-		"DYNAMO_VERSION=9.5.0", "KNATIVE_VERSION=knative-v9.6.0", "KSERVE_VERSION=v9.7.0",
+		"DYNAMO_VERSION=9.5.0", "KNATIVE_VERSION=knative-v9.6.0", "KSERVE_VERSION=v9.7.0", "KUEUE_VERSION=v0.20.5",
 		"E2E_TEST_EVENTS="+filepath.Join(fixture.root, "events"), "E2E_TEST_TOOLS="+filepath.Join(fixture.root, "tools"), "E2E_TEST_FAIL_STEP=",
 	)
 	cmd.Env = append(cmd.Env, env...)

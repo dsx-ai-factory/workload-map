@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -72,7 +73,7 @@ func TestCompleteQualifiesAKindSeveralGroupsDefine(t *testing.T) {
 	fork.Name = "jobset-fork"
 	fork.Spec.StructureDefinition.RootComponent.Kind.Group = "fork.example.com"
 	restore := loadDefinitions
-	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
 		return definitions.New([]*v1alpha1.Karta{kartas.Jobset(), fork}, nil), nil
 	}
 	t.Cleanup(func() { loadDefinitions = restore })
@@ -179,7 +180,7 @@ func TestCompleteGivesUpOnAClusterThatDoesNotAnswer(t *testing.T) {
 	t.Cleanup(func() { completionTimeout = restoreTimeout })
 
 	restore := loadDefinitions
-	loadDefinitions = func(ctx context.Context, _ genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(ctx context.Context, _ genericclioptions.RESTClientGetter, _ bool) (*definitions.Resolver, []definitions.Warning) {
 		<-ctx.Done()
 		return definitions.New(nil, nil), nil
 	}
@@ -223,7 +224,7 @@ func TestCompleteGivesUpOnDiscoveryThatDoesNotAnswer(t *testing.T) {
 	t.Cleanup(func() { completionTimeout = restoreTimeout })
 
 	restore := loadDefinitions
-	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter) (*definitions.Resolver, []definitions.Warning) {
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
 		return definitions.New([]*v1alpha1.Karta{kartas.Jobset()}, nil), nil
 	}
 	t.Cleanup(func() { loadDefinitions = restore })
@@ -248,5 +249,85 @@ func TestCompleteGivesUpOnDiscoveryThatDoesNotAnswer(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("completion did not give up on discovery that never answers")
+	}
+}
+
+func TestCompleteOffersDefinitionNames(t *testing.T) {
+	fakeCluster(t)
+
+	deployment := kartas.Deployment()
+	restore := loadDefinitions
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
+		return definitions.New([]*v1alpha1.Karta{kartas.Jobset(), deployment}, nil), nil
+	}
+	t.Cleanup(func() { loadDefinitions = restore })
+
+	all := []string{deployment.Name, kartas.Jobset().Name}
+	slices.Sort(all)
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"every name, sorted", []string{"definitions", ""}, all},
+		{"a prefix", []string{"definitions", deployment.Name[:4]}, []string{deployment.Name}},
+		{"a prefix nothing matches", []string{"definitions", "zz-no-such"}, nil},
+		{"after one name", []string{"definitions", deployment.Name, ""}, nil},
+		{"with --group", []string{"definitions", "--group", "apps", ""}, nil},
+		{"with --group ''", []string{"definitions", "--group", "", ""}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := complete(t, tc.args...); !slices.Equal(got, tc.want) {
+				t.Errorf("expected %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+// Without a cluster the names still come from the built-in catalog.
+func TestCompleteOffersCatalogDefinitionNamesWithoutACluster(t *testing.T) {
+	fakeCluster(t)
+
+	got := complete(t, "definitions", kartas.Jobset().Name)
+	if !slices.Contains(got, kartas.Jobset().Name) {
+		t.Errorf("expected %q among %v", kartas.Jobset().Name, got)
+	}
+}
+
+// A configured cluster that refuses the definitions request still completes
+// from the catalog, quietly: stderr has only cobra's directive line.
+func TestCompleteOffersCatalogDefinitionNamesWhenTheClusterRefuses(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		http.Error(w, `{"kind":"Status","apiVersion":"v1","status":"Failure","reason":"Forbidden","code":403}`,
+			http.StatusForbidden)
+	}))
+	t.Cleanup(server.Close)
+
+	restore := clusterAccess
+	clusterAccess = func() genericclioptions.RESTClientGetter { return clusterGetter(server) }
+	t.Cleanup(func() { clusterAccess = restore })
+
+	name := kartas.Jobset().Name
+	out, errOut, code := runCmd(t, "__complete", "definitions", name[:len(name)-1])
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	got := candidates(out)
+	if !slices.Contains(got, name) {
+		t.Errorf("expected %q among %v", name, got)
+	}
+	for _, candidate := range got {
+		if !strings.HasPrefix(candidate, name[:len(name)-1]) {
+			t.Errorf("candidate %q does not match the prefix %q", candidate, name[:len(name)-1])
+		}
+	}
+	if requests.Load() == 0 {
+		t.Error("expected completion to ask the cluster for its definitions")
+	}
+	if want := "Completion ended with directive: ShellCompDirectiveNoFileComp\n"; errOut != want {
+		t.Errorf("expected stderr %q, got %q", want, errOut)
 	}
 }

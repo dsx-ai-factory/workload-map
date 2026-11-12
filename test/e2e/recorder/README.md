@@ -61,6 +61,11 @@ Karta, asserting each state matches.
 - Recording: the on-disk result. A STATE event per distinct CR, an ACTION event per patch.
 - Reader: walks a saved Recording back for the replay tests.
 
+For an object created by another controller, create its source objects first and
+call `Flow.Observe(ctx, object)` with the generated object. It records that
+snapshot and watches subsequent resource versions. The caller owns creation and
+cleanup. The Kueue flow uses this path because its Pods create the Workload.
+
 ## Run
 
 ```sh

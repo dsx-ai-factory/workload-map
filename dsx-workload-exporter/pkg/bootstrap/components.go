@@ -84,17 +84,19 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 	}
 	publications := store.New()
 	runtime, err := controller.New(controller.Config{
-		IgnoredOwnerKinds:    cfg.IgnoredOwnerKinds,
-		ResourceRules:        cfg.ResourceRules,
-		ExcludeResourceRules: cfg.ExcludeResourceRules,
-		NamespaceSelector:    cfg.NamespaceSelector,
-		ObjectSelector:       cfg.ObjectSelector,
-		PodSelector:          cfg.PodSelector,
-		ClusterDefinitions:   cfg.KartaDefinitionSource.Cluster.Enabled,
-		RequiredKinds:        cfg.RequiredKinds,
-		Workers:              cfg.Workers,
-		LeafWorkers:          cfg.LeafWorkers,
-		RootWorkers:          cfg.RootWorkers,
+		IgnoredOwnerKinds:      cfg.IgnoredOwnerKinds,
+		ResourceRules:          cfg.ResourceRules,
+		ExcludeResourceRules:   cfg.ExcludeResourceRules,
+		NamespaceSelector:      cfg.NamespaceSelector,
+		ObjectSelectors:        cfg.ObjectSelectors,
+		PodSelector:            cfg.PodSelector,
+		WorkloadMetricSelector: cfg.WorkloadMetricSelector,
+		PodWorkloadAssociation: cfg.PodWorkloadAssociation,
+		ClusterDefinitions:     cfg.KartaDefinitionSource.Cluster.Enabled,
+		RequiredKinds:          cfg.RequiredKinds,
+		Workers:                cfg.Workers,
+		LeafWorkers:            cfg.LeafWorkers,
+		RootWorkers:            cfg.RootWorkers,
 	}, controller.Dependencies{
 		Discovery:    ownership,
 		Inventory:    definitions,
@@ -104,5 +106,5 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 	if err != nil {
 		return app.Components{}, err
 	}
-	return app.Components{Runtime: runtime, Store: publications, Definitions: definitions}, nil
+	return app.Components{Runtime: runtime, Store: publications, Definitions: definitions, ExcludeStatuses: cfg.ExcludeStatuses}, nil
 }

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: kueue.x-k8s.io/v1beta2
+    kind: ResourceFlavor
+    metadata:
+      name: karta-e2e-kueue
+  - apiVersion: kueue.x-k8s.io/v1beta2
+    kind: ClusterQueue
+    metadata:
+      name: karta-e2e-kueue
+    spec:
+      resourceGroups:
+        - coveredResources: [cpu, memory]
+          flavors:
+            - name: karta-e2e-kueue
+              resources:
+                - name: cpu
+                  nominalQuota: "1"
+                - name: memory
+                  nominalQuota: 128Mi
+  - apiVersion: kueue.x-k8s.io/v1beta2
+    kind: LocalQueue
+    metadata:
+      name: karta-e2e-kueue
+      namespace: default
+    spec:
+      clusterQueue: karta-e2e-kueue

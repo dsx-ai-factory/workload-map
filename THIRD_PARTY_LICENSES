@@ -13,7 +13,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/onsi/ginkgo/v2
 - Name: github.com/onsi/ginkgo/v2
-- Version: v2.33.1
+- Version: v2.34.0
 - License: MIT
 
 ### github.com/onsi/gomega
@@ -183,7 +183,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/spf13/pflag
 - Name: github.com/spf13/pflag
-- Version: v1.0.10
+- Version: v1.1.0
 - License: BSD-3-Clause
 
 ### github.com/spf13/viper
@@ -388,7 +388,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### golang.org/x/oauth2
 - Name: golang.org/x/oauth2
-- Version: v0.36.0
+- Version: v0.37.0
 - License: BSD-3-Clause
 
 ### golang.org/x/term
@@ -403,7 +403,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### google.golang.org/protobuf
 - Name: google.golang.org/protobuf
-- Version: v1.36.12-0.20260120151049-f2248ac996af
+- Version: v1.36.12
 - License: BSD-3-Clause
 
 ### gopkg.in/evanphx/json-patch.v4
@@ -428,17 +428,17 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/prometheus/client_golang
 - Name: github.com/prometheus/client_golang
-- Version: v1.24.0
+- Version: v1.25.0
 - License: Apache-2.0
 
 ### github.com/prometheus/client_model
 - Name: github.com/prometheus/client_model
-- Version: v0.6.2
+- Version: v0.6.3
 - License: Apache-2.0
 
 ### github.com/prometheus/common
 - Name: github.com/prometheus/common
-- Version: v0.70.0
+- Version: v0.73.1
 - License: Apache-2.0
 
 ### github.com/prometheus/otlptranslator
@@ -458,7 +458,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### go.opentelemetry.io/otel/exporters/prometheus
 - Name: go.opentelemetry.io/otel/exporters/prometheus
-- Version: v0.66.0
+- Version: v0.69.0
 - License: Apache-2.0
 
 ### go.opentelemetry.io/otel/metric
@@ -501,6 +501,11 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v1.1.0
 - License: Apache-2.0
 
+### github.com/pandatix/go-abnf
+- Name: github.com/pandatix/go-abnf
+- Version: v0.5.3
+- License: MIT
+
 ### github.com/pmezard/go-difflib
 - Name: github.com/pmezard/go-difflib
 - Version: v1.0.1-0.20181226105442-5d4384ee4fb2
@@ -508,7 +513,7 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/prometheus/procfs
 - Name: github.com/prometheus/procfs
-- Version: v0.21.1
+- Version: v0.22.0
 - License: Apache-2.0
 
 ### github.com/stretchr/objx

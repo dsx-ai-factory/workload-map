@@ -184,7 +184,7 @@ var _ = ginkgo.Describe("chart runtime configuration", func() {
 		t := ginkgo.GinkgoT()
 		values := `exporter:
   namespaceSelector: {matchExpressions: [], matchLabels: {observe: "true"}}
-  objectSelector: {matchLabels: {team: platform}}
+  objectSelectors: [{selector: {matchLabels: {team: platform}}}]
   podSelector: {matchLabels: {scrape: "true"}}
   resourceRules: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]
   excludeResourceRules: [{apiGroups: [apps], apiVersions: [v1], resources: [deployments]}]

@@ -25,6 +25,17 @@ exporter:
     limits:
       cpu: "2"
       memory: 4Gi
+  # Soft memory limit of the Go runtime (GOMEMLIMIT). The GC runs more often as the
+  # heap nears it, instead of letting the heap reach twice its live size. This
+  # lowers the risk of an OOM kill; it does not remove it. auto: 90% of
+  # resources.limits.memory, any Kubernetes quantity; no limit or a zero limit
+  # leaves it unset. A number sets it in GiB, such as 3.5; empty leaves it unset.
+  goMemLimit: auto
+  # Go pprof profiles on 127.0.0.1:<port> inside the Pod, for kubectl port-forward
+  # only; no Service exposes them. Off by default.
+  pprof:
+    enabled: false
+    port: 6060
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -55,9 +66,15 @@ exporter:
           - kube-system
           - kube-public
           - kube-node-lease
-  # Select which objects the publication controller observes.
-  objectSelector: {}
+  # Label filters for workload roots. Omit apiVersion and kind for a global filter.
+  # All applicable filters must match. An empty list allows every root.
+  objectSelectors: []
   podSelector: {}
+  # Select roots that publish workload status and creation time. Pod info remains.
+  workloadMetricSelector: {}
+  # Optional bare-Pod metric association. The selected target Karta supplies its
+  # watch; target ownerReferences must include the Pod name and current UID.
+  podWorkloadAssociation: null
   resourceRules: []
   # Skip ConfigMaps and Secrets as workload roots. RBAC is unchanged.
   # Set [] to allow them as workload roots.
@@ -65,6 +82,9 @@ exporter:
     - apiGroups: [""]
       apiVersions: ["*"]
       resources: ["configmaps", "secrets"]
+  # Omit transition phases. Set [] to emit all phases, including transitions
+  # used by the Sandbox catalog definition and custom definitions.
+  excludeStatuses: [Suspending, Resuming]
   ignoredOwnerKinds: []
   requiredKinds: []
   workers: 4
@@ -99,6 +119,9 @@ exporter:
   # the catalog's batch-job-v1; also excluding batch-job-v1 leaves Jobs with
   # no definition. Disabling the catalog also removes this fallback.
   kartaDefinitionSource:
+    # Allow spec.experimental definitions from either source. Includes do not
+    # override this gate. Stable definitions remain enabled by default.
+    enableExperimental: false
     # Definitions built into the exporter, named as in docs/catalog, for
     # example batch-job-v1. Unknown names fail startup.
     catalog:

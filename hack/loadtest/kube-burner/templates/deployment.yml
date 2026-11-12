@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Pod -> ReplicaSet -> Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-{{ .Replica }}
+  labels:
+    loadtest.karta/root: "true"
+spec:
+  replicas: {{ .pods }}
+  selector:
+    matchLabels:
+      app: web-{{ .Replica }}
+  template:
+    metadata:
+      labels:
+        app: web-{{ .Replica }}
+    spec:
+      nodeSelector:
+        type: kwok
+      tolerations:
+        - key: kwok.x-k8s.io/node
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: app
+          image: {{ .image }}

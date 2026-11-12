@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Applied after the upstream KWOK stage-fast set, with its pod-complete stage removed so
+# Job Pods stay Running. This stage fails a Running Pod on demand: run.sh annotates a
+# share of Pods with loadtest.karta/fail=true during the churn phase.
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: pod-fail-on-annotation
+spec:
+  resourceRef:
+    apiGroup: v1
+    kind: Pod
+  selector:
+    matchExpressions:
+      - key: .metadata.deletionTimestamp
+        operator: DoesNotExist
+      - key: .status.phase
+        operator: In
+        values: [Running]
+      - key: .metadata.annotations["loadtest.karta/fail"]
+        operator: In
+        values: ["true"]
+  delay:
+    durationMilliseconds: 1000
+  next:
+    statusTemplate: |
+      {{ $now := Now }}
+      conditions:
+      - lastTransitionTime: {{ $now | Quote }}
+        status: "False"
+        type: Ready
+      containerStatuses:
+      {{ range .spec.containers }}
+      - image: {{ .image | Quote }}
+        name: {{ .name | Quote }}
+        ready: false
+        restartCount: 0
+        state:
+          terminated:
+            exitCode: 1
+            finishedAt: {{ $now | Quote }}
+            reason: Error
+            startedAt: {{ $now | Quote }}
+      {{ end }}
+      phase: Failed

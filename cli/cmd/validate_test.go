@@ -168,15 +168,14 @@ metadata:
 			_, _, err := runValidate("", writeDefinition(duplicateKey))
 
 			Expect(exitStatus(err)).To(Equal(ExitUsage))
-			Expect(err).To(MatchError(ContainSubstring("already defined")))
-			Expect(err).To(MatchError(ContainSubstring(`"name"`)))
+			Expect(err).To(MatchError(ContainSubstring(`key "name" already set in map`)))
 		})
 
 		It("rejects a duplicate mapping key on stdin", func() {
 			_, _, err := runValidate(duplicateKey, "-")
 
 			Expect(exitStatus(err)).To(Equal(ExitUsage))
-			Expect(err).To(MatchError(ContainSubstring("already defined")))
+			Expect(err).To(MatchError(ContainSubstring(`key "name" already set in map`)))
 		})
 	})
 

@@ -26,10 +26,15 @@ func TestSortViews(t *testing.T) {
 		}
 		return v
 	}
+	// inGroup returns v served under apiVersion instead.
+	inGroup := func(v workload.View, apiVersion string) workload.View {
+		v.APIVersion = apiVersion
+		return v
+	}
 	ids := func(views []workload.View) []string {
 		out := make([]string, 0, len(views))
 		for _, v := range views {
-			out = append(out, v.Kind+"/"+v.Namespace+"/"+v.Name)
+			out = append(out, v.Kind+"/"+v.Namespace+"/"+v.Name+"@"+v.APIVersion)
 		}
 		return out
 	}
@@ -44,7 +49,7 @@ func TestSortViews(t *testing.T) {
 			name:  "age is newest first",
 			key:   sortByAge,
 			views: []workload.View{view("JobSet", "ml", "alpha", time.Hour), view("JobSet", "ml", "zebra", 2*time.Minute)},
-			want:  []string{"JobSet/ml/zebra", "JobSet/ml/alpha"},
+			want:  []string{"JobSet/ml/zebra@v1", "JobSet/ml/alpha@v1"},
 		},
 		{
 			name: "age puts a missing creation time last",
@@ -52,7 +57,7 @@ func TestSortViews(t *testing.T) {
 			views: []workload.View{
 				view("JobSet", "ml", "unset", 0), view("JobSet", "ml", "old", 5*time.Hour), view("JobSet", "ml", "new", time.Minute),
 			},
-			want: []string{"JobSet/ml/new", "JobSet/ml/old", "JobSet/ml/unset"},
+			want: []string{"JobSet/ml/new@v1", "JobSet/ml/old@v1", "JobSet/ml/unset@v1"},
 		},
 		{
 			name: "equal ages fall back to kind, then name",
@@ -60,19 +65,19 @@ func TestSortViews(t *testing.T) {
 			views: []workload.View{
 				view("Pod", "ml", "debug", time.Hour), view("JobSet", "ml", "preprocess", time.Hour), view("Deployment", "ml", "web", time.Hour),
 			},
-			want: []string{"Deployment/ml/web", "JobSet/ml/preprocess", "Pod/ml/debug"},
+			want: []string{"Deployment/ml/web@v1", "JobSet/ml/preprocess@v1", "Pod/ml/debug@v1"},
 		},
 		{
 			name:  "an unset key sorts by age",
 			key:   "",
 			views: []workload.View{view("JobSet", "ml", "alpha", time.Hour), view("JobSet", "ml", "zebra", 2*time.Minute)},
-			want:  []string{"JobSet/ml/zebra", "JobSet/ml/alpha"},
+			want:  []string{"JobSet/ml/zebra@v1", "JobSet/ml/alpha@v1"},
 		},
 		{
 			name:  "name is alphabetical whatever the age",
 			key:   sortByName,
 			views: []workload.View{view("JobSet", "ml", "zebra", 2*time.Minute), view("JobSet", "ml", "alpha", time.Hour)},
-			want:  []string{"JobSet/ml/alpha", "JobSet/ml/zebra"},
+			want:  []string{"JobSet/ml/alpha@v1", "JobSet/ml/zebra@v1"},
 		},
 		{
 			name: "name keeps missing creation times in name order",
@@ -80,7 +85,7 @@ func TestSortViews(t *testing.T) {
 			views: []workload.View{
 				view("JobSet", "ml", "beta", 0), view("JobSet", "ml", "alpha", time.Hour), view("JobSet", "ml", "gamma", 0),
 			},
-			want: []string{"JobSet/ml/alpha", "JobSet/ml/beta", "JobSet/ml/gamma"},
+			want: []string{"JobSet/ml/alpha@v1", "JobSet/ml/beta@v1", "JobSet/ml/gamma@v1"},
 		},
 		{
 			name: "equal names fall back to kind, then namespace",
@@ -88,7 +93,31 @@ func TestSortViews(t *testing.T) {
 			views: []workload.View{
 				view("JobSet", "b", "web", time.Minute), view("Deployment", "b", "web", time.Hour), view("Deployment", "a", "web", 0),
 			},
-			want: []string{"Deployment/a/web", "Deployment/b/web", "JobSet/b/web"},
+			want: []string{"Deployment/a/web@v1", "Deployment/b/web@v1", "JobSet/b/web@v1"},
+		},
+		{
+			name: "equal ages and kinds fall back to name",
+			key:  sortByAge,
+			views: []workload.View{
+				view("JobSet", "ml", "gamma", time.Hour), view("JobSet", "ml", "alpha", time.Hour), view("JobSet", "ml", "beta", time.Hour),
+			},
+			want: []string{"JobSet/ml/alpha@v1", "JobSet/ml/beta@v1", "JobSet/ml/gamma@v1"},
+		},
+		{
+			name: "age falls back to API version last",
+			key:  sortByAge,
+			views: []workload.View{
+				inGroup(view("Job", "ml", "etl", time.Hour), "batch/v1"), inGroup(view("Job", "ml", "etl", time.Hour), "acme.io/v1"),
+			},
+			want: []string{"Job/ml/etl@acme.io/v1", "Job/ml/etl@batch/v1"},
+		},
+		{
+			name: "name falls back to API version last",
+			key:  sortByName,
+			views: []workload.View{
+				inGroup(view("Job", "ml", "etl", time.Minute), "batch/v1"), inGroup(view("Job", "ml", "etl", time.Hour), "acme.io/v1"),
+			},
+			want: []string{"Job/ml/etl@acme.io/v1", "Job/ml/etl@batch/v1"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -126,7 +126,7 @@ Key flags:
 - `--sort-by <age|name>` - row order: `age` (the default) is newest first, `name` is alphabetical
 - `-o <table|wide|json|yaml>` - output format. `-o json` emits the typed `WorkloadView` for scripting and MCP consumers, always under an `items` key alongside a `count`, so consumers never branch on shape.
 
-Rows are ordered newest first unless `--sort-by name` asks for alphabetical order; equal rows fall back to kind, name and namespace, and a workload with no creation time sorts last. Counts and GPU are read from the workload spec, so listing costs one API call per type and no pod reads; `wide` adds the ORIGIN of the resolving definition. A NODES column needs live pod data and follows with `karta describe`, which has to build pod matching anyway.
+Rows are ordered newest first unless `--sort-by name` asks for alphabetical order; equal rows fall back to kind, name, namespace and API version. In age order, a workload with no creation time sorts last; in name order it keeps its alphabetical place. Counts and GPU are read from the workload spec, so listing costs one API call per type and no pod reads; `wide` adds the ORIGIN of the resolving definition. A NODES column needs live pod data and follows with `karta describe`, which has to build pod matching anyway.
 
 `karta get --all-types` is the cross-type view: every workload Karta covers, in one table with a TYPE column. No native tool provides this view.
 

@@ -110,7 +110,7 @@ Commit messages follow Conventional Commits v1.0.0 with a DCO sign-off (`git com
 
 Each commit also requires a cryptographic signature, which proves that the signing key signed the commit.
 Use `git commit -s -S` to include both the DCO sign-off and the signature.
-Follow [Commit signing](CONTRIBUTING.md#commit-signing) for key setup and instructions to re-sign existing commits.
+Follow [Commit signing](CONTRIBUTING.md#commit-signing) for key setup and GitHub verification guidance.
 Only rewrite commits or force-push when the contributor explicitly requests it.
 
 Use the PR template at `.github/PULL_REQUEST_TEMPLATE.md`. Required: link to an open issue, run `make check`, add or update tests (or explain why none).

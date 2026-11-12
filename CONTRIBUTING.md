@@ -171,23 +171,6 @@ After pushing, open the pull request's Commits tab and make sure that each commi
 "Unverified" can indicate an invalid signature or missing GitHub configuration. Unsigned commits can also lack a verification badge.
 See [GitHub's signature status explanations](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification) to diagnose the cause.
 
-To re-sign existing commits, first configure signing and make sure that your working tree has no uncommitted changes.
-The following commands assume a feature branch with only your own commits and no merge commits.
-They use `origin/main` as the pull request's target branch. Replace it if your remote or target branch differs.
-
-Re-sign only your feature branch. These commands rewrite commit IDs and replace the remote branch history.
-Coordinate with anyone who uses the branch before you proceed. Preserve existing human attribution and DCO sign-offs.
-
-```bash
-git fetch origin
-git rebase --force-rebase --exec 'git commit --amend --no-edit -S' origin/main
-git push --force-with-lease
-```
-
-The rebase command preserves existing commit messages, including DCO sign-offs. It does not add missing sign-offs.
-If a conflict occurs, resolve it and run `git rebase --continue`, or run `git rebase --abort` to cancel.
-After pushing, make sure that GitHub shows "Verified" for every rewritten commit.
-
 ### Commit Attribution
 
 Commit co-author trailers identify human contributors. Do not add AI tools as

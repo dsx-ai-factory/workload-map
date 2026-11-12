@@ -67,6 +67,7 @@ jobs:
             bin/go-licence-detector-*
             bin/golangci-lint-*
             bin/goreleaser-*
+            bin/promtool-*
             bin/setup-envtest-*
             bin/k8s
           key: ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-${{ hashFiles('karta/sdk/go.mod') }}

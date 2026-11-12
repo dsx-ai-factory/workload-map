@@ -48,6 +48,11 @@ GO_LICENCE_DETECTOR_VERSION ?= v0.11.1
 ENVTEST_VERSION             ?= release-0.23
 # renovate: datasource=go depName=github.com/goreleaser/goreleaser/v2
 GORELEASER_VERSION          ?= v2.20.0
+PROMTOOL_VERSION            ?= v3.5.0
+PROMTOOL_SHA256_linux_amd64  ?= e811827af26d822afb09a4f28314f61b618b12cff5369835a67f674d8b46f39a
+PROMTOOL_SHA256_linux_arm64  ?= 173389cc42bf09c4e6e54cb53fa07a5a835d7c261e14775d2183181d6e385d1c
+PROMTOOL_SHA256_darwin_amd64 ?= 5856d0c306e7d852d9a79788b20acb630501b3fab120b69f5317d6b0732dea57
+PROMTOOL_SHA256_darwin_arm64 ?= c17bc2c992f0b5515eebe2b4ccd626214f8e309a0fe6ec40ed13c42ec13d05fb
 # Kubernetes control-plane (apiserver, etcd, kubectl) version envtest downloads.
 ENVTEST_K8S_VERSION         ?= 1.31.0
 # Control-plane version for the chart's admission policy tests; MutatingAdmissionPolicy v1 needs 1.36+.
@@ -62,6 +67,7 @@ GOLANGCI_LINT       ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GO_LICENCE_DETECTOR ?= $(LOCALBIN)/go-licence-detector-$(GO_LICENCE_DETECTOR_VERSION)
 ENVTEST             ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GORELEASER          ?= $(LOCALBIN)/goreleaser-$(GORELEASER_VERSION)
+PROMTOOL            ?= $(LOCALBIN)/promtool-v$(patsubst v%,%,$(PROMTOOL_VERSION))
 
 GOLANGCI_LINT_FLAGS ?= $(if $(VERBOSE),-v)
 
@@ -515,8 +521,24 @@ exporter-version-smoke: build-exporter ## Verify the exporter reports the stampe
 	[ "$$out" = "$(VERSION)" ] || { \
 		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
 
+.PHONY: promtool-check
+promtool-check: promtool ## Validate and unit-test example Prometheus rules with promtool
+	@set -eu; \
+	found=0; \
+	for f in dsx-workload-exporter/examples/*/*rules*.yaml; do \
+		[ -e "$$f" ] || continue; \
+		found=$$((found + 1)); \
+		$(PROMTOOL) check rules --lint-fatal "$$f"; \
+	done; \
+	[ "$$found" -gt 0 ] || { echo "no Prometheus rule files matched dsx-workload-exporter/examples/*/*rules*.yaml" >&2; exit 1; }; \
+	for t in dsx-workload-exporter/examples/*/tests/*.test.yaml; do \
+		[ -e "$$t" ] || continue; \
+		echo "Testing $$t"; \
+		$(PROMTOOL) test rules "$$t"; \
+	done
+
 .PHONY: check-exporter
-check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter test-exporter exporter-version-smoke ## Full exporter presubmit
+check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter promtool-check test-exporter exporter-version-smoke ## Full exporter presubmit
 
 EXPORTER_GO_VERSION := $(shell awk '/^go /{print $$2; exit}' dsx-workload-exporter/go.mod)
 EXPORTER_IMAGE_REPOSITORY ?= $(IMAGE_REGISTRY)/dsx-workload-exporter
@@ -890,6 +912,42 @@ $(GORELEASER): | $(LOCALBIN)
 	echo "Downloading goreleaser@$(GORELEASER_VERSION)"; \
 	GOTOOLCHAIN=auto GOBIN=$(LOCALBIN) go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION); \
 	mv $(LOCALBIN)/goreleaser $@
+
+.PHONY: promtool
+promtool: $(PROMTOOL) ## Download the pinned promtool binary locally
+$(PROMTOOL): | $(LOCALBIN)
+	@set -eu; \
+	ver="$(patsubst v%,%,$(PROMTOOL_VERSION))"; \
+	os="$$(uname -s | tr '[:upper:]' '[:lower:]')"; \
+	case "$$(uname -m)" in \
+		x86_64|amd64) arch=amd64 ;; \
+		aarch64|arm64) arch=arm64 ;; \
+		*) echo "unsupported architecture: $$(uname -m)" >&2; exit 1 ;; \
+	esac; \
+	case "$${os}_$${arch}" in \
+		linux_amd64)  sha="$(PROMTOOL_SHA256_linux_amd64)" ;; \
+		linux_arm64)  sha="$(PROMTOOL_SHA256_linux_arm64)" ;; \
+		darwin_amd64) sha="$(PROMTOOL_SHA256_darwin_amd64)" ;; \
+		darwin_arm64) sha="$(PROMTOOL_SHA256_darwin_arm64)" ;; \
+		*) echo "unsupported platform: $${os}/$${arch}" >&2; exit 1 ;; \
+	esac; \
+	[ -n "$$sha" ] || { echo "missing SHA-256 digest for promtool $${os}/$${arch}" >&2; exit 1; }; \
+	echo "Downloading promtool@v$$ver ($${os}/$${arch})"; \
+	tmpdir=$$(mktemp -d); \
+	trap 'rm -rf "$$tmpdir"; rm -f "$@.tmp.$$$$"' EXIT; \
+	curl -sSfL --proto '=https' --proto-redir '=https' --tlsv1.2 \
+		"https://github.com/prometheus/prometheus/releases/download/v$${ver}/prometheus-$${ver}.$${os}-$${arch}.tar.gz" \
+		-o "$$tmpdir/prometheus.tar.gz"; \
+	if command -v sha256sum >/dev/null 2>&1; then \
+		printf '%s  %s\n' "$$sha" "$$tmpdir/prometheus.tar.gz" | sha256sum -c - >/dev/null; \
+	elif command -v shasum >/dev/null 2>&1; then \
+		printf '%s  %s\n' "$$sha" "$$tmpdir/prometheus.tar.gz" | shasum -a 256 -c - >/dev/null; \
+	else \
+		echo "neither sha256sum nor shasum found" >&2; exit 1; \
+	fi; \
+	tar -xzf "$$tmpdir/prometheus.tar.gz" -C "$$tmpdir" "prometheus-$${ver}.$${os}-$${arch}/promtool"; \
+	install -m 0755 "$$tmpdir/prometheus-$${ver}.$${os}-$${arch}/promtool" "$@.tmp.$$$$"; \
+	mv -f "$@.tmp.$$$$" "$@"
 
 ##@ Help
 

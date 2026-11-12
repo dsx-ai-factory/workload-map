@@ -40,22 +40,24 @@ type Loader struct {
 // Config is the exporter configuration. It is read from the YAML file named by
 // --config. A flag, or its environment variable, overrides the file when set.
 type Config struct {
-	labelresolver.Config  `yaml:",inline"`
-	ResourceRules         []controller.ResourceRule   `yaml:"resourceRules" json:"resourceRules"`
-	ExcludeResourceRules  []controller.ResourceRule   `yaml:"excludeResourceRules" json:"excludeResourceRules"`
-	ExcludeStatuses       []v1alpha1.ResourceStatus   `yaml:"excludeStatuses" json:"excludeStatuses"`
-	NamespaceSelector     *metav1.LabelSelector       `yaml:"namespaceSelector" json:"namespaceSelector"`
-	ObjectSelector        *metav1.LabelSelector       `yaml:"objectSelector" json:"objectSelector"`
-	PodSelector           *metav1.LabelSelector       `yaml:"podSelector" json:"podSelector"`
-	KartaDefinitionSource KartaDefinitionSourceConfig `yaml:"kartaDefinitionSource" json:"kartaDefinitionSource"`
-	IgnoredOwnerKinds     Kinds                       `yaml:"ignoredOwnerKinds" json:"ignoredOwnerKinds"`
-	RequiredKinds         Kinds                       `yaml:"requiredKinds" json:"requiredKinds"`
-	RequestTimeout        string                      `yaml:"requestTimeout" json:"requestTimeout"`
-	APIQPS                float32                     `yaml:"apiQPS" json:"apiQPS"`
-	APIBurst              int                         `yaml:"apiBurst" json:"apiBurst"`
-	Workers               int                         `yaml:"workers" json:"workers"`
-	LeafWorkers           int                         `yaml:"leafWorkers" json:"leafWorkers"`
-	RootWorkers           int                         `yaml:"rootWorkers" json:"rootWorkers"`
+	labelresolver.Config   `yaml:",inline"`
+	ResourceRules          []controller.ResourceRule          `yaml:"resourceRules" json:"resourceRules"`
+	ExcludeResourceRules   []controller.ResourceRule          `yaml:"excludeResourceRules" json:"excludeResourceRules"`
+	ExcludeStatuses        []v1alpha1.ResourceStatus          `yaml:"excludeStatuses" json:"excludeStatuses"`
+	NamespaceSelector      *metav1.LabelSelector              `yaml:"namespaceSelector" json:"namespaceSelector"`
+	ObjectSelectors        []controller.ObjectSelector        `yaml:"objectSelectors" json:"objectSelectors"`
+	PodSelector            *metav1.LabelSelector              `yaml:"podSelector" json:"podSelector"`
+	WorkloadMetricSelector *metav1.LabelSelector              `yaml:"workloadMetricSelector" json:"workloadMetricSelector"`
+	PodWorkloadAssociation *controller.PodWorkloadAssociation `yaml:"podWorkloadAssociation" json:"podWorkloadAssociation"`
+	KartaDefinitionSource  KartaDefinitionSourceConfig        `yaml:"kartaDefinitionSource" json:"kartaDefinitionSource"`
+	IgnoredOwnerKinds      Kinds                              `yaml:"ignoredOwnerKinds" json:"ignoredOwnerKinds"`
+	RequiredKinds          Kinds                              `yaml:"requiredKinds" json:"requiredKinds"`
+	RequestTimeout         string                             `yaml:"requestTimeout" json:"requestTimeout"`
+	APIQPS                 float32                            `yaml:"apiQPS" json:"apiQPS"`
+	APIBurst               int                                `yaml:"apiBurst" json:"apiBurst"`
+	Workers                int                                `yaml:"workers" json:"workers"`
+	LeafWorkers            int                                `yaml:"leafWorkers" json:"leafWorkers"`
+	RootWorkers            int                                `yaml:"rootWorkers" json:"rootWorkers"`
 }
 
 // KartaDefinitionSourceConfig selects definitions from the configured sources.
@@ -275,7 +277,7 @@ func (cfg Config) Validate() error {
 	if err := labelresolver.ValidateConfig(cfg.Config); err != nil {
 		return err
 	}
-	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.ObjectSelector, cfg.PodSelector} {
+	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.PodSelector, cfg.WorkloadMetricSelector} {
 		if selector != nil {
 			if _, err := metav1.LabelSelectorAsSelector(selector); err != nil {
 				return err
@@ -293,6 +295,12 @@ func (cfg Config) Validate() error {
 		default:
 			return fmt.Errorf("unknown excluded status %q", status)
 		}
+	}
+	if err := controller.ValidateObjectSelectors(cfg.ObjectSelectors); err != nil {
+		return err
+	}
+	if err := controller.ValidatePodWorkloadAssociation(cfg.PodWorkloadAssociation); err != nil {
+		return err
 	}
 	for _, kinds := range [][]schema.GroupVersionKind{cfg.IgnoredOwnerKinds, cfg.RequiredKinds} {
 		seen := map[schema.GroupVersionKind]bool{}

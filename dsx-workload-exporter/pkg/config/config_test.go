@@ -19,6 +19,53 @@ import (
 )
 
 var _ = Describe("config defaults and rules", func() {
+	It("rejects the removed singular object selector key", func() {
+		_, err := loadConfig("objectSelector: {matchLabels: {team: platform}}", nil)
+		Expect(err).To(MatchError(ContainSubstring(`unknown field "objectSelector"`)))
+	})
+
+	It("loads independent workload metric selection and an optional Pod association", func() {
+		defaults, err := loadConfig("", nil)
+		Expect(err).To(Succeed())
+		Expect(defaults.WorkloadMetricSelector).To(BeNil())
+		Expect(defaults.PodWorkloadAssociation).To(BeNil())
+		cfg, err := loadConfig(`workloadMetricSelector:
+  matchExpressions:
+  - key: example.org/group
+    operator: DoesNotExist
+podWorkloadAssociation:
+  podSelector:
+    matchLabels:
+      example.org/managed: "true"
+  target:
+    apiVersion: scheduling.example.org/v1
+    kind: Workload
+    nameFromLabel: example.org/group
+`, nil)
+		Expect(err).To(Succeed())
+		Expect(cfg.WorkloadMetricSelector.MatchExpressions).To(HaveLen(1))
+		Expect(cfg.PodWorkloadAssociation.Target.APIVersion).To(Equal("scheduling.example.org/v1"))
+		Expect(cfg.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("example.org/group"))
+		Expect(cfg.PodWorkloadAssociation.PodSelector.MatchLabels).To(HaveKeyWithValue("example.org/managed", "true"))
+	})
+
+	for _, invalid := range []string{
+		`workloadMetricSelector: {matchExpressions: [{key: group, operator: Invalid}]}`,
+		`podWorkloadAssociation: {target: {apiVersion: "", kind: Workload, nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/, kind: Workload, nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: "*", nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: ""}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: "bad key"}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: group}, podSelector: {matchExpressions: [{key: group, operator: Invalid}]}}`,
+	} {
+		It("rejects invalid association and metric selection configuration: "+invalid, func() {
+			var parsed map[string]any
+			Expect(yaml.Unmarshal([]byte(invalid), &parsed)).To(Succeed())
+			_, err := loadConfig(invalid, nil)
+			Expect(err).To(HaveOccurred())
+		})
+	}
+
 	It("preserves flat configuration keys when encoding embedded resolver settings", func() {
 		cfg, err := loadConfig("labelRules: []\ngenericLabelEvaluationLimits:\n  maxResultBytes: 32\n", nil)
 		Expect(err).To(Succeed())

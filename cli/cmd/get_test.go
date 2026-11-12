@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 
@@ -722,4 +723,38 @@ func TestGetPrintsWarningsBeforeTheError(t *testing.T) {
 	if warning < 0 || failure < warning {
 		t.Errorf("expected the warning before the error\n%s", combined)
 	}
+}
+
+// TestGetNoHeadersOmitsTheHeader checks that --no-headers reaches the table
+// through the get command: the data rows stay, in the same order, and only the
+// header goes.
+func TestGetNoHeadersOmitsTheHeader(t *testing.T) {
+	fakeCluster(t, jobSet("preprocess", 3))
+
+	withHeaders, _, code := runGetCmd(t, "jobset")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, withHeaders)
+	}
+	out, errOut, code := runGetCmd(t, "jobset", "--no-headers")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	lines := strings.Split(strings.TrimRight(withHeaders, "\n"), "\n")
+	// The columns are as wide as their widest cell, so a missing header can
+	// narrow them; compare the cells.
+	if want, got := tableCells(strings.Join(lines[1:], "\n")), tableCells(out); !slices.Equal(want, got) {
+		t.Errorf("expected only the data rows\nwant:\n%v\ngot:\n%v", want, got)
+	}
+	if strings.Contains(out, "NAME") || !strings.Contains(out, "preprocess") {
+		t.Errorf("unexpected output\n%s", out)
+	}
+}
+
+// tableCells is each row of a table with its cells joined by single spaces.
+func tableCells(table string) []string {
+	var rows []string
+	for _, line := range strings.Split(strings.TrimRight(table, "\n"), "\n") {
+		rows = append(rows, strings.Join(strings.Fields(line), " "))
+	}
+	return rows
 }

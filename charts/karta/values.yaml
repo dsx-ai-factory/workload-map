@@ -60,9 +60,15 @@ exporter:
           - kube-system
           - kube-public
           - kube-node-lease
-  # Select which objects the publication controller observes.
-  objectSelector: {}
+  # Label filters for workload roots. Omit apiVersion and kind for a global filter.
+  # All applicable filters must match. An empty list allows every root.
+  objectSelectors: []
   podSelector: {}
+  # Select roots that publish workload status and creation time. Pod info remains.
+  workloadMetricSelector: {}
+  # Optional bare-Pod metric association. The selected target Karta supplies its
+  # watch; target ownerReferences must include the Pod name and current UID.
+  podWorkloadAssociation: null
   resourceRules: []
   # Skip ConfigMaps and Secrets as workload roots. RBAC is unchanged.
   # Set [] to allow them as workload roots.

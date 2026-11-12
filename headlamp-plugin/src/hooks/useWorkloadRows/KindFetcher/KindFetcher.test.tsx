@@ -23,6 +23,7 @@ import type { Definition } from '../../../lib/karta/definitions';
 import { KindFetcher } from './KindFetcher';
 
 const deploymentGVK = { group: 'apps', version: 'v1', kind: 'Deployment' };
+const deploymentKey = 'apps/v1, Kind=Deployment';
 
 function definition(resourceVersion?: string): Definition {
   return {
@@ -33,6 +34,7 @@ function definition(resourceVersion?: string): Definition {
       spec: { structureDefinition: { rootComponent: { kind: deploymentGVK } } },
     },
     origin: 'catalog',
+    rootKind: deploymentGVK,
   };
 }
 
@@ -162,7 +164,7 @@ describe('KindFetcher', () => {
 
     await waitFor(() => expect(evaluatePhases).toHaveBeenCalledTimes(1));
     await waitFor(() =>
-      expect(onRows).toHaveBeenLastCalledWith('deployment', [expect.objectContaining({ phases: ['Running'] })])
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [expect.objectContaining({ phases: ['Running'] })])
     );
 
     // Same resourceVersion, new items array reference (a poll tick) — must
@@ -170,7 +172,7 @@ describe('KindFetcher', () => {
     useListMock.mockReturnValue([[item('1')], null]);
     rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
 
-    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith('deployment', expect.any(Array)));
+    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith(deploymentKey, expect.any(Array)));
     expect(evaluatePhases).toHaveBeenCalledTimes(1);
   });
 
@@ -188,7 +190,7 @@ describe('KindFetcher', () => {
 
     await waitFor(() => expect(evaluatePhases).toHaveBeenCalledTimes(2));
     await waitFor(() =>
-      expect(onRows).toHaveBeenLastCalledWith('deployment', [expect.objectContaining({ phases: ['Failed'] })])
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [expect.objectContaining({ phases: ['Failed'] })])
     );
   });
 
@@ -211,7 +213,7 @@ describe('KindFetcher', () => {
     rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
     await waitFor(() => expect(evaluatePhases).toHaveBeenCalledTimes(2));
     await waitFor(() =>
-      expect(onRows).toHaveBeenLastCalledWith('deployment', [expect.objectContaining({ phases: ['Initializing'] })])
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [expect.objectContaining({ phases: ['Initializing'] })])
     );
 
     // The stale v1 call finally resolves — must not overwrite the cache
@@ -222,8 +224,85 @@ describe('KindFetcher', () => {
     useListMock.mockReturnValue([[item('2')], null]);
     rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
     await waitFor(() =>
-      expect(onRows).toHaveBeenLastCalledWith('deployment', [expect.objectContaining({ phases: ['Initializing'] })])
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [expect.objectContaining({ phases: ['Initializing'] })])
     );
+  });
+
+  // Keeping the last phases would present a stale status as current.
+  it('clears the old phases and reports the error when a later evaluation fails', async () => {
+    evaluatePhases.mockResolvedValueOnce(['Running']).mockRejectedValueOnce(new Error('engine unavailable'));
+    useListMock.mockReturnValue([[item('1')], null]);
+    const onRows = vi.fn();
+    const onError = vi.fn();
+
+    const { rerender } = render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
+    await waitFor(() =>
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [expect.objectContaining({ phases: ['Running'] })])
+    );
+
+    useListMock.mockReturnValue([[item('2')], null]);
+    rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
+
+    await waitFor(() =>
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [
+        expect.objectContaining({ name: 'api', phases: [], statusError: 'engine unavailable' }),
+      ])
+    );
+  });
+
+  it('clears the error once a later evaluation succeeds', async () => {
+    evaluatePhases.mockRejectedValueOnce(new Error('engine unavailable')).mockResolvedValueOnce(['Running']);
+    useListMock.mockReturnValue([[item('1')], null]);
+    const onRows = vi.fn();
+    const onError = vi.fn();
+
+    const { rerender } = render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
+    await waitFor(() =>
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [
+        expect.objectContaining({ statusError: 'engine unavailable' }),
+      ])
+    );
+
+    useListMock.mockReturnValue([[item('2')], null]);
+    rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
+
+    await waitFor(() => {
+      const [row] = onRows.mock.lastCall?.[1] ?? [];
+      expect(row?.phases).toEqual(['Running']);
+      expect(row).not.toHaveProperty('statusError');
+    });
+  });
+
+  // A failure of an evaluation that a newer one has superseded says nothing
+  // about the workload's current status.
+  it('ignores a late failure that a newer evaluation has superseded', async () => {
+    let rejectV1: (error: Error) => void = () => {};
+    const v1Promise = new Promise<string[]>((_resolve, reject) => {
+      rejectV1 = reject;
+    });
+    evaluatePhases.mockReturnValueOnce(v1Promise).mockResolvedValueOnce(['Running']);
+    useListMock.mockReturnValue([[item('1')], null]);
+    const onRows = vi.fn();
+    const onError = vi.fn();
+
+    const { rerender } = render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
+    await waitFor(() => expect(evaluatePhases).toHaveBeenCalledTimes(1));
+
+    useListMock.mockReturnValue([[item('2')], null]);
+    rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
+    await waitFor(() =>
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [expect.objectContaining({ phases: ['Running'] })])
+    );
+
+    rejectV1(new Error('late failure'));
+    await v1Promise.catch(() => {});
+
+    useListMock.mockReturnValue([[item('2')], null]);
+    rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
+    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith(deploymentKey, expect.any(Array)));
+    const [row] = onRows.mock.lastCall?.[1] ?? [];
+    expect(row.phases).toEqual(['Running']);
+    expect(row).not.toHaveProperty('statusError');
   });
 
   // The same workload yields different phases under an edited definition, so
@@ -242,7 +321,7 @@ describe('KindFetcher', () => {
 
     await waitFor(() => expect(evaluatePhases).toHaveBeenCalledTimes(2));
     await waitFor(() =>
-      expect(onRows).toHaveBeenLastCalledWith('deployment', [expect.objectContaining({ phases: ['Degraded'] })])
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [expect.objectContaining({ phases: ['Degraded'] })])
     );
   });
 
@@ -259,7 +338,7 @@ describe('KindFetcher', () => {
 
     rerender(<KindFetcher definition={definition('10')} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
 
-    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith('deployment', expect.any(Array)));
+    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith(deploymentKey, expect.any(Array)));
     expect(evaluatePhases).toHaveBeenCalledTimes(1);
   });
 
@@ -277,7 +356,7 @@ describe('KindFetcher', () => {
     // The workload goes away, which must evict it.
     useListMock.mockReturnValue([[], null]);
     rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
-    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith('deployment', []));
+    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith(deploymentKey, []));
 
     // It comes back unchanged: a surviving entry would be reused and skip the
     // call, so a second call proves the first was evicted.
@@ -306,7 +385,7 @@ describe('KindFetcher', () => {
     useListMock.mockReturnValue(listResult([item('1')], null, false));
     rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
 
-    await waitFor(() => expect(onRows).toHaveBeenCalledWith('deployment', expect.any(Array)));
+    await waitFor(() => expect(onRows).toHaveBeenCalledWith(deploymentKey, expect.any(Array)));
   });
 
   // A Deployment and its pods are one workload described at two levels, and
@@ -325,7 +404,7 @@ describe('KindFetcher', () => {
     render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={vi.fn()} />);
 
     await waitFor(() => expect(onRows).toHaveBeenCalled());
-    expect(onRows.mock.calls.at(-1)?.[1]).toEqual([expect.objectContaining({ name: 'root' })]);
+    expect(onRows.mock.calls.slice(-1)[0]?.[1]).toEqual([expect.objectContaining({ name: 'root' })]);
     // The skipped workload costs no WASM call.
     await waitFor(() => expect(evaluatePhases).toHaveBeenCalledTimes(1));
   });
@@ -342,7 +421,40 @@ describe('KindFetcher', () => {
     render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={vi.fn()} />);
 
     await waitFor(() => expect(onRows).toHaveBeenCalled());
-    expect(onRows.mock.calls.at(-1)?.[1]).toHaveLength(1);
+    expect(onRows.mock.calls.slice(-1)[0]?.[1]).toHaveLength(1);
+  });
+
+  // Headlamp can return the workloads of team-a together with a 403 from
+  // team-b. The readable ones must still reach the table, with the error
+  // reported beside them.
+  it('reports the rows of a readable namespace together with the error of a forbidden one', async () => {
+    evaluatePhases.mockResolvedValue(['Running']);
+    useListMock.mockReturnValue([
+      [item('1', { namespace: 'team-a' })],
+      { message: 'namespace team-b is forbidden' },
+    ]);
+    const onRows = vi.fn();
+    const onError = vi.fn();
+
+    render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced namespaces={['team-a', 'team-b']} onRows={onRows} onError={onError} />);
+
+    expect(onError).toHaveBeenCalledWith(deploymentKey, new Error('namespace team-b is forbidden'));
+    await waitFor(() =>
+      expect(onRows).toHaveBeenLastCalledWith(deploymentKey, [
+        expect.objectContaining({ namespace: 'team-a', phases: ['Running'] }),
+      ])
+    );
+  });
+
+  it('clears the reported error once the list no longer fails', () => {
+    useListMock.mockReturnValue([[item('1')], { message: 'boom' }]);
+    const onError = vi.fn();
+    const { rerender } = render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={vi.fn()} onError={onError} />);
+
+    useListMock.mockReturnValue([[item('1')], null]);
+    rerender(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={vi.fn()} onError={onError} />);
+
+    expect(onError).toHaveBeenLastCalledWith(deploymentKey, null);
   });
 
   it('surfaces the list error without calling evaluatePhases', () => {
@@ -352,7 +464,7 @@ describe('KindFetcher', () => {
 
     render(<KindFetcher definition={definition()} cluster="cluster-a" plural="reactors" namespaced onRows={onRows} onError={onError} />);
 
-    expect(onError).toHaveBeenCalledWith('deployment', new Error('boom'));
+    expect(onError).toHaveBeenCalledWith(deploymentKey, new Error('boom'));
     expect(evaluatePhases).not.toHaveBeenCalled();
   });
 });

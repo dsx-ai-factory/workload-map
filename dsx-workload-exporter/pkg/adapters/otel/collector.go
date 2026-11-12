@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelresolver"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
@@ -207,7 +208,11 @@ func (g gauge) observe(observer metric.Observer, value float64, custom map[strin
 		attributes = append(attributes, attribute.String(name, value))
 	}
 	for i, name := range g.labels {
-		attributes = append(attributes, attribute.String(name, values[i]))
+		labelValue := values[i]
+		if override := custom[name]; override != "" && !labelresolver.IsProtectedLabel(name) {
+			labelValue = override
+		}
+		attributes = append(attributes, attribute.String(name, labelValue))
 	}
 	observer.ObserveFloat64(g.instrument, value, metric.WithAttributeSet(attribute.NewSet(attributes...)))
 }

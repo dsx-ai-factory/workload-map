@@ -35,7 +35,7 @@ kubelet:
     probes: false
     resource: false
 kube-state-metrics:
-  # Only the Pod and Namespace collectors feed the sync check and the report.
+  # Only the Pod and Namespace collectors feed the dashboard and the sync check.
   collectors: [pods, namespaces, nodes]
 prometheusOperator:
   enabled: true   # up.sh turns it off when the cluster already runs one
@@ -52,4 +52,9 @@ prometheus:
         cpu: 250m
         memory: 1Gi
 grafana:
-  enabled: false
+  enabled: true   # the chart generates the admin password into Secret <release>-grafana
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL

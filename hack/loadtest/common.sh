@@ -69,9 +69,13 @@ prom() {
     jq -r '.data.result[0].value[1] // "0"'
 }
 
-# prometheus_service: the Prometheus Service of the monitoring release.
+# The Services of the monitoring release; the Grafana Secret has the Service name.
 prometheus_service() {
   kubectl -n "${MONITORING_NAMESPACE}" get svc -l "app=kube-prometheus-stack-prometheus,release=${MONITORING_RELEASE}" \
+    -o jsonpath='{.items[0].metadata.name}'
+}
+grafana_service() {
+  kubectl -n "${MONITORING_NAMESPACE}" get svc -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=${MONITORING_RELEASE}" \
     -o jsonpath='{.items[0].metadata.name}'
 }
 
@@ -94,15 +98,35 @@ stop_forwards() {
   done
 }
 
-# port_forwards: Prometheus on localhost until the calling script exits. A port that
-# already answers (another run, a forward of your own) is left as is.
+# port_forwards: Prometheus and Grafana on localhost until the calling script exits.
+# A port that already answers (another run, make loadtest-grafana) is left as is.
 port_forwards() {
   PF_PIDS=()
   if ! curl -fsS -o /dev/null "http://localhost:${PROMETHEUS_PORT}/-/ready" 2>/dev/null; then
     forward "$(retry prometheus_service)" "${PROMETHEUS_PORT}:9090" &
     PF_PIDS+=("$!")
   fi
+  if [ "${GRAFANA_ENABLED}" = "true" ] && ! curl -fsS -o /dev/null "http://localhost:${GRAFANA_PORT}/api/health" 2>/dev/null; then
+    forward "$(retry grafana_service)" "${GRAFANA_PORT}:80" &
+    PF_PIDS+=("$!")
+  fi
   trap stop_forwards EXIT
   # Long enough for several reconnects when connections to the API server hang.
   wait_until "the Prometheus port-forward" 300 curl -fsS -o /dev/null "http://localhost:${PROMETHEUS_PORT}/-/ready"
+}
+
+# grafana_mark <text>: a phase marker on every panel of the dashboard.
+grafana_mark() {
+  [ "${GRAFANA_ENABLED}" = "true" ] || return 0
+  # A marker is best effort: a failed lookup must not end the run.
+  local service password
+  service="$(grafana_service 2>/dev/null)" || service=""
+  [ -n "${service}" ] || { log "grafana annotation skipped: Service not found"; return 0; }
+  password="$(kubectl -n "${MONITORING_NAMESPACE}" get secret "${service}" \
+    -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d)" ||
+    { log "grafana annotation skipped: no admin password"; return 0; }
+  curl -fsS -u "admin:${password}" -H 'Content-Type: application/json' \
+    -X POST "http://localhost:${GRAFANA_PORT}/api/annotations" \
+    -d "{\"tags\":[\"karta-load\",\"$1\"],\"text\":\"$1 - tier ${TIER}\"}" >/dev/null ||
+    log "grafana annotation failed (ignored)"
 }

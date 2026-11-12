@@ -6,14 +6,15 @@
 This scale test measures the DSX workload exporter with 10k to 150k Pods on one kind
 cluster. KWOK runs fake nodes and sets Pod status, so no container runs. The real
 Deployment, Job, JobSet and LeaderWorkerSet controllers create the owner chains.
-A kube-burner Job in the cluster creates the workload roots. Prometheus records
-the exporter and the control plane.
+A kube-burner Job in the cluster creates the workload roots. Prometheus and
+Grafana record the exporter and the control plane.
 
 ## Quick start
 
 ```sh
 make loadtest-bench                 # no cluster: Store and /metrics cost at 10k, 50k, 150k Pods
-make loadtest-up TIER=10k           # kind, KWOK, Prometheus, JobSet, LWS, exporter
+make loadtest-up TIER=10k           # kind, KWOK, Prometheus, Grafana, JobSet, LWS, exporter
+make loadtest-grafana               # in another terminal: live dashboard
 make loadtest-run TIER=10k          # all phases, then the budget report
 make loadtest-down
 ```
@@ -38,7 +39,7 @@ make loadtest-down CLUSTER_MODE=existing         # removes only what the scale t
 ```
 
 If the cluster already runs a Prometheus operator, up.sh reuses it at its chart
-version and adds only Prometheus and kube-state-metrics, as the release
+version and adds only Prometheus, Grafana and kube-state-metrics, as the release
 `loadtest` in `loadtest-monitoring`. That Prometheus scrapes only ServiceMonitors
 labeled `release=loadtest`.
 
@@ -125,11 +126,31 @@ Each run writes `results/<tier>-<time>/`:
 
 `make loadtest-report` prints the table again. It exits 1 when a budget fails.
 
+## Dashboard
+
+`make loadtest-up` installs Grafana and the dashboard `karta-load`. The dashboard
+shows coverage (load Pods against exporter rows), workloads by kind and phase,
+exporter CPU and memory, scrape cost, workqueues, the Kubernetes API and the
+control plane. `make loadtest-run` marks each phase on every panel.
+
+```sh
+make loadtest-grafana               # prints the link and the admin password
+```
+
+`grafana/dashboard.json` is generated. Edit `grafana/gen_dashboard.py`, then
+regenerate the JSON and commit both files:
+
+```sh
+python3 -I hack/loadtest/grafana/gen_dashboard.py hack/loadtest/grafana/dashboard.json
+```
+
+Set `GRAFANA_ENABLED=false` to install Prometheus only.
+
 ## Exporter metrics
 
 The exporter serves Go, process, client-go and workqueue metrics on `/metrics`.
 See [exportermetrics](../../dsx-workload-exporter/pkg/exportermetrics/README.md). The
-report uses `workqueue_depth` and `rest_client_requests_total`.
+report and the dashboard use `workqueue_depth` and `rest_client_requests_total`.
 
 ## Limits
 

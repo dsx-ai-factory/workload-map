@@ -851,7 +851,7 @@ TIER ?= 10k
 export TIER
 
 .PHONY: loadtest-up
-loadtest-up: ## Provision the scale test cluster with KWOK, Prometheus and the exporter (TIER=10k|50k|150k|custom)
+loadtest-up: ## Provision the scale test cluster with KWOK, Prometheus, Grafana and the exporter (TIER=10k|50k|150k|custom)
 	./hack/loadtest/up.sh
 
 .PHONY: loadtest-run
@@ -861,6 +861,14 @@ loadtest-run: ## Run create, sync, steady, churn and recover phases, then print 
 .PHONY: loadtest-report
 loadtest-report: ## Print the budget report of the newest run (RESULTS=<dir> for another)
 	./hack/loadtest/report.sh $(RESULTS)
+
+.PHONY: loadtest-grafana
+loadtest-grafana: ## Port-forward Grafana and print the dashboard link and admin password
+	@bash -c 'source hack/loadtest/common.sh; svc="$$(grafana_service)"; \
+	echo "http://localhost:$${GRAFANA_PORT}/d/karta-load  user admin, password: $$(kubectl -n "$${MONITORING_NAMESPACE}" get secret "$${svc}" -o jsonpath="{.data.admin-password}" | base64 -d)"; \
+	if curl -fsS -o /dev/null "http://localhost:$${GRAFANA_PORT}/api/health" 2>/dev/null; then \
+	  echo "port $${GRAFANA_PORT} already serves Grafana (a running loadtest-run forwards it)"; exit 0; fi; \
+	kubectl -n "$${MONITORING_NAMESPACE}" port-forward "svc/$${svc}" "$${GRAFANA_PORT}:80"'
 
 .PHONY: loadtest-image
 loadtest-image: ## CLUSTER_MODE=existing: build the exporter image and import it into every real node through kubectl

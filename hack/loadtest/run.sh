@@ -36,10 +36,11 @@ plan_counts() {
     die "${nodes} KWOK nodes hold fewer than ${EXPECTED_PODS} Pods; run make loadtest-up TIER=${TIER}"
 }
 
-# phase <name>: records the phase start.
+# phase <name>: records the phase start and marks it on the dashboard.
 phase() {
   log "phase $1"
   echo "PHASE_${1}=$(date +%s)" >>"${RESULTS}/phases.env"
+  grafana_mark "$1"
 }
 
 result() { echo "$1=$2" >>"${RESULTS}/phases.env"; }
@@ -337,6 +338,7 @@ main() {
   log "per namespace: ${DEPLOYMENTS} Deployments, ${JOBS} Jobs, ${JOBSETS} JobSets, ${LWS} LWS, ${BARE_PODS} Pods"
   log "results: ${RESULTS}"
   port_forwards
+  [ "${GRAFANA_ENABLED}" != "true" ] || log "grafana: http://localhost:${GRAFANA_PORT}/d/karta-load"
   # PHASES_START=steady or churn reuses the workloads of an earlier run and skips
   # create and sync; churn also skips steady.
   case "${PHASES_START}" in

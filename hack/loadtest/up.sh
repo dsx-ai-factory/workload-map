@@ -3,8 +3,8 @@
 # Copyright (c) 2026 NVIDIA Corporation
 #
 # Provision the scale test cluster: kind with raised control-plane limits, the KWOK
-# controller and SCALE_NODES fake nodes, kube-prometheus-stack, the JobSet and LWS
-# operators, and the exporter built from this checkout.
+# controller and SCALE_NODES fake nodes, kube-prometheus-stack with Grafana, the JobSet
+# and LWS operators, and the exporter built from this checkout.
 # Usage: make loadtest-up TIER=10k|50k|150k|custom. See hack/loadtest/README.md.
 set -euo pipefail
 # shellcheck source=hack/loadtest/common.sh
@@ -100,7 +100,7 @@ EOF
 install_monitoring() {
   local version="${KUBE_PROMETHEUS_STACK_VERSION}" operator=true existing
   # Another release's operator already reconciles Prometheus CRs cluster wide: reuse it
-  # and its CRDs, at its chart version, and add only Prometheus and kube-state-metrics.
+  # and its CRDs, at its chart version, and add only Prometheus, Grafana and kube-state-metrics.
   existing="$(helm list -A -o json | jq -r --arg own "${MONITORING_RELEASE}" \
     '[.[] | select(.chart | startswith("kube-prometheus-stack-")) | select(.name != $own)][0].chart // empty')"
   if [ -n "${existing}" ]; then
@@ -111,7 +111,7 @@ install_monitoring() {
   log "kube-prometheus-stack ${version}: release ${MONITORING_RELEASE} in ${MONITORING_NAMESPACE}"
   helm upgrade -i "${MONITORING_RELEASE}" oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
     --version "${version}" -n "${MONITORING_NAMESPACE}" --create-namespace \
-    -f "${LOADTEST_DIR}/monitoring/values.yaml" \
+    -f "${LOADTEST_DIR}/monitoring/values.yaml" --set "grafana.enabled=${GRAFANA_ENABLED}" \
     --set "prometheusOperator.enabled=${operator}" --set "crds.enabled=${operator}" \
     --wait --timeout 15m >/dev/null
 }
@@ -166,6 +166,13 @@ install_exporter() {
     "${LOADTEST_DIR}/monitoring/servicemonitor.yaml" | kubectl apply -f - >/dev/null
 }
 
+install_dashboard() {
+  [ "${GRAFANA_ENABLED}" = "true" ] || return 0
+  kubectl -n "${MONITORING_NAMESPACE}" create configmap karta-load-dashboard \
+    --from-file=karta-load.json="${LOADTEST_DIR}/grafana/dashboard.json" --dry-run=client -o yaml |
+    kubectl label --local -f - grafana_dashboard=1 -o yaml | kubectl apply -f - >/dev/null
+}
+
 main() {
   log "tier ${TIER}: ${SCALE_PODS} Pods on ${SCALE_NODES} KWOK nodes, mode ${CLUSTER_MODE}"
   [ "${TIER}" != "150k" ] || [ "${CLUSTER_MODE}" != "kind" ] ||
@@ -176,6 +183,7 @@ main() {
   install_monitoring
   install_operators
   install_exporter
+  install_dashboard
   log "ready. KUBECONFIG=${KUBECONFIG}"
   log "next: make loadtest-run TIER=${TIER}"
 }

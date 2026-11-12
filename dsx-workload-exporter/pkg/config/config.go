@@ -24,6 +24,7 @@ import (
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/controller"
 	inventory "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/kartadefinitioninventory"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelresolver"
@@ -42,6 +43,7 @@ type Config struct {
 	labelresolver.Config   `yaml:",inline"`
 	ResourceRules          []controller.ResourceRule          `yaml:"resourceRules" json:"resourceRules"`
 	ExcludeResourceRules   []controller.ResourceRule          `yaml:"excludeResourceRules" json:"excludeResourceRules"`
+	ExcludeStatuses        []v1alpha1.ResourceStatus          `yaml:"excludeStatuses" json:"excludeStatuses"`
 	NamespaceSelector      *metav1.LabelSelector              `yaml:"namespaceSelector" json:"namespaceSelector"`
 	ObjectSelectors        []controller.ObjectSelector        `yaml:"objectSelectors" json:"objectSelectors"`
 	PodSelector            *metav1.LabelSelector              `yaml:"podSelector" json:"podSelector"`
@@ -259,10 +261,11 @@ func DefaultConfig() Config {
 			Catalog: DefinitionSourceConfig{Enabled: true},
 			Cluster: DefinitionSourceConfig{Enabled: true},
 		},
-		RequestTimeout: "30s",
-		Workers:        4,
-		APIQPS:         20,
-		APIBurst:       40,
+		ExcludeStatuses: []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus},
+		RequestTimeout:  "30s",
+		Workers:         4,
+		APIQPS:          20,
+		APIBurst:        40,
 	}
 }
 
@@ -283,6 +286,15 @@ func (cfg Config) Validate() error {
 	}
 	if err := controller.ValidateResourceRules(slices.Concat(cfg.ResourceRules, cfg.ExcludeResourceRules)); err != nil {
 		return err
+	}
+	for _, status := range cfg.ExcludeStatuses {
+		switch status {
+		case v1alpha1.InitializingStatus, v1alpha1.RunningStatus, v1alpha1.CompletedStatus,
+			v1alpha1.FailedStatus, v1alpha1.DegradedStatus, v1alpha1.SuspendedStatus,
+			v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus, v1alpha1.UndefinedStatus:
+		default:
+			return fmt.Errorf("unknown excluded status %q", status)
+		}
 	}
 	if err := controller.ValidateObjectSelectors(cfg.ObjectSelectors); err != nil {
 		return err

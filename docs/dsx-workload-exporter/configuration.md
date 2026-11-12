@@ -39,6 +39,7 @@ reads it at startup.
 | `podWorkloadAssociation` | `null` | Optional Pod-to-workload metric identity, described below. |
 | `resourceRules` | `[]` | Allowed root API types; empty means unrestricted. |
 | `excludeResourceRules` | Core ConfigMaps and Secrets, all versions | Excluded root types. Set `[]` to remove these exclusions. |
+| `excludeStatuses` | `[Suspending, Resuming]` | Status gauge phases to omit. Set `[]` to emit all nine phases. |
 | `ignoredOwnerKinds`, `requiredKinds` | `[]` | Owner boundaries and additional watched kinds. |
 | `workers` | `4` | Default concurrency for each Pod/workload queue. |
 | `leafWorkers` | `0` | Goroutines processing Pod queue jobs. Zero inherits `workers`. |
@@ -82,7 +83,7 @@ does not guarantee that an exporter image has been published. See
 
 Put runtime keys at the YAML root without `exporter:`. Omit chart-only keys such
 as `enabled`, `image`, `metricsPort`, placement and `rbac`. Unknown YAML keys fail
-startup. Selectors and definition sources use YAML only.
+startup. Selectors, definition sources and `excludeStatuses` use YAML only.
 
 Explicit flags override environment variables, then YAML, then binary defaults.
 An empty numeric override is an error. `--config=""` skips an environment-provided
@@ -317,6 +318,27 @@ Kubernetes may warn when a watched API version is deprecated. The exporter logs
 each distinct API warning once per process. Select a Karta definition using the
 supported API version to address the warning. Enabling the catalog does not
 replace a deprecated version selected by a cluster definition.
+
+## Status phases
+
+`excludeStatuses` removes phases from `dsx_workload_status`. The default omits
+`Suspending` and `Resuming`, reducing each workload's status gauges from nine to
+seven. Sandbox is the only bundled definition that maps these transitions.
+To observe Sandbox transitions or custom definitions that use these phases,
+remove them from the exclusion list.
+
+Set `excludeStatuses: []` to emit all nine phases, or provide a list that replaces
+the default exclusions. For Helm, put the setting under `exporter`:
+
+```yaml
+exporter:
+  excludeStatuses: []
+```
+
+Names are case-sensitive: `Initializing`, `Running`, `Completed`, `Failed`,
+`Degraded`, `Suspended`, `Suspending`, `Resuming` and `Undefined`. Unknown names
+fail startup. Each enabled phase remains a zero-or-one gauge. Exclusions affect
+only metric output; status evaluation and observation health are unchanged.
 
 ## Configured labels
 

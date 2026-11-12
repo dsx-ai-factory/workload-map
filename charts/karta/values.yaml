@@ -82,6 +82,9 @@ exporter:
     - apiGroups: [""]
       apiVersions: ["*"]
       resources: ["configmaps", "secrets"]
+  # Omit transition phases. Set [] to emit all phases, including transitions
+  # used by the Sandbox catalog definition and custom definitions.
+  excludeStatuses: [Suspending, Resuming]
   ignoredOwnerKinds: []
   requiredKinds: []
   workers: 4

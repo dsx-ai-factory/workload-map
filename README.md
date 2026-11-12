@@ -154,7 +154,7 @@ apps-statefulset-v1                             StatefulSet            catalog  
 ...
 ```
 
-Only the first rows are shown. Without a reachable cluster, `kli` also prints a
+Only the first rows are shown. Without a reachable cluster, `kli` may also print a
 warning that it could not read definitions from the cluster and shows the
 built-in ones only. This is expected. `kli get` and `kli describe` inspect live
 workloads and need a cluster.
@@ -308,8 +308,9 @@ Karta supports any workload type. The following are pre-built and tested Karta d
 
 See [`docs/catalog/`](docs/catalog/) for the full Karta definitions. The catalog
 also covers core Kubernetes types such as Deployment, StatefulSet, Job, CronJob
-and Pod. Run `kli definitions` to list the definitions the CLI ships with. Add
-`--catalog-experimental-definitions` to include experimental ones such as Kueue.
+and Pod. Run `kli definitions` to list the definitions the CLI ships with. CLI
+builds after v0.3.0 also accept `--catalog-experimental-definitions` to include
+experimental ones such as Kueue.
 
 ### Complex example: NVIDIA Dynamo
 

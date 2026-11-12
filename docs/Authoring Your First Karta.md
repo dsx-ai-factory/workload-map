@@ -216,6 +216,8 @@ kli validate job.yaml
 ```
 
 A valid file prints `OK: job.yaml is a valid Karta definition (GVK: batch/v1/Job)`.
+Validation does not reject unknown field names. A misspelled field passes and is
+ignored, so check the spelling of each field.
 It exits 0 when the definition is valid, 1 when it is not, and 2 when the file
 cannot be read as YAML. Without the CLI, run the
 [karta-verify](../karta/sdk/hack/karta-verify/README.md) validator from the

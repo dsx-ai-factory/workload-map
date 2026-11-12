@@ -12,6 +12,7 @@ If you are an AI coding agent (Cursor, Codex, Claude Code, Aider, Continue, Copi
 Always do:
 - Run `make check` before pushing.
 - Sign off commits with `-s` (DCO).
+- Cryptographically sign commits with `-S` using a configured GPG or SSH key.
 - Add SPDX + copyright header to new source and Markdown files.
 - Use Conventional Commits: `feat(scope):`, `fix(scope):`, `refactor(scope):`. Match an existing scope from `git log` when possible.
 - Reference an open GitHub issue in the PR.
@@ -106,6 +107,11 @@ recipe, so a workspace would change what you build locally but not what CI build
 ## Commits and Pull Requests
 
 Commit messages follow Conventional Commits v1.0.0 with a DCO sign-off (`git commit -s`, real name required). The format, allowed types, and scope conventions are documented in `CONTRIBUTING.md` under Commit Messages; that section is the single source of truth. Do not restate the format here.
+
+Each commit also requires a cryptographic signature, which proves that the signing key signed the commit.
+Use `git commit -s -S` to include both the DCO sign-off and the signature.
+Follow [Commit signing](CONTRIBUTING.md#commit-signing) for key setup and instructions to re-sign existing commits.
+Only rewrite commits or force-push when the contributor explicitly requests it.
 
 Use the PR template at `.github/PULL_REQUEST_TEMPLATE.md`. Required: link to an open issue, run `make check`, add or update tests (or explain why none).
 

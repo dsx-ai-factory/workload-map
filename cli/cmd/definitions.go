@@ -100,6 +100,7 @@ var loadDefinitions = definitions.Load
 func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Command {
 	var group, kind, version string
 	var componentLimit int
+	var noHeaders bool
 	var (
 		output *Enum[generator.Output]
 		filter definitionFilter
@@ -162,7 +163,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 				kartas = append(kartas, def.Karta)
 			}
 			table := func(out io.Writer) error {
-				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit, output.Get() == generator.OutputWide)
+				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit, output.Get() == generator.OutputWide, noHeaders)
 			}
 			return generator.Render(cmd.OutOrStdout(), output.Get(), kartas, len(args) == 1, table)
 		},
@@ -173,6 +174,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 	cmd.Flags().StringVar(&kind, flagKind, "", usageKind)
 	cmd.Flags().StringVar(&version, flagVersion, "", usageVersion)
 	cmd.Flags().IntVar(&componentLimit, flagComponentLimit, defaultComponentLimit, usageDefinitionsComponentLimit)
+	withNoHeaders(cmd.Flags(), &noHeaders)
 
 	return cmd
 }
@@ -274,18 +276,20 @@ func definitionRows(defs []definitions.Definition) []definitionRow {
 	return rows
 }
 
-// renderDefinitions writes the table. The empty note goes to errOut so stdout
-// stays parseable.
-func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int, wideOutput ...bool) error {
-	wide := len(wideOutput) > 0 && wideOutput[0]
+// renderDefinitions writes the table, with the APIVERSION column when wide is
+// set and without the header row when noHeaders is set. The empty note goes to
+// errOut so stdout stays parseable.
+func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int, wide, noHeaders bool) error {
 	if len(rows) == 0 {
 		fmt.Fprintln(errOut, "No Karta definitions found.")
 		return nil
 	}
 	w := tabwriter.NewWriter(out, 0, 8, 2, ' ', 0)
-	if wide {
+	switch {
+	case noHeaders:
+	case wide:
 		fmt.Fprintln(w, "NAME\tKIND\tAPIVERSION\tORIGIN\tCOMPONENTS")
-	} else {
+	default:
 		fmt.Fprintln(w, "NAME\tKIND\tORIGIN\tCOMPONENTS")
 	}
 	for _, row := range rows {

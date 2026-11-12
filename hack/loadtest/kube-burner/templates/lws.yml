@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Leader Pod -> StatefulSet -> LeaderWorkerSet; worker Pods -> StatefulSet -> leader Pod.
+apiVersion: leaderworkerset.x-k8s.io/v1
+kind: LeaderWorkerSet
+metadata:
+  name: serve-{{ .Replica }}
+  labels:
+    loadtest.karta/root: "true"
+spec:
+  replicas: 1
+  leaderWorkerTemplate:
+    size: {{ .pods }}
+    workerTemplate:
+      spec:
+        nodeSelector:
+          type: kwok
+        tolerations:
+          - key: kwok.x-k8s.io/node
+            operator: Exists
+            effect: NoSchedule
+        containers:
+          - name: server
+            image: {{ .image }}

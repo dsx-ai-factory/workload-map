@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Creates the workload roots in NAMESPACES namespaces (karta-load-<n>). The values are
+# environment variables that run.sh computes from the tier and the mix. The real
+# controllers create the children; KWOK runs every Pod.
+# Waits are off: Jobs never complete on purpose, and run.sh measures the sync itself.
+global:
+  gc: false
+  waitWhenFinished: false
+  measurements: []
+jobs:
+  - name: karta-load
+    jobType: create
+    jobIterations: {{ .NAMESPACES }}
+    namespace: karta-load
+    namespacedIterations: true
+    namespaceLabels:
+      loadtest.karta/target: "true"
+    cleanup: true
+    preLoadImages: false
+    podWait: false
+    waitWhenFinished: false
+    verifyObjects: true
+    errorOnVerify: true
+    qps: {{ .QPS }}
+    burst: {{ .BURST }}
+    objects:
+{{- if ne .DEPLOYMENTS "0" }}
+      - objectTemplate: templates/deployment.yml
+        replicas: {{ .DEPLOYMENTS }}
+        wait: false
+        inputVars: {pods: {{ .PODS_PER_WORKLOAD }}, image: "{{ .WORKLOAD_IMAGE }}"}
+{{- end }}
+{{- if ne .JOBS "0" }}
+      - objectTemplate: templates/job.yml
+        replicas: {{ .JOBS }}
+        wait: false
+        inputVars: {pods: {{ .PODS_PER_WORKLOAD }}, image: "{{ .WORKLOAD_IMAGE }}"}
+{{- end }}
+{{- if ne .JOBSETS "0" }}
+      - objectTemplate: templates/jobset.yml
+        replicas: {{ .JOBSETS }}
+        wait: false
+        inputVars: {pods: {{ .PODS_PER_WORKLOAD }}, image: "{{ .WORKLOAD_IMAGE }}"}
+{{- end }}
+{{- if ne .LWS "0" }}
+      - objectTemplate: templates/lws.yml
+        replicas: {{ .LWS }}
+        wait: false
+        inputVars: {pods: {{ .PODS_PER_WORKLOAD }}, image: "{{ .WORKLOAD_IMAGE }}"}
+{{- end }}
+{{- if ne .BARE_PODS "0" }}
+      - objectTemplate: templates/pod.yml
+        replicas: {{ .BARE_PODS }}
+        wait: false
+        inputVars: {image: "{{ .WORKLOAD_IMAGE }}"}
+{{- end }}

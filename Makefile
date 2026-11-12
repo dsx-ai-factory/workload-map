@@ -840,8 +840,48 @@ E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh hack/e2e/check-updates.sh \
 	$(wildcard hack/e2e/operators/*/verify.sh)
 
 .PHONY: lint-shell
-lint-shell: ## shellcheck the e2e and commit attribution scripts (-x follows sourced files)
-	shellcheck -x $(E2E_SHELL) hack/commit-attribution/*.sh
+lint-shell: ## shellcheck the e2e, scale test and commit attribution scripts (-x follows sourced files)
+	shellcheck -x $(E2E_SHELL) hack/loadtest/*.sh hack/commit-attribution/*.sh
+
+##@ Scale test
+
+# Exporter scale test on KWOK fake nodes; see hack/loadtest/README.md. Every setting in
+# hack/loadtest/loadtest.env is a make variable: make loadtest-run TIER=50k PHASES_STEADY=1800
+TIER ?= 10k
+export TIER
+
+.PHONY: loadtest-up
+loadtest-up: ## Provision the scale test cluster with KWOK, Prometheus and the exporter (TIER=10k|50k|150k|custom)
+	./hack/loadtest/up.sh
+
+.PHONY: loadtest-run
+loadtest-run: ## Run create, sync, steady, churn and recover phases, then print the budget report
+	./hack/loadtest/run.sh
+
+.PHONY: loadtest-report
+loadtest-report: ## Print the budget report of the newest run (RESULTS=<dir> for another)
+	./hack/loadtest/report.sh $(RESULTS)
+
+.PHONY: loadtest-image
+loadtest-image: ## CLUSTER_MODE=existing: build the exporter image and import it into every real node through kubectl
+	./hack/loadtest/image.sh
+
+.PHONY: loadtest-profile
+loadtest-profile: ## Capture CPU (PROFILE_SECONDS, default 30), heap, allocs and goroutine profiles from the exporter (LABEL=<name>)
+	./hack/loadtest/profile.sh "$(or $(LABEL),manual-$(shell date +%H%M%S))" $(RESULTS)
+
+.PHONY: loadtest-flamegraph
+loadtest-flamegraph: ## Open a profile in the pprof web UI; pick View > Flame Graph (PROFILE=<file.pb.gz>)
+	@[ -n "$(PROFILE)" ] || { echo "usage: make loadtest-flamegraph PROFILE=hack/loadtest/results/<run>/pprof/<file>.pb.gz"; exit 2; }
+	cd dsx-workload-exporter && go tool pprof -http=localhost:8081 "$(abspath $(PROFILE))"
+
+.PHONY: loadtest-down
+loadtest-down: ## kind: delete the cluster; CLUSTER_MODE=existing: remove only what the scale test added
+	./hack/loadtest/down.sh
+
+.PHONY: loadtest-bench
+loadtest-bench: ## Benchmark the exporter Store and /metrics at 10k, 50k and 150k Pods, without a cluster
+	cd dsx-workload-exporter && go test -run '^$$' -bench BenchmarkScrape -benchtime 3x -benchmem ./pkg/app/
 
 ##@ Tools
 

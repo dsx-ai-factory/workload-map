@@ -78,16 +78,10 @@ func (r *controllerState) prepareWatchRequests(ctx context.Context) ([]discovery
 		}
 		if _, err := r.reader.restMapping(ctx, selection.GVK); meta.IsNoMatchError(err) {
 			// A mapper can omit resources after partial discovery. Confirm with
-			// a fresh, complete resource list before removing accepted state.
+			// a complete resource list before removing accepted state.
 			if !discoveryChecked {
 				discoveryChecked = true
-				if r.reader.clients.Discovery == nil {
-					discoveryErr = errors.New("API resource discovery is unavailable")
-				} else {
-					requestCtx, cancel := context.WithTimeout(ctx, r.reader.options.RequestTimeout)
-					_, resources, discoveryErr = r.reader.clients.Discovery.ServerGroupsAndResourcesWithContext(requestCtx)
-					cancel()
-				}
+				resources, discoveryErr = r.reader.apiResources(ctx)
 			}
 			absentErr = errors.Join(absentErr, err, discoveryErr)
 			if discoveryErr != nil {

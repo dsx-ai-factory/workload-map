@@ -30,7 +30,9 @@ Discovery is refreshed at most once every 45 seconds so newly installed APIs can
 start watches. A missing API response from an existing watch schedules another
 refresh. Absence requires successful discovery of all API resources and no
 served version of the group and kind. A version mismatch remains a visible
-failure. Incomplete discovery preserves watches and workload results.
+failure. Successful resource discovery is cached for 45 seconds. Failed refreshes are
+retried on the next source sync. Incomplete discovery preserves watches and
+workload results.
 Confirmed absence removes that type's watch and stale workload results.
 Permission, discovery, LIST/WATCH and evaluation failures remain visible. A live
 Pod that still references an absent owner API also retains its observation error.

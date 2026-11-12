@@ -239,3 +239,47 @@ func TestUnconfirmedAPIAbsencePreservesAcceptedState(t *testing.T) {
 		})
 	}
 }
+
+type countingResourceDiscovery struct {
+	availabilityDiscovery
+	calls int
+}
+
+func (d *countingResourceDiscovery) ServerGroupsAndResourcesWithContext(ctx context.Context) ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
+	d.calls++
+	return d.availabilityDiscovery.ServerGroupsAndResourcesWithContext(ctx)
+}
+
+func TestOptionalAPIDiscoveryIsCachedAcrossSourceSyncs(t *testing.T) {
+	r := newRootLifetimeRuntime(t, Config{})
+	definition, err := catalog.Get(lifetimeDeploymentGVK)
+	require.NoError(t, err)
+	r.state.deps.Inventory = availabilityInventory{selection: inventory.Selection{Definition: definition, GVK: lifetimeDeploymentGVK}}
+	rootLifetimeWatch(t, r, podGVK, "", true)
+	r.state.reader.clients.Mapper = &availabilityMapper{RESTMapper: r.state.reader.clients.Mapper, gvk: lifetimeDeploymentGVK, err: &meta.NoKindMatchError{GroupKind: lifetimeDeploymentGVK.GroupKind(), SearchedVersions: []string{"v1"}}}
+	client := &countingResourceDiscovery{}
+	r.state.reader.clients.Discovery = client
+	for range 3 {
+		require.Error(t, r.state.syncWatches(t.Context()))
+		require.True(t, r.state.absentKinds[lifetimeDeploymentGVK])
+	}
+	require.Equal(t, 1, client.calls)
+
+	// Expired successful results must not hide a discovery failure.
+	r.state.reader.lastResourceDiscovery = time.Now().Add(-mapperResetInterval)
+	client.err = errors.New("discovery unavailable")
+	for range 2 {
+		require.ErrorContains(t, r.state.syncWatches(t.Context()), "discovery unavailable")
+		require.Empty(t, r.state.absentKinds)
+	}
+	require.Equal(t, 3, client.calls)
+
+	// A later success replaces the expired snapshot and is cached again.
+	client.err = nil
+	client.resources = []*metav1.APIResourceList{{GroupVersion: "apps/v1beta1", APIResources: []metav1.APIResource{{Name: "deployments", Kind: "Deployment"}}}}
+	for range 2 {
+		require.Error(t, r.state.syncWatches(t.Context()))
+		require.Empty(t, r.state.absentKinds)
+	}
+	require.Equal(t, 4, client.calls)
+}

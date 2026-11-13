@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/catalog"
 )
 
@@ -71,6 +72,67 @@ func completeWorkloads(cmd *cobra.Command, args []string, toComplete string) ([]
 // understands, matching prefix. An unreachable cluster falls back to the catalog
 // quietly, within completionTimeout, the way the definitions command does.
 func completeDefinitionNames(cmd *cobra.Command, prefix string) []string {
+	var names []string
+	for _, def := range completionDefinitions(cmd) {
+		if name := def.Karta.Name; strings.HasPrefix(name, prefix) {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
+// completeDefinitionFilter offers the values of the --group, --kind and
+// --version filters of the definitions command, matching prefix: the groups,
+// the kinds of the given --group, or the versions of the given --group and
+// --kind. Nothing is offered that the command would reject: a NAME cannot be
+// combined with the filters, --kind needs --group, and --version needs --kind.
+func completeDefinitionFilter(cmd *cobra.Command, args []string, flag, prefix string) []string {
+	flags := cmd.Flags()
+	group, _ := flags.GetString(flagGroup)
+	kind, _ := flags.GetString(flagKind)
+	switch {
+	case len(args) > 0:
+		return nil
+	case flag == flagKind && !flags.Changed(flagGroup):
+		return nil
+	case flag == flagVersion && (!flags.Changed(flagGroup) || kind == ""):
+		return nil
+	}
+
+	var values []string
+	for _, def := range completionDefinitions(cmd) {
+		gvk := catalog.RootKey(def.Karta)
+		// Names no workload type, so no filter covers it.
+		if gvk.Version == "" || gvk.Kind == "" {
+			continue
+		}
+		var value string
+		switch flag {
+		case flagGroup:
+			value = gvk.Group
+		case flagKind:
+			if gvk.Group == group {
+				value = gvk.Kind
+			}
+		case flagVersion:
+			if gvk.Group == group && strings.EqualFold(gvk.Kind, kind) {
+				value = gvk.Version
+			}
+		}
+		// The core group is the empty string, which is not a candidate to type.
+		if value != "" && strings.HasPrefix(value, prefix) {
+			values = append(values, value)
+		}
+	}
+	slices.Sort(values)
+	return slices.Compact(values)
+}
+
+// completionDefinitions loads the definitions the CLI understands the way the
+// definitions command does, within completionTimeout, so an unreachable cluster
+// falls back to the catalog quietly. A config error offers nothing.
+func completionDefinitions(cmd *cobra.Command) []definitions.Definition {
 	// Cobra skips the root pre-run for completion, but definition visibility
 	// must still follow the same flags, environment and config file.
 	var err error
@@ -85,15 +147,7 @@ func completeDefinitionNames(cmd *cobra.Command, prefix string) []string {
 	boundRequests(cmd)
 
 	resolver, _ := loadDefinitionsForCommand(cmd, clusterAccess())
-
-	var names []string
-	for _, def := range resolver.List() {
-		if name := def.Karta.Name; strings.HasPrefix(name, prefix) {
-			names = append(names, name)
-		}
-	}
-	slices.Sort(names)
-	return slices.Compact(names)
+	return resolver.List()
 }
 
 // completeNamespaces completes the -n/--namespace flag with the namespaces of

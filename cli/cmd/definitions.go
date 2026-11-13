@@ -175,6 +175,12 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 	cmd.Flags().StringVar(&version, flagVersion, "", usageVersion)
 	cmd.Flags().IntVar(&componentLimit, flagComponentLimit, defaultComponentLimit, usageDefinitionsComponentLimit)
 	withNoHeaders(cmd.Flags(), &noHeaders)
+	for _, flag := range []string{flagGroup, flagKind, flagVersion} {
+		cobra.CheckErr(cmd.RegisterFlagCompletionFunc(flag,
+			func(cmd *cobra.Command, args []string, prefix string) ([]string, cobra.ShellCompDirective) {
+				return completeDefinitionFilter(cmd, args, flag, prefix), cobra.ShellCompDirectiveNoFileComp
+			}))
+	}
 
 	return cmd
 }

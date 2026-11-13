@@ -4,11 +4,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-13T16:14:03Z"
+      creationTimestamp: "2026-11-13T16:39:10Z"
       generation: 1
       name: karta-e2e-cloneset-unready
-      namespace: test-j5btt
-      uid: 0cb64473-4d3f-45ea-ae5a-9e6cfbaa13af
+      namespace: test-nl4xx
+      uid: 9c7842b0-9fbb-4a6f-b4bd-2687e4a1271d
     spec:
       replicas: 3
       revisionHistoryLimit: 10
@@ -72,18 +72,18 @@ events:
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "145573"
+  resourceVersion: "150178"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-13T16:14:03Z"
+      creationTimestamp: "2026-11-13T16:39:10Z"
       generation: 1
       name: karta-e2e-cloneset-unready
-      namespace: test-j5btt
-      uid: 0cb64473-4d3f-45ea-ae5a-9e6cfbaa13af
+      namespace: test-nl4xx
+      uid: 9c7842b0-9fbb-4a6f-b4bd-2687e4a1271d
     spec:
       replicas: 3
       revisionHistoryLimit: 10
@@ -137,8 +137,8 @@ events:
       availableReplicas: 0
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-13T16:14:03Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-unready-74rm4":
+      - lastTransitionTime: "2026-11-13T16:39:10Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-unready-2wlw5":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -154,7 +154,7 @@ events:
       updatedReplicas: 3
   phases:
   - Initializing
-  resourceVersion: "145582"
+  resourceVersion: "150186"
   state: Initializing
 flow: unready
 kartaFile: docs/catalog/apps-kruise-io-cloneset-v1alpha1.yaml

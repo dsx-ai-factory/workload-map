@@ -22,27 +22,8 @@ var _ = Describe("CloneSet", Ordered, Label("openkruise", "cloneset"), func() {
 		fx = recorder.Fixture{Operator: "openkruise", Version: operatorVersion("openkruise"), KartaName: "apps-kruise-io-cloneset-v1alpha1", KartaFile: "docs/catalog/apps-kruise-io-cloneset-v1alpha1.yaml"}
 		rec = recorder.New(cfg).
 			SetTimeout(5*time.Minute).
-			AddState(kartav1alpha1.InitializingStatus, AllOf(
-				IntAtLeast(1, "status", "observedGeneration"),
-				NotFullyAvailable(),
-			)).
-			AddState(kartav1alpha1.RunningStatus, AllOf(
-				IntAtLeast(1, "status", "observedGeneration"),
-				GenerationCurrent(),
-				FullyAvailable(),
-				AvailableReady(),
-				RevisionsCurrent(),
-			)).
-			AddState(kartav1alpha1.RunningStatus, AllOf(
-				IntAtLeast(1, "status", "observedGeneration"),
-				GenerationCurrent(),
-				PartitionReady(),
-			)).
-			AddState(kartav1alpha1.RunningStatus, AllOf(
-				IntAtLeast(1, "status", "observedGeneration"),
-				GenerationCurrent(),
-				PausedReady(),
-			))
+			AddState(kartav1alpha1.InitializingStatus, CloneSetInitializing()).
+			AddState(kartav1alpha1.RunningStatus, CloneSetRunning())
 	})
 
 	It("running", func(ctx SpecContext) {

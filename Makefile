@@ -188,9 +188,10 @@ lint-lib: golangci-lint ## Lint the library module (set VERBOSE=1 for -v)
 	cd karta/sdk && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
 .PHONY: test-lib
-test-lib: lib-generate-mocks ## Run the library tests, plus the offline e2e recorder tests
+test-lib: lib-generate-mocks ## Run the library tests, plus the offline e2e recorder and predicate tests
 	cd karta/sdk && go test ./...
 	cd test/e2e && go test ./recorder/...
+	cd test/e2e && go test -run '^TestPredicates' ./flows/
 
 # The library is the one published module, so a replace in it would break every
 # consumer's `go get`. The other modules carry one on purpose.

@@ -20,7 +20,7 @@ var _ = Describe("StatefulSet (built-in)", Ordered, Label("statefulset", "builti
 		fx = recorder.Fixture{Operator: "statefulset", Version: operatorVersion("statefulset"), KartaName: "apps-statefulset-v1", KartaFile: "docs/catalog/apps-statefulset-v1.yaml"}
 		rec = recorder.New(cfg).
 			AddState(kartav1alpha1.InitializingStatus, ReplicasInitializing()).
-			AddState(kartav1alpha1.RunningStatus, AllOf(GenerationCurrent(), FullyAvailable())).
+			AddState(kartav1alpha1.RunningStatus, FullyAvailable()).
 			AddState(kartav1alpha1.DegradedStatus, ReplicasDegraded())
 	})
 

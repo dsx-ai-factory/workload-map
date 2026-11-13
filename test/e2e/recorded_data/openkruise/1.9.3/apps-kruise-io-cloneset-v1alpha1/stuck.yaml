@@ -4,11 +4,11 @@ events:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-13T16:14:03Z"
+      creationTimestamp: "2026-11-13T16:39:09Z"
       generation: 1
       name: karta-e2e-cloneset-stuck
-      namespace: test-j5btt
-      uid: 5638b3d9-343a-45b2-9811-eab39c648347
+      namespace: test-nl4xx
+      uid: 5c4763c3-b540-4298-a141-26167c661258
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -72,18 +72,18 @@ events:
       updatedReplicas: 0
   phases:
   - Initializing
-  resourceVersion: "145551"
+  resourceVersion: "150155"
   state: Initializing
 - kind: STATE
   object:
     apiVersion: apps.kruise.io/v1alpha1
     kind: CloneSet
     metadata:
-      creationTimestamp: "2026-11-13T16:14:03Z"
+      creationTimestamp: "2026-11-13T16:39:09Z"
       generation: 1
       name: karta-e2e-cloneset-stuck
-      namespace: test-j5btt
-      uid: 5638b3d9-343a-45b2-9811-eab39c648347
+      namespace: test-nl4xx
+      uid: 5c4763c3-b540-4298-a141-26167c661258
     spec:
       replicas: 1
       revisionHistoryLimit: 10
@@ -137,8 +137,8 @@ events:
       availableReplicas: 0
       collisionCount: 0
       conditions:
-      - lastTransitionTime: "2026-11-13T16:14:03Z"
-        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-stuck-5dndb":
+      - lastTransitionTime: "2026-11-13T16:39:10Z"
+        message: 'Operation cannot be fulfilled on pods "karta-e2e-cloneset-stuck-vgcp9":
           the object has been modified; please apply your changes to the latest version
           and try again'
         status: "True"
@@ -154,7 +154,7 @@ events:
       updatedReplicas: 1
   phases:
   - Initializing
-  resourceVersion: "145554"
+  resourceVersion: "150159"
   state: Initializing
 flow: stuck
 kartaFile: docs/catalog/apps-kruise-io-cloneset-v1alpha1.yaml

@@ -134,11 +134,9 @@ repositories named `homebrew-<name>`. Installing by full name also makes
 Homebrew trust this one cask, which it requires for any tap it does not
 maintain. `brew upgrade kli` installs later releases.
 
-Each release also publishes prebuilt `kli` archives for Linux and macOS on
-amd64 and arm64, with a `checksums.txt` manifest, on the
-[GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
-To install without Homebrew, download the archive for your platform, check it
-against `checksums.txt`, and put the `kli` executable on your `PATH`.
+To install without Homebrew, download the archive for your platform from the
+[GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases)
+and extract it. Then move `kli` to a directory on your `PATH`.
 
 Run `kli --version` to print the release version. `go install` is not a
 supported way to install the CLI.

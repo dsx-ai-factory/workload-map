@@ -1,7 +1,258 @@
 ---
 title: CLI Command Reference
 sidebar-title: CLI Command Reference
+description: Look up every command, option, environment variable, and exit code of the Workload Map kli CLI.
 ---
 
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
+
+This page lists every command and option of the `kli` CLI. For tasks that use these commands, refer to [Use the CLI](../guides/use-the-cli.mdx).
+
+```text
+kli [command] [options]
+```
+
+To print the version of the CLI, run `kli --version` or `kli -v`. To print the help of a command, run the command with `--help` or `-h`.
+
+<Note title="Options in newer builds">
+The `--catalog-experimental-definitions` option, the `--no-headers` option, and `-o wide` for `kli definitions` are available in CLI builds after v0.3.0.
+</Note>
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| [`kli get`](#kli-get) | Lists workloads of one type, or of every type. |
+| [`kli describe`](#kli-describe) | Shows one workload in full. |
+| [`kli definitions`](#kli-definitions) | Lists the definitions that the CLI understands. |
+| [`kli validate`](#kli-validate) | Checks a definition file before you apply it. |
+| [`kli completion`](#kli-completion) | Generates the shell completion script. |
+
+## kli get
+
+Lists workloads with a normalized phase, read through the definition that covers each type. The phase comes from the workload spec, so the output lists no pods.
+
+```text
+kli get (TYPE[/NAME] [NAME] | --all-types) [options]
+```
+
+The type match is lenient. It is not case-sensitive, and it accepts the singular, the plural, and the `kubectl` short names. The `-o wide` option adds the `ORIGIN` column, which shows where the definition that resolved the workload came from.
+
+| Option | Description |
+| --- | --- |
+| `--all-types` | Lists the top-level workloads of every type that a definition covers, instead of naming a type. The output has a `TYPE` column. |
+| `--chunk-size <n>` | The page size of the API list. The value `0` lists without paging. It bounds the pressure of each request, not the total memory or the time to the first row. The default is `500`. |
+| `--no-headers` | Omits the header row of the table. It has no effect on JSON or YAML output. |
+| `-o`, `--output` | The output format: `table`, `wide`, `json`, or `yaml`. The default is `table`. |
+| `--phase <phase>` | Filters by normalized phase. Repeat the option for more than one phase. The filter applies after the definition resolves, so it does not reduce the cost of the API calls. The values are `Undefined`, `Resuming`, `Suspending`, `Suspended`, `Running`, `Failed`, `Completed`, `Initializing`, and `Degraded`. |
+| `-l`, `--selector <selector>` | A label selector on the root of the workload, in `kubectl` syntax. |
+
+Examples:
+
+```bash
+# All JobSets in the current namespace
+kli get jobset
+
+# Failed JobSets
+kli get jobset --phase Failed
+
+# Degraded or failed JobSets that match a selector, as JSON
+kli get jobset --phase Degraded --phase Failed -l team=nlp -o json
+
+# Every running workload in the namespace, whatever its type
+kli get --all-types --phase Running
+```
+
+## kli describe
+
+Shows one workload as it is read through the definition that covers its type. The output has the component tree with the live pods placed under the role that they play, the normalized phase, and the resources that each component requests.
+
+```text
+kli describe TYPE[/NAME] [NAME] [options]
+kli describe -f FILE [options]
+```
+
+The type match is lenient, as for `kli get`. `kli` places a pod by its ownership, so the output shows only the pods of this workload. It also uses the pod selectors of the definition, so a pod appears under the component whose role it plays.
+
+With `-f`, `kli` builds the same view from a manifest alone, with no cluster and no pods. The structure and the desired scale are real, and everything live is absent. It looks up the definition in the built-in catalog and in the cluster, if it can reach one. It does not read a definition from a local file.
+
+| Option | Description |
+| --- | --- |
+| `--component-limit <n>` | The maximum number of components shown under each parent in the tree. The default shows every component. When you set it, components with an unhealthy pod, and then components with missing pods, come first. It applies to the table output only. |
+| `-f`, `--file <file>` | Describes a workload that has not been submitted. The value `-` reads the manifest from standard input. No cluster is needed, and the command accepts no type and no name. |
+| `-o`, `--output` | The output format: `table`, `json`, or `yaml`. The default is `table`. |
+| `--pod-limit <n>` | The maximum number of pod rows for each component. The default shows every pod. When you set it, unhealthy pods come first. It applies to the table output only. |
+
+Examples:
+
+```bash
+# Describe a workload, kubectl-style
+kli describe pytorchjob/llama-finetune
+
+# Two-token form, also kubectl-style
+kli describe pytorchjob llama-finetune
+
+# Large workloads: cap the pod rows, unhealthy pods first
+kli describe pytorchjob/llama-finetune --pod-limit 10
+
+# Workloads with many components: cap the tree, unhealthy components first
+kli describe jobset/llama-train --component-limit 3
+
+# Preview a manifest before submitting it, no cluster needed
+kli describe -f jobset.yaml
+
+# Machine output for scripting or agents
+kli describe pytorchjob/llama-finetune -o json
+```
+
+## kli definitions
+
+Lists the definitions that the CLI understands. The list merges the built-in catalog with the definitions in the cluster. A definition in the cluster overrides a catalog definition that describes the same workload type, and it is listed once, with the origin `cluster`. Definitions are not namespaced. Without cluster access, the command still lists the catalog definitions.
+
+```text
+kli definitions [NAME] [options]
+```
+
+Give a name to address one definition, or use `--group`, and optionally `--kind` and `--version`, to narrow the list to one workload type. The table is the view for people. The JSON and YAML output carry the definitions themselves, under an `items` key. A name addresses one definition, so the JSON and YAML output then contains that definition alone, and the output applies and validates as it is.
+
+| Option | Description |
+| --- | --- |
+| `--component-limit <n>` | The maximum number of child components listed for each definition after the root. The value `0` lists every component. It applies to the table output only. The default is `3`. |
+| `--group <group>` | Shows the definitions that cover this API group. |
+| `--kind <kind>` | Shows the definitions that cover this kind. It needs `--group`. |
+| `--no-headers` | Omits the header row of the table. It has no effect on JSON or YAML output. |
+| `-o`, `--output` | The output format: `table`, `wide`, `json`, or `yaml`. The default is `table`. The `wide` format adds the `APIVERSION` column. |
+| `--version <version>` | Shows the definitions that cover this version. It needs `--kind`. |
+
+Examples:
+
+```bash
+# Everything the CLI understands (catalog and cluster)
+kli definitions
+
+# One definition, by the name that the list shows
+kli definitions kubeflow-org-pytorchjob-v1
+
+# Which definition covers JobSet?
+kli definitions --group jobset.x-k8s.io --kind JobSet
+
+# List every component instead of the first three
+kli definitions --component-limit 0
+
+# Print the definitions as YAML
+kli definitions -o yaml
+
+# One definition, straight into validate
+kli definitions kubeflow-org-pytorchjob-v1 -o yaml | kli validate -
+```
+
+## kli validate
+
+Checks a definition file before you apply it to a cluster. It checks the shape of the schema, the required fields, and the validity of the jq expressions.
+
+```text
+kli validate <FILE> [options]
+```
+
+Give a path, or `-` to read the definition from standard input. The validation is static and fully local, so the command needs no cluster and no kubeconfig. It reports whether the definition is well formed, not whether it maps a workload correctly. It also does not reject unknown field names.
+
+The command has no options of its own. Its exit code is the interface for scripts. For the exit codes, refer to [Exit Codes](#exit-codes).
+
+Examples:
+
+```bash
+# Validate before applying
+kli validate ./my-karta.yaml
+
+# In a pipeline
+cat my-karta.yaml | kli validate -
+```
+
+## kli completion
+
+Generates the autocompletion script for a shell. The shells are `bash`, `fish`, `powershell`, and `zsh`.
+
+```text
+kli completion [bash|fish|powershell|zsh]
+```
+
+For how to load the script, refer to [Set Up Shell Completion](../guides/use-the-cli.mdx#set-up-shell-completion).
+
+## Global Options
+
+Every command accepts the following options.
+
+| Option | Description |
+| --- | --- |
+| `--catalog-experimental-definitions` | Includes experimental definitions. It also reads the `KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS` environment variable and the `catalog-experimental-definitions` key of the config file. |
+| `--config <path>` | The path to the config file. The default is the value of `$KARTA_CONFIG`, or `$HOME/.karta/config.yaml`. |
+| `-n`, `--namespace <namespace>` | The namespace scope for the request. |
+| `-o`, `--output` | The output format. The formats that each command accepts are listed with the command. |
+| `-h`, `--help` | Prints the help of the command. |
+| `-v`, `--version` | Prints the version of the CLI. Only the root command accepts it. |
+
+### Connection Options
+
+`kli` reads your kubeconfig in the same way as `kubectl`, and it accepts the same connection options:
+
+| Option | Description |
+| --- | --- |
+| `--kubeconfig <path>` | The path to the kubeconfig file to use for the requests. |
+| `--context <name>` | The name of the kubeconfig context to use. |
+| `--cluster <name>` | The name of the kubeconfig cluster to use. |
+| `--user <name>` | The name of the kubeconfig user to use. |
+| `-s`, `--server <address>` | The address and port of the Kubernetes API server. |
+| `--token <token>` | A bearer token for authentication to the API server. |
+| `--as <user>` | The user to impersonate for the operation. It can be a regular user or a service account in a namespace. |
+| `--as-group <group>` | The group to impersonate. Repeat the option to specify more than one group. |
+| `--as-uid <uid>` | The UID to impersonate. |
+| `--as-user-extra <key=value>` | Extra user information to impersonate. Repeat the option to specify more than one value for the same key. |
+| `--certificate-authority <path>` | The path to a certificate file for the certificate authority. |
+| `--client-certificate <path>` | The path to a client certificate file for TLS. |
+| `--client-key <path>` | The path to a client key file for TLS. |
+| `--tls-server-name <name>` | The server name that is used for the validation of the server certificate. If you do not provide it, `kli` uses the host name that it contacts. |
+| `--insecure-skip-tls-verify` | If set, `kli` does not check the validity of the certificate of the server. This makes your HTTPS connections insecure. |
+| `--proxy-url <url>` | The proxy URL to use for requests to the API server. |
+| `--request-timeout <duration>` | The time to wait before giving up on a single server request. Include a unit, for example `1s`, `2m`, or `3h`. The value `0` means no timeout. The default is `0`. |
+| `--cache-dir <path>` | The default cache directory. The default is `$HOME/.kube/cache`. |
+| `--disable-compression` | If set, `kli` opts out of response compression for all requests to the server. |
+
+## Config File and Environment Variables
+
+`kli` reads a config file in YAML format. It looks for the file in the first of the following locations that applies:
+
+1. The path in the `--config` option.
+2. The path in the `KARTA_CONFIG` environment variable.
+3. `$HOME/.karta/config.yaml`. This file is optional.
+
+The config file accepts the following keys. If the file has any other key, `kli` stops with an error.
+
+| Key | Environment variable | Description |
+| --- | --- | --- |
+| `output` | `KARTA_OUTPUT` | The default output format. A command that does not support the format uses the table format. |
+| `catalog-experimental-definitions` | `KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS` | The default for the `--catalog-experimental-definitions` option. The values are `true` and `false`. |
+
+An option overrides the environment variable, and the environment variable overrides the config file.
+
+## Exit Codes
+
+When a command fails, `kli` prints a message that starts with `error:`. The exit code identifies the kind of failure.
+
+For `kli get` and `kli describe`:
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | The command succeeded. |
+| `1` | A general failure, such as an unreachable cluster or an authentication failure. |
+| `2` | An invalid option value or argument. |
+| `3` | No workload of the requested type has the requested name. |
+| `4` | No definition covers the requested type. |
+
+For `kli validate`:
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | The definition is valid. |
+| `1` | The definition is not valid. |
+| `2` | The file cannot be read as YAML. |

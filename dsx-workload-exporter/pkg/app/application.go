@@ -20,7 +20,9 @@ import (
 
 	collector "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/adapters/otel"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/controller"
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/exportermetrics"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 // Application owns the runtime and HTTP/OTel lifecycle. Serve it once.
@@ -34,9 +36,10 @@ type Application struct {
 
 // Components supplies the runtime, definition inventory and shared publication store.
 type Components struct {
-	Runtime     controller.Runner
-	Store       store.PublicationStore
-	Definitions DefinitionRunner
+	Runtime         controller.Runner
+	Store           store.PublicationStore
+	Definitions     DefinitionRunner
+	ExcludeStatuses []v1alpha1.ResourceStatus
 }
 
 const shutdownTimeout = 10 * time.Second
@@ -52,6 +55,9 @@ func New(components Components) (*Application, error) {
 		return nil, ErrIncompleteExporterComponents
 	}
 	registry := prometheus.NewRegistry()
+	if err := exportermetrics.Register(registry); err != nil {
+		return nil, fmt.Errorf("register exporter metrics: %w", err)
+	}
 	reader, err := otelprom.New(otelprom.WithRegisterer(registry), otelprom.WithTranslationStrategy(otlptranslator.NoTranslation), otelprom.WithoutScopeInfo(), otelprom.WithoutTargetInfo())
 	if err != nil {
 		return nil, fmt.Errorf("create Prometheus reader: %w", err)
@@ -109,7 +115,7 @@ func (a *Application) serveListener(ctx context.Context, listener net.Listener) 
 	if ctx.Err() != nil {
 		return listener.Close()
 	}
-	registration, err := collector.Register(a.provider.Meter("dsx-workload-exporter"), a.components.Store)
+	registration, err := collector.Register(a.provider.Meter("dsx-workload-exporter"), a.components.Store, a.components.ExcludeStatuses)
 	if err != nil {
 		return errors.Join(fmt.Errorf("register collector: %w", err), listener.Close())
 	}

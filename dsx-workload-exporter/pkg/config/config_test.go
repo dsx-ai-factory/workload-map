@@ -15,9 +15,57 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/kartadefinitioninventory"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 var _ = Describe("config defaults and rules", func() {
+	It("rejects the removed singular object selector key", func() {
+		_, err := loadConfig("objectSelector: {matchLabels: {team: platform}}", nil)
+		Expect(err).To(MatchError(ContainSubstring(`unknown field "objectSelector"`)))
+	})
+
+	It("loads independent workload metric selection and an optional Pod association", func() {
+		defaults, err := loadConfig("", nil)
+		Expect(err).To(Succeed())
+		Expect(defaults.WorkloadMetricSelector).To(BeNil())
+		Expect(defaults.PodWorkloadAssociation).To(BeNil())
+		cfg, err := loadConfig(`workloadMetricSelector:
+  matchExpressions:
+  - key: example.org/group
+    operator: DoesNotExist
+podWorkloadAssociation:
+  podSelector:
+    matchLabels:
+      example.org/managed: "true"
+  target:
+    apiVersion: scheduling.example.org/v1
+    kind: Workload
+    nameFromLabel: example.org/group
+`, nil)
+		Expect(err).To(Succeed())
+		Expect(cfg.WorkloadMetricSelector.MatchExpressions).To(HaveLen(1))
+		Expect(cfg.PodWorkloadAssociation.Target.APIVersion).To(Equal("scheduling.example.org/v1"))
+		Expect(cfg.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("example.org/group"))
+		Expect(cfg.PodWorkloadAssociation.PodSelector.MatchLabels).To(HaveKeyWithValue("example.org/managed", "true"))
+	})
+
+	for _, invalid := range []string{
+		`workloadMetricSelector: {matchExpressions: [{key: group, operator: Invalid}]}`,
+		`podWorkloadAssociation: {target: {apiVersion: "", kind: Workload, nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/, kind: Workload, nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: "*", nameFromLabel: group}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: ""}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: "bad key"}}`,
+		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: group}, podSelector: {matchExpressions: [{key: group, operator: Invalid}]}}`,
+	} {
+		It("rejects invalid association and metric selection configuration: "+invalid, func() {
+			var parsed map[string]any
+			Expect(yaml.Unmarshal([]byte(invalid), &parsed)).To(Succeed())
+			_, err := loadConfig(invalid, nil)
+			Expect(err).To(HaveOccurred())
+		})
+	}
+
 	It("preserves flat configuration keys when encoding embedded resolver settings", func() {
 		cfg, err := loadConfig("labelRules: []\ngenericLabelEvaluationLimits:\n  maxResultBytes: 32\n", nil)
 		Expect(err).To(Succeed())
@@ -72,6 +120,27 @@ genericLabelEvaluationLimits:
 		Expect(cfg.Limits.MaxResultBytes).To(Equal(32))
 		Expect(cfg.Limits.CostLimit).To(Equal(defaultLabelEvaluationLimits.CostLimit))
 		Expect(cfg.Limits.MaxExpressionBytes).To(Equal(defaultLabelEvaluationLimits.MaxExpressionBytes))
+	})
+})
+
+var _ = Describe("status exclusions", func() {
+	DescribeTable("loads defaults and explicit replacements",
+		func(content string, want []v1alpha1.ResourceStatus) {
+			cfg, err := loadConfig(content, nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.ExcludeStatuses).To(Equal(want))
+		},
+		Entry("default", "", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
+		Entry("unrelated setting", "workers: 2", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
+		Entry("all phases", "excludeStatuses: []", []v1alpha1.ResourceStatus{}),
+		Entry("custom exclusions replace defaults", "excludeStatuses: [Running]", []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}),
+	)
+
+	It("rejects unknown or incorrectly cased phase names", func() {
+		for _, value := range []string{"unknown", "running", ""} {
+			_, err := loadConfig("excludeStatuses: [\""+value+"\"]", nil)
+			Expect(err).To(MatchError(ContainSubstring("unknown excluded status")))
+		}
 	})
 })
 

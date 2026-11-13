@@ -15,12 +15,11 @@ mutate either object during evaluation.
 
 ## Behavior
 
-- `ResolvedMetricLabels.Apply` copies resolved labels over built-ins. Runtime
-  does not call this helper. The current collector appends built-ins last, so
-  built-in values win in exported metrics. Use nonconflicting custom names.
-- Replacing a label that identifies or joins series, such as `workload_uid`,
-  `pod_name` or `phase`, changes the series and can break the queries that use
-  it. A name that starts with `__` is not permitted.
+- The collector and `ResolvedMetricLabels.Apply` share the `IsProtectedLabel`
+  rule. Protected built-in labels keep their values; other built-ins accept
+  nonempty overrides. See [Configured labels](../../../docs/dsx-workload-exporter/configuration.md#configured-labels)
+  for the protected names and examples.
+- A label name that starts with `__` is not permitted.
 - A rule reads its sources in the configured order. The first nonempty value
   becomes the label value.
 - Several rules can set the same label on the same metric. Each rule can return

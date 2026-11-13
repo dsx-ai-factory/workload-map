@@ -24,6 +24,7 @@ import (
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/controller"
 	inventory "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/kartadefinitioninventory"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelresolver"
@@ -39,21 +40,24 @@ type Loader struct {
 // Config is the exporter configuration. It is read from the YAML file named by
 // --config. A flag, or its environment variable, overrides the file when set.
 type Config struct {
-	labelresolver.Config  `yaml:",inline"`
-	ResourceRules         []controller.ResourceRule   `yaml:"resourceRules" json:"resourceRules"`
-	ExcludeResourceRules  []controller.ResourceRule   `yaml:"excludeResourceRules" json:"excludeResourceRules"`
-	NamespaceSelector     *metav1.LabelSelector       `yaml:"namespaceSelector" json:"namespaceSelector"`
-	ObjectSelector        *metav1.LabelSelector       `yaml:"objectSelector" json:"objectSelector"`
-	PodSelector           *metav1.LabelSelector       `yaml:"podSelector" json:"podSelector"`
-	KartaDefinitionSource KartaDefinitionSourceConfig `yaml:"kartaDefinitionSource" json:"kartaDefinitionSource"`
-	IgnoredOwnerKinds     Kinds                       `yaml:"ignoredOwnerKinds" json:"ignoredOwnerKinds"`
-	RequiredKinds         Kinds                       `yaml:"requiredKinds" json:"requiredKinds"`
-	RequestTimeout        string                      `yaml:"requestTimeout" json:"requestTimeout"`
-	APIQPS                float32                     `yaml:"apiQPS" json:"apiQPS"`
-	APIBurst              int                         `yaml:"apiBurst" json:"apiBurst"`
-	Workers               int                         `yaml:"workers" json:"workers"`
-	LeafWorkers           int                         `yaml:"leafWorkers" json:"leafWorkers"`
-	RootWorkers           int                         `yaml:"rootWorkers" json:"rootWorkers"`
+	labelresolver.Config   `yaml:",inline"`
+	ResourceRules          []controller.ResourceRule          `yaml:"resourceRules" json:"resourceRules"`
+	ExcludeResourceRules   []controller.ResourceRule          `yaml:"excludeResourceRules" json:"excludeResourceRules"`
+	ExcludeStatuses        []v1alpha1.ResourceStatus          `yaml:"excludeStatuses" json:"excludeStatuses"`
+	NamespaceSelector      *metav1.LabelSelector              `yaml:"namespaceSelector" json:"namespaceSelector"`
+	ObjectSelectors        []controller.ObjectSelector        `yaml:"objectSelectors" json:"objectSelectors"`
+	PodSelector            *metav1.LabelSelector              `yaml:"podSelector" json:"podSelector"`
+	WorkloadMetricSelector *metav1.LabelSelector              `yaml:"workloadMetricSelector" json:"workloadMetricSelector"`
+	PodWorkloadAssociation *controller.PodWorkloadAssociation `yaml:"podWorkloadAssociation" json:"podWorkloadAssociation"`
+	KartaDefinitionSource  KartaDefinitionSourceConfig        `yaml:"kartaDefinitionSource" json:"kartaDefinitionSource"`
+	IgnoredOwnerKinds      Kinds                              `yaml:"ignoredOwnerKinds" json:"ignoredOwnerKinds"`
+	RequiredKinds          Kinds                              `yaml:"requiredKinds" json:"requiredKinds"`
+	RequestTimeout         string                             `yaml:"requestTimeout" json:"requestTimeout"`
+	APIQPS                 float32                            `yaml:"apiQPS" json:"apiQPS"`
+	APIBurst               int                                `yaml:"apiBurst" json:"apiBurst"`
+	Workers                int                                `yaml:"workers" json:"workers"`
+	LeafWorkers            int                                `yaml:"leafWorkers" json:"leafWorkers"`
+	RootWorkers            int                                `yaml:"rootWorkers" json:"rootWorkers"`
 }
 
 // KartaDefinitionSourceConfig selects definitions from the configured sources.
@@ -257,10 +261,11 @@ func DefaultConfig() Config {
 			Catalog: DefinitionSourceConfig{Enabled: true},
 			Cluster: DefinitionSourceConfig{Enabled: true},
 		},
-		RequestTimeout: "30s",
-		Workers:        4,
-		APIQPS:         20,
-		APIBurst:       40,
+		ExcludeStatuses: []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus},
+		RequestTimeout:  "30s",
+		Workers:         4,
+		APIQPS:          20,
+		APIBurst:        40,
 	}
 }
 
@@ -272,7 +277,7 @@ func (cfg Config) Validate() error {
 	if err := labelresolver.ValidateConfig(cfg.Config); err != nil {
 		return err
 	}
-	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.ObjectSelector, cfg.PodSelector} {
+	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.PodSelector, cfg.WorkloadMetricSelector} {
 		if selector != nil {
 			if _, err := metav1.LabelSelectorAsSelector(selector); err != nil {
 				return err
@@ -280,6 +285,21 @@ func (cfg Config) Validate() error {
 		}
 	}
 	if err := controller.ValidateResourceRules(slices.Concat(cfg.ResourceRules, cfg.ExcludeResourceRules)); err != nil {
+		return err
+	}
+	for _, status := range cfg.ExcludeStatuses {
+		switch status {
+		case v1alpha1.InitializingStatus, v1alpha1.RunningStatus, v1alpha1.CompletedStatus,
+			v1alpha1.FailedStatus, v1alpha1.DegradedStatus, v1alpha1.SuspendedStatus,
+			v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus, v1alpha1.UndefinedStatus:
+		default:
+			return fmt.Errorf("unknown excluded status %q", status)
+		}
+	}
+	if err := controller.ValidateObjectSelectors(cfg.ObjectSelectors); err != nil {
+		return err
+	}
+	if err := controller.ValidatePodWorkloadAssociation(cfg.PodWorkloadAssociation); err != nil {
 		return err
 	}
 	for _, kinds := range [][]schema.GroupVersionKind{cfg.IgnoredOwnerKinds, cfg.RequiredKinds} {

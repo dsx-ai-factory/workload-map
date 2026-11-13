@@ -3,7 +3,7 @@
 
 # AGENTS.md - Guide for AI Coding Agents
 
-You are contributing to Karta, an Apache 2.0 open-source Kubernetes project. Stack: Go 1.25, controller-runtime, Helm. Goal: a CRD that lets controllers and platforms inspect, modify, and manage workloads of any type without per-CRD adapters.
+You are contributing to Karta, an Apache 2.0 open-source Kubernetes project. Stack: Go 1.27, controller-runtime, Helm. Goal: a CRD that lets controllers and platforms inspect, modify, and manage workloads of any type without per-CRD adapters.
 
 If you are an AI coding agent (Cursor, Codex, Claude Code, Aider, Continue, Copilot, etc.) opening this repo for the first time, read this file end to end before making changes. For Claude Code, the sibling `CLAUDE.md` imports this file via `@AGENTS.md`.
 
@@ -12,6 +12,7 @@ If you are an AI coding agent (Cursor, Codex, Claude Code, Aider, Continue, Copi
 Always do:
 - Run `make check` before pushing.
 - Sign off commits with `-s` (DCO).
+- Cryptographically sign commits with `-S` using a configured GPG or SSH key.
 - Add SPDX + copyright header to new source and Markdown files.
 - Use Conventional Commits: `feat(scope):`, `fix(scope):`, `refactor(scope):`. Match an existing scope from `git log` when possible.
 - Reference an open GitHub issue in the PR.
@@ -106,6 +107,11 @@ recipe, so a workspace would change what you build locally but not what CI build
 ## Commits and Pull Requests
 
 Commit messages follow Conventional Commits v1.0.0 with a DCO sign-off (`git commit -s`, real name required). The format, allowed types, and scope conventions are documented in `CONTRIBUTING.md` under Commit Messages; that section is the single source of truth. Do not restate the format here.
+
+Each commit also requires a cryptographic signature, which proves that the signing key signed the commit.
+Use `git commit -s -S` to include both the DCO sign-off and the signature.
+Follow [Commit signing](CONTRIBUTING.md#commit-signing) for key setup and GitHub verification guidance.
+Only rewrite commits or force-push when the contributor explicitly requests it.
 
 Use the PR template at `.github/PULL_REQUEST_TEMPLATE.md`. Required: link to an open issue, run `make check`, add or update tests (or explain why none).
 

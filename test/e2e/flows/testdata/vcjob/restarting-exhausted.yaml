@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A Volcano Job that fails and exhausts its retries. A RestartJob lifecycle
+# policy tells the controller to restart on pod failure, and maxRetry 1 means
+# the first restart exhausts the budget (retryCount >= maxRetry), transitioning
+# to Failed and proving the Failed mapping for the exhausted-Restarting branch.
+apiVersion: batch.volcano.sh/v1alpha1
+kind: Job
+metadata:
+  name: karta-e2e-vcjob-restarting-exhausted
+  namespace: default
+spec:
+  maxRetry: 1
+  minAvailable: 1
+  policies:
+    - event: PodFailed
+      action: RestartJob
+  tasks:
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          containers:
+            - name: worker
+              image: busybox:1.36
+              command: ["sh", "-c", "sleep 3; exit 1"]
+              resources:
+                requests: {cpu: 50m, memory: 32Mi}
+                limits: {cpu: 50m, memory: 32Mi}

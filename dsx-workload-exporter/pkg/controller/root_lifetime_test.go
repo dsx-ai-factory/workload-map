@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -27,6 +29,29 @@ import (
 )
 
 var lifetimeDeploymentGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
+
+var _ = Describe("Root selection", func() {
+	It("removes and restores workload metrics as root labels change", func() {
+		t := GinkgoTB()
+		r := newRootLifetimeRuntime(t, Config{ObjectSelectors: []ObjectSelector{{Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"observe": "yes"}}}}})
+		w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "", true)
+		root := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "root", "root")
+		for i, selected := range []bool{true, false, true} {
+			current := root.DeepCopy()
+			current.SetResourceVersion(string(rune('1' + i)))
+			if selected {
+				current.SetLabels(map[string]string{"observe": "yes"})
+			}
+			Expect(r.state.applyWatchEvent(w, current, false)).To(Succeed())
+			drainRootLifetimeQueues(t, r)
+			if selected {
+				Expect(r.state.deps.Publications.Workload(root.GetUID())).NotTo(BeNil())
+			} else {
+				Expect(r.state.deps.Publications.Workload(root.GetUID())).To(BeNil())
+			}
+		}
+	})
+})
 
 func TestRootSurvivesFinalPodRemovalUntilConfirmedDeletion(t *testing.T) {
 	r := newRootLifetimeRuntime(t, Config{})
@@ -56,7 +81,7 @@ func TestRootSurvivesFinalPodRemovalUntilConfirmedDeletion(t *testing.T) {
 
 func TestWatchedWorkloadsWithoutKartaOrPods(t *testing.T) {
 	r := newRootLifetimeRuntime(t, Config{RequiredKinds: []schema.GroupVersionKind{lifetimeDeploymentGVK}})
-	requests, err := r.state.prepareWatchRequests()
+	requests, err := r.state.prepareWatchRequests(t.Context())
 	require.NoError(t, err)
 	require.Contains(t, requests, discovery.WatchRequest{GVK: lifetimeDeploymentGVK})
 	w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "", true)
@@ -233,7 +258,7 @@ func TestRootLifetimeNamespaceExclusionAndReentry(t *testing.T) {
 	namespace.SetLabels(map[string]string{"observe": "yes"})
 	namespaceWatch := rootLifetimeWatch(t, r, namespaceGVK, "", true)
 	require.NoError(t, r.state.applyWatchEvent(namespaceWatch, namespace, false))
-	_, err := r.state.prepareWatchRequests()
+	_, err := r.state.prepareWatchRequests(t.Context())
 	require.NoError(t, err)
 	w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "ns", true)
 	root := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "root", "root")
@@ -244,7 +269,7 @@ func TestRootLifetimeNamespaceExclusionAndReentry(t *testing.T) {
 	excluded.SetLabels(nil)
 	excluded.SetResourceVersion("2")
 	require.NoError(t, r.state.applyWatchEvent(namespaceWatch, excluded, false))
-	_, err = r.state.prepareWatchRequests()
+	_, err = r.state.prepareWatchRequests(t.Context())
 	require.NoError(t, err)
 	require.Nil(t, r.state.deps.Publications.Workload(root.GetUID()))
 	require.NotContains(t, r.state.roots, root.GetUID())
@@ -256,33 +281,13 @@ func TestRootLifetimeNamespaceExclusionAndReentry(t *testing.T) {
 	require.NotContains(t, r.state.watches, w.key)
 	namespace.SetResourceVersion("3")
 	require.NoError(t, r.state.applyWatchEvent(namespaceWatch, namespace, false))
-	requests, err := r.state.prepareWatchRequests()
+	requests, err := r.state.prepareWatchRequests(t.Context())
 	require.NoError(t, err)
 	require.Contains(t, requests, discovery.WatchRequest{GVK: lifetimeDeploymentGVK, Namespace: "ns"})
 	w = rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "ns", true)
 	require.NoError(t, (&reflectorStore{controller: r.state, watch: w}).Replace([]any{root}, "3"))
 	drainRootLifetimeQueues(t, r)
 	require.NotNil(t, r.state.deps.Publications.Workload(root.GetUID()))
-}
-
-func TestGenericRootSelectorExclusionAndReentry(t *testing.T) {
-	r := newRootLifetimeRuntime(t, Config{ObjectSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"observe": "yes"}}})
-	w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "", true)
-	root := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "root", "root")
-	for i, selected := range []bool{true, false, true} {
-		current := root.DeepCopy()
-		current.SetResourceVersion(string(rune('1' + i)))
-		if selected {
-			current.SetLabels(map[string]string{"observe": "yes"})
-		}
-		require.NoError(t, r.state.applyWatchEvent(w, current, false))
-		drainRootLifetimeQueues(t, r)
-		if selected {
-			require.NotNil(t, r.state.deps.Publications.Workload(root.GetUID()))
-		} else {
-			require.Nil(t, r.state.deps.Publications.Workload(root.GetUID()))
-		}
-	}
 }
 
 func TestGenericMetadataDiscoveryWaitsForFullReplacement(t *testing.T) {
@@ -303,7 +308,7 @@ func TestGenericMetadataDiscoveryWaitsForFullReplacement(t *testing.T) {
 	require.True(t, r.state.deps.Publications.Workload(root.GetUID()).HasValue)
 }
 
-func newRootLifetimeRuntime(t *testing.T, cfg Config) *Runtime {
+func newRootLifetimeRuntime(t testing.TB, cfg Config) *Runtime {
 	t.Helper()
 	reader := &Reader{objectCache: &objectCache{objects: map[objectKey]cachedObject{}, sources: map[watchKey]cacheSource{}},
 		clients: Clients{Mapper: meta.NewDefaultRESTMapper(nil)}, options: ReaderOptions{RequestTimeout: time.Second}}
@@ -339,7 +344,7 @@ func rootLifetimeObject(gvk schema.GroupVersionKind, namespace, name string, uid
 	return object
 }
 
-func rootLifetimeWatch(t *testing.T, r *Runtime, gvk schema.GroupVersionKind, namespace string, full bool) *resourceWatch {
+func rootLifetimeWatch(t testing.TB, r *Runtime, gvk schema.GroupVersionKind, namespace string, full bool) *resourceWatch {
 	t.Helper()
 	resource := gvk.GroupVersion().WithResource(strings.ToLower(gvk.Kind) + "s")
 	scope := meta.RESTScopeNamespace
@@ -355,7 +360,7 @@ func rootLifetimeWatch(t *testing.T, r *Runtime, gvk schema.GroupVersionKind, na
 	return w
 }
 
-func drainRootLifetimeQueues(t *testing.T, r *Runtime) {
+func drainRootLifetimeQueues(t testing.TB, r *Runtime) {
 	t.Helper()
 	for attempts := 0; r.state.podQueue.Len()+r.state.workloadQueue.Len() > 0; attempts++ {
 		require.Less(t, attempts, 100, "queues did not settle")

@@ -18,25 +18,28 @@ vi.mock('../../config', () => ({ useKartaConfig }));
 import type { Karta } from '../../lib/karta/karta.types';
 import { useKartaDefinitions } from './useKartaDefinitions';
 
-function karta(name: string, kind?: { group: string; version: string; kind: string }): Karta {
+function karta(
+  name: string,
+  kind?: { group: string; version: string; kind: string },
+  experimental?: boolean
+): Karta {
   return {
     apiVersion: 'run.ai/v1alpha1',
     kind: 'Karta',
     metadata: { name },
-    spec: { structureDefinition: { rootComponent: { kind } } },
+    spec: { experimental, structureDefinition: { rootComponent: { kind } } },
   };
 }
 
 const deploymentGVK = { group: 'apps', version: 'v1', kind: 'Deployment' };
+const jobGVK = { group: 'batch', version: 'v1', kind: 'Job' };
 
 beforeEach(() => useKartaConfig.mockReturnValue(undefined));
 
 describe('useKartaDefinitions', () => {
   it('reacts to the saved experimental setting for catalog and cluster definitions', async () => {
-    const catalogDeployment = karta('catalog-deployment', deploymentGVK);
-    const clusterJob = karta('cluster-job', { group: 'batch', version: 'v1', kind: 'Job' });
-    catalogDeployment.spec.experimental = true;
-    clusterJob.spec.experimental = true;
+    const catalogDeployment = karta('catalog-deployment', deploymentGVK, true);
+    const clusterJob = karta('cluster-job', jobGVK, true);
     listCatalog.mockResolvedValue([catalogDeployment]);
     useListMock.mockReturnValue([[{ jsonData: clusterJob }], null]);
 
@@ -47,8 +50,8 @@ describe('useKartaDefinitions', () => {
     useKartaConfig.mockReturnValue({ enableExperimental: true });
     rerender();
     expect(result.current.definitions).toEqual([
-      { karta: catalogDeployment, origin: 'catalog' },
-      { karta: clusterJob, origin: 'cluster' },
+      { karta: catalogDeployment, origin: 'catalog', rootKind: deploymentGVK },
+      { karta: clusterJob, origin: 'cluster', rootKind: jobGVK },
     ]);
 
     useKartaConfig.mockReturnValue({ enableExperimental: false });
@@ -78,7 +81,7 @@ describe('useKartaDefinitions', () => {
     expect(result.current.crdMissing).toBe(true);
     expect(result.current.installed).toBe(false);
     expect(result.current.error).toBeNull();
-    expect(result.current.definitions).toEqual([{ karta: catalogDeployment, origin: 'catalog' }]);
+    expect(result.current.definitions).toEqual([{ karta: catalogDeployment, origin: 'catalog', rootKind: deploymentGVK }]);
   });
 
   // The catalog alone describes workloads, and cluster CRs only refine it, so
@@ -94,7 +97,7 @@ describe('useKartaDefinitions', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.definitions).toEqual([
-      { karta: catalogDeployment, origin: 'catalog' },
+      { karta: catalogDeployment, origin: 'catalog', rootKind: deploymentGVK },
     ]);
     // Still unknown whether Karta is installed, which the pending list decides.
     expect(result.current.installed).toBe(false);
@@ -112,7 +115,7 @@ describe('useKartaDefinitions', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.installed).toBe(true);
     expect(result.current.crdMissing).toBe(false);
-    expect(result.current.definitions).toEqual([{ karta: clusterDeployment, origin: 'cluster' }]);
+    expect(result.current.definitions).toEqual([{ karta: clusterDeployment, origin: 'cluster', rootKind: deploymentGVK }]);
   });
 
   it('keeps the cluster definitions when a refresh fails with a 5xx', async () => {
@@ -127,7 +130,7 @@ describe('useKartaDefinitions', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     // The CRs were not deleted, so the workload must not fall back to the
     // catalog definition while the API is briefly unavailable.
-    expect(result.current.definitions).toEqual([{ karta: clusterDeployment, origin: 'cluster' }]);
+    expect(result.current.definitions).toEqual([{ karta: clusterDeployment, origin: 'cluster', rootKind: deploymentGVK }]);
     expect(result.current.error).toEqual({ status: 503 });
   });
 
@@ -145,7 +148,7 @@ describe('useKartaDefinitions', () => {
     const { result } = renderHook(() => useKartaDefinitions('cluster-a'));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.definitions).toEqual([{ karta: clusterDeployment, origin: 'cluster' }]);
+    expect(result.current.definitions).toEqual([{ karta: clusterDeployment, origin: 'cluster', rootKind: deploymentGVK }]);
     expect(result.current.installed).toBe(true);
   });
 
@@ -159,7 +162,7 @@ describe('useKartaDefinitions', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.crdMissing).toBe(true);
-    expect(result.current.definitions).toEqual([{ karta: catalogDeployment, origin: 'catalog' }]);
+    expect(result.current.definitions).toEqual([{ karta: catalogDeployment, origin: 'catalog', rootKind: deploymentGVK }]);
   });
 
   it('surfaces a non-404 list error instead of silently swallowing it', async () => {

@@ -38,6 +38,9 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 		return nil
 	}
 
+	if r.state.unregisterAbsentObject(key) {
+		return nil
+	}
 	r.state.trackSelectedObject(key)
 	selection, selectionErr := r.state.lookupDefinition(key.Object.GVK)
 	if selection.Definition == nil && selectionErr != nil {
@@ -120,6 +123,9 @@ func (r *Runtime) reconcileWorkload(ctx context.Context, uid types.UID) error {
 		return r.state.failWorkload(uid, ref, err)
 	}
 	ref = refOf(workloadObject)
+	if !r.state.workloadMetricSelector.Matches(labelsFor(workloadObject)) {
+		return r.state.suppressWorkloadMetrics(ref)
+	}
 	owner, isOwnerValid := discovery.ControllerOwner(workloadObject)
 	if !isOwnerValid {
 		return r.state.failWorkload(uid, ref, discovery.ErrUnresolvedOwner)
@@ -234,10 +240,20 @@ func ValidateResourceRules(rules []ResourceRule) error {
 }
 
 func (r *controllerState) isRootSelected(ctx context.Context, object *unstructured.Unstructured) (bool, error) {
-	if !r.objectSelector.Matches(labelsFor(object)) {
+	if !r.isObjectSelected(object) {
 		return false, nil
 	}
 	return r.isResourceSelected(ctx, object.GroupVersionKind())
+}
+
+func (r *controllerState) suppressWorkloadMetrics(ref discovery.ObjectRef) error {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	if _, _, err := r.lookupObject(ref, false); err != nil {
+		return discovery.ErrStale
+	}
+	r.deps.Publications.RemoveWorkload(ref.UID)
+	return nil
 }
 
 func (r *controllerState) isResourceSelected(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {

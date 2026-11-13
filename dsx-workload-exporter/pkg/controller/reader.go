@@ -28,17 +28,27 @@ import (
 // Cache reads share the controller state lock; mapper reset is independent.
 type Reader struct {
 	*objectCache
-	clients         Clients
-	options         ReaderOptions
-	ensure          func(ctx context.Context, gvk schema.GroupVersionKind, namespace string, metadataOnly bool) (watchKey, error)
-	mapperMu        sync.Mutex
-	lastMapperReset time.Time
+	clients               Clients
+	options               ReaderOptions
+	ensure                func(ctx context.Context, gvk schema.GroupVersionKind, namespace string, metadataOnly bool) (watchKey, error)
+	mapperMu              sync.Mutex
+	lastMapperReset       time.Time
+	resourceDiscoveryMu   sync.Mutex
+	lastResourceDiscovery time.Time
+	discoveredResources   []*metav1.APIResourceList
 }
 type Clients struct {
-	Dynamic  dynamic.Interface
-	Metadata metadata.Interface
-	Mapper   meta.RESTMapper
+	Dynamic   dynamic.Interface
+	Metadata  metadata.Interface
+	Mapper    meta.RESTMapper
+	Discovery APIResourceDiscoverer
 }
+
+// APIResourceDiscoverer confirms absence only after complete API discovery.
+type APIResourceDiscoverer interface {
+	ServerGroupsAndResourcesWithContext(context.Context) ([]*metav1.APIGroup, []*metav1.APIResourceList, error)
+}
+
 type ReaderOptions struct{ RequestTimeout time.Duration }
 type objectKey struct {
 	GVK             schema.GroupVersionKind
@@ -117,6 +127,28 @@ func (r *Reader) restMapping(ctx context.Context, gvk schema.GroupVersionKind) (
 	return mapping, nil
 }
 
+// apiResources reuses complete discovery for one mapper reset interval.
+// Failed refreshes leave the snapshot expired so the next sync retries discovery.
+func (r *Reader) apiResources(ctx context.Context) ([]*metav1.APIResourceList, error) {
+	r.resourceDiscoveryMu.Lock()
+	defer r.resourceDiscoveryMu.Unlock()
+	if time.Since(r.lastResourceDiscovery) < mapperResetInterval {
+		return r.discoveredResources, nil
+	}
+	if r.clients.Discovery == nil {
+		return nil, errors.New("API resource discovery is unavailable")
+	}
+	requestCtx, cancel := context.WithTimeout(ctx, r.options.RequestTimeout)
+	defer cancel()
+	_, resources, err := r.clients.Discovery.ServerGroupsAndResourcesWithContext(requestCtx)
+	if err != nil {
+		return nil, err
+	}
+	r.discoveredResources = resources
+	r.lastResourceDiscovery = time.Now()
+	return resources, nil
+}
+
 // Reset cached API discovery so the next lookup can find newly installed CRDs.
 // Limit resets to avoid repeated discovery requests when workers retry unknown kinds.
 func (r *Reader) resetMapperIfNeeded(ctx context.Context) {
@@ -146,7 +178,7 @@ func failureReason(err error) string {
 		return ""
 	case apierrors.IsForbidden(err), apierrors.IsUnauthorized(err), errors.Is(err, discovery.ErrPermissionDenied), errors.Is(err, inventory.ErrPermissionDenied):
 		return store.ReasonPermissionDenied
-	case errors.Is(err, discovery.ErrUnresolvedOwner), apierrors.IsNotFound(err):
+	case errors.Is(err, ErrInvalidPodAssociation), errors.Is(err, discovery.ErrUnresolvedOwner), apierrors.IsNotFound(err):
 		return store.ReasonUnresolvedOwner
 	case errors.Is(err, discovery.ErrInvalidDefinition), errors.Is(err, inventory.ErrInvalidDefinition):
 		return store.ReasonInvalidDefinition

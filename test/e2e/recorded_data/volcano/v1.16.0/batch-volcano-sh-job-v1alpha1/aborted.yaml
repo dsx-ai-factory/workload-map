@@ -1,0 +1,319 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:27:46Z"
+      generation: 1
+      name: karta-e2e-vcjob-aborted
+      namespace: test-m6rxx
+      uid: 0b0b1a51-d9e7-4da6-9dab-05c1e3341f6a
+    spec:
+      maxRetry: 3
+      minAvailable: 1
+      policies:
+      - action: AbortJob
+        event: PodFailed
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 1
+        name: worker
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - sleep 5; exit 1
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:27:47Z"
+        status: Pending
+      minAvailable: 1
+      state:
+        lastTransitionTime: "2026-11-11T15:27:47Z"
+        phase: Pending
+  phases:
+  - Initializing
+  resourceVersion: "85762"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:27:46Z"
+      generation: 1
+      name: karta-e2e-vcjob-aborted
+      namespace: test-m6rxx
+      uid: 0b0b1a51-d9e7-4da6-9dab-05c1e3341f6a
+    spec:
+      maxRetry: 3
+      minAvailable: 1
+      policies:
+      - action: AbortJob
+        event: PodFailed
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 1
+        name: worker
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - sleep 5; exit 1
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:27:47Z"
+        status: Pending
+      minAvailable: 1
+      pending: 1
+      state:
+        lastTransitionTime: "2026-11-11T15:27:47Z"
+        phase: Pending
+      taskStatusCount:
+        worker:
+          phase:
+            Pending: 1
+  phases:
+  - Initializing
+  resourceVersion: "85770"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:27:46Z"
+      generation: 1
+      name: karta-e2e-vcjob-aborted
+      namespace: test-m6rxx
+      uid: 0b0b1a51-d9e7-4da6-9dab-05c1e3341f6a
+    spec:
+      maxRetry: 3
+      minAvailable: 1
+      policies:
+      - action: AbortJob
+        event: PodFailed
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 1
+        name: worker
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - sleep 5; exit 1
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:27:47Z"
+        status: Pending
+      - lastTransitionTime: "2026-11-11T15:27:50Z"
+        status: Running
+      minAvailable: 1
+      running: 1
+      state:
+        lastTransitionTime: "2026-11-11T15:27:50Z"
+        phase: Running
+      taskStatusCount:
+        worker:
+          phase:
+            Running: 1
+  phases:
+  - Running
+  resourceVersion: "85798"
+  state: Running
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:27:46Z"
+      generation: 1
+      name: karta-e2e-vcjob-aborted
+      namespace: test-m6rxx
+      uid: 0b0b1a51-d9e7-4da6-9dab-05c1e3341f6a
+    spec:
+      maxRetry: 3
+      minAvailable: 1
+      policies:
+      - action: AbortJob
+        event: PodFailed
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 1
+        name: worker
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - sleep 5; exit 1
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:27:47Z"
+        status: Pending
+      - lastTransitionTime: "2026-11-11T15:27:50Z"
+        status: Running
+      - lastTransitionTime: "2026-11-11T15:27:57Z"
+        status: Aborting
+      minAvailable: 1
+      runningDuration: 11.01599572s
+      state:
+        lastTransitionTime: "2026-11-11T15:27:57Z"
+        phase: Aborting
+      version: 1
+  phases:
+  - Suspending
+  resourceVersion: "85817"
+  state: Suspending
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:27:46Z"
+      generation: 1
+      name: karta-e2e-vcjob-aborted
+      namespace: test-m6rxx
+      uid: 0b0b1a51-d9e7-4da6-9dab-05c1e3341f6a
+    spec:
+      maxRetry: 3
+      minAvailable: 1
+      policies:
+      - action: AbortJob
+        event: PodFailed
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 1
+        name: worker
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sh
+              - -c
+              - sleep 5; exit 1
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:27:47Z"
+        status: Pending
+      - lastTransitionTime: "2026-11-11T15:27:50Z"
+        status: Running
+      - lastTransitionTime: "2026-11-11T15:27:57Z"
+        status: Aborting
+      - lastTransitionTime: "2026-11-11T15:27:57Z"
+        status: Aborted
+      minAvailable: 1
+      runningDuration: 11.021287345s
+      state:
+        lastTransitionTime: "2026-11-11T15:27:57Z"
+        phase: Aborted
+      version: 2
+  phases:
+  - Suspended
+  resourceVersion: "85819"
+  state: Suspended
+flow: aborted
+kartaFile: docs/catalog/batch-volcano-sh-job-v1alpha1.yaml
+kartaName: batch-volcano-sh-job-v1alpha1
+operator: volcano
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 2
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+- amount: 1
+  phases:
+  - Suspending
+- amount: 1
+  phases:
+  - Suspended
+version: v1.16.0
+want: Suspended

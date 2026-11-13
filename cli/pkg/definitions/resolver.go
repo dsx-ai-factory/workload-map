@@ -4,6 +4,7 @@
 package definitions
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -29,10 +30,31 @@ var (
 	ErrAmbiguous    = errors.New("definitions: more than one Karta definition for GVK")
 )
 
+// Status says whether the CLI selects a definition for the workload type it
+// covers. It describes the lookup, not whether any workload is running.
+type Status string
+
+const (
+	// StatusActive is the one definition selected for its workload type.
+	StatusActive Status = "active"
+	// StatusInactive is never selected: a cluster definition overrides it, or it
+	// names no workload type.
+	StatusInactive Status = "inactive"
+	// StatusAmbiguous claims its workload type together with another definition
+	// from the same source, so none of them is selected.
+	StatusAmbiguous Status = "ambiguous"
+)
+
 // Definition is a Karta together with the source it was read from.
 type Definition struct {
 	Karta  *v1alpha1.Karta
 	Origin Origin
+}
+
+// Listed is a definition together with its selection status.
+type Listed struct {
+	Definition
+	Status Status
 }
 
 // Collision records a root GVK claimed by more than one definition from the same
@@ -45,6 +67,9 @@ type Collision struct {
 // Resolver is an immutable lookup over the merged catalog and cluster definitions.
 type Resolver struct {
 	definitions []Definition
+	// overridden holds the catalog definitions a cluster definition replaced,
+	// sorted by GVK then name. Lookups never select them.
+	overridden []Definition
 }
 
 // New merges catalog and cluster definitions into a Resolver. The catalog is
@@ -53,8 +78,15 @@ type Resolver struct {
 func New(catalogKartas, cluster []*v1alpha1.Karta) *Resolver {
 	r := &Resolver{}
 	listing := make(map[schema.GroupVersionKind][]Definition, len(catalogKartas)+len(cluster))
-	unmapped := index(listing, catalogKartas, OriginCatalog)
-	unmapped = append(unmapped, index(listing, cluster, OriginCluster)...)
+	unmapped, _ := index(listing, catalogKartas, OriginCatalog)
+	clusterUnmapped, overridden := index(listing, cluster, OriginCluster)
+	unmapped = append(unmapped, clusterUnmapped...)
+	slices.SortFunc(overridden, func(a, b Definition) int {
+		ga, _ := mappable(a)
+		gb, _ := mappable(b)
+		return cmp.Or(strings.Compare(ga.String(), gb.String()), strings.Compare(a.Karta.Name, b.Karta.Name))
+	})
+	r.overridden = overridden
 
 	gvks := slices.SortedFunc(maps.Keys(listing), func(a, b schema.GroupVersionKind) int {
 		return strings.Compare(a.String(), b.String())
@@ -76,15 +108,15 @@ func mappable(d Definition) (schema.GroupVersionKind, bool) {
 	return gvk, gvk.Version != "" && gvk.Kind != ""
 }
 
-// index adds one source to the resolver. Sorting by name keeps the outcome
-// deterministic.
-func index(listing map[schema.GroupVersionKind][]Definition, kartas []*v1alpha1.Karta, origin Origin) []Definition {
+// index adds one source to the resolver and returns the definitions that name no
+// GVK and the earlier definitions this source replaced. Sorting by name keeps the
+// outcome deterministic.
+func index(listing map[schema.GroupVersionKind][]Definition, kartas []*v1alpha1.Karta, origin Origin) (unmapped, replaced []Definition) {
 	sorted := slices.Clone(kartas)
 	slices.SortFunc(sorted, func(a, b *v1alpha1.Karta) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 
-	var unmapped []Definition
 	claimed := make(map[schema.GroupVersionKind][]Definition, len(sorted))
 	for _, karta := range sorted {
 		def := Definition{Karta: karta, Origin: origin}
@@ -97,10 +129,11 @@ func index(listing map[schema.GroupVersionKind][]Definition, kartas []*v1alpha1.
 	}
 
 	for gvk, defs := range claimed {
+		replaced = append(replaced, listing[gvk]...)
 		// Assignment, not append: this source replaces an earlier one for the GVK.
 		listing[gvk] = defs
 	}
-	return unmapped
+	return unmapped, replaced
 }
 
 // Resolve returns the one definition covering gvk.
@@ -131,6 +164,36 @@ func (r *Resolver) List() []Definition {
 	return r.definitions
 }
 
+// ListAll returns every definition with its status: the ones List returns, in
+// the same order, followed by the catalog definitions a cluster definition
+// overrides. List stays the set lookups choose from; ListAll also shows what the
+// cluster hides.
+func (r *Resolver) ListAll() []Listed {
+	claimants := make(map[schema.GroupVersionKind]int, len(r.definitions))
+	for _, def := range r.definitions {
+		if gvk, ok := mappable(def); ok {
+			claimants[gvk]++
+		}
+	}
+
+	out := make([]Listed, 0, len(r.definitions)+len(r.overridden))
+	for _, def := range r.definitions {
+		gvk, ok := mappable(def)
+		switch {
+		case !ok:
+			out = append(out, Listed{Definition: def, Status: StatusInactive})
+		case claimants[gvk] > 1:
+			out = append(out, Listed{Definition: def, Status: StatusAmbiguous})
+		default:
+			out = append(out, Listed{Definition: def, Status: StatusActive})
+		}
+	}
+	for _, def := range r.overridden {
+		out = append(out, Listed{Definition: def, Status: StatusInactive})
+	}
+	return out
+}
+
 // ByRootKind matches the Kind segment of a GVK.
 func (r *Resolver) ByRootKind(kind string) []Definition {
 	query := strings.ToLower(kind)
@@ -149,7 +212,9 @@ func (r *Resolver) ByRootKind(kind string) []Definition {
 }
 
 // ByName returns the definition called name, matched exactly: names are
-// identifiers copied from list output.
+// identifiers copied from list output. A cluster definition wins over a catalog
+// one with the same name, and a catalog definition the cluster overrides is
+// found only when nothing else carries the name.
 func (r *Resolver) ByName(name string) (Definition, error) {
 	var catalogMatch *Definition
 	for i := range r.definitions {
@@ -164,10 +229,15 @@ func (r *Resolver) ByName(name string) (Definition, error) {
 			catalogMatch = def
 		}
 	}
-	if catalogMatch == nil {
-		return Definition{}, fmt.Errorf("%w: %q", ErrNameNotFound, name)
+	if catalogMatch != nil {
+		return *catalogMatch, nil
 	}
-	return *catalogMatch, nil
+	for _, def := range r.overridden {
+		if def.Karta.Name == name {
+			return def, nil
+		}
+	}
+	return Definition{}, fmt.Errorf("%w: %q", ErrNameNotFound, name)
 }
 
 // Collisions returns root GVKs claimed by more than one definition from the same

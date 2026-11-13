@@ -418,3 +418,118 @@ var _ = DescribeTable("FormatGVK names a type as group/version/Kind",
 	Entry("a named group", deploymentGVK, "apps/v1/Deployment"),
 	Entry("the core group, which a manifest writes as a bare version", podGVK, "v1/Pod"),
 )
+
+var _ = Describe("Resolver ListAll", func() {
+	statusesOf := func(listed []Listed) map[string]Status {
+		out := make(map[string]Status, len(listed))
+		for _, l := range listed {
+			out[string(l.Origin)+"/"+l.Karta.Name] = l.Status
+		}
+		return out
+	}
+
+	It("marks the one definition covering a GVK active", func() {
+		r := New([]*v1alpha1.Karta{newKarta("apps-deployment-v1", deploymentGVK)}, nil)
+
+		Expect(statusesOf(r.ListAll())).To(Equal(map[string]Status{
+			"catalog/apps-deployment-v1": StatusActive,
+		}))
+	})
+
+	It("keeps a catalog definition the cluster overrides, inactive, without changing what Resolve selects", func() {
+		r := New(
+			[]*v1alpha1.Karta{newKarta("apps-deployment-v1", deploymentGVK), newKarta("batch-job-v1", jobGVK)},
+			[]*v1alpha1.Karta{newKarta("custom-deployment", deploymentGVK)},
+		)
+
+		Expect(statusesOf(r.ListAll())).To(Equal(map[string]Status{
+			"catalog/apps-deployment-v1": StatusInactive,
+			"catalog/batch-job-v1":       StatusActive,
+			"cluster/custom-deployment":  StatusActive,
+		}))
+
+		def, err := r.Resolve(deploymentGVK)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(def.Karta.Name).To(Equal("custom-deployment"))
+		Expect(namesOf(r.List())).To(Equal([]string{"custom-deployment", "batch-job-v1"}))
+	})
+
+	It("marks same-source claimants ambiguous, never active", func() {
+		r := New(nil, []*v1alpha1.Karta{
+			newKarta("zzz-deployment", deploymentGVK),
+			newKarta("aaa-deployment", deploymentGVK),
+		})
+
+		Expect(statusesOf(r.ListAll())).To(Equal(map[string]Status{
+			"cluster/aaa-deployment": StatusAmbiguous,
+			"cluster/zzz-deployment": StatusAmbiguous,
+		}))
+	})
+
+	It("keeps the overridden catalog definition inactive when the cluster claimants are ambiguous", func() {
+		r := New(
+			[]*v1alpha1.Karta{newKarta("apps-deployment-v1", deploymentGVK)},
+			[]*v1alpha1.Karta{newKarta("zzz-deployment", deploymentGVK), newKarta("aaa-deployment", deploymentGVK)},
+		)
+
+		Expect(statusesOf(r.ListAll())).To(Equal(map[string]Status{
+			"catalog/apps-deployment-v1": StatusInactive,
+			"cluster/aaa-deployment":     StatusAmbiguous,
+			"cluster/zzz-deployment":     StatusAmbiguous,
+		}))
+		_, err := r.Resolve(deploymentGVK)
+		Expect(err).To(MatchError(ErrAmbiguous))
+	})
+
+	It("marks a definition that names no GVK inactive", func() {
+		r := New(nil, []*v1alpha1.Karta{newRootlessKarta("rootless")})
+
+		Expect(statusesOf(r.ListAll())).To(Equal(map[string]Status{"cluster/rootless": StatusInactive}))
+	})
+
+	It("lists what List lists, in order, then the overridden catalog definitions by GVK", func() {
+		r := New(
+			[]*v1alpha1.Karta{
+				newKarta("catalog-job", jobGVK),
+				newKarta("catalog-deployment", deploymentGVK),
+				newKarta("catalog-pod", podGVK),
+			},
+			[]*v1alpha1.Karta{
+				newKarta("cluster-job", jobGVK),
+				newKarta("cluster-deployment", deploymentGVK),
+				newRootlessKarta("rootless"),
+			},
+		)
+
+		listed := r.ListAll()
+		names := make([]string, 0, len(listed))
+		for _, l := range listed {
+			names = append(names, l.Karta.Name)
+		}
+		Expect(names).To(Equal(append(namesOf(r.List()), "catalog-deployment", "catalog-job")))
+	})
+})
+
+var _ = Describe("Resolver ByName over overridden definitions", func() {
+	It("finds a catalog definition the cluster overrides", func() {
+		r := New(
+			[]*v1alpha1.Karta{newKarta("apps-deployment-v1", deploymentGVK)},
+			[]*v1alpha1.Karta{newKarta("custom-deployment", deploymentGVK)},
+		)
+
+		def, err := r.ByName("apps-deployment-v1")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(def.Origin).To(Equal(OriginCatalog))
+	})
+
+	It("still prefers the cluster definition that overrides a catalog one under the same name", func() {
+		r := New(
+			[]*v1alpha1.Karta{newKarta("apps-deployment-v1", deploymentGVK)},
+			[]*v1alpha1.Karta{newKarta("apps-deployment-v1", deploymentGVK)},
+		)
+
+		def, err := r.ByName("apps-deployment-v1")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(def.Origin).To(Equal(OriginCluster))
+	})
+})

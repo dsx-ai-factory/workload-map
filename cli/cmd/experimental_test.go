@@ -55,8 +55,27 @@ func TestDefinitionsExperimentalOptIn(t *testing.T) {
 					t.Errorf("%s, enabled=%t: unexpected visibility for %s", format, enabled, name)
 				}
 			}
-			if strings.Contains(out, kartas.Jobset().Name) == enabled {
-				t.Errorf("%s, enabled=%t: stable catalog fallback has wrong visibility", format, enabled)
+			fallback := kartas.Jobset().Name
+			if format != "table" {
+				if strings.Contains(out, fallback) == enabled {
+					t.Errorf("%s, enabled=%t: stable catalog fallback has wrong visibility", format, enabled)
+				}
+				continue
+			}
+			// The table keeps the catalog definition the cluster one overrides,
+			// marked inactive, so only its status tells the two cases apart.
+			want := "active"
+			if enabled {
+				want = "inactive"
+			}
+			var status string
+			for _, line := range strings.Split(out, "\n") {
+				if fields := strings.Fields(line); len(fields) > 3 && fields[0] == fallback {
+					status = fields[3]
+				}
+			}
+			if status != want {
+				t.Errorf("table, enabled=%t: stable catalog fallback is %q, want %q", enabled, status, want)
 			}
 		}
 	}

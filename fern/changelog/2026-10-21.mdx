@@ -7,7 +7,7 @@ tags: ["cli","headlamp-plugin","catalog","operator","fips","breaking-change"]
 
 ## Workload Map v0.3
 
-Workload Map v0.3 adds the `kli` CLI, a Headlamp plugin, and a generated catalog of 23 workload definitions. It also adds an admission webhook, a CRD upgrade hook in the Helm chart, and FIPS 140-3 runtime support for the operator. A recorded end-to-end test suite now replays offline. The CRD schema is unchanged.
+Workload Map v0.3 adds the `kli` CLI, a Headlamp plugin, and a generated catalog of workload definitions. It also adds an admission webhook, a CRD upgrade hook in the Helm chart, and FIPS 140-3 runtime support for the operator. A recorded end-to-end test suite now replays offline. The CRD schema is unchanged.
 
 <Warning title="Breaking change from version 0.3">
 
@@ -25,7 +25,7 @@ The Go library moved into a nested module, so Go consumers must update their imp
 
 - **CLI:** The `kli` CLI inspects workloads through any definition with the `get`, `describe`, `definitions`, and `validate` commands. It supports table, JSON, and YAML output, shell completion, a config file, and distinguishable exit codes. It is released as signed archives and a Homebrew cask.
 - **Headlamp plugin:** A workloads page for Headlamp resolves any workload type through the Workload Map engine compiled to WebAssembly, with no server-side component.
-- **Catalog:** Definitions are now Go code in `pkg/catalog`, generated into `docs/catalog/`. The catalog ships 23 definitions, including KServe `LLMInferenceService` and the SIG Agent Sandbox, which supports suspend and resume.
+- **Catalog:** Definitions are now Go code in `pkg/catalog`, generated into `docs/catalog/`. The catalog ships definitions, including KServe `LLMInferenceService` and the SIG Agent Sandbox, which supports suspend and resume.
 - **Admission webhook:** The operator validates definitions on admission, stamps group, version, and kind labels, and rejects a second definition for the same group, version, and kind. The root component kind is immutable.
 - **CRD upgrade hook:** The Helm chart upgrades the CRD through a hook.
 - **FIPS 140-3:** The operator image links the Go FIPS 140-3 cryptographic module, and `global.fipsMode` selects the runtime mode.

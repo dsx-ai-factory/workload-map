@@ -61,6 +61,6 @@ You can also build a tree from a manifest that you have not yet submitted. In th
 
 Optimization instructions tell a consumer, such as a scheduler, how to treat the pods of a workload. The supported instruction is gang scheduling, which describes how to group the pods of a distributed workload so that they are placed together.
 
-The `gangScheduling.podGroup` field defines a pod group with subgroups for components. The earlier `gangScheduling.podGroups` field is deprecated and is replaced by `podGroup`. The two formats are not equivalent, so refer to the [Release Notes](/release-notes) before you migrate.
+The `gangScheduling.podGroup` field defines a pod group with subgroups for components.
 
 Paths in optimization instructions refer to the manifest of the pod, not to the workload object.

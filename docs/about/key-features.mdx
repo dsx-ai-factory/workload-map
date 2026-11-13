@@ -33,13 +33,13 @@ The native conditions of each workload map to one set of statuses. The suspend a
 
 | Feature | Description |
 | --- | --- |
-| Gang scheduling instructions | A definition can tell a scheduler how to group the pods of a workload. KAI Scheduler uses these instructions as a fallback for workload types that have no native plugin. |
+| Gang scheduling instructions | A definition can tell a scheduler how to group the pods of a workload. KAI Scheduler uses these instructions as a default plugin for workload types that have no native plugin. |
 
 ## Definitions
 
 | Feature | Description |
 | --- | --- |
-| Catalog of pre-built definitions | The catalog includes 23 tested definitions for common workload types, such as JobSet, PyTorchJob, MPIJob, RayCluster, LeaderWorkerSet, KServe, NVIDIA NIM, NVIDIA Dynamo, and Grove. |
+| Catalog of pre-built definitions | The catalog includes tested definitions for common workload types, such as JobSet, PyTorchJob, MPIJob, RayCluster, LeaderWorkerSet, KServe, NVIDIA NIM, NVIDIA Dynamo, and Grove. |
 | Definition validation | The library, the `kli validate` command, and the operator admission webhook check a definition. The webhook also rejects a second definition for the same group, version, and kind. |
 
 ## Run and Visualize

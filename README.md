@@ -117,6 +117,7 @@ Pick the path that matches what you want to do:
 | [Install the CLI](#install-the-cli) | List definitions and inspect workloads with `kli` | Homebrew, or a release archive. Inspecting live workloads also needs a cluster and `kubectl` context |
 | [Install the CRD](#install-the-crd) | Register Karta definitions in a cluster | A cluster and `kubectl` context |
 | [Use the Go library](#use-the-go-library) | Call Karta from your own controller or tool | Go 1.27.3 or later |
+| [Write your own definition](docs/Authoring%20Your%20First%20Karta.md) | Describe a workload type, starting with a batch Job, and validate it | `kli`, or Go 1.27.3 or later |
 
 ### Install the CLI
 
@@ -149,16 +150,18 @@ kli definitions
 ```
 
 ```text
-NAME                                         KIND                   ORIGIN   COMPONENTS
-apps-deployment-v1                           Deployment             catalog  deployment, replicaset
-apps-nvidia-com-nimcache-v1alpha1            NIMCache               catalog  nimcache
-apps-nvidia-com-nimservice-v1alpha1          NIMService             catalog  nimservice
-apps-statefulset-v1                          StatefulSet            catalog  statefulset
-batch-cronjob-v1                             CronJob                catalog  cronjob, job
+NAME                                            KIND                   ORIGIN   COMPONENTS
+agents-x-k8s-io-sandbox-v1beta1                 Sandbox                catalog  sandbox, agent, companion
+apps-deployment-v1                              Deployment             catalog  deployment, replicaset
+apps-nvidia-com-nimcache-v1alpha1               NIMCache               catalog  nimcache
+apps-nvidia-com-nimservice-v1alpha1             NIMService             catalog  nimservice
+apps-statefulset-v1                             StatefulSet            catalog  statefulset
 ...
 ```
 
-Only the first rows are shown. `kli get` and `kli describe` inspect live
+Only the first rows are shown. Without a reachable cluster, `kli` may also print a
+warning that it could not read definitions from the cluster and shows the
+built-in ones only. This is expected. `kli get` and `kli describe` inspect live
 workloads and need a cluster.
 
 See the [CLI Guide](docs/CLI%20Guide.md) for shell completion and for installing
@@ -183,6 +186,9 @@ The library lives in the `karta/sdk/` module. Releases up to v0.2.x published it
 `github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/...`.
 
 ### Define a Karta
+
+For a step-by-step tutorial that writes and validates a definition for a batch
+Job, see [Authoring Your First Karta](docs/Authoring%20Your%20First%20Karta.md).
 
 Here's a Karta for a JobSet - a distributed training workload with master and worker groups:
 
@@ -306,7 +312,11 @@ Karta supports any workload type. The following are pre-built and tested Karta d
 | Volcano Job | Volcano |
 | [Workload](docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | Kueue (v1beta2, experimental; requires opt-in) |
 
-See [`docs/catalog/`](docs/catalog/) for the full Karta definitions.
+See [`docs/catalog/`](docs/catalog/) for the full Karta definitions. The catalog
+also covers core Kubernetes types such as Deployment, StatefulSet, Job, CronJob
+and Pod. Run `kli definitions` to list the definitions the CLI ships with. CLI
+builds after v0.3.0 also accept `--catalog-experimental-definitions` to include
+experimental ones such as Kueue.
 
 ### Complex example: NVIDIA Dynamo
 

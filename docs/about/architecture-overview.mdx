@@ -9,7 +9,7 @@ description: Learn how the components of NVIDIA Workload Map work together, from
 
 Workload Map is designed around a thin, neutral contract. The structure of a workload is described once, in a definition, and every tool reads the same description. The tools do not need to know how each workload type lays out its pods, replicas, and status.
 
-Workload Map is a set of independent components that share the Go library. A definition, stored in the `Karta` CRD or in the built-in catalog, describes a workload type. The library reads a definition and a workload object and produces a uniform view. The CLI, the operator, the Headlamp plugin, and your own controllers consume that view or validate the definitions behind it.
+Workload Map is a set of independent components that share the Go library. A definition, stored in the `Karta` CRD or in the built-in catalog, describes a workload type. The library reads a definition and a workload object and produces a uniform struct. The CLI, the operator, the Headlamp plugin, and your own controllers consume that struct or validate the definitions behind it.
 
 The following diagram shows the layers:
 
@@ -34,7 +34,7 @@ The operator manages definitions only. The CLI and the library do not require th
 
 ## Data Flow
 
-A workload and its definition become a view in the following sequence. The `kli describe` command follows this sequence.
+A workload and its definition become a struct in the following sequence.
 
 1. Select the definition that covers the workload type. A definition in the cluster overrides the built-in catalog definition for the same workload type.
 2. Read the workload object and its pods from the cluster, or read a manifest that you have not yet submitted.
@@ -51,7 +51,7 @@ The following table shows where each part of Workload Map runs.
 | Go library | Inside the process of the consumer, such as a scheduler or controller | None |
 | `kli` CLI | On your workstation | A kubeconfig for live workloads. No cluster for a manifest that you have not yet submitted. |
 | Operator | In the cluster, as a Deployment from the Helm chart | Permission to create the CRD, cluster roles, and webhook configurations |
-| Headlamp plugin | In the browser, inside Headlamp | Access to the cluster through Headlamp |
+| Headlamp plugin | In the browser, inside Headlamp | A kubeconfig for live workloads |
 
 ## Related Topics
 

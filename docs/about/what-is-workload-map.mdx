@@ -53,6 +53,6 @@ The following diagram shows the layers:
 
 Workload Map was created at Run:ai (NVIDIA) to power workload management across diverse Kubernetes workload types.
 
-[KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler), an open source Kubernetes scheduler for AI and GPU workloads, uses Workload Map as the generic fallback plugin in its pod grouper. A definition gives any CRD correct pod grouping and gang scheduling in KAI Scheduler, with no scheduler plugin to write. Native plugins that ship with KAI Scheduler keep precedence, and Workload Map handles the remaining workload types.
+[KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler), an open source Kubernetes scheduler for AI and GPU workloads, uses Workload Map as the generic default plugin in its pod grouper. A definition gives any CRD correct pod grouping and gang scheduling in KAI Scheduler, with no scheduler plugin to write. Native plugins that ship with KAI Scheduler keep precedence, and Workload Map handles the remaining workload types.
 
 For the full list of adopters, refer to [ADOPTERS.md](https://github.com/dsx-ai-factory/workload-map/blob/main/ADOPTERS.md).

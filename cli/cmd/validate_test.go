@@ -134,6 +134,51 @@ var _ = Describe("kli validate", func() {
 		)
 	})
 
+	Describe("input that would otherwise be silently dropped", func() {
+		const unknownField = `apiVersion: run.ai/v1alpha1
+kind: Karta
+metadata:
+  name: example
+  lables:
+    team: demo
+`
+
+		const duplicateKey = `apiVersion: run.ai/v1alpha1
+kind: Karta
+metadata:
+  name: example
+  name: other
+`
+
+		It("rejects an unknown field and names it", func() {
+			_, _, err := runValidate("", writeDefinition(unknownField))
+
+			Expect(exitStatus(err)).To(Equal(ExitUsage))
+			Expect(err).To(MatchError(ContainSubstring("lables")))
+		})
+
+		It("rejects an unknown field on stdin", func() {
+			_, _, err := runValidate(unknownField, "-")
+
+			Expect(exitStatus(err)).To(Equal(ExitUsage))
+			Expect(err).To(MatchError(ContainSubstring("lables")))
+		})
+
+		It("rejects a duplicate mapping key and names it", func() {
+			_, _, err := runValidate("", writeDefinition(duplicateKey))
+
+			Expect(exitStatus(err)).To(Equal(ExitUsage))
+			Expect(err).To(MatchError(ContainSubstring(`key "name" already set in map`)))
+		})
+
+		It("rejects a duplicate mapping key on stdin", func() {
+			_, _, err := runValidate(duplicateKey, "-")
+
+			Expect(exitStatus(err)).To(Equal(ExitUsage))
+			Expect(err).To(MatchError(ContainSubstring(`key "name" already set in map`)))
+		})
+	})
+
 	Describe("the inherited output flag", func() {
 		It("is refused, since the report has only one format", func() {
 			_, err := runValidateFromRoot("validate", catalogPath(pytorchCatalog), "-o", "json")

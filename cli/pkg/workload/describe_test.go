@@ -640,3 +640,75 @@ func kartaNamed(name string) *v1alpha1.Karta {
 	Fail("no catalog definition named " + name)
 	return nil
 }
+
+var _ = Describe("podReason", func() {
+	initPod := func(statuses ...corev1.ContainerStatus) *corev1.Pod {
+		return &corev1.Pod{
+			Spec: corev1.PodSpec{
+				InitContainers: []corev1.Container{
+					{Name: "setup"},
+					{Name: "proxy", RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways)},
+				},
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodPending,
+				Conditions: []corev1.PodCondition{
+					{Type: corev1.PodScheduled, Status: corev1.ConditionTrue},
+					{Type: corev1.PodReady, Status: corev1.ConditionFalse, Reason: "ContainersNotReady"},
+				},
+				InitContainerStatuses: statuses,
+			},
+		}
+	}
+	running := corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}
+	done := corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 0, Reason: "Completed"}}
+	waiting := func(reason string) corev1.ContainerState {
+		return corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: reason}}
+	}
+	terminated := func(reason string, exitCode, signal int32) corev1.ContainerState {
+		return corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+			Reason: reason, ExitCode: exitCode, Signal: signal,
+		}}
+	}
+	status := func(name string, state corev1.ContainerState, started bool) corev1.ContainerStatus {
+		return corev1.ContainerStatus{Name: name, State: state, Started: ptr.To(started)}
+	}
+
+	DescribeTable("reports the init container holding the pod back, as kubectl does",
+		func(pod *corev1.Pod, want string) {
+			Expect(podReason(pod)).To(Equal(want))
+		},
+		Entry("an init container still running",
+			initPod(status("setup", running, true), status("proxy", waiting("PodInitializing"), false)),
+			"Init:0/2"),
+		Entry("an init container that failed",
+			initPod(status("setup", terminated("Error", 1, 0), false), status("proxy", waiting("PodInitializing"), false)),
+			"Init:Error"),
+		Entry("an init container in a crash loop",
+			initPod(status("setup", waiting("CrashLoopBackOff"), false), status("proxy", waiting("PodInitializing"), false)),
+			"Init:CrashLoopBackOff"),
+		Entry("an init container whose image cannot be pulled",
+			initPod(status("setup", waiting("ImagePullBackOff"), false), status("proxy", waiting("PodInitializing"), false)),
+			"Init:ImagePullBackOff"),
+		Entry("an init container killed by a signal",
+			initPod(status("setup", terminated("", 137, 9), false), status("proxy", waiting("PodInitializing"), false)),
+			"Init:Signal:9"),
+		Entry("an init container that exited non-zero without a reason",
+			initPod(status("setup", terminated("", 2, 0), false), status("proxy", waiting("PodInitializing"), false)),
+			"Init:ExitCode:2"),
+		Entry("a sidecar not started yet, after the first init container completed",
+			initPod(status("setup", done, false), status("proxy", running, false)),
+			"Init:1/2"),
+		Entry("every init container done and the sidecar started, so the ready condition explains it",
+			initPod(status("setup", done, false), status("proxy", running, true)),
+			"ContainersNotReady"),
+	)
+
+	It("keeps the scheduler's reason ahead of the init containers", func() {
+		pod := initPod(status("setup", waiting("PodInitializing"), false))
+		pod.Status.Conditions[0] = corev1.PodCondition{
+			Type: corev1.PodScheduled, Status: corev1.ConditionFalse, Reason: "Unschedulable",
+		}
+		Expect(podReason(pod)).To(Equal("Unschedulable"))
+	})
+})

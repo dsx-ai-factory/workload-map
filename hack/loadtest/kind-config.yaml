@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Control plane sized for 10k and 50k fake Pods. KWOK nodes are API objects only, so
+# the one worker runs Prometheus, Grafana, the operators, kube-burner and the exporter.
+# The 150k tier needs a dedicated control plane; this file is not enough for it.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        apiVersion: kubeadm.k8s.io/v1beta4
+        kind: ClusterConfiguration
+        etcd:
+          local:
+            extraArgs:
+              - name: quota-backend-bytes
+                value: "8589934592"
+              - name: listen-metrics-urls
+                value: http://0.0.0.0:2381
+        apiServer:
+          extraArgs:
+            - name: max-requests-inflight
+              value: "800"
+            - name: max-mutating-requests-inflight
+              value: "400"
+        controllerManager:
+          extraArgs:
+            - name: kube-api-qps
+              value: "300"
+            - name: kube-api-burst
+              value: "500"
+            - name: bind-address
+              value: 0.0.0.0
+        scheduler:
+          extraArgs:
+            - name: kube-api-qps
+              value: "300"
+            - name: kube-api-burst
+              value: "500"
+  - role: worker

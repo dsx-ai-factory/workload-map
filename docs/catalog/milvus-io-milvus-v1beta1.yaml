@@ -290,6 +290,10 @@ spec:
             resourcesPath: .spec.dependencies.etcd.inCluster.values.resources
         scaleDefinition:
           replicasPath: .spec.dependencies.etcd.inCluster.values.replicaCount
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels["app.kubernetes.io/name"]
+            value: etcd
       - name: minio
         kind:
           group: apps
@@ -299,6 +303,10 @@ spec:
         specDefinition:
           fragmentedPodSpecDefinition:
             resourcesPath: .spec.dependencies.storage.inCluster.values.resources
+        podSelector:
+          componentTypeSelector:
+            keyPath: .metadata.labels.app
+            value: minio
       - name: pulsar-zookeeper
         kind:
           group: apps

@@ -1,0 +1,39 @@
+---
+tags: ["operator","workload-tree","gang-scheduling","deprecation"]
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+## Workload Map v0.2
+
+Workload Map v0.2 extends the project from a CRD and Go library into a runnable system. It adds the controller and operator, a Helm chart, container images, a new pod-grouping API for scheduler integrations, and a larger catalog of built-in workload definitions. There are no breaking API changes.
+
+<Warning title="Deprecation">
+
+`gangScheduling.podGroups` is deprecated in favor of `gangScheduling.podGroup`. Existing definitions that use `podGroups` continue to validate and run.
+
+</Warning>
+
+### Deprecations
+
+- The `podGroup` format adds subgroups and topology constraints. The two formats are not equivalent. A `podGroups` member can carry `groupByKeyPaths` and `filters`, but a `subGroups` entry carries only `componentName` and `topology`.
+- The instruction helpers in the Workload Map library read only `podGroups`. A consumer that relies on those helpers for grouping loses its grouping if it switches formats.
+- Schedulers that support the new format read `podGroup`. KAI Scheduler reads `podGroup` and falls back to `podGroups`.
+
+### New Features
+
+- **Controller and operator:** The reconcile core, an operator Helm chart, and container images let Workload Map run as a controller.
+- **WorkloadTree:** A `WorkloadTree` is the component hierarchy of a workload, with its desired structure, scale, specs, and status. The library produces it so that clients share one tree to traverse and render.
+- **Pod-grouping API:** `gangScheduling.podGroup` adds subgroups and topology constraints for scheduler integrations.
+- **Catalog:** Many additional built-in definitions across core, batch, training, serving, and Ray workloads, including Grove `PodCliqueSet` and Milvus.
+- **Examples:** A quickstart controller example and a worked controller example over LeaderWorkerSet.
+- **CLI:** The first `karta` CLI entry point.
+
+### Compatibility
+
+- Kubernetes: Tested against v1.31 through v1.35, with `k8s.io/api` v0.36.2.
+- Go: 1.26.3 or later.
+- Helm: 3.14 or later.
+
+Patch releases on the v0.2 line are listed on the [GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).

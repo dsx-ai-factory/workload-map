@@ -1,0 +1,80 @@
+---
+title: Quickstart - Go Library
+sidebar-title: Quickstart - Go Library
+description: Learn how to use the Workload Map Go library to read and change different workload types with the same code.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+This quickstart shows what the Go library is for: one piece of code that reads and changes any workload type. You run an example that sets a scheduler name on every pod of a JobSet and of a LeaderWorkerSet. The example has no code that depends on the workload kind. It runs offline and needs no cluster.
+
+## Prerequisites
+
+- Go 1.27.3 or later. For more information, refer to [Prerequisites](prerequisites.mdx#go-library).
+- Git.
+
+## Quickstart Steps
+
+1. Clone the repository and go to the example:
+
+   ```bash
+   git clone https://github.com/dsx-ai-factory/workload-map.git
+   cd workload-map/docs/examples/quickstart
+   ```
+
+   The example is a standalone Go module. It uses the library from the same clone.
+
+2. Run the example:
+
+   ```bash
+   go run .
+   ```
+
+   For each workload, the program reads the unified status, the replica count of each component, and the resources that each component requests. Then it sets the scheduler name `kai-scheduler` and a label on every pod template, and reads the pod templates again to confirm the change. The output for the JobSet starts like this:
+
+   ```text
+   === Workload status ===
+     Karta workload status: Running
+
+   === Component replica counts ===
+     replicatedjob[leader]        replicas=1
+     replicatedjob[workers]       replicas=8
+
+   === Resource requests per component ===
+     replicatedjob[leader]        container=training     cpu=4        memory=32Gi       gpu=1
+     replicatedjob[workers]       container=training     cpu=8        memory=64Gi       gpu=4
+   ```
+
+   The program then prints the same sections for the LeaderWorkerSet. The two workload types store their pods in different places, but the code that handles them is the same.
+
+3. Read the code that handles both workload types. In `main.go`, the `run` function builds a workload tree from a definition and a workload object:
+
+   ```go
+   factory := resource.NewComponentFactoryFromObject(karta, obj)
+   wt, err := tree.Build(ctx, factory)
+   ```
+
+   Then it sets the scheduler name on every pod template of every component:
+
+   ```go
+   children, err := factory.GetChildComponents()
+   for _, comp := range children {
+       podTemplateSpecs, err := comp.GetPodTemplateSpec(ctx)
+       // Set schedulerName on each pod template spec.
+       err = comp.UpdatePodTemplateSpec(ctx, updates)
+   }
+   ```
+
+   The definition of each workload type tells the library where the pod templates are. The code never checks whether the workload is a JobSet or a LeaderWorkerSet.
+
+4. Run the example with another scheduler name and print the changed manifest:
+
+   ```bash
+   go run . --scheduler volcano --print-mutated
+   ```
+
+## Next Steps
+
+- To support a workload type that is not in the catalog, follow [Authoring Your First Karta](tutorial-author-your-first-karta.mdx).
+- To learn the terms in the output, refer to [Core Concepts](../about/core-concepts.mdx).

@@ -1,0 +1,37 @@
+---
+title: NVIDIA Workload Map Documentation
+sidebar-title: Home
+description: Documentation for NVIDIA Workload Map, an open source Kubernetes CRD and Go library that describes the structure of AI workloads once so that every tool can read and manage them the same way.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+<Note title="Repository move notice">
+
+On September 10, 2026, the Workload Map repository moved from the run-ai GitHub organization to `dsx-ai-factory/karta`. On September 15, 2026, the project was renamed from Karta to Workload Map, and the repository moved again to [`dsx-ai-factory/workload-map`](https://github.com/dsx-ai-factory/workload-map). Existing repository URLs and standard Git operations continue to work through GitHub redirects. The Go module path also moved, so update any pinned `go get` or import paths, GitHub Actions, webhooks, or other automation that reference `run-ai/karta` or `dsx-ai-factory/karta`.
+
+</Note>
+
+NVIDIA Workload Map is an open source project that describes the structure of Kubernetes workloads in a portable, declarative definition. Controllers, schedulers, and platforms use that definition to inspect, modify, and manage workloads of any type without hard-coding knowledge of each type.
+
+Workload Map is open source under the Apache 2.0 license.
+
+## Where Do You Want to Start?
+
+New to Workload Map? Start with [What is Workload Map?](about/what-is-workload-map.mdx), [Core Concepts](about/core-concepts.mdx), and [Key Features](about/key-features.mdx). Otherwise, choose your goal.
+
+| | Inspect Workloads | Run the Operator | Build on Workload Map |
+|---|---|---|---|
+| Who | Users who look at workloads in a cluster, with their own credentials | Admins who install and run Workload Map in a cluster | Developers who build schedulers, controllers, and platforms, or who define workload types |
+| Start here | [Quickstart - CLI](get-started/quickstart-cli.mdx) | [Prerequisites](get-started/prerequisites.mdx) | [Architecture Overview](about/architecture-overview.mdx) |
+| Then | [Headlamp Plugin](guides/visualize/headlamp-plugin.mdx) | [Installation](get-started/installation.mdx) | [Tutorial - Author Your First Karta](get-started/tutorial-author-your-first-karta.mdx) |
+| Then | [CLI Guide](guides/use-the-cli.mdx) | [Webhook Certificates](guides/operator/configure-webhook-certificates.mdx) | [Technical Guide](reference/workload-definition-spec.mdx) |
+| Then | [Workload definition catalog](reference/catalog-of-definitions.mdx) | [FIPS 140-3](guides/operator/run-in-fips-mode.mdx) | [Go package documentation](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk) |
+
+## Quick Links
+
+- [Release Notes](/release-notes): What changed in each version.
+- [Workload definition catalog](reference/catalog-of-definitions.mdx): Pre-built and tested definitions for common workload types.
+- [Roadmap](https://github.com/dsx-ai-factory/workload-map/blob/main/ROADMAP.md): Where the project is headed.
+- [GitHub](https://github.com/dsx-ai-factory/workload-map): The Workload Map repository.

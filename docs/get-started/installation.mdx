@@ -1,0 +1,74 @@
+---
+title: Install Workload Map
+sidebar-title: Installation
+description: Learn how to install the Workload Map kli CLI, Go library, and operator.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+Install only the component that you need. Before you begin, check the [Prerequisites](prerequisites.mdx) for that component.
+
+## Install the kli CLI
+
+### Install with Homebrew
+
+On macOS or Linux, add the repository as a Homebrew tap by its URL, then install `kli` by its full name:
+
+```bash
+brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
+brew install dsx-ai-factory/kli/kli
+```
+
+The URL is required because the short form of `brew tap` resolves only repositories named `homebrew-<name>`. To install a later release, run `brew upgrade kli`.
+
+### Install a prebuilt archive
+
+1. Download the archive for your platform from the [releases page](https://github.com/dsx-ai-factory/workload-map/releases). Each release publishes archives for Linux and macOS on amd64 and arm64.
+2. Check the archive against the `checksums.txt` file in the same release.
+3. Put the `kli` executable on your `PATH`.
+
+### Verify the installation
+
+```bash
+kli --version
+```
+
+The command prints the release version. For shell completion and for installing from a clone of the repository, refer to the [CLI Guide](../guides/use-the-cli.mdx).
+
+<Note title="go install is not supported">
+Do not install `kli` with `go install`. The CLI module builds against the library in the same commit through a `replace` directive, which `go install` refuses.
+</Note>
+
+## Install the Go Library
+
+Add the library to your Go module:
+
+```bash
+go get github.com/dsx-ai-factory/workload-map/karta/sdk@latest
+```
+
+<Note title="Moved module path">
+Releases up to v0.2.x published the library as `github.com/dsx-ai-factory/workload-map`. To move to the new path, require `github.com/dsx-ai-factory/workload-map/karta/sdk` and change your imports from `github.com/dsx-ai-factory/workload-map/pkg/...` to `github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/...`.
+</Note>
+
+## Install the Operator
+
+Install the operator and the `Karta` CRD with the Helm chart:
+
+```bash
+helm upgrade --install karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
+  --version <version> \
+  -n karta-system --create-namespace
+```
+
+Replace `<version>` with a chart version from the [releases page](https://github.com/dsx-ai-factory/workload-map/releases).
+
+To verify the installation, check that the operator pod is running and that the `Karta` CRD exists:
+
+```bash
+kubectl -n karta-system get pods
+kubectl get crd kartas.run.ai
+```
+
+To change the certificate mode, run the operator in FIPS mode, or change other chart values, refer to [Webhook Certificates](../guides/operator/configure-webhook-certificates.mdx) and [FIPS 140-3](../guides/operator/run-in-fips-mode.mdx).

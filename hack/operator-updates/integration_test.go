@@ -311,6 +311,7 @@ func (h scriptHarness) testInventory(t *testing.T) {
 		"knative-extensions/net-kourier": "knative-v", "kserve/kserve": "v", "zilliztech/milvus-operator": "milvus-operator-",
 		"ai-dynamo/grove": "v", "ai-dynamo/dynamo": "v", "NVIDIA/k8s-nim-operator": "v",
 		"kubernetes-sigs/agent-sandbox": "v", "kubernetes-sigs/kueue": "v",
+		"argoproj/argo-rollouts": "v",
 		"volcano-sh/volcano": "v",
 	}
 	tags := make(map[string][]string, len(prefixes))

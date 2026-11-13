@@ -1,5 +1,12 @@
 # Workload-Map (formerly Karta)
 
+| Name | What it is |
+|---|---|
+| Workload-Map | The project and this repository, formerly called Karta |
+| `Karta` | The CRD kind and the name of its definitions |
+| `kli` | The CLI |
+| `github.com/dsx-ai-factory/workload-map/karta/sdk` | The Go library module |
+
 > **Repository move and rename notice:** On September 10, 2026, this repository
 > moved from the run-ai GitHub organization to
 > `dsx-ai-factory/karta`. On September 15, 2026, the project was renamed from
@@ -20,8 +27,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/dsx-ai-factory/workload-map)](https://goreportcard.com/report/github.com/dsx-ai-factory/workload-map)
 [![Latest release](https://img.shields.io/github/v/release/dsx-ai-factory/workload-map)](https://github.com/dsx-ai-factory/workload-map/releases)
 [![License](https://img.shields.io/github/license/dsx-ai-factory/workload-map)](LICENSE)
-
-Names: Workload-Map is the project and the repository, formerly called Karta. `Karta` is still the name of the CRD kind and of its definitions, `kli` is the CLI, and the Go library is the module `github.com/dsx-ai-factory/workload-map/karta/sdk`.
 
 Karta lets you define a portable, declarative blueprint for any Kubernetes workload - whether it's a simple Deployment, a distributed PyTorchJob, or a custom CRD. Controllers and platforms can then use that blueprint to inspect, modify, and manage workloads without hard-coding knowledge of each type.
 
@@ -98,7 +103,7 @@ With the pre-built [LeaderWorkerSet Karta definition](docs/catalog/leaderworkers
 
 ![Workload tree derived from the LeaderWorkerSet: demo (Running, 4 pods, 32 GPUs, gang scheduled per group) with two groups, each 2/2 ready with a leader pod and a worker pod at 8 GPUs each, resolved to their nodes](docs/assets/lws-workload-tree.svg)
 
-The structure in this view comes from Karta path expressions: the group, leader, and worker components, their replica counts, the per-pod GPU counts, and the workload status mapped from LeaderWorkerSet conditions to a common vocabulary. The gang semantics come from the same definition's gang-scheduling instructions, which declare each group's pods as one gang. None of it is LeaderWorkerSet-specific code. Point the same code at a RayCluster or a JobSet with their Karta definitions and the view keeps working. [KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler) consumes the gang instructions today through its Karta-based pod grouper to admit each gang all-or-nothing, and any scheduler with a gang primitive can translate them the same way.
+The structure in this view comes from Karta path expressions: the group, leader, and worker components, their replica counts, the per-pod GPU counts, and the workload status mapped from LeaderWorkerSet conditions to a common vocabulary. The gang semantics come from the same definition's gang-scheduling instructions, which declare each group's pods as one gang. None of it is LeaderWorkerSet-specific code. Point the same code at a RayCluster or a JobSet with their Karta definitions and the view keeps working. [KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler) consumes the gang instructions today through its Karta-based pod grouper (the KAI component that groups a workload's pods for scheduling) to admit each gang all-or-nothing, and any scheduler with a gang primitive can translate them the same way.
 
 ## Quick Start
 
@@ -333,7 +338,7 @@ See [ADOPTERS.md](ADOPTERS.md) for the full list of adopters. If you use Karta, 
 - [Dependency Updates](docs/Dependency%20Updates.md) - How Renovate keeps dependencies current and how to test a configuration change
 - [Karta definitions](docs/catalog/) - Real-world Karta definitions for common workload types
 - [Runnable examples](docs/examples/) - Offline quickstart and an installable controller-runtime example
-- [API Reference](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map) - Go package documentation
+- [API Reference](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk) - Go package documentation
 - [CONTRIBUTING.md](CONTRIBUTING.md) - How to contribute (DCO required)
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) - Community standards and expectations
 

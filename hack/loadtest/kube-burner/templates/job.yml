@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Pod -> Job. KWOK keeps the Pods Running, so the Job does not complete.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: batch-{{ .Replica }}
+  labels:
+    loadtest.karta/root: "true"
+spec:
+  parallelism: {{ .pods }}
+  completions: {{ .pods }}
+  backoffLimit: 1000
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        type: kwok
+      tolerations:
+        - key: kwok.x-k8s.io/node
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: worker
+          image: {{ .image }}

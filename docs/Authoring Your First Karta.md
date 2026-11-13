@@ -213,8 +213,9 @@ spec:
         replicasPath: .spec.parallelism // 1
 ```
 
-This minimal file does not map suspended Jobs, so a suspended Job resolves to
-`Undefined`. The shipped definition in `docs/catalog/batch-job-v1.yaml` adds a
+This minimal file does not map suspended Jobs. A suspended Job resolves to
+`Undefined` only when no other rule matches. While its pods are still active,
+it can still match `running` or `initializing`. The shipped definition in `docs/catalog/batch-job-v1.yaml` adds a
 `suspended` mapping and suspend and resume actions.
 
 ## Step 6 (optional, experimental): Add scheduling instructions

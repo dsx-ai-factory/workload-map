@@ -34,3 +34,9 @@ To run `kli` against a cluster, you also need a kubeconfig with read access to t
 - Pull access to two images: the operator image, `ghcr.io/dsx-ai-factory/workload-map/karta-operator`, and the CRD upgrader image, `registry.k8s.io/kubectl`. For a private registry, set `imagePullSecrets` in the chart values.
 - A network path from the Kubernetes API server to the operator webhook service.
 - cert-manager, only if you supply the webhook certificate yourself with cert-manager. The default certificate mode does not need it. For more information, refer to [Webhook Certificates](../guides/operator/configure-webhook-certificates.mdx).
+
+## DSX Workload Exporter
+
+- A Kubernetes cluster, and Helm and `kubectl` pointed at it.
+- A published chart version that includes the exporter. Chart version 0.3.0 predates it.
+- The operator is not required. The exporter runs without it.

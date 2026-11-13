@@ -72,3 +72,49 @@ kubectl get crd kartas.run.ai
 ```
 
 To change the certificate mode, run the operator in FIPS mode, or change other chart values, refer to [Webhook Certificates](../guides/operator/configure-webhook-certificates.mdx) and [FIPS 140-3](../guides/operator/run-in-fips-mode.mdx).
+
+## Install the DSX Workload Exporter
+
+The exporter is part of the Karta Helm chart, and it runs without the operator. Helm and `kubectl` must point to the cluster where you want to install it.
+
+Set `VERSION` to a published chart version that includes the exporter. Chart version 0.3.0 predates it. The chart supplies the matching exporter image, and no values file is required.
+
+```bash
+VERSION=CHART_VERSION
+
+helm upgrade --install dsx-workload \
+  oci://ghcr.io/dsx-ai-factory/workload-map/karta \
+  --version "$VERSION" \
+  --namespace karta-system --create-namespace \
+  --set operator.enabled=false \
+  --set webhook.enabled=false \
+  --set exporter.enabled=true \
+  --wait --timeout 5m
+```
+
+Helm creates the installation namespace. By default, the exporter observes all namespaces except `kube-system`, `kube-public`, and `kube-node-lease`. Both the bundled definitions and the definitions in the cluster are enabled. The chart installs the `Karta` CRD and maintains it through its upgrade hook. Built-in workload kinds do not require `Karta` objects, and a definition in the cluster overrides a bundled one.
+
+If Karta is already installed, use a separate namespace and release. To leave its shared CRD unchanged, add both `--skip-crds` and `--set crdUpgrader.enabled=false`.
+
+To verify the installation, forward the port of the exporter service:
+
+```bash
+kubectl -n karta-system port-forward service/dsx-workload-exporter 8080:8080
+```
+
+In another terminal, check the readiness endpoint and the metrics:
+
+```bash
+curl -fv http://127.0.0.1:8080/readyz
+curl -fsS http://127.0.0.1:8080/metrics | grep '^dsx_'
+```
+
+Readiness returns HTTP 200 with an empty body when the definition inventory and the required watches are healthy. Inspect `dsx_exporter_observation_valid` for collection and workload errors. A successful scrape alone does not establish that the observations are valid.
+
+For namespace selection, definition sources, labels, worker counts, resources, permissions, and Prometheus Operator discovery, refer to the [exporter configuration reference](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/configuration.md). For the metric names and labels, refer to the [metric reference](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/keps/0001-metrics-exporter/README.md#metrics).
+
+To uninstall the exporter, run the following command. The namespace and the shared `Karta` CRD remain, because other installations may use them.
+
+```bash
+helm uninstall dsx-workload --namespace karta-system
+```

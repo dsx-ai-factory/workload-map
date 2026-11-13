@@ -11,7 +11,7 @@ This quickstart shows what the Go library is for: one piece of code that reads a
 
 ## Prerequisites
 
-- Go 1.27.3 or later. For more information, refer to [Prerequisites](prerequisites.mdx#go-library).
+- Go 1.27.3 or later, which is the version in the `go.mod` file of the example. To check your version, run `go version`. With an older Go, 1.21 or later, `go` downloads the 1.27.3 toolchain automatically. For more information, refer to [Prerequisites](prerequisites.mdx#go-library).
 - Git.
 
 ## Quickstart Steps
@@ -30,6 +30,8 @@ This quickstart shows what the Go library is for: one piece of code that reads a
    ```bash
    go run .
    ```
+
+   The first run downloads the modules, so expect a pause before any output appears.
 
    For each workload, the program reads the unified status, the replica count of each component, and the resources that each component requests. Then it sets the scheduler name `kai-scheduler` and a label on every pod template, and reads the pod templates again to confirm the change. The output for the JobSet starts like this:
 

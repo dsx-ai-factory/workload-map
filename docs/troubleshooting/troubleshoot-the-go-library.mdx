@@ -1,0 +1,67 @@
+---
+title: Troubleshoot the Go Library
+sidebar-title: Troubleshoot the Go Library
+description: Find the cause and the fix for the errors that the Workload Map Go library returns when code reads a part of a definition that is missing, or when a pod cannot be matched to an instance.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+This page covers the errors that the `resource` package of the Go library returns at runtime. They occur when code reads a part of a definition that the definition does not have, or when a pod cannot be tied to a component instance. For validation errors in a definition, refer to [Troubleshoot Definitions](troubleshoot-definitions.mdx). For how to use the library, refer to [Use the Go Library](../guides/controller/use-the-go-library.mdx).
+
+## Accessor Errors
+
+| Error type | Example message | Cause | Fix |
+| --- | --- | --- | --- |
+| `DefinitionNotFoundError` | `component <name> does not have suspendDefinition` | Code asked for a part that the component does not define. The parts are the spec, the pod template spec, the pod spec, the pod metadata, the fragmented pod spec, the scale, the status, and the suspend definition. | Add the missing part to the component definition, or guard the call. Use `errors.As` with `DefinitionNotFoundError` to treat "not defined" as an expected case and not as a failure. |
+| `InstanceNotFoundError` | `could not match instance id "<id>". existing instance ids [...]` | The instance id that a selector extracts from a pod does not match any instance id that the `instanceIdPath` of the component produces. | Confirm that the `componentInstanceSelector` reads the same id that `instanceIdPath` produces. A mismatch usually means that the selector points at the wrong pod label, or that the id path extracts a different field. |
+
+The message of `DefinitionNotFoundError` names the missing part. It has one of the following forms, with the name of the component in place of `<name>`:
+
+- `component <name> does not have spec definition`
+- `component <name> does not have pod template spec definition`
+- `component <name> does not have pod spec definition`
+- `component <name> does not have pod metadata definition`
+- `component <name> does not have fragmented pod spec definition`
+- `component <name> does not have scale definition`
+- `component <name> does not have status definition`
+- `component <name> does not have suspendDefinition`
+
+## When You Get the Error and When You Get nil
+
+Where the error appears depends on how you call the library:
+
+- **The read methods of a component** return `nil` and no error when the component does not define the part. These are `GetPodTemplateSpec`, `GetPodSpec`, `GetPodMetadata`, `GetFragmentedPodSpec`, `GetScale`, and `GetStatus`. If a read method returns `nil` and you expected data, the component does not define that part. Check the definition of the component.
+- **The update methods of a component** return the error. These are `UpdatePodTemplateSpec`, `UpdatePodSpec`, `UpdatePodMetadata`, and `UpdateFragmentedPodSpec`. Calling one on a component without the matching part returns `DefinitionNotFoundError`.
+- **The suspend methods** `Suspend` and `Resume` do nothing when the component has no `suspendDefinition`.
+
+To avoid the error, check what a component defines before you call a method:
+
+| Check | True when the component has |
+| --- | --- |
+| `HasPodDefinition()` | A pod template, a pod spec, or a fragmented pod spec. |
+| `HasSuspendDefinition()` | A `suspendDefinition`. |
+| `HasInstanceIdDefinition()` | An `instanceIdPath`. |
+
+The example controller uses `HasPodDefinition()` before it reads or changes the pods of a component. The check is true for any of the three pod patterns, but each update method works only with its own pattern. For example, `UpdatePodTemplateSpec` returns `DefinitionNotFoundError` for a component that uses `podSpecPath`. Call the update method that matches the pattern of the component.
+
+To handle the errors in your own code, match them with `errors.As`:
+
+```go
+var notDefined resource.DefinitionNotFoundError
+if errors.As(err, &notDefined) {
+    // The component does not define this part. Treat it as an expected case.
+}
+
+var noInstance resource.InstanceNotFoundError
+if errors.As(err, &noInstance) {
+    // The pod does not belong to any instance that the definition produces.
+}
+```
+
+## Other Errors
+
+| Error message | Cause | Fix |
+| --- | --- | --- |
+| `component <name> not found` | `GetComponent` received a name that no component of the definition has. | Use a name from the definition. Component names are case-sensitive. |
+| `invalid karta: ...` | `tree.Build` validates the definition first, and the definition failed validation. | Fix the validation errors that the message lists. For more information, refer to [Troubleshoot Definitions](troubleshoot-definitions.mdx). |

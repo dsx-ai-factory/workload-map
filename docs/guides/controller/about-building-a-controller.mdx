@@ -1,7 +1,88 @@
 ---
 title: About Building a Controller
 sidebar-title: About Building a Controller
+description: Learn how a controller uses the Workload Map Go library to read and change any workload type with the same code.
 ---
 
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
+
+A controller is a program that watches objects in a Kubernetes cluster and reacts when they change. When a controller manages more than one workload type, it must know where each type stores its pods, its replica count, and its status. Workload Map moves that knowledge out of the controller code and into definitions, so the same code works for every workload type that has a definition.
+
+This page explains the problem, what the Go library gives a controller, and how a reconcile loop that uses it is structured. To build a controller, follow the [tutorial](tutorial-build-a-controller-on-kind.mdx).
+
+## The Problem
+
+Each workload type stores its pod templates in a different place. A JobSet keeps them in `.spec.replicatedJobs`. A LeaderWorkerSet keeps a leader template and a worker template under `.spec.leaderWorkerTemplate`. Without Workload Map, a controller that changes the pods of both types has one branch for each type, and it needs a new branch for every type that it adds:
+
+```go
+// Without Karta - grows with every new workload type you support
+switch workload.GetKind() {
+case "JobSet":
+    for i := range jobset.Spec.ReplicatedJobs {
+        jobset.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.SchedulerName = scheduler
+    }
+case "LeaderWorkerSet":
+    lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.SchedulerName = scheduler
+    lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Spec.SchedulerName = scheduler
+// case "PyTorchJob": ...
+// case "RayCluster": ...
+}
+```
+
+With Workload Map, the same task is one loop over the components of the workload. The code is identical for every workload type:
+
+```go
+// With Karta - identical for every workload type
+for _, comp := range children {
+    pts, _ := comp.GetPodTemplateSpec(ctx)
+    for id, t := range pts {
+        t.Spec.SchedulerName = scheduler
+        pts[id] = t
+    }
+    comp.UpdatePodTemplateSpec(ctx, pts)
+}
+```
+
+## What the Library Provides
+
+The `karta/sdk` Go library reads a definition and a workload object, and exposes the workload as a set of components. For each component, a controller can do the following:
+
+| Task | What the library returns or changes |
+| --- | --- |
+| Read the status | The normalized statuses that match the workload, such as `Running` or `Failed`, without parsing the conditions of the workload type. |
+| Read the scale | The replica count of each component, and its minimum and maximum when the definition provides them. |
+| Read the pods | The pod template, pod spec, or pod metadata of each component. |
+| Change the pods | A new pod template, pod spec, or pod metadata, written to the correct place in the workload. |
+| Suspend and resume | The suspend and resume actions of a component, when the definition declares them. |
+| Build a workload tree | The full hierarchy of components, instances, and the normalized status. |
+
+The definition tells the library where each value is. The controller never contains a path such as `.spec.leaderWorkerTemplate.workerTemplate`. For the calls and their code, refer to [Use the Go Library](use-the-go-library.mdx).
+
+## Where Definitions Come From
+
+A controller can read definitions from two places:
+
+- The catalog that is built into the library. It contains definitions for common workload types, such as JobSet, PyTorchJob, and LeaderWorkerSet.
+- `Karta` resources in the cluster. A controller that reads them picks up new and changed definitions at runtime, with no rebuild or redeploy.
+
+The example controller reads `Karta` resources from the cluster, so its structure data is cluster data and not code. It needs the `Karta` CRD, which is a custom resource definition. It does not need the operator.
+
+## How a Reconcile Loop Is Structured
+
+The example controller in the repository runs one reconcile loop for every workload type that it watches. A reconcile loop is the function that Kubernetes calls each time a watched object changes. For each change, the example does the following:
+
+1. Finds the definition in the cluster whose root component matches the group, version, and kind of the workload. It never hard-codes a definition name.
+2. Fetches the workload as an unstructured object.
+3. Creates a component factory from the definition and the workload. The factory is the single entry point for every read and write.
+4. Reads the status, the scale, and the container resource requests of every component, including the root.
+5. Adds a label to the pod template of every component that defines pods.
+6. Writes the results back to the workload as annotations, and records Kubernetes events when the status changes.
+
+There is no `switch` on the workload kind anywhere in the loop. The example controller also watches the `Karta` resources. When a definition changes, the controller reconciles every workload that the definition describes, with the new structure.
+
+## Choose What to Read Next
+
+- To run the example controller on a local cluster, follow the [tutorial](tutorial-build-a-controller-on-kind.mdx).
+- To write your own code against the library, refer to [Use the Go Library](use-the-go-library.mdx).
+- To make a running controller manage another workload type, refer to [Add Another Workload Type](add-another-workload-type.mdx).

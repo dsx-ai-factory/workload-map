@@ -107,17 +107,8 @@ navigation:
           - page: Run in FIPS Mode
             path: ../docs/guides/operator/run-in-fips-mode.mdx
             slug: run-in-fips-mode
-          - page: Upgrade the Operator
-            path: ../docs/guides/operator/upgrade-the-operator.mdx
-            slug: upgrade-the-operator
-          - page: Monitor the Operator
-            path: ../docs/guides/operator/monitor-the-operator.mdx
-            slug: monitor-the-operator
   - section: Reference
     contents:
-      - page: Reference Overview
-        path: ../docs/reference/reference-overview.mdx
-        slug: reference-overview
       - page: Workload Definition Spec
         path: ../docs/reference/workload-definition-spec.mdx
         slug: workload-definition-spec
@@ -133,9 +124,6 @@ navigation:
       - page: Operator Flags and Environment Variables
         path: ../docs/reference/operator-flags-and-environment-variables.mdx
         slug: operator-flags-and-environment-variables
-      - page: Support Matrix
-        path: ../docs/reference/support-matrix.mdx
-        slug: support-matrix
       - link: Go Library API
         href: https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk
   - section: Troubleshooting
@@ -143,9 +131,9 @@ navigation:
       - page: Troubleshoot Definitions
         path: ../docs/troubleshooting/troubleshoot-definitions.mdx
         slug: troubleshoot-definitions
-      - page: Troubleshoot the Operator
-        path: ../docs/troubleshooting/troubleshoot-the-operator.mdx
-        slug: troubleshoot-the-operator
-      - page: Troubleshoot kli
-        path: ../docs/troubleshooting/troubleshoot-kli.mdx
-        slug: troubleshoot-kli
+      - page: Troubleshoot jq Paths
+        path: ../docs/troubleshooting/troubleshoot-jq-paths.mdx
+        slug: troubleshoot-jq-paths
+      - page: Troubleshoot the Go Library
+        path: ../docs/troubleshooting/troubleshoot-the-go-library.mdx
+        slug: troubleshoot-the-go-library

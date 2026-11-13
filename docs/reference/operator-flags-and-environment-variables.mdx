@@ -1,7 +1,59 @@
 ---
 title: Operator Flags and Environment Variables
 sidebar-title: Operator Flags and Environment Variables
+description: Look up the command-line flags of the Workload Map operator, the chart values that set them, and the environment variables that affect it.
 ---
 
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
+
+This page lists the command-line flags of the operator and the environment variable that the chart sets. The Helm chart sets most flags for you, from chart values. To pass a flag that the chart does not set, use the `extraArgs` value, which appends flags after the defaults. For all chart values, refer to [Helm Chart Values](helm-chart-values.mdx).
+
+## Flags
+
+The following flags control the operator, its endpoints, and leader election.
+
+| Flag | Default | Description | Set by the chart value |
+| --- | --- | --- | --- |
+| `--metrics-bind-address` | `:8080` | The address that the metrics endpoint binds to. | `ports.metrics` |
+| `--health-probe-bind-address` | `:8081` | The address that the health probe endpoint binds to. | `ports.health` |
+| `--leader-elect` | `false` | Enables leader election for the controller manager. | `leaderElection.enabled` |
+| `--leader-election-id` | `karta-operator.run.ai` | The name of the resource that leader election uses. | `leaderElection.id` |
+| `--kubeconfig` | | The path to a kubeconfig file. It is required only when the operator runs outside a cluster. | Not set |
+| `--version` | | Prints the version of the operator and exits. | Not set |
+
+## Webhook Flags
+
+The following flags control the admission webhook and its certificate. For how the certificate modes work, refer to [Configure Webhook Certificates](../guides/operator/configure-webhook-certificates.mdx).
+
+| Flag | Default | Description | Set by the chart value |
+| --- | --- | --- | --- |
+| `--enable-webhook` | `false` | Enables the admission webhook. | `webhook.enabled` |
+| `--webhook-port` | `9443` | The port that the webhook server binds to. | `webhook.port` |
+| `--webhook-namespace` | The namespace of the service account of the pod | The namespace that the operator runs in. It is used for the certificate Secret and for the serving certificate SAN. | The release namespace |
+| `--webhook-cert-dir` | `/tmp/k8s-webhook-server/serving-certs` | The directory that the operator reads the webhook serving certificate from. | The chart mounts the certificate Secret at this path |
+| `--webhook-cert-mode` | `auto` | The certificate mode: `auto`, where the operator self-signs and rotates the certificate, or `manual`, where you provide the certificate. When the webhook is enabled, any other value is an error. | `webhook.cert.provisionMode` |
+| `--webhook-cert-secret` | `karta-operator-webhook-cert` | The name of the Secret that holds the serving certificate in `auto` mode. | The chart sets the name from the release |
+| `--webhook-service-name` | `karta-operator-webhook` | The name of the webhook Service. It is used as the serving certificate SAN. It must match the Service that the chart creates. | The chart sets the name from the release |
+| `--mutating-webhook-name` | `karta-operator-mutating` | The name of the `MutatingWebhookConfiguration` whose CA bundle the operator patches in `auto` mode. | The chart sets the name from the release |
+| `--validating-webhook-name` | `karta-operator-validating` | The name of the `ValidatingWebhookConfiguration` whose CA bundle the operator patches in `auto` mode. | The chart sets the name from the release |
+
+## Logging Flags
+
+The operator uses the Zap logger of controller-runtime. The chart sets `--zap-log-level` from the `logLevel` value. The other flags are available through `extraArgs`.
+
+| Flag | Description |
+| --- | --- |
+| `--zap-devel` | Selects the development mode defaults: the console encoder, the `debug` log level, and the `warn` stack trace level. The production mode defaults are the JSON encoder, the `info` log level, and the `error` stack trace level. |
+| `--zap-encoder` | The log encoding: `json` or `console`. |
+| `--zap-log-level` | The verbosity of the logging: `debug`, `info`, `error`, `panic`, or an integer greater than 0, which selects a custom debug level of increasing verbosity. |
+| `--zap-stacktrace-level` | The level at and above which stack traces are captured: `info`, `error`, or `panic`. |
+| `--zap-time-encoding` | The time encoding: `epoch`, `millis`, `nano`, `iso8601`, `rfc3339`, or `rfc3339nano`. The default is `epoch`. |
+
+## Environment Variables
+
+The operator reads no environment variable of its own. The chart sets the following variable on the operator container and on the `crd-upgrader` job:
+
+| Variable | Value | Description |
+| --- | --- | --- |
+| `GODEBUG` | `fips140=<mode>` | The Go runtime FIPS 140-3 mode. The chart sets it from `global.fipsMode`, and only when the mode is not `off`. For the `crd-upgrader` job, the value for the `only` mode is `fips140=only,tlsmlkem=0`. For more information, refer to [Run in FIPS Mode](../guides/operator/run-in-fips-mode.mdx). |

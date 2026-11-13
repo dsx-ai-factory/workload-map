@@ -356,3 +356,97 @@ func SandboxMode(want string) recorder.StateCheck {
 		return mode == want
 	}
 }
+
+// CloneSetRunning mirrors the CloneSet definition's Running rule: the controller has observed the
+// current generation, status.replicas, readyReplicas and availableReplicas all equal spec.replicas,
+// and the rollout is paused or updatedReplicas has reached expectedUpdatedReplicas. As in the
+// definition, a missing counter reads 0 and a missing spec.replicas reads 1.
+func CloneSetRunning() recorder.StateCheck {
+	available := AvailableReady()
+	return func(u *unstructured.Unstructured) bool {
+		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
+		if !ok {
+			desired = 1
+		}
+		observed, _, _ := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
+		replicas, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
+		expected, _, _ := unstructured.NestedInt64(u.Object, "status", "expectedUpdatedReplicas")
+		paused, _, _ := unstructured.NestedBool(u.Object, "spec", "updateStrategy", "paused")
+		return observed > 0 && observed == u.GetGeneration() &&
+			replicas == desired && ready == desired && available(u) &&
+			(paused || updated >= expected)
+	}
+}
+
+// CloneSetInitializing mirrors the CloneSet definition's two Initializing rules. Rule 2 is the
+// negation of every Running condition after the observedGeneration > 0 guard, and rule 1 (a drain,
+// status.replicas > spec.replicas) is a case of it, so together they read as: observed, and not
+// Running.
+func CloneSetInitializing() recorder.StateCheck {
+	running := CloneSetRunning()
+	return func(u *unstructured.Unstructured) bool {
+		observed, _, _ := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
+		return observed > 0 && !running(u)
+	}
+}
+
+// PartitionReady gates a CloneSet partition canary that has settled: partition > 0, every pod ready
+// and available, updatedReplicas at the controller's expectedUpdatedReplicas target, and fewer
+// updated pods than desired, so the partition is holding pods on the old revision.
+func PartitionReady() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		partition, _, _ := unstructured.NestedInt64(u.Object, "spec", "updateStrategy", "partition")
+		if partition <= 0 {
+			return false
+		}
+		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
+		if !ok {
+			desired = 1
+		}
+		replicas, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		available, _, _ := unstructured.NestedInt64(u.Object, "status", "availableReplicas")
+		expected, _, _ := unstructured.NestedInt64(u.Object, "status", "expectedUpdatedReplicas")
+		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
+		return replicas == desired && ready == desired && available == desired &&
+			updated >= expected && updated < desired
+	}
+}
+
+// PausedReady gates a paused CloneSet rollout: every pod ready and available on the old revision,
+// with updatedReplicas still below expectedUpdatedReplicas, so an update is pending and held.
+func PausedReady() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		paused, _, _ := unstructured.NestedBool(u.Object, "spec", "updateStrategy", "paused")
+		if !paused {
+			return false
+		}
+		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
+		if !ok {
+			desired = 1
+		}
+		replicas, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
+		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		available, _, _ := unstructured.NestedInt64(u.Object, "status", "availableReplicas")
+		expected, _, _ := unstructured.NestedInt64(u.Object, "status", "expectedUpdatedReplicas")
+		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
+		return replicas == desired && ready == desired && available == desired && updated < expected
+	}
+}
+
+// AvailableReady matches when status.availableReplicas equals spec.replicas, for a workload whose
+// Karta definition checks availability (CloneSet). A missing field reads 0, matching the definition's
+// (.status.availableReplicas // 0). FullyAvailable, the StatefulSet predicate, does not read the
+// field because the StatefulSet definition does not check it.
+func AvailableReady() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
+		if !ok {
+			desired = 1
+		}
+		available, _, _ := unstructured.NestedInt64(u.Object, "status", "availableReplicas")
+		return available == desired
+	}
+}

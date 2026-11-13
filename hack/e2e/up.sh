@@ -36,7 +36,7 @@ export CLUSTER_NAME IMAGE REPO_ROOT KARTA_WEBHOOK_MODE
 # Workload operators selectable on the command line, in canonical install order:
 # a dependency always appears before its dependents (knative before kserve,
 # grove before dynamo).
-ALL_WORKLOADS=(lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue volcano)
+ALL_WORKLOADS=(lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue openkruise volcano)
 
 # deps_of <workload> prints the workload operators that must be installed first.
 deps_of() {
@@ -64,6 +64,7 @@ version_of() {
     nim) echo "${NIM_OPERATOR_VERSION}" ;;
     agent-sandbox) echo "${AGENT_SANDBOX_VERSION}" ;;
     kueue) echo "${KUEUE_VERSION}" ;;
+    openkruise) echo "${OPENKRUISE_VERSION}" ;;
     volcano) echo "${VOLCANO_VERSION}" ;;
     *) echo "?" ;;
   esac

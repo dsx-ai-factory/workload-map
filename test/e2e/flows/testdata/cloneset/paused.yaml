@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A 1-replica CloneSet for paused-rollout recording: the test sets
+# spec.updateStrategy.paused=true and changes the image. The controller accepts
+# the new revision but does not update any pod while paused. The Karta expression
+# reads Running because paused is treated as an intentional steady state.
+apiVersion: apps.kruise.io/v1alpha1
+kind: CloneSet
+metadata:
+  name: karta-e2e-cloneset-paused
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: karta-e2e-cloneset-paused}
+  template:
+    metadata:
+      labels: {app: karta-e2e-cloneset-paused}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: worker
+        image: busybox:1.36
+        command: ["sh", "-c", "sleep infinity"]
+        resources:
+          requests: {cpu: 20m, memory: 32Mi}
+          limits: {cpu: 20m, memory: 32Mi}

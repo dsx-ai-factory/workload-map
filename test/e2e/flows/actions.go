@@ -55,3 +55,31 @@ func SuspendSandbox() *recorder.Action {
 func ResumeSandbox() *recorder.Action {
 	return &recorder.Action{Type: recorder.ActionResume, Patch: []byte(`{"spec":{"operatingMode":"Running"}}`)}
 }
+
+// RolloutImage replaces spec.template.spec.containers with a single-element array containing the given
+// container JSON, triggering a rolling update. The recorder uses JSON merge patch, which replaces arrays
+// wholesale, so the caller must supply the complete container spec.
+func RolloutImage(containerJSON string) *recorder.Action {
+	return &recorder.Action{
+		Type:  recorder.ActionRollout,
+		Patch: []byte(fmt.Sprintf(`{"spec":{"template":{"spec":{"containers":[%s]}}}}`, containerJSON)),
+	}
+}
+
+// PartitionRollout sets spec.updateStrategy.partition and changes the image in one merge patch,
+// triggering a canary update where only (replicas - partition) pods roll to the new revision.
+func PartitionRollout(partition int, containerJSON string) *recorder.Action {
+	return &recorder.Action{
+		Type:  recorder.ActionRollout,
+		Patch: []byte(fmt.Sprintf(`{"spec":{"updateStrategy":{"partition":%d},"template":{"spec":{"containers":[%s]}}}}`, partition, containerJSON)),
+	}
+}
+
+// PauseRollout sets spec.updateStrategy.paused and changes the image in one merge patch.
+// The controller accepts the new revision but does not roll it out while paused.
+func PauseRollout(containerJSON string) *recorder.Action {
+	return &recorder.Action{
+		Type:  recorder.ActionRollout,
+		Patch: []byte(fmt.Sprintf(`{"spec":{"updateStrategy":{"paused":true},"template":{"spec":{"containers":[%s]}}}}`, containerJSON)),
+	}
+}

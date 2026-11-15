@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const dashboardDirectory = "../../examples/grafana"
+const dashboardDirectory = ".."
 
 // Grafana v12.2.1 registers these in public/app/features/transformers/standardTransformers.ts.
 // Internal helpers such as "order" belong under their public transformation ("organize").

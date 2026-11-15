@@ -84,7 +84,7 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 		variablePattern := regexp.MustCompile(`\$(?:\{([A-Za-z_]\w*)(?::\w+)?\}|([A-Za-z_]\w*))`)
 		query := func(dashboard string, panelID int, ref, namespaceLabel string) string {
 			name := fmt.Sprintf("workload-%s/%d/%s (%s)", dashboard, panelID, ref, namespaceLabel)
-			data, err := os.ReadFile(filepath.Join("..", "..", "examples", "grafana", "workload-"+dashboard+".json"))
+			data, err := os.ReadFile(filepath.Join(dashboardDirectory, "workload-"+dashboard+".json"))
 			Expect(err).NotTo(HaveOccurred())
 			var document queryDashboard
 			Expect(json.Unmarshal(data, &document)).To(Succeed())

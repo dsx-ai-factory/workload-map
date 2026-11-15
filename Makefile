@@ -474,14 +474,14 @@ fmt-check-exporter: ## Check exporter formatting without modifying files
 vet-exporter: ## go vet the exporter and its envtest modules
 	cd dsx-workload-exporter && go vet ./...
 	cd dsx-workload-exporter && go vet -tags e2e ./test/e2e/...
-	cd dsx-workload-exporter && go vet -tags=promql ./test/grafana
+	cd dsx-workload-exporter && go vet -tags=promql ./examples/grafana/test
 	cd $(EXPORTER_ENVTEST_DIR) && go vet ./...
 
 .PHONY: lint-exporter
 lint-exporter: golangci-lint ## Lint the exporter and its envtest modules
 	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml --build-tags=e2e ./test/e2e/...
-	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml --build-tags=promql ./test/grafana
+	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml --build-tags=promql ./examples/grafana/test
 	cd $(EXPORTER_ENVTEST_DIR) && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
 .PHONY: modules-check-exporter
@@ -504,11 +504,11 @@ exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mock
 
 .PHONY: test-exporter-dashboards
 test-exporter-dashboards: ## Check portable Grafana dashboard imports
-	cd dsx-workload-exporter && go test -race ./test/grafana
+	cd dsx-workload-exporter && go test -race ./examples/grafana/test
 
 .PHONY: test-exporter-dashboard-queries
 test-exporter-dashboard-queries: ## Evaluate Grafana queries with promtool (Docker or PROMTOOL=/path/to/promtool)
-	cd dsx-workload-exporter && go test -count=1 -tags=promql ./test/grafana -ginkgo.label-filter=promql
+	cd dsx-workload-exporter && go test -count=1 -tags=promql ./examples/grafana/test -ginkgo.label-filter=promql
 
 .PHONY: test-exporter
 test-exporter: test-exporter-unit test-exporter-integration test-exporter-dashboards ## Run the exporter unit and envtest suites

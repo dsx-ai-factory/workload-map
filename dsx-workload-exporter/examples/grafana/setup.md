@@ -106,6 +106,8 @@ kubernetes:
   rbac:
     create: true
 kubeletPath: /var/lib/kubelet/pod-resources
+nodeSelector:
+  nvidia.com/gpu.present: "true"
 tolerations:
   - key: nvidia.com/gpu
     operator: Exists
@@ -119,6 +121,14 @@ customMetrics: |
   DCGM_FI_DEV_GPU_UTIL, gauge, GPU activity in percent.
   DCGM_FI_DEV_FB_USED, gauge, Used framebuffer memory in MiB.
   DCGM_FI_PROF_GR_ENGINE_ACTIVE, gauge, Graphics engine active ratio.
+```
+
+The selector keeps the exporter off CPU-only nodes. Replace the example with
+your cluster's GPU labels if needed. Before installing, verify that the selector
+matches the intended GPU nodes:
+
+```sh
+kubectl get nodes -l nvidia.com/gpu.present=true
 ```
 
 The toleration allows scheduling on nodes tainted `nvidia.com/gpu:NoSchedule`;

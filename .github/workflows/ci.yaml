@@ -55,9 +55,9 @@ jobs:
             hack/release/go.sum
 
       - name: Install helm
-        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
         with:
-          version: v4.3.1
+          version: v4.3.2
 
       - name: Cache bin tools
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -212,9 +212,9 @@ jobs:
             karta/sdk/go.sum
       - name: Install Helm
         if: steps.changes.outputs.run == 'true'
-        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
         with:
-          version: v4.3.1
+          version: v4.3.2
       - name: Read pinned tool versions
         if: steps.changes.outputs.run == 'true'
         run: |
@@ -223,7 +223,7 @@ jobs:
           echo "KUBECTL_VERSION=$KUBECTL_VERSION" >> "$GITHUB_ENV"
       - name: Install Kind and kubectl
         if: steps.changes.outputs.run == 'true'
-        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
         with:
           install_only: true
           version: ${{ env.KIND_VERSION }}

@@ -3,11 +3,11 @@
 
 FROM scratch AS status-updater
 COPY LICENSE /LICENSE
-COPY bin/status-updater /bin/status-updater
+COPY --chmod=0555 bin/status-updater /bin/status-updater
 ENTRYPOINT ["/bin/status-updater"]
 
 FROM scratch AS status-exporter
 COPY LICENSE /LICENSE
-COPY bin/status-exporter /bin/status-exporter
-COPY bin/status-exporter-kwok /usr/local/bin/status-exporter-kwok
+COPY --chmod=0555 bin/status-exporter /bin/status-exporter
+COPY --chmod=0555 bin/status-exporter-kwok /usr/local/bin/status-exporter-kwok
 ENTRYPOINT ["/bin/status-exporter"]

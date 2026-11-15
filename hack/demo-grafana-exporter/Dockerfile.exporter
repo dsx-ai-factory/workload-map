@@ -2,6 +2,6 @@
 # Copyright (c) 2026 NVIDIA Corporation
 
 FROM scratch
-COPY dsx-workload-exporter /dsx-workload-exporter
+COPY --chmod=0555 dsx-workload-exporter /dsx-workload-exporter
 USER 65532:65532
 ENTRYPOINT ["/dsx-workload-exporter"]

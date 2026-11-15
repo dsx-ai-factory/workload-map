@@ -67,7 +67,6 @@ done <<< "$clusters"
 umask 077
 work_dir=$(mktemp -d /tmp/grafana-exporter-demo.XXXXXX)
 export KUBECONFIG="$work_dir/kubeconfig"
-export GOCACHE="$work_dir/go-cache" GOMODCACHE="$work_dir/go-mod"
 export GOWORK=off GOFLAGS=-mod=readonly
 forward_pids=()
 cleanup() {

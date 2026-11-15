@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+operator:
+  enabled: false
+crdUpgrader:
+  enabled: false
+exporter:
+  enabled: true
+  image:
+    repository: local/dsx-workload-exporter
+    tag: demo
+    pullPolicy: Never
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: dashboard-lab
+    matchExpressions: []
+  kartaDefinitionSource:
+    cluster:
+      enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: '1'
+      memory: 512Mi

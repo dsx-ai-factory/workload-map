@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+FROM scratch
+COPY dsx-workload-exporter /dsx-workload-exporter
+USER 65532:65532
+ENTRYPOINT ["/dsx-workload-exporter"]

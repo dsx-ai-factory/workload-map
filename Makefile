@@ -500,8 +500,12 @@ test-exporter-integration: envtest ## Run the exporter envtest suite (downloads 
 exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mockery
 	cd dsx-workload-exporter && go run github.com/vektra/mockery/v3@v3.8.1 --config .mockery.yaml
 
+.PHONY: test-exporter-dashboards
+test-exporter-dashboards: ## Check portable Grafana dashboard imports
+	python3 dsx-workload-exporter/examples/grafana/test_dashboards.py
+
 .PHONY: test-exporter
-test-exporter: test-exporter-unit test-exporter-integration ## Run the exporter unit and envtest suites
+test-exporter: test-exporter-unit test-exporter-integration test-exporter-dashboards ## Run the exporter unit and envtest suites
 
 .PHONY: build-exporter
 build-exporter: $(LOCALBIN) ## Build the dsx-workload-exporter binary for the host OS/arch
@@ -841,7 +845,7 @@ E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh hack/e2e/check-updates.sh \
 
 .PHONY: lint-shell
 lint-shell: ## shellcheck the e2e and commit attribution scripts (-x follows sourced files)
-	shellcheck -x $(E2E_SHELL) hack/commit-attribution/*.sh
+	shellcheck -x $(E2E_SHELL) hack/commit-attribution/*.sh demo-grafana-exporter.sh
 
 ##@ Tools
 

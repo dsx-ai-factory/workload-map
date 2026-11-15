@@ -1,0 +1,325 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dashboard-prometheus
+  namespace: dashboard-lab
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dashboard-lab-prometheus
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ''
+  resources:
+  - nodes/proxy
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dashboard-lab-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dashboard-lab-prometheus
+subjects:
+- kind: ServiceAccount
+  name: dashboard-prometheus
+  namespace: dashboard-lab
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dashboard-prometheus-pods
+  namespace: dashboard-gpu
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dashboard-prometheus-pods
+  namespace: dashboard-gpu
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: dashboard-prometheus-pods
+subjects:
+- kind: ServiceAccount
+  name: dashboard-prometheus
+  namespace: dashboard-lab
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-prometheus
+  namespace: dashboard-lab
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 10s
+      evaluation_interval: 10s
+    scrape_configs:
+    - job_name: lab-identities
+      static_configs:
+      - targets:
+        - dsx-workload-exporter.dashboard-lab.svc:8080
+    - job_name: lab-gpu
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - dashboard-gpu
+      relabel_configs:
+      - source_labels:
+        - __meta_kubernetes_pod_label_app
+        regex: nvidia-dcgm-exporter
+        action: keep
+      - source_labels:
+        - __meta_kubernetes_pod_label_component
+        regex: status-exporter-kwok
+        action: drop
+      - source_labels:
+        - __meta_kubernetes_pod_container_port_number
+        regex: '9400'
+        action: keep
+    - job_name: lab-containers
+      scheme: https
+      authorization:
+        credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        server_name: kubernetes.default.svc
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+      - source_labels:
+        - __meta_kubernetes_node_name
+        target_label: node
+      metric_relabel_configs:
+      - source_labels:
+        - __name__
+        regex: container_cpu_usage_seconds_total|container_memory_working_set_bytes
+        action: keep
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: dashboard-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: quay.io/prometheus/prometheus:v3.14.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 9090
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/prometheus
+        - --storage.tsdb.retention.time=2h
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+          readOnly: true
+        - name: data
+          mountPath: /prometheus
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: dashboard-prometheus
+      - name: data
+        emptyDir: {}
+      serviceAccountName: dashboard-prometheus
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: dashboard-lab
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - name: http
+    port: 9090
+    targetPort: http
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-grafana-provisioning
+  namespace: dashboard-lab
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Kind Prometheus
+      uid: kind-prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus:9090
+      isDefault: true
+      jsonData:
+        httpMethod: POST
+        timeInterval: 10s
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+    - name: portable
+      orgId: 1
+      folder: Portable dashboards
+      type: file
+      disableDeletion: false
+      allowUiUpdates: false
+      options:
+        path: /var/lib/grafana/dashboards
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: dashboard-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:12.2.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 3000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        env:
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: 'true'
+        - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+          value: Viewer
+        - name: GF_AUTH_DISABLE_LOGIN_FORM
+          value: 'true'
+        - name: GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION
+          value: 'true'
+        - name: GF_ANALYTICS_REPORTING_ENABLED
+          value: 'false'
+        - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+          value: 'false'
+        - name: GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES
+          value: 'false'
+        volumeMounts:
+        - name: provisioning
+          mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+          subPath: datasources.yaml
+          readOnly: true
+        - name: provisioning
+          mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+          subPath: dashboards.yaml
+          readOnly: true
+        - name: dashboards
+          mountPath: /var/lib/grafana/dashboards
+          readOnly: true
+        - name: data
+          mountPath: /var/lib/grafana
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: provisioning
+        configMap:
+          name: dashboard-grafana-provisioning
+      - name: dashboards
+        projected:
+          sources:
+          - configMap:
+              name: dashboard-workload-overview
+          - configMap:
+              name: dashboard-workload-structure
+      - name: data
+        emptyDir: {}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+      automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: dashboard-lab
+spec:
+  selector:
+    app: grafana
+  ports:
+  - name: http
+    port: 3000
+    targetPort: http

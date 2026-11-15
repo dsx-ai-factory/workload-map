@@ -205,12 +205,14 @@ MIG profiling, or rejected attribution. Do not fill these cases with zero.
 
 ## Validation
 
-A fresh Kind 1.34.0 cluster was tested with Prometheus 3.14.0, Grafana 12.2.1,
-ten-second scrapes and an exporter built from the same checkout as the chart.
+A fresh Kind cluster running Kubernetes 1.34.0 was tested with Prometheus 3.14.0,
+Grafana 12.2.1, ten-second scrapes and an exporter built from the same checkout
+as the chart.
 It had no recording rules or GPU observer. The scrape jobs used independent
 names discovered from the metrics. All 69 panel targets and 13 dropdown queries
-passed. All 69 targets also returned populated frames through Grafana's POST
-query API, including time fields for histories.
+passed. All 69 targets also completed through Grafana's POST query API, with
+time fields for histories. The observation-failure table was empty because no
+exporter observation failures were reported.
 
 | Controlled check | Result |
 | --- | --- |
@@ -221,16 +223,11 @@ query API, including time fields for histories.
 | Completed Job, failed Job, root Pod, zero-Pod Deployment | Phases and identities were present; the zero-Pod root had no Pod mappings. |
 
 GPU readings in Kind were simulated by the patched fake GPU operator described
-above. CPU and RAM came from kubelet cAdvisor. This run checked backend queries
-and Grafana response frames, not browser rendering. It does not validate arbitrary
-metric schemas, MIG hardware or production-scale query cost.
-
-The direct dashboards passed all 69 panel queries, including one-hour histories,
-on a test cluster with no `cluster` labels and independently discovered job
-names. CPU and RAM returned data; GPU validation used synthetic DCGM samples.
-The activity timeline took about 20 seconds with roughly 180 workload identities.
-This is not a performance guarantee for larger installations. Use shorter time
-ranges and measure backend load before choosing a refresh interval.
+above. CPU and RAM came from kubelet cAdvisor. Nine transformation pipelines
+also passed against Grafana 12.2.1 transformation code, including the activity
+table and timeline. The graph pipeline needs Grafana application code and was
+not executed by that test. Browser rendering, MIG hardware, arbitrary metric
+schemas and production-scale query cost remain unverified.
 
 Run the portable import checks from the repository root:
 

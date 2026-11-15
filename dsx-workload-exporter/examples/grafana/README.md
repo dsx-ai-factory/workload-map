@@ -135,7 +135,9 @@ replaced with parent utilization or zero. See
 
 Framebuffer measurements are converted from MiB to bytes. Shared GPU entities
 count once within each workload or graph node, including MIG identity.
-Conflicting readings are excluded. These measurements do not isolate a process's
+Parent framebuffer rows are excluded when MIG framebuffer rows exist for the
+same Pod and physical GPU. Conflicting readings are excluded even when their
+GPU index labels differ. These measurements do not isolate a process's
 memory or GPU use. DRA works through the same Pod UID join; claim labels alone
 cannot identify the consuming Pod. The dashboards do not resolve ResourceClaims
 or verify allocated GPU counts.
@@ -165,7 +167,7 @@ capacity.
 Phase flags are independent. A workload can match several phases, so the history
 keeps one row per phase instead of choosing a priority. The matched-phase count
 counts accepted true flags; it does not require a fixed number of phase names.
-If any reported phase disagrees across replicas, the count is unavailable.
+If replicas disagree on a phase's value or identity, the count is unavailable.
 A zero-Pod root remains in the inventory. Current panels can be empty while
 historical samples remain available.
 
@@ -254,7 +256,7 @@ Both suites use Go and Ginkgo. The second target enables the `promql` build tag
 and uses pinned Prometheus 3.14.0 in Docker. To use an installed
 `promtool`, set `PROMTOOL=/absolute/path/to/promtool`. It evaluates the shipped
 queries against synthetic series for stale samples, label collisions, missing
-GPUs, container identity conflicts, phase disagreements and activity transitions.
+GPUs, parent/MIG overlap, identity conflicts and the seven-point quiet boundary.
 The import suite runs in `make check`. CI runs the query suite only when the
 dashboard examples, tests, exporter module dependencies or test/build configuration
 change. The query fixtures do not require a cluster.

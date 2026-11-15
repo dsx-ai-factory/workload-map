@@ -141,8 +141,20 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				PromQLExprTest: []queryExpectation{
 					stateExpectation(stateQuery, "0s", "active"),
 					stateExpectation(stateQuery, "30s", "warming"),
+					stateExpectation(stateQuery, "3m", "warming"),
+					stateExpectation(stateQuery, "3m30s", "low_activity"),
 					stateExpectation(stateQuery, "4m", "low_activity"),
 					stateExpectation(stateQuery, "6m", "unknown"),
+				},
+			}, queryTest{
+				Name: "Six quiet points are warming and seven are low activity: " + namespaceLabel,
+				InputSeries: []queryInputSeries{
+					attribution,
+					querySeries("DCGM_FI_DEV_GPU_UTIL", "0+0x30", gpu),
+				},
+				PromQLExprTest: []queryExpectation{
+					stateExpectation(stateQuery, "2m30s", "warming"),
+					stateExpectation(stateQuery, "3m", "low_activity"),
 				},
 			})
 			staleMIG := []queryInputSeries{
@@ -167,6 +179,69 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				},
 				PromQLExprTest: []queryExpectation{stateExpectation(stateQuery, "4m", "unknown")},
 			})
+			for _, test := range []struct {
+				dashboard string
+				panel     int
+				metric    string
+				value     string
+				conflict  string
+				expected  float64
+				mig       bool
+			}{
+				{"overview", 16, "DCGM_FI_DEV_GPU_UTIL", "10", "80", 10, false},
+				{"structure", 9, "DCGM_FI_DEV_GPU_UTIL", "10", "80", 10, false},
+				{"overview", 16, "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.1", "0.8", 10, true},
+				{"structure", 9, "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.1", "0.8", 10, true},
+				{"overview", 11, "DCGM_FI_DEV_FB_USED", "1024", "2048", 1024 * 1048576, false},
+				{"structure", 10, "DCGM_FI_DEV_FB_USED", "1024", "2048", 1024 * 1048576 / 1e9, false},
+			} {
+				expression := query(test.dashboard, test.panel, "A", namespaceLabel)
+				device := queryIdentity(gpu)
+				if test.mig {
+					device["GPU_I_ID"], device["GPU_CI_ID"] = "7", "0"
+				}
+				first := querySeries(test.metric, test.value+"+0x2", queryIdentity(device, map[string]string{
+					"gpu": "0", "instance": "replica-a",
+				}))
+				second := queryIdentity(device, map[string]string{"gpu": "1", "instance": "replica-b"})
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: fmt.Sprintf("Agreeing GPU indexes retain one measurement: %s/%d/%s/%s", test.dashboard, test.panel, test.metric, namespaceLabel),
+					InputSeries: []queryInputSeries{
+						attribution, first, querySeries(test.metric, test.value+"+0x2", second),
+					},
+					PromQLExprTest: []queryExpectation{queryExpected(expression, "1m", querySample{queryLabels(workload), test.expected})},
+				}, queryTest{
+					Name: fmt.Sprintf("Conflicting GPU indexes reject the measurement: %s/%d/%s/%s", test.dashboard, test.panel, test.metric, namespaceLabel),
+					InputSeries: []queryInputSeries{
+						attribution, first, querySeries(test.metric, test.conflict+"+0x2", second),
+					},
+					PromQLExprTest: []queryExpectation{queryExpected(expression, "1m")},
+				})
+			}
+			for _, test := range []struct {
+				dashboard string
+				panel     int
+				divisor   float64
+			}{{"overview", 11, 1}, {"structure", 10, 1e9}} {
+				expression := query(test.dashboard, test.panel, "A", namespaceLabel)
+				parents := []queryInputSeries{
+					attribution,
+					querySeries("DCGM_FI_DEV_FB_USED", "8192+0x2", gpu),
+					querySeries("DCGM_FI_DEV_FB_USED", "4096+0x2", queryIdentity(gpu, map[string]string{"UUID": "GPU-2"})),
+				}
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name:           "Parent-only GPU memory is retained: " + test.dashboard + "/" + namespaceLabel,
+					InputSeries:    parents,
+					PromQLExprTest: []queryExpectation{queryExpected(expression, "1m", querySample{queryLabels(workload), 12288 * 1048576 / test.divisor})},
+				}, queryTest{
+					Name: "MIG memory replaces only its matching parent: " + test.dashboard + "/" + namespaceLabel,
+					InputSeries: append(slices.Clone(parents),
+						querySeries("DCGM_FI_DEV_FB_USED", "2048+0x2", queryIdentity(gpu, map[string]string{"GPU_I_ID": "7", "GPU_CI_ID": "0"})),
+						querySeries("DCGM_FI_DEV_FB_USED", "1024+0x2", queryIdentity(gpu, map[string]string{"GPU_I_ID": "8", "GPU_CI_ID": "0"})),
+					),
+					PromQLExprTest: []queryExpectation{queryExpected(expression, "1m", querySample{queryLabels(workload), 7168 * 1048576 / test.divisor})},
+				})
+			}
 		}
 
 		for _, test := range []struct {
@@ -236,6 +311,15 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				),
 				PromQLExprTest: []queryExpectation{queryExpected(expression, "1m")},
 			})
+			for _, label := range []string{"karta", "karta_source", "workload_group", "workload_version", "workload_kind", "owner_resolution", "team"} {
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: "Conflicting phase identity rejects the count: " + test.dashboard + "/" + label,
+					InputSeries: append(slices.Clone(valid), querySeries("dsx_workload_status", "1+0x2", queryIdentity(status, map[string]string{
+						"phase": "Running", "instance": "replica-c", label: "other",
+					}))),
+					PromQLExprTest: []queryExpectation{queryExpected(expression, "1m")},
+				})
+			}
 		}
 		for i := range fixture.Tests {
 			fixture.Tests[i].Interval = "30s"

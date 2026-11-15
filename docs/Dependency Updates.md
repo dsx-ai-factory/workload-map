@@ -15,9 +15,16 @@ July 1, and October 1 at 03:00 UTC. A maintainer can start it from the Actions t
   `test/e2e`, `hack/*` and `docs/examples`. Renovate tidies each updated module.
   The license target then tidies every module, including local consumers.
   Renovate also regenerates SDK code, CRDs, SDK and exporter mocks, catalog files, and licenses
-  in the same commit. Indirect dependencies join the same Go update group.
+  in the same commit. Indirect dependencies join the same Go update group
+  when they have a new tagged release. Other indirect pseudo-versions move
+  only when `go mod tidy` raises them for a direct dependency.
   For major updates, Renovate also attempts to migrate Go import paths.
   API and behavior changes still need review.
+- Kubernetes libraries (`k8s.io/**` and `sigs.k8s.io/**`) as one PR.
+  Renovate skips kustomize, kube-openapi and structured-merge-diff. Their new
+  releases often require the next Kubernetes minor before it is stable.
+  Kubernetes libraries require these modules, so `go mod tidy` raises them
+  when the Kubernetes group moves to a new minor. Security fixes still pass.
 - The Go version, as one PR across every `go.mod` and the `GO_VERSION`
   argument of the Dockerfiles.
 - GitHub Actions, pinned to commit SHAs.

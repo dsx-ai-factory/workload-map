@@ -130,6 +130,46 @@
       "groupName": "Go modules"
     },
     {
+      "description": "Kubernetes libraries require matching versions of each other, so they move in one PR.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "k8s.io/**",
+        "sigs.k8s.io/**"
+      ],
+      "groupName": "Kubernetes"
+    },
+    {
+      "description": "Skip kustomize, kube-openapi and structured-merge-diff updates. Their new releases often require the next Kubernetes minor before it is stable. Kubernetes libraries require them, so go mod tidy raises them when the Kubernetes group moves to a new minor. Security fixes still pass.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "k8s.io/kube-openapi",
+        "sigs.k8s.io/structured-merge-diff/**",
+        "sigs.k8s.io/kustomize/**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Do not move indirect Go dependencies that have no release tag to their newest commit. That commit can require newer versions of other modules than this repository uses. go mod tidy still raises them when a direct dependency needs it. The Kubernetes rules above handle Kubernetes modules.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "matchPackageNames": [
+        "!k8s.io/**",
+        "!sigs.k8s.io/**"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Group non-major GitHub Actions updates and digest pins.",
       "matchManagers": [
         "github-actions"
@@ -290,12 +330,15 @@
       "enabled": false
     },
     {
-      "description": "Run routine major updates on main on the first day of each calendar quarter. The golang base image stays disabled because the Go toolchain group owns it.",
+      "description": "Run routine major updates on main on the first day of each calendar quarter. The golang base image stays disabled because the Go toolchain group owns it. The modules that follow Kubernetes stay disabled because go mod tidy moves them.",
       "matchBaseBranches": [
         "main"
       ],
       "matchPackageNames": [
-        "!golang"
+        "!golang",
+        "!k8s.io/kube-openapi",
+        "!sigs.k8s.io/structured-merge-diff/**",
+        "!sigs.k8s.io/kustomize/**"
       ],
       "matchUpdateTypes": [
         "major"

@@ -28,7 +28,7 @@ if [[ $# != 0 ]]; then
   exit 1
 fi
 
-repo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+repo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 assets="$repo_dir/hack/demo-grafana-exporter"
 cluster_name=${CLUSTER_NAME:-grafana-exporter-demo}
 grafana_port=${GRAFANA_PORT:-23000}
@@ -120,17 +120,19 @@ kind create cluster --name "$cluster_name" --image kindest/node:v1.34.0 \
   --config "$assets/kind.yaml" --kubeconfig "$KUBECONFIG" --wait 180s
 kind load docker-image --name "$cluster_name" "local/dsx-workload-exporter:$image_tag" \
   "local/fake-gpu-status-updater:$image_tag" "local/fake-gpu-status-exporter:$image_tag"
-kubectl label nodes -l '!node-role.kubernetes.io/control-plane' run.ai/simulated-gpu-node-pool=default
-helm install fake-gpu-operator oci://ghcr.io/run-ai/fake-gpu-operator/fake-gpu-operator \
-  --version 0.0.72 -n dashboard-gpu --create-namespace -f "$assets/fake-gpu-values.yaml" \
-  --set-string statusUpdater.image.tag="$image_tag",statusExporter.image.tag="$image_tag" --wait --timeout 5m
+FAKE_GPU_NAMESPACE=dashboard-gpu FAKE_GPU_VERSION=0.0.72 \
+  bash "$repo_dir/hack/e2e/infra/fake-gpu-operator/install.sh" \
+    -f "$assets/fake-gpu-values.yaml" \
+    --set-string statusUpdater.image.tag="$image_tag",statusExporter.image.tag="$image_tag" \
+    --set computeDomainDraPlugin.enabled=false --timeout 5m
 kubectl -n dashboard-gpu rollout status deployment/status-updater --timeout=180s
 kubectl -n dashboard-gpu rollout status daemonset/device-plugin --timeout=180s
 kubectl -n dashboard-gpu rollout status daemonset/nvidia-dcgm-exporter --timeout=180s
 kubectl wait --for=jsonpath='{.status.allocatable.nvidia\.com/gpu}'=8 \
   node -l run.ai/simulated-gpu-node-pool=default --timeout=180s
-helm install dsx "$repo_dir/charts/karta" -n dashboard-lab --create-namespace \
-  --skip-crds -f "$assets/exporter-values.yaml" --set-string exporter.image.tag="$image_tag" --wait --timeout 5m
+bash "$repo_dir/hack/e2e/dsx-workload-exporter/install.sh" \
+  dsx dashboard-lab "$assets/exporter-values.yaml" \
+  --skip-crds --set-string exporter.image.tag="$image_tag" --timeout 5m
 
 for dashboard in workload-overview workload-structure; do
   kubectl -n dashboard-lab create configmap "dashboard-$dashboard" \
@@ -139,7 +141,7 @@ for dashboard in workload-overview workload-structure; do
 done
 kubectl apply -f "$assets/monitoring.yaml"
 kubectl apply -f "$assets/workloads.yaml"
-for deployment in dsx-workload-exporter prometheus grafana gpu-active cpu-only; do
+for deployment in prometheus grafana gpu-active cpu-only; do
   kubectl -n dashboard-lab rollout status "deployment/$deployment" --timeout=180s
 done
 kubectl -n dashboard-lab wait --for=condition=Ready pod/gpu-quiet --timeout=180s

@@ -11,9 +11,11 @@ From the repository root, run:
 
 Requires Docker, Kind, kubectl, Helm, Make, Go, Git, curl, tar and shasum on PATH.
 Allow about 8 GiB of Docker memory and internet access for images and Go modules.
-The root launcher runs [up.sh](up.sh) beside the demo manifests and build files.
-It reuses `make exporter-image` and `charts/karta` to build and install the exporter.
-It creates a fresh two-node Kind cluster with unique local image tags and keeps
+The script reuses the e2e [exporter installer](../e2e/dsx-workload-exporter/install.sh)
+and [fake GPU installer](../e2e/infra/fake-gpu-operator/install.sh).
+Both the demo and exporter e2e use `make exporter-image` to build the exporter.
+Demo manifests, values and the simulator patch live in this directory.
+The script creates a fresh two-node Kind cluster with unique local image tags and keeps
 the current Kubernetes context unchanged. Run `--help` for cluster and local-port
 options. An existing cluster with the same name is refused.
 

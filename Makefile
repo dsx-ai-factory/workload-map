@@ -851,7 +851,7 @@ E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh hack/e2e/check-updates.sh \
 
 .PHONY: lint-shell
 lint-shell: ## shellcheck the e2e and commit attribution scripts (-x follows sourced files)
-	shellcheck -x $(E2E_SHELL) hack/commit-attribution/*.sh demo-grafana-exporter.sh
+	shellcheck -x $(E2E_SHELL) hack/commit-attribution/*.sh demo-grafana-exporter.sh hack/demo-grafana-exporter/*.sh
 
 ##@ Tools
 

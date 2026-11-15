@@ -134,6 +134,33 @@ tags point to `HEAD`, `karta/sdk/go.mod` carries no `replace` or `exclude`
 directive, and the required credentials are present. It must normally run
 only in the release workflow.
 
+## Krew plugin updates
+
+Register `plugins/kli.yaml` in [krew-index](https://github.com/kubernetes-sigs/krew-index)
+before the first release that uses the Krew update job. Krew requires a manual
+[submission](https://krew.sigs.k8s.io/docs/developer-guide/release/new-plugin/)
+for the first version.
+
+For later releases, the Krew update job waits for the release job to upload the
+CLI archives. The bot renders [the plugin template](.krew.yaml) with the release
+tag, computes the SHA-256 digest of each published archive, and proposes the
+index update. The new version becomes available through Krew when that update
+merges. If the update job fails after the assets are available, rerun that job.
+
+To check the template locally, render an existing release and install the
+resulting manifest. The renderer uses the published archives for this check.
+
+```bash
+manifest_dir=$(mktemp -d)
+go run github.com/rajatjindal/krew-release-bot/cmd/action@v0.0.50 \
+  template --tag v0.3.0 --template-file .krew.yaml > "$manifest_dir/kli.yaml"
+kubectl krew install --manifest="$manifest_dir/kli.yaml"
+kubectl kli --version
+```
+
+Copy the rendered manifest to `plugins/kli.yaml` in the index for the initial
+submission. Use a tag whose GitHub Release already has CLI archives.
+
 ## Release credentials
 
 The normal workflow `GITHUB_TOKEN` is used for the Karta GitHub Release, GHCR

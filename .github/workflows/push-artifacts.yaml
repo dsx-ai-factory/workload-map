@@ -40,9 +40,9 @@ jobs:
             hack/release/go.sum
 
       - name: Install helm
-        uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v4.3.2
+          version: v4.3.1
 
       - name: Set package version
         env:
@@ -210,3 +210,21 @@ jobs:
             "charts/karta-$PACKAGE_VERSION.tgz" \
             "dist/imagelock-karta-v$PACKAGE_VERSION-linux-amd64.yaml" \
             "dist/imagelock-karta-v$PACKAGE_VERSION-linux-arm64.yaml"
+
+  update-krew-index:
+    name: Update Krew Index
+    if: github.event_name == 'release' && github.repository == 'dsx-ai-factory/workload-map'
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Propose Krew plugin update
+        uses: rajatjindal/krew-release-bot@a7e82ae57ca41a16fca2691ef00e8a8d35bc77d4 # v0.0.50
+        with:
+          krew_template_file: .krew.yaml

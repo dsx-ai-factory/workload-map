@@ -173,7 +173,9 @@ The empty map key identifies a component with one unnamed instance. For the
 KEP input, this prints `ghcr.io/example/trainer:v1`. The calls are ordinary Go
 client calls; no `kubectl` process runs.
 
-The first expression that needs references triggers resolution:
+Resolution is lazy at the factory level. A status read whose expressions and
+variables do not mention references performs zero fetches. The first dependent
+read resolves all declared references:
 
 1. Evaluate each declaration's name or selector values against the TrainJob.
    For `trainingRuntime`, the name is `torch`.
@@ -192,13 +194,11 @@ never convert a denied read into an absent reference. `GetAPIReader` performs
 direct API reads. Consumers choosing a cache-backed reader own its setup and
 freshness.
 
-Resolution is lazy at the factory level. A status read whose expressions and
-variables do not mention references performs zero fetches. The first dependent
-read resolves all declared references and keeps successful results for that
-factory. Dependency checks are syntactic: Trainer's fallback mentions the
-runtime even when an image override is present, so that read still resolves it.
-A failed resolution is not cached. `tree.Open` extracts the whole tree, so it
-can resolve references immediately; use component getters for status-only reads.
+The factory keeps successful results. A failed resolution is not cached.
+Dependency checks are syntactic: Trainer's fallback mentions the runtime even
+when an image override is present, so that read still resolves it. `tree.Open`
+extracts the whole tree, so it can resolve references immediately; use component
+getters for status-only reads.
 
 ## References supplied manually
 

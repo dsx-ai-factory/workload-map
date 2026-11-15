@@ -504,6 +504,10 @@ exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mock
 test-exporter-dashboards: ## Check portable Grafana dashboard imports
 	python3 dsx-workload-exporter/examples/grafana/test_dashboards.py
 
+.PHONY: test-exporter-dashboard-queries
+test-exporter-dashboard-queries: ## Evaluate Grafana queries with promtool (Docker or PROMTOOL=/path/to/promtool)
+	python3 dsx-workload-exporter/examples/grafana/test_queries.py
+
 .PHONY: test-exporter
 test-exporter: test-exporter-unit test-exporter-integration test-exporter-dashboards ## Run the exporter unit and envtest suites
 

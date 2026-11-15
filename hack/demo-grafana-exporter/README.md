@@ -9,10 +9,10 @@ From the repository root, run:
 ./demo-grafana-exporter.sh
 ```
 
-Requires Docker, Kind, kubectl, Helm, Go, Git, curl, tar and shasum on PATH.
+Requires Docker, Kind, kubectl, Helm, Make, Go, Git, curl, tar and shasum on PATH.
 Allow about 8 GiB of Docker memory and internet access for images and Go modules.
-The script builds the exporter from this checkout and creates a two-node Kind
-cluster. It keeps the current Kubernetes context unchanged. Run `--help` for
+The script uses `make exporter-image` to build the exporter from this checkout
+and creates a two-node Kind cluster. Each run uses unique local image tags. It keeps the current Kubernetes context unchanged. Run `--help` for
 cluster and local-port options. An existing cluster with the same name is refused.
 
 The script prints dashboard links and a dedicated kubeconfig path. Keep it

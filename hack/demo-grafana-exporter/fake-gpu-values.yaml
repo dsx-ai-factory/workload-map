@@ -4,12 +4,10 @@
 statusUpdater:
   image:
     repository: local/fake-gpu-status-updater
-    tag: 0.0.72-pod-uid
     pullPolicy: Never
 statusExporter:
   image:
     repository: local/fake-gpu-status-exporter
-    tag: 0.0.72-pod-uid
     pullPolicy: Never
 topology:
   nodePools:

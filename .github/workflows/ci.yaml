@@ -82,6 +82,9 @@ jobs:
           build_version="0.0.0-main-${GITHUB_SHA:0:7}"
           make check VERSION="$build_version"
 
+      - name: Test exporter dashboard queries
+        run: make test-exporter-dashboard-queries
+
       - name: Lint helm chart
         run: make helm-lint
 

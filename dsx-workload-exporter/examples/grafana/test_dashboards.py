@@ -65,6 +65,12 @@ class DashboardPortabilityTests(unittest.TestCase):
                         self.assertIn(transform["id"], NATIVE_TRANSFORMATIONS,
                                       "Transformation is not registered in Grafana 12.2.1")
 
+    def test_each_dashboard_fits_a_configmap(self):
+        for name in DASHBOARDS:
+            with self.subTest(dashboard=name):
+                self.assertLessEqual((DIRECTORY / name).stat().st_size, 1024 * 1024,
+                                     "Demo provisions one ConfigMap per dashboard")
+
     def test_stable_import_ids(self):
         for name, dashboard in self.dashboards.items():
             with self.subTest(dashboard=name):
@@ -91,6 +97,13 @@ class DashboardPortabilityTests(unittest.TestCase):
                 self.assertEqual(cluster["type"], "textbox")
                 self.assertFalse(cluster.get("current", {}).get("value"))
                 self.assertFalse(cluster.get("query"))
+
+    def test_history_variables_refresh_with_time_range(self):
+        for name, dashboard in self.dashboards.items():
+            for variable in dashboard["templating"]["list"]:
+                if "$__range" in json.dumps(variable.get("query")):
+                    with self.subTest(dashboard=name, variable=variable["name"]):
+                        self.assertEqual(variable["refresh"], 2)
 
     def test_queries_use_selected_datasource_and_raw_metrics(self):
         for name, dashboard in self.dashboards.items():

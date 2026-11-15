@@ -152,6 +152,7 @@ capacity.
 Phase flags are independent. A workload can match several phases, so the history
 keeps one row per phase instead of choosing a priority. The matched-phase count
 counts accepted true flags; it does not require a fixed number of phase names.
+If any reported phase disagrees across replicas, the count is unavailable.
 A zero-Pod root remains in the inventory. Current panels can be empty while
 historical samples remain available.
 
@@ -229,11 +230,18 @@ table and timeline. The graph pipeline needs Grafana application code and was
 not executed by that test. Browser rendering, MIG hardware, arbitrary metric
 schemas and production-scale query cost remain unverified.
 
-Run the portable import checks from the repository root:
+Run the dashboard checks from the repository root:
 
 ```sh
-python3 dsx-workload-exporter/examples/grafana/test_dashboards.py
+make test-exporter-dashboards
+make test-exporter-dashboard-queries
 ```
+
+The second target uses pinned Prometheus 3.14.0 in Docker. To use an installed
+`promtool`, set `PROMTOOL=/absolute/path/to/promtool`. It evaluates the shipped
+queries against synthetic series for stale samples, label collisions, missing
+GPUs, container identity conflicts, phase disagreements and activity transitions.
+Both targets run in CI; the query fixtures do not require a cluster.
 
 The earlier recording-rule dashboards were tested on Kind and with full-GPU and
 MIG workloads using device-plugin and DRA allocation. Those checks do not prove

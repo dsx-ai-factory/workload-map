@@ -51,6 +51,8 @@ collector before using these dashboards.
 for the four raw DSX metrics. It also needs no recording rules. Use a datasource
 scoped to one cluster when inspecting it.
 
+![Raw Pod attribution labels and values](screenshots/metric-samples.png)
+
 [recording-rules.yaml](recording-rules.yaml) remains an optional set of reusable
 queries. [alerting-rules.yaml](alerting-rules.yaml) is an optional example alert
 for an observation failure lasting five minutes. Neither file is needed by the
@@ -69,6 +71,13 @@ component details follow. Inventory and status work without DCGM or cAdvisor.
 Expand the detail sections when needed. Component and instance filters apply to
 component panels.
 
+These screenshots show an earlier dashboard version. Some labels and activity
+panels differ from the current direct-query version.
+
+![Workload overview with inventory, status and resource sections](screenshots/workload-overview.png)
+
+![Component CPU, memory and GPU details](screenshots/workload-overview-details.png)
+
 The activity timeline defaults to workloads with GPU evidence in the selected
 time range. Active only and All workloads are also available. Filtering uses
 the last observed state and preserves each displayed workload's earlier
@@ -86,6 +95,10 @@ mean no accepted measurement at that time. Select an earlier end time to inspect
 a completed workload while it was running. GPU, VRAM, CPU and RAM history remains
 queryable while the backend retains its samples. The exact Pod attribution table
 is below the histories.
+
+![Workload structure with GPU and VRAM measurements](screenshots/workload-structure.png)
+
+![Workload phase, GPU, VRAM, CPU and RAM histories](screenshots/workload-resource-history.png)
 
 ## Required resource metrics
 
@@ -237,11 +250,14 @@ make test-exporter-dashboards
 make test-exporter-dashboard-queries
 ```
 
-The second target uses pinned Prometheus 3.14.0 in Docker. To use an installed
+Both suites use Go and Ginkgo. The second target enables the `promql` build tag
+and uses pinned Prometheus 3.14.0 in Docker. To use an installed
 `promtool`, set `PROMTOOL=/absolute/path/to/promtool`. It evaluates the shipped
 queries against synthetic series for stale samples, label collisions, missing
 GPUs, container identity conflicts, phase disagreements and activity transitions.
-Both targets run in CI; the query fixtures do not require a cluster.
+The import suite runs in `make check`. CI runs the query suite only when the
+dashboard examples, tests, exporter module dependencies or test/build configuration
+change. The query fixtures do not require a cluster.
 
 The earlier recording-rule dashboards were tested on Kind and with full-GPU and
 MIG workloads using device-plugin and DRA allocation. Those checks do not prove

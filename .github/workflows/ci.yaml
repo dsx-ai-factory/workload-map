@@ -82,7 +82,17 @@ jobs:
           build_version="0.0.0-main-${GITHUB_SHA:0:7}"
           make check VERSION="$build_version"
 
+      - name: Select dashboard changes
+        id: dashboard-changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if ! git cat-file -e "$BASE^{commit}" 2>/dev/null ||
+             ! git diff --quiet "$BASE" HEAD -- dsx-workload-exporter/examples/grafana dsx-workload-exporter/test/grafana dsx-workload-exporter/go.mod dsx-workload-exporter/go.sum Makefile .golangci.yml .github/workflows/ci.yaml; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Test exporter dashboard queries
+        if: steps.dashboard-changes.outputs.run == 'true'
         run: make test-exporter-dashboard-queries
 
       - name: Lint helm chart

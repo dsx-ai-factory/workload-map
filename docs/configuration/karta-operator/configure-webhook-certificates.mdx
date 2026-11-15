@@ -15,7 +15,7 @@ The webhook exists only when the Karta Operator and the webhook are both enabled
 
 ## Prerequisites
 
-- The Karta Operator installed with the Helm chart, or ready to install. For more information, refer to [Installation](../getting-started/installation.mdx#install-the-karta-operator).
+- The Karta Operator installed with the Helm chart, or ready to install. For more information, refer to [Installation](../../getting-started/installation.mdx#install-the-karta-operator).
 - For the cert-manager option, cert-manager installed in the cluster.
 
 The commands on this page use the chart in a clone of the repository, `charts/karta`. To use the published chart, replace `charts/karta` with `oci://ghcr.io/dsx-ai-factory/workload-map/karta`, and add `--version <version>`.
@@ -138,4 +138,4 @@ The webhook applies only to `Karta` definitions. It does not affect your workloa
 | `webhook.cert.annotations` | `{}` | Manual mode. Annotations for the webhook configurations, for example `cert-manager.io/inject-ca-from`. |
 | `webhook.cert.caBundle` | `""` | Manual mode. Base64-encoded CA bundle stamped onto the webhook configurations. |
 
-For all chart values, refer to [Helm Chart Values](../reference/helm-chart-values.mdx).
+For all chart values, refer to [Helm Chart Values](../../reference/helm-chart-values.mdx).

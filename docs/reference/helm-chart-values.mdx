@@ -13,7 +13,7 @@ This page lists the values of the `karta` Helm chart, which installs the Karta O
 
 | Value | Default | Description |
 | --- | --- | --- |
-| `global.fipsMode` | `"off"` | The Go FIPS 140-3 runtime mode: `off`, `on`, or `only`. For more information, refer to [Run in FIPS Mode](../configure-the-karta-operator/run-in-fips-mode.mdx). |
+| `global.fipsMode` | `"off"` | The Go FIPS 140-3 runtime mode: `off`, `on`, or `only`. For more information, refer to [Run in FIPS Mode](../configuration/karta-operator/run-in-fips-mode.mdx). |
 | `operator.enabled` | `true` | Set it to `false` to skip the Karta Operator workload. The webhook resources also depend on it. |
 | `fullnameOverride` | `""` | Overrides the names of the resources. You rarely need it. |
 | `replicaCount` | `1` | The number of Karta Operator replicas. Keep it at `1` unless `leaderElection.enabled` is `true`. Without leader election, multiple replicas would reconcile concurrently, and the chart fails to render if you set a value above `1` without leader election. |
@@ -49,7 +49,7 @@ This page lists the values of the `karta` Helm chart, which installs the Karta O
 
 ## Webhook
 
-The webhook is the admission webhook that validates `Karta` definitions. For how the certificate modes work, refer to [Configure Webhook Certificates](../configure-the-karta-operator/configure-webhook-certificates.mdx).
+The webhook is the admission webhook that validates `Karta` definitions. For how the certificate modes work, refer to [Configure Webhook Certificates](../configuration/karta-operator/configure-webhook-certificates.mdx).
 
 | Value | Default | Description |
 | --- | --- | --- |
@@ -61,7 +61,7 @@ The webhook is the admission webhook that validates `Karta` definitions. For how
 
 ## CRD Upgrader
 
-A job runs before each install and upgrade. It applies the CRD that the chart bundles with a server-side apply, so that `helm upgrade` rolls the schema forward. Helm itself never upgrades the `crds/` directory. For more information, refer to [Run in FIPS Mode](../configure-the-karta-operator/run-in-fips-mode.mdx#how-the-crd-upgrader-job-behaves).
+A job runs before each install and upgrade. It applies the CRD that the chart bundles with a server-side apply, so that `helm upgrade` rolls the schema forward. Helm itself never upgrades the `crds/` directory. For more information, refer to [Run in FIPS Mode](../configuration/karta-operator/run-in-fips-mode.mdx#how-the-crd-upgrader-job-behaves).
 
 | Value | Default | Description |
 | --- | --- | --- |

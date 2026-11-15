@@ -33,7 +33,7 @@ To run `kli` against a cluster, you also need a kubeconfig with read access to t
 - Permission to create a CustomResourceDefinition, a ClusterRole and its binding, and webhook configurations.
 - Pull access to two images: the Karta Operator image, `ghcr.io/dsx-ai-factory/workload-map/karta-operator`, and the CRD upgrader image, `registry.k8s.io/kubectl`. For a private registry, set `imagePullSecrets` in the chart values.
 - A network path from the Kubernetes API server to the Karta Operator webhook service.
-- cert-manager, only if you supply the webhook certificate yourself with cert-manager. The default certificate mode does not need it. For more information, refer to [Webhook Certificates](../configure-the-karta-operator/configure-webhook-certificates.mdx).
+- cert-manager, only if you supply the webhook certificate yourself with cert-manager. The default certificate mode does not need it. For more information, refer to [Webhook Certificates](../configuration/karta-operator/configure-webhook-certificates.mdx).
 
 ## DSX Workload Exporter
 

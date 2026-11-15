@@ -6,7 +6,7 @@
 From the repository root, run:
 
 ```sh
-./demo-grafana-exporter.sh
+./hack/demo-grafana-exporter/up.sh
 ```
 
 Requires Docker, Kind, kubectl, Helm, Make, Go, Git, curl, tar and shasum on PATH.

@@ -5,7 +5,7 @@ set -euo pipefail
 
 if [[ ${1:-} == --help && $# == 1 ]]; then
   cat <<'EOF'
-Usage: ./demo-grafana-exporter.sh
+Usage: ./hack/demo-grafana-exporter/up.sh
 
 Create a fresh Kind cluster with the current DSX exporter, fake GPU operator,
 Prometheus, Grafana, and example workloads. Requires Docker, Kind, kubectl,
@@ -24,12 +24,12 @@ EOF
   exit 0
 fi
 if [[ $# != 0 ]]; then
-  echo 'Usage: ./demo-grafana-exporter.sh [--help]' >&2
+  echo 'Usage: ./hack/demo-grafana-exporter/up.sh [--help]' >&2
   exit 1
 fi
 
-repo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-assets="$repo_dir/hack/demo-grafana-exporter"
+assets=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+repo_dir=$(cd "$assets/../.." && pwd)
 cluster_name=${CLUSTER_NAME:-grafana-exporter-demo}
 grafana_port=${GRAFANA_PORT:-23000}
 prometheus_port=${PROMETHEUS_PORT:-29090}

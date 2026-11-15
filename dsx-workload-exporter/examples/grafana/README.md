@@ -18,7 +18,7 @@ collectors. Their absence does not prevent workload inventory and structure.
 
 For collector and Helm configuration examples, follow
 [Connect a real cluster](setup.md). For a local example, run
-[`demo-grafana-exporter.sh`](../../../demo-grafana-exporter.sh). The demo uses
+[`hack/demo-grafana-exporter/up.sh`](../../../hack/demo-grafana-exporter/up.sh). The demo uses
 simulated full-GPU telemetry and kubelet CPU/RAM metrics; it needs no GPU hardware.
 
 1. [Install the exporter](../../../docs/dsx-workload-exporter/installation.md)

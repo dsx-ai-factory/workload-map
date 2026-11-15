@@ -14,6 +14,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/yaml"
 )
 
 var _ = Describe("Shared demo installers", func() {
@@ -31,14 +34,79 @@ var _ = Describe("Shared demo installers", func() {
 		Expect(events[1]).To(ContainSubstring("<-f> <values with spaces.yaml>"))
 		Expect(events[1]).To(HaveSuffix("<--skip-crds> <--set-string> <exporter.image.tag=unique-tag> <--timeout> <5m>"))
 		Expect(events[1]).NotTo(ContainSubstring("<--wait>"))
+		Expect(events[2]).To(Equal("kubectl <-n> <demo-ns> <get> <deployment> <-l> <app.kubernetes.io/name=dsx-workload-exporter,app.kubernetes.io/instance=demo> <-o> <name>"))
 		if installed {
-			Expect(events).To(HaveLen(4))
-			Expect(events[2]).To(Equal("kubectl <-n> <demo-ns> <rollout> <restart> <deployment/dsx-workload-exporter>"))
+			Expect(events).To(HaveLen(5))
+			Expect(events[3]).To(Equal("kubectl <-n> <demo-ns> <rollout> <restart> <deployment.apps/dsx-workload-exporter>"))
 		} else {
-			Expect(events).To(HaveLen(3))
+			Expect(events).To(HaveLen(4))
 		}
-		Expect(events[len(events)-1]).To(Equal("kubectl <-n> <demo-ns> <rollout> <status> <deployment/dsx-workload-exporter> <--timeout=180s>"))
+		Expect(events[len(events)-1]).To(Equal("kubectl <-n> <demo-ns> <rollout> <status> <deployment.apps/dsx-workload-exporter> <--timeout=180s>"))
 	}, Entry("new release", false), Entry("existing release", true))
+
+	DescribeTable("selects the exporter rendered by the chart regardless of its name", func(override string, fromValues, installed bool) {
+		helm, err := exec.LookPath("helm")
+		if err != nil {
+			Skip("helm is needed for chart rendering")
+		}
+		root, err := filepath.Abs("../../../..")
+		Expect(err).NotTo(HaveOccurred())
+		valuesPath := filepath.Join(GinkgoT().TempDir(), "exporter values.yaml")
+		values := "exporter:\n  enabled: true\noperator:\n  enabled: true\n"
+		var extra []string
+		if fromValues {
+			values += "fullnameOverride: " + override + "\n"
+		} else if override != "" {
+			extra = []string{"--set-string", "fullnameOverride=" + override}
+		}
+		Expect(os.WriteFile(valuesPath, []byte(values), 0o600)).To(Succeed())
+		args := []string{"template", "dashboard", filepath.Join(root, "charts/karta"),
+			"--namespace", "dashboard-ns", "-f", valuesPath, "--show-only", "templates/exporter-deployment.yaml"}
+		out, err := exec.Command(helm, append(args, extra...)...).CombinedOutput()
+		Expect(err).NotTo(HaveOccurred(), string(out))
+		var deployment appsv1.Deployment
+		Expect(yaml.Unmarshal(out, &deployment)).To(Succeed())
+		Expect(deployment.Name).NotTo(BeEmpty())
+		if override != "" {
+			Expect(deployment.Name).NotTo(Equal("dsx-workload-exporter"))
+		}
+		args[len(args)-1] = "templates/deployment.yaml"
+		out, err = exec.Command(helm, append(args, extra...)...).CombinedOutput()
+		Expect(err).NotTo(HaveOccurred(), string(out))
+		var operator appsv1.Deployment
+		Expect(yaml.Unmarshal(out, &operator)).To(Succeed())
+		Expect(operator.Name).NotTo(BeEmpty())
+
+		events, err := runDemoInstaller(exporter, append([]string{"dashboard", "dashboard-ns", valuesPath}, extra...),
+			"DEMO_TEST_INSTALLED="+strconv.FormatBool(installed), "DEMO_TEST_DEPLOYMENTS=deployment.apps/"+deployment.Name)
+		Expect(err).NotTo(HaveOccurred())
+		if installed {
+			Expect(events).To(HaveLen(5))
+		} else {
+			Expect(events).To(HaveLen(4))
+		}
+		Expect(events[2]).To(HavePrefix("kubectl <-n> <" + deployment.Namespace + "> <get>"))
+		_, selectorText, found := strings.Cut(events[2], "<deployment> <-l> <")
+		Expect(found).To(BeTrue(), events[2])
+		selectorText, _, _ = strings.Cut(selectorText, ">")
+		selector, err := labels.Parse(selectorText)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(selector.Matches(labels.Set(deployment.Labels))).To(BeTrue(), deployment.Name)
+		otherRelease := deployment.DeepCopy()
+		otherRelease.Labels["app.kubernetes.io/instance"] = "another-release"
+		Expect(selector.Matches(labels.Set(otherRelease.Labels))).To(BeFalse())
+		Expect(selector.Matches(labels.Set(operator.Labels))).To(BeFalse())
+		for _, event := range events[3:] {
+			Expect(event).To(HavePrefix("kubectl <-n> <" + deployment.Namespace + "> <rollout>"))
+			Expect(event).To(ContainSubstring("<deployment.apps/" + deployment.Name + ">"))
+		}
+	},
+		Entry("default name on a new release", "", false, false),
+		Entry("values override on a new release", "dashboard", true, false),
+		Entry("values override on an existing release", "dashboard", true, true),
+		Entry("command-line override on an existing release", "custom-dashboard", false, true),
+		Entry("long override on an existing release", strings.Repeat("dashboard-", 6), false, true),
+	)
 
 	It("rejects missing exporter arguments before touching the cluster", func() {
 		events, err := runDemoInstaller(exporter, []string{"demo", "demo-ns"})
@@ -50,8 +118,17 @@ var _ = Describe("Shared demo installers", func() {
 		events, err := runDemoInstaller(exporter, []string{"demo", "demo-ns", "values.yaml"},
 			"DEMO_TEST_INSTALLED=true", "DEMO_TEST_FAIL="+step)
 		Expect(err).To(HaveOccurred())
+		Expect(err.(*exec.ExitError).ExitCode()).To(Equal(31))
 		Expect(events).To(HaveLen(eventCount))
-	}, Entry("Helm upgrade", "upgrade", 2), Entry("restart", "restart", 3), Entry("rollout", "rollout", 4))
+	}, Entry("Helm upgrade", "upgrade", 2), Entry("deployment discovery", "discovery", 3),
+		Entry("restart", "restart", 4), Entry("rollout", "rollout", 5))
+
+	DescribeTable("rejects missing or ambiguous exporter deployments before rollout", func(deployments string) {
+		events, err := runDemoInstaller(exporter, []string{"demo", "demo-ns", "values.yaml"},
+			"DEMO_TEST_INSTALLED=true", "DEMO_TEST_DEPLOYMENTS="+deployments)
+		Expect(err).To(HaveOccurred())
+		Expect(events).To(HaveLen(3))
+	}, Entry("no deployment", ""), Entry("multiple deployments", "deployment.apps/first\ndeployment.apps/second"))
 
 	DescribeTable("shares fake GPU installation with caller overrides", func(custom bool) {
 		var args, env []string
@@ -91,9 +168,12 @@ printf '\n' >> "$DEMO_TEST_LOG"
 if [[ "$tool" == helm && "$1" == status ]]; then
   "$DEMO_TEST_INSTALLED"
 elif [[ "$tool" == helm && "$1" == upgrade && "$DEMO_TEST_FAIL" == upgrade ]] ||
+     [[ "$*" == *"get deployment"* && "$DEMO_TEST_FAIL" == discovery ]] ||
      [[ "$*" == *"rollout restart"* && "$DEMO_TEST_FAIL" == restart ]] ||
      [[ "$*" == *"rollout status"* && "$DEMO_TEST_FAIL" == rollout ]]; then
   exit 31
+elif [[ "$*" == *"get deployment"* ]]; then
+  printf '%s\n' "$DEMO_TEST_DEPLOYMENTS"
 fi
 `
 	for _, tool := range []string{"helm", "kubectl"} {
@@ -106,6 +186,7 @@ fi
 	cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"KUBECONFIG="+filepath.Join(dir, "kubeconfig"), "DEMO_TEST_KUBECONFIG="+filepath.Join(dir, "kubeconfig"),
 		"DEMO_TEST_LOG="+logPath, "DEMO_TEST_INSTALLED=false", "DEMO_TEST_FAIL=",
+		"DEMO_TEST_DEPLOYMENTS=deployment.apps/dsx-workload-exporter",
 		"FAKE_GPU_NAMESPACE=gpu-operator", "FAKE_GPU_VERSION=0.0.72")
 	cmd.Env = append(cmd.Env, env...)
 	output, runErr := cmd.CombinedOutput()

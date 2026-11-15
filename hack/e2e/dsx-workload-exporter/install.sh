@@ -21,8 +21,14 @@ fi
 helm upgrade --install "$release" "$ROOT/charts/karta" \
   --namespace "$namespace" --create-namespace \
   -f "$values_file" --timeout 3m "$@"
+selector="app.kubernetes.io/name=dsx-workload-exporter,app.kubernetes.io/instance=$release"
+deployment="$(kubectl -n "$namespace" get deployment -l "$selector" -o name)"
+if [[ -z "$deployment" || "$deployment" == *$'\n'* ]]; then
+  echo "Expected exactly one exporter Deployment for release '$release' in namespace '$namespace'." >&2
+  exit 1
+fi
 # Restart before waiting so old unready Pods cannot block the rebuilt image.
 if "$installed"; then
-  kubectl -n "$namespace" rollout restart deployment/dsx-workload-exporter
+  kubectl -n "$namespace" rollout restart "$deployment"
 fi
-kubectl -n "$namespace" rollout status deployment/dsx-workload-exporter --timeout=180s
+kubectl -n "$namespace" rollout status "$deployment" --timeout=180s

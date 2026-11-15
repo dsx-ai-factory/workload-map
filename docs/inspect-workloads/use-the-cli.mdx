@@ -18,7 +18,7 @@ The `kli` CLI shows which workloads run in a cluster and how each one is structu
 
 ## Prerequisites
 
-- `kli` installed. For more information, refer to [Installation](../get-started/installation.mdx#install-the-kli-cli).
+- `kli` installed. For more information, refer to [Installation](../getting-started/installation.mdx#install-the-kli-cli).
 - For `kli get` and for `kli describe` on a live workload, a kubeconfig with read access to the workloads that you want to see.
 
 The `kli definitions` and `kli validate` commands, and `kli describe -f`, do not need a cluster. Without a reachable cluster, they use the built-in catalog only.
@@ -35,7 +35,7 @@ The `--catalog-experimental-definitions` option, the `--no-headers` option, and 
 kli get jobsets --context <context> -n <namespace>
 ```
 
-If the operator is not installed, the commands print the warning `the kartas.run.ai CRD is not installed; showing built-in definitions only`. It means that the cluster has no custom definitions, and you can ignore it.
+If the Karta Operator is not installed, the commands print the warning `the kartas.run.ai CRD is not installed; showing built-in definitions only`. It means that the cluster has no custom definitions, and you can ignore it.
 
 ## List Workloads
 
@@ -78,7 +78,7 @@ The two-token form `kli describe jobset my-training` works as well. The output s
 - The normalized phase.
 - The resources that each component requests, and their total.
 
-For a complete output, refer to the [CLI quickstart](../get-started/quickstart-cli.mdx).
+For a complete output, refer to the [CLI quickstart](../getting-started/quickstarts/quickstart-cli.mdx).
 
 A large workload can have many pods and components. To keep the output short, set a limit. When you set a limit, the output shows the unhealthy pods and components first:
 
@@ -97,7 +97,7 @@ To see how a workload would look before you submit it, run `kli describe` with `
 kli describe -f jobset.yaml
 ```
 
-The following output is for the JobSet manifest in the [CLI quickstart](../get-started/quickstart-cli.mdx):
+The following output is for the JobSet manifest in the [CLI quickstart](../getting-started/quickstarts/quickstart-cli.mdx):
 
 ```text
 JobSet/my-training   namespace: <none>   definition: jobset-x-k8s-io-jobset-v1alpha2 (catalog)
@@ -116,7 +116,7 @@ TOTAL       3          0     500m   320Mi
 
 The structure and the desired scale are real. The pods and the live status are absent, because the workload does not exist yet.
 
-`kli` finds the definition for the manifest in the built-in catalog and in the cluster, if it can reach one. It does not read a definition from a local file. To preview a manifest with a definition that you wrote, apply the definition to the cluster first. For more information, refer to [Define a Workload Type](define-a-workload-type.mdx).
+`kli` finds the definition for the manifest in the built-in catalog and in the cluster, if it can reach one. It does not read a definition from a local file. To preview a manifest with a definition that you wrote, apply the definition to the cluster first. For more information, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
 
 ## List and Export Definitions
 
@@ -143,7 +143,7 @@ When you name a definition, the YAML and JSON output contains that definition al
 kli definitions kubeflow-org-pytorchjob-v1 -o yaml | kli validate -
 ```
 
-To validate a definition that you wrote, refer to [Define a Workload Type](define-a-workload-type.mdx#validate-the-definition).
+To validate a definition that you wrote, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx#validate-the-definition).
 
 ## Include Experimental Definitions
 
@@ -197,7 +197,7 @@ When a command fails, `kli` prints a message that starts with `error:` and exits
 | `3` | No workload of the requested type has the requested name. |
 | `4` | No definition covers the requested type. |
 
-The `kli validate` command uses its own exit codes. For more information, refer to [Define a Workload Type](define-a-workload-type.mdx#validate-the-definition).
+The `kli validate` command uses its own exit codes. For more information, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx#validate-the-definition).
 
 ## Set Up Shell Completion
 
@@ -233,6 +233,6 @@ The rc file entry loads completion from the installed `kli` when it exists. Othe
 
 ## Next Steps
 
-- To write your own definition, refer to [Define a Workload Type](define-a-workload-type.mdx).
+- To write your own definition, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
 - For every command, option, and exit code, refer to the [CLI Command Reference](../reference/cli-command-reference.mdx).
 - To fix an error that `kli validate` reports, refer to [Troubleshoot Definitions](../troubleshooting/troubleshoot-definitions.mdx).

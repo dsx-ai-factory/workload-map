@@ -46,67 +46,74 @@ navigation:
       - page: Architecture Overview
         path: ../docs/about/architecture-overview.mdx
         slug: architecture-overview
-  - section: Get Started
+  - section: Getting Started
     contents:
       - page: Prerequisites
-        path: ../docs/get-started/prerequisites.mdx
+        path: ../docs/getting-started/prerequisites.mdx
         slug: prerequisites
       - page: Installation
-        path: ../docs/get-started/installation.mdx
+        path: ../docs/getting-started/installation.mdx
         slug: installation
-      - page: Quickstart - CLI
-        path: ../docs/get-started/quickstart-cli.mdx
-        slug: quickstart-cli
-      - page: Quickstart - Go Library
-        path: ../docs/get-started/quickstart-go-library.mdx
-        slug: quickstart-go-library
-      - page: Tutorial - Author Your First Karta
-        path: ../docs/get-started/tutorial-author-your-first-karta.mdx
-        slug: tutorial-author-your-first-karta
-  - section: Guides
+      - section: Quickstarts
+        slug: quickstarts
+        contents:
+          - page: CLI
+            path: ../docs/getting-started/quickstarts/quickstart-cli.mdx
+            slug: quickstart-cli
+          - page: Go Library
+            path: ../docs/getting-started/quickstarts/quickstart-go-library.mdx
+            slug: quickstart-go-library
+      - page: Tutorial - Write Your First Workload Definition
+        path: ../docs/getting-started/tutorial-write-your-first-workload-definition.mdx
+        slug: tutorial-write-your-first-workload-definition
+  - section: Inspect Workloads
+    slug: inspect-workloads
+    contents:
+      - page: Use the CLI
+        path: ../docs/inspect-workloads/use-the-cli.mdx
+        slug: use-the-cli
+      - page: Use the Headlamp Plugin
+        path: ../docs/inspect-workloads/use-the-headlamp-plugin.mdx
+        slug: use-the-headlamp-plugin
+      - page: Monitor Workloads with the DSX Workload Exporter
+        path: ../docs/inspect-workloads/monitor-workloads-with-the-dsx-workload-exporter.mdx
+        slug: monitor-workloads-with-the-dsx-workload-exporter
+  - section: Build on Workload Map
+    slug: build-on-workload-map
     contents:
       - page: Define a Workload Type
-        path: ../docs/guides/define-a-workload-type.mdx
+        path: ../docs/build-on-workload-map/define-a-workload-type.mdx
         slug: define-a-workload-type
-      - page: Use the CLI
-        path: ../docs/guides/use-the-cli.mdx
-        slug: use-the-cli
-      - section: Manage Workloads from a Controller
-        slug: manage-workloads-from-a-controller
+      - section: Build a Controller
+        slug: build-a-controller
         contents:
-          - page: About Building a Controller
-            path: ../docs/guides/controller/about-building-a-controller.mdx
-            slug: about-building-a-controller
+          - page: How a Controller Uses Workload Map
+            path: ../docs/build-on-workload-map/build-a-controller/how-a-controller-uses-workload-map.mdx
+            slug: how-a-controller-uses-workload-map
           - page: Use the Go Library
-            path: ../docs/guides/controller/use-the-go-library.mdx
+            path: ../docs/build-on-workload-map/build-a-controller/use-the-go-library.mdx
             slug: use-the-go-library
           - page: Tutorial - Build a Controller on Kind
-            path: ../docs/guides/controller/tutorial-build-a-controller-on-kind.mdx
+            path: ../docs/build-on-workload-map/build-a-controller/tutorial-build-a-controller-on-kind.mdx
             slug: tutorial-build-a-controller-on-kind
-          - page: Add Another Workload Type
-            path: ../docs/guides/controller/add-another-workload-type.mdx
-            slug: add-another-workload-type
-      - section: Schedule Workloads
-        slug: schedule-workloads
-        contents:
-          - page: Gang Scheduling with KAI Scheduler
-            path: ../docs/guides/schedule/gang-scheduling-with-kai-scheduler.mdx
-            slug: gang-scheduling-with-kai-scheduler
-      - section: Visualize Workloads
-        slug: visualize-workloads
-        contents:
-          - page: Headlamp Plugin
-            path: ../docs/guides/visualize/headlamp-plugin.mdx
-            slug: headlamp-plugin
-      - section: Run the Operator
-        slug: run-the-operator
-        contents:
-          - page: Configure Webhook Certificates
-            path: ../docs/guides/operator/configure-webhook-certificates.mdx
-            slug: configure-webhook-certificates
-          - page: Run in FIPS Mode
-            path: ../docs/guides/operator/run-in-fips-mode.mdx
-            slug: run-in-fips-mode
+          - page: Watch Another Workload Type
+            path: ../docs/build-on-workload-map/build-a-controller/watch-another-workload-type.mdx
+            slug: watch-another-workload-type
+  - section: Schedule Workloads
+    slug: schedule-workloads
+    contents:
+      - page: Set Up Gang Scheduling with KAI Scheduler
+        path: ../docs/schedule-workloads/set-up-gang-scheduling-with-kai-scheduler.mdx
+        slug: set-up-gang-scheduling-with-kai-scheduler
+  - section: Configure the Karta Operator
+    slug: configure-the-karta-operator
+    contents:
+      - page: Configure Webhook Certificates
+        path: ../docs/configure-the-karta-operator/configure-webhook-certificates.mdx
+        slug: configure-webhook-certificates
+      - page: Run in FIPS Mode
+        path: ../docs/configure-the-karta-operator/run-in-fips-mode.mdx
+        slug: run-in-fips-mode
   - section: Reference
     contents:
       - page: Workload Definition Spec
@@ -121,9 +128,9 @@ navigation:
       - page: Helm Chart Values
         path: ../docs/reference/helm-chart-values.mdx
         slug: helm-chart-values
-      - page: Operator Flags and Environment Variables
-        path: ../docs/reference/operator-flags-and-environment-variables.mdx
-        slug: operator-flags-and-environment-variables
+      - page: Karta Operator Flags
+        path: ../docs/reference/karta-operator-flags.mdx
+        slug: karta-operator-flags
       - link: Go Library API
         href: https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk
   - section: Troubleshooting

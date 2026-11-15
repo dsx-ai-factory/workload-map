@@ -1,6 +1,6 @@
 ---
-title: Tutorial - Author Your First Karta
-sidebar-title: Tutorial - Author Your First Karta
+title: Tutorial - Write Your First Workload Definition
+sidebar-title: Tutorial - Write Your First Workload Definition
 description: Learn how to write a Workload Map definition from scratch for a Kubernetes Job, and see the cluster use it.
 ---
 
@@ -9,12 +9,12 @@ description: Learn how to write a Workload Map definition from scratch for a Kub
 
 In this tutorial, you write a `Karta` definition from scratch for a Kubernetes `batch/v1` Job. By the end, you have a complete, valid definition, and you understand the building blocks well enough to describe any other workload type.
 
-A Job is the simplest useful example. It has one component, one pod template, and a status that it reports through conditions. The [catalog](../reference/catalog-of-definitions.mdx) has definitions for more complex workloads, such as JobSet, PyTorchJob, RayCluster, and KServe. When you write your own definition, start from the catalog definition that is closest to your workload.
+A Job is the simplest useful example. It has one component, one pod template, and a status that it reports through conditions. The [catalog](../reference/catalog-of-definitions.mdx) has definitions for more complex workloads, such as JobSet, PyTorchJob, RayCluster, and KServe. When you write your own definition, start from the catalog definition that is closest to your workload. For every field that a definition supports, refer to the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
 
 ## Prerequisites
 
 - `kli` installed. For more information, refer to [Installation](installation.mdx#install-the-kli-cli).
-- A Kubernetes cluster with the operator installed, to see the definition work in Step 4. For more information, refer to [Installation](installation.mdx#install-the-operator). Steps 1 to 3 and the validation in Step 4 need no cluster.
+- A Kubernetes cluster with the Karta Operator installed, to see the definition work in Step 4. For more information, refer to [Installation](installation.mdx#install-the-karta-operator). Steps 1 to 3 and the validation in Step 4 need no cluster.
 
 ## Related Concepts
 
@@ -134,7 +134,7 @@ The `// 1` default keeps the path null-safe. The `parallelism` field is optional
    OK: job.yaml is a valid Karta definition (GVK: batch/v1/Job)
    ```
 
-   Without `kli`, run the `karta-verify` tool from the `karta/sdk` directory of a clone: `go run ./hack/karta-verify --karta /path/to/job.yaml`. For more information, refer to [Define a Workload Type](../guides/define-a-workload-type.mdx#check-the-definition-against-a-real-workload).
+   Without `kli`, run the `karta-verify` tool from the `karta/sdk` directory of a clone: `go run ./hack/karta-verify --karta /path/to/job.yaml`. For more information, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx#check-the-definition-against-a-real-workload).
 
    If a check fails, the error message names the component and the problem. For each message and its fix, refer to the [Troubleshooting](../troubleshooting/troubleshoot-definitions.mdx) page. Before you use a definition, confirm the following:
 
@@ -146,7 +146,7 @@ The `// 1` default keeps the path null-safe. The `parallelism` field is optional
    - Status conditions match the real API of the workload.
    - Every child component has an `ownerRef` to an existing component, with no ownership cycles.
 
-2. In a cluster with the operator installed, run a Job:
+2. In a cluster with the Karta Operator installed, run a Job:
 
    ```bash
    kubectl create job pi --image=busybox:1.36 -- sh -c "sleep 300"
@@ -170,7 +170,7 @@ The `// 1` default keeps the path null-safe. The `parallelism` field is optional
    kubectl apply -f job.yaml
    ```
 
-5. Check that the operator accepted the definition:
+5. Check that the Karta Operator accepted the definition:
 
    ```bash
    kubectl get karta batch-v1-job -o jsonpath='{range .status.conditions[*]}{.type}={.status} {end}'
@@ -221,5 +221,6 @@ Every `componentName` must match a component that you defined. The older `podGro
 
 - Add child components for workloads that own other resources. Each child needs an `ownerRef`. For examples, refer to the [KServe InferenceService](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml) and [PyTorchJob](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kubeflow-org-pytorchjob-v1.yaml) definitions.
 - Handle workloads with repeated roles or instances, such as the replicated jobs of a JobSet, with `instanceIdPath` and a matching component instance selector. For an example, refer to the [JobSet](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml) definition.
-- Read a definition from a controller with the Go component API. Follow the [Go Library quickstart](quickstart-go-library.mdx) or the [controller-runtime example](../guides/controller/tutorial-build-a-controller-on-kind.mdx).
-- Read the full field reference in the [Technical Guide](../reference/workload-definition-spec.mdx).
+- Read a definition from a controller with the Go component API. Follow the [Go Library quickstart](quickstarts/quickstart-go-library.mdx) or the [controller-runtime example](../build-on-workload-map/build-a-controller/tutorial-build-a-controller-on-kind.mdx).
+- To write a definition for your own workload type, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
+- Read the full field reference in the [Workload Definition Spec](../reference/workload-definition-spec.mdx).

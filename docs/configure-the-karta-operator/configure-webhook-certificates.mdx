@@ -1,21 +1,21 @@
 ---
 title: Configure Webhook Certificates
 sidebar-title: Configure Webhook Certificates
-description: Learn how the Workload Map operator gets the TLS certificate for its admission webhook, and how to supply your own certificate with cert-manager or a static CA bundle.
+description: Learn how the Karta Operator gets the TLS certificate for its admission webhook, and how to supply your own certificate with cert-manager or a static CA bundle.
 ---
 
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-The admission webhook of the Workload Map operator is served over TLS, so the API server needs a serving certificate that it trusts. The Helm chart provisions this certificate in one of two modes. You select the mode with the `webhook.cert.provisionMode` value.
+The admission webhook of the Karta Operator is served over TLS, so the API server needs a serving certificate that it trusts. The Helm chart provisions this certificate in one of two modes. You select the mode with the `webhook.cert.provisionMode` value.
 
 Most installations need no action. The default mode creates and renews the certificate for you. Change the mode only if your environment requires you to supply the certificate, for example from a corporate CA.
 
-The webhook exists only when the operator and the webhook are both enabled in the chart. These are the `operator.enabled` and `webhook.enabled` values, and both are `true` by default.
+The webhook exists only when the Karta Operator and the webhook are both enabled in the chart. These are the `operator.enabled` and `webhook.enabled` values, and both are `true` by default.
 
 ## Prerequisites
 
-- The operator installed with the Helm chart, or ready to install. For more information, refer to [Installation](../../get-started/installation.mdx#install-the-operator).
+- The Karta Operator installed with the Helm chart, or ready to install. For more information, refer to [Installation](../getting-started/installation.mdx#install-the-karta-operator).
 - For the cert-manager option, cert-manager installed in the cluster.
 
 The commands on this page use the chart in a clone of the repository, `charts/karta`. To use the published chart, replace `charts/karta` with `oci://ghcr.io/dsx-ai-factory/workload-map/karta`, and add `--version <version>`.
@@ -33,7 +33,7 @@ webhook:
     provisionMode: auto
 ```
 
-In `auto` mode, the operator does the following:
+In `auto` mode, the Karta Operator does the following:
 
 - It self-signs the serving certificate.
 - It writes the certificate to the `karta-operator-webhook-cert` Secret.
@@ -53,12 +53,12 @@ webhook:
     provisionMode: manual
 ```
 
-In `manual` mode, the operator does not touch certificates. It only reads the serving certificate from the mounted Secret. The chart renders no cert-manager objects, so you can use any external provider. Two values connect the provider:
+In `manual` mode, the Karta Operator does not touch certificates. It only reads the serving certificate from the mounted Secret. The chart renders no cert-manager objects, so you can use any external provider. Two values connect the provider:
 
 - `webhook.cert.annotations` adds annotations to both webhook configurations. Use it to let a controller inject the CA bundle, for example the cainjector of cert-manager.
 - `webhook.cert.caBundle` is a base64-encoded CA bundle that the chart stamps directly onto both webhook configurations. Use it when no injector is available.
 
-The operator mounts the Secret named `karta-operator-webhook-cert`. The Secret that you provide must use that name, and it must contain `tls.crt` and `tls.key`.
+The Karta Operator mounts the Secret named `karta-operator-webhook-cert`. The Secret that you provide must use that name, and it must contain `tls.crt` and `tls.key`.
 
 ### Required Subject Alternative Names
 
@@ -125,7 +125,7 @@ The `-w0` option is specific to GNU `base64`. On macOS, use `base64 < ca.crt | t
 
 ## Understand What Happens When the Webhook Is Unavailable
 
-Both webhook configurations use `failurePolicy: Fail`. If the API server cannot reach the webhook, it rejects the creation or the update of a `Karta` definition. This makes the labeling and the validation authoritative, but it means that the operator must be running, and the serving certificate must be ready, before you create a definition. In `auto` mode, the operator provisions the certificate. In `manual` mode, the external Secret must exist.
+Both webhook configurations use `failurePolicy: Fail`. If the API server cannot reach the webhook, it rejects the creation or the update of a `Karta` definition. This makes the labeling and the validation authoritative, but it means that the Karta Operator must be running, and the serving certificate must be ready, before you create a definition. In `auto` mode, the Karta Operator provisions the certificate. In `manual` mode, the external Secret must exist.
 
 The webhook applies only to `Karta` definitions. It does not affect your workloads. The reconciler also stamps the same group, version, and kind labels on definitions that were created while the webhook was disabled.
 
@@ -134,8 +134,8 @@ The webhook applies only to `Karta` definitions. It does not affect your workloa
 | Value | Default | Purpose |
 | --- | --- | --- |
 | `webhook.enabled` | `true` | Enables the admission webhook and all its resources. |
-| `webhook.cert.provisionMode` | `auto` | `auto` (the operator self-signs and rotates) or `manual` (external certificates). |
+| `webhook.cert.provisionMode` | `auto` | `auto` (the Karta Operator self-signs and rotates) or `manual` (external certificates). |
 | `webhook.cert.annotations` | `{}` | Manual mode. Annotations for the webhook configurations, for example `cert-manager.io/inject-ca-from`. |
 | `webhook.cert.caBundle` | `""` | Manual mode. Base64-encoded CA bundle stamped onto the webhook configurations. |
 
-For all chart values, refer to [Helm Chart Values](../../reference/helm-chart-values.mdx).
+For all chart values, refer to [Helm Chart Values](../reference/helm-chart-values.mdx).

@@ -7,15 +7,15 @@ description: Learn how to write a Workload Map definition for a Kubernetes workl
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-A `Karta` definition describes the structure of a workload type: its root resource, the child resources and pods that it owns, where each pod template is stored, how to read the replica count, and how its status maps to a normalized phase. The CLI, the operator, and schedulers read this description to handle any workload type through the same API.
+A `Karta` definition describes the structure of a workload type: its root resource, the child resources and pods that it owns, where each pod template is stored, how to read the replica count, and how its status maps to a normalized phase. The CLI, the Karta Operator, and schedulers read this description to handle any workload type through the same API.
 
-Write a definition when the catalog has none for your workload type, or when you need to change how the catalog reads one. In this guide, you copy a catalog definition, adapt it to your workload type, validate it, and apply it to a cluster. If you have never written a definition, start with the [tutorial](../get-started/tutorial-author-your-first-karta.mdx), which builds one from scratch for a Kubernetes Job.
+Write a definition when the catalog has none for your workload type, or when you need to change how the catalog reads one. In this guide, you copy a catalog definition, adapt it to your workload type, validate it, and apply it to a cluster. If you have never written a definition, start with the [tutorial](../getting-started/tutorial-write-your-first-workload-definition.mdx), which builds one from scratch for a Kubernetes Job. For every field that a definition supports, refer to the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
 
 ## Prerequisites
 
-- `kli` installed. For more information, refer to [Installation](../get-started/installation.mdx#install-the-kli-cli).
+- `kli` installed. For more information, refer to [Installation](../getting-started/installation.mdx#install-the-kli-cli).
 - A cluster with the CRD of your workload type installed, and a running workload of that type to use as a reference.
-- The operator installed in that cluster, to apply the definition and verify it. For more information, refer to [Installation](../get-started/installation.mdx#install-the-operator). Writing and validating a definition need no operator.
+- The Karta Operator installed in that cluster, to apply the definition and verify it. For more information, refer to [Installation](../getting-started/installation.mdx#install-the-karta-operator). Writing and validating a definition need no operator.
 
 ## Gather the Workload Details
 
@@ -73,7 +73,7 @@ Select the rule that matches the field in which the workload reports its state:
 | A single phase or state field | `phaseDefinition` and `byPhase` | [NIMCache](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/apps-nvidia-com-nimcache-v1alpha1.yaml) |
 | Counts or other status fields | `byExpression` | [JobSet](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml) |
 
-Map a status only if the workload reports it, and use the condition types and fields that appear in the API of the workload. A condition type that the controller never sets passes validation but never matches. For the matching rules, refer to [Step 2 of the tutorial](../get-started/tutorial-author-your-first-karta.mdx#step-2-map-the-status).
+Map a status only if the workload reports it, and use the condition types and fields that appear in the API of the workload. A condition type that the controller never sets passes validation but never matches. For the matching rules, refer to [Step 2 of the tutorial](../getting-started/tutorial-write-your-first-workload-definition.mdx#step-2-map-the-status).
 
 ## Set the Pod Template and the Scale
 
@@ -162,7 +162,7 @@ Set the following fields only if they apply to your workload type:
 | --- | --- |
 | `suspendDefinition` | Lists the path and value assignments that suspend and resume the workload. Use it only if the framework supports suspension natively, such as `.spec.suspend` on a Job. |
 | `additionalChildKinds` | Lists the kinds that the workload creates but that no component models. The list is required for RBAC purposes. Do not list a kind that a component already declares. |
-| `optimizationInstructions` | Tells a scheduler how to group the pods of the workload. Use the `gangScheduling.podGroup` format. The catalog definition `batch-job-v1` and some others still use the older `podGroups` list format, which is deprecated in favor of `podGroup`. For more information, refer to [Gang Scheduling with KAI Scheduler](schedule/gang-scheduling-with-kai-scheduler.mdx). |
+| `optimizationInstructions` | Tells a scheduler how to group the pods of the workload. Use the `gangScheduling.podGroup` format. The catalog definition `batch-job-v1` and some others still use the older `podGroups` list format, which is deprecated in favor of `podGroup`. For more information, refer to [Set Up Gang Scheduling with KAI Scheduler](../schedule-workloads/set-up-gang-scheduling-with-kai-scheduler.mdx). |
 | `spec.experimental` | Set it to `true` for a definition that consumers must enable explicitly. The SDK and the catalog keep the definition available. The CLI, the Headlamp plugin, and the exporter exclude it until their experimental setting is on, even if the definition is installed in the cluster. If you omit the field or set it to `false`, the definition behaves normally. |
 
 ## Validate the Definition
@@ -191,7 +191,7 @@ The exit code reports the result:
 
 ## Check the Definition Against a Real Workload
 
-Validation does not show whether a jq path resolves against a real object, so a definition can pass validation and still extract nothing. The `karta-verify` tool runs the definition against a real custom resource, and it reports what it extracted. It needs no cluster. It is part of the `karta/sdk` module, so it needs a clone of the repository and Go. For more information, refer to [Prerequisites](../get-started/prerequisites.mdx#go-library).
+Validation does not show whether a jq path resolves against a real object, so a definition can pass validation and still extract nothing. The `karta-verify` tool runs the definition against a real custom resource, and it reports what it extracted. It needs no cluster. It is part of the `karta/sdk` module, so it needs a clone of the repository and Go. For more information, refer to [Prerequisites](../getting-started/prerequisites.mdx#go-library).
 
 From the `karta/sdk` directory of the clone, run the tool with the definition and the manifest of a workload:
 
@@ -243,7 +243,7 @@ For the predictions file format and more examples, refer to the [karta-verify RE
    kubectl apply -f my-workload.yaml
    ```
 
-2. Check that the operator accepted the definition:
+2. Check that the Karta Operator accepted the definition:
 
    ```bash
    kubectl get karta <name> -o jsonpath='{range .status.conditions[*]}{.type}={.status} {end}'
@@ -264,7 +264,7 @@ To apply a definition with `spec.experimental`, the `Karta` CRD must include tha
 </Note>
 
 <Note title="One definition for each type">
-The operator rejects a second definition for the same group, version, and kind, and the kind of the root component cannot change. To change a definition, edit the file and apply it again.
+The Karta Operator rejects a second definition for the same group, version, and kind, and the kind of the root component cannot change. To change a definition, edit the file and apply it again.
 </Note>
 
 ## Next Steps
@@ -272,4 +272,4 @@ The operator rejects a second definition for the same group, version, and kind, 
 - To fix a validation error, refer to [Troubleshoot Definitions](../troubleshooting/troubleshoot-definitions.mdx).
 - To look up every field of a definition, refer to the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
 - To find a definition to start from, refer to the [Catalog of Definitions](../reference/catalog-of-definitions.mdx).
-- To read a definition from your own code, refer to [About Building a Controller](controller/about-building-a-controller.mdx).
+- To read a definition from your own code, refer to [How a Controller Uses Workload Map](build-a-controller/how-a-controller-uses-workload-map.mdx).

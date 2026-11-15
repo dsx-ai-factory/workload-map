@@ -11,9 +11,9 @@ In this tutorial, you install a real controller into a Kubernetes cluster and wa
 
 A LeaderWorkerSet is a good example because its structure is not simple. It has no single pod template on the root. Its pods live in two child components, a leader and a worker, and each has its own template under `spec.leaderWorkerTemplate`. The worker replica count is a computed expression. The reconciler does not need to know any of this, because Workload Map resolves where everything lives from the definition of the LeaderWorkerSet.
 
-The tutorial complements the [Go library quickstart](../../get-started/quickstart-go-library.mdx), which runs offline against embedded YAML. Here, the workload structure is not embedded in the binary. It lives in the cluster as a `Karta` custom resource, and the controller reads it at runtime. The controller is also not tied to LeaderWorkerSet. The `--watch-gvk` flag sets the watched types, so managing another workload type needs no code change. For more information, refer to [Add Another Workload Type](add-another-workload-type.mdx).
+The tutorial complements the [Go library quickstart](../../getting-started/quickstarts/quickstart-go-library.mdx), which runs offline against embedded YAML. Here, the workload structure is not embedded in the binary. It lives in the cluster as a `Karta` custom resource, and the controller reads it at runtime. The controller is also not tied to LeaderWorkerSet. The `--watch-gvk` flag sets the watched types, so managing another workload type needs no code change. For more information, refer to [Watch Another Workload Type](watch-another-workload-type.mdx).
 
-For the concepts behind the controller, refer to [About Building a Controller](about-building-a-controller.mdx).
+For the concepts behind the controller, refer to [How a Controller Uses Workload Map](how-a-controller-uses-workload-map.mdx).
 
 ## Prerequisites
 
@@ -183,5 +183,5 @@ kind delete cluster
 
 ## Next Steps
 
-- To make this controller manage JobSets too, refer to [Add Another Workload Type](add-another-workload-type.mdx).
+- To make this controller manage JobSets too, refer to [Watch Another Workload Type](watch-another-workload-type.mdx).
 - To write your own code against the library, refer to [Use the Go Library](use-the-go-library.mdx).

@@ -7,14 +7,14 @@ description: Learn how to use the Workload Map Go library to read the status, sc
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-The `karta/sdk` Go library gives your code one API for every workload type that has a definition. This guide shows the calls that a controller uses. The code in the examples comes from the [example controller](tutorial-build-a-controller-on-kind.mdx) and the [Go quickstart](../../get-started/quickstart-go-library.mdx). For the concepts behind them, refer to [About Building a Controller](about-building-a-controller.mdx).
+The `karta/sdk` Go library gives your code one API for every workload type that has a definition. This guide shows the calls that a controller uses. The code in the examples comes from the [example controller](tutorial-build-a-controller-on-kind.mdx) and the [Go quickstart](../../getting-started/quickstarts/quickstart-go-library.mdx). For the concepts behind them, refer to [How a Controller Uses Workload Map](how-a-controller-uses-workload-map.mdx).
 
 For the complete API, refer to the [Go library reference](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk).
 
 ## Prerequisites
 
-- Go 1.27.3 or later. For more information, refer to [Prerequisites](../../get-started/prerequisites.mdx#go-library).
-- The library added to your Go module. For more information, refer to [Installation](../../get-started/installation.mdx#install-the-go-library).
+- Go 1.27.3 or later. For more information, refer to [Prerequisites](../../getting-started/prerequisites.mdx#go-library).
+- The library added to your Go module. For more information, refer to [Installation](../../getting-started/installation.mdx#install-the-go-library).
 
 ## Get a Definition
 
@@ -137,5 +137,5 @@ The tree holds the normalized status in `wt.Status` and the components in `wt.Ch
 ## Next Steps
 
 - To run a controller that uses these calls, follow the [tutorial](tutorial-build-a-controller-on-kind.mdx).
-- To run the offline example, follow the [Go library quickstart](../../get-started/quickstart-go-library.mdx).
-- To make a running controller manage another workload type, refer to [Add Another Workload Type](add-another-workload-type.mdx).
+- To run the offline example, follow the [Go library quickstart](../../getting-started/quickstarts/quickstart-go-library.mdx).
+- To make a running controller manage another workload type, refer to [Watch Another Workload Type](watch-another-workload-type.mdx).

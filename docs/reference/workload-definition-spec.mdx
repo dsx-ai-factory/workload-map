@@ -7,7 +7,7 @@ description: Look up every field of a Workload Map definition, the Karta resourc
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-This page lists every field of a Workload Map definition. A definition is a `Karta` resource of the `run.ai/v1alpha1` API. To learn how to write one, refer to [Define a Workload Type](../guides/define-a-workload-type.mdx). To learn the terms, refer to [Core Concepts](../about/core-concepts.mdx).
+This page describes every field of a Workload Map definition: its type, whether it is required, and what it does. A definition is a `Karta` resource in the `run.ai/v1alpha1` API. To write a definition, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
 
 ## The Karta Resource
 
@@ -17,7 +17,7 @@ A `Karta` resource is cluster-scoped. Its plural name is `kartas`, and its short
 kubectl get krt
 ```
 
-A definition has the standard `apiVersion`, `kind`, and `metadata` fields, a `spec`, and a `status`. The operator writes the `status`. For more information, refer to [Definition Status](#definition-status).
+A definition has the standard `apiVersion`, `kind`, and `metadata` fields, a `spec`, and a `status`. The Karta Operator writes the `status`. For more information, refer to [Definition Status](#definition-status).
 
 ```yaml
 apiVersion: run.ai/v1alpha1
@@ -502,7 +502,7 @@ optimizationInstructions:
 
 ## Definition Status
 
-The operator writes the `status` of a definition. It has a `conditions` list with the following conditions:
+The Karta Operator writes the `status` of a definition. It has a `conditions` list with the following conditions:
 
 | Condition | It is `True` when |
 | --- | --- |
@@ -510,7 +510,7 @@ The operator writes the `status` of a definition. It has a `conditions` list wit
 | `CRDExists` | The cluster has the CRD for the root component of the definition, and the CRD serves the version that the definition names. |
 | `Ready` | Both `Validated` and `CRDExists` are `True`. |
 
-The operator also stamps the labels `karta.run.ai/group`, `karta.run.ai/version`, and `karta.run.ai/kind` on every definition that has a root component kind. They hold the group, version, and kind of the root component. A webhook rejects an edit that changes or removes these labels.
+The Karta Operator also stamps the labels `karta.run.ai/group`, `karta.run.ai/version`, and `karta.run.ai/kind` on every definition that has a root component kind. They hold the group, version, and kind of the root component. A webhook rejects an edit that changes or removes these labels.
 
 ## Best Practices
 

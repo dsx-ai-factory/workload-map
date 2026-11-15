@@ -1,6 +1,6 @@
 ---
-title: About Building a Controller
-sidebar-title: About Building a Controller
+title: How a Controller Uses Workload Map
+sidebar-title: How a Controller Uses Workload Map
 description: Learn how a controller uses the Workload Map Go library to read and change any workload type with the same code.
 ---
 
@@ -66,7 +66,7 @@ A controller can read definitions from two places:
 - The catalog that is built into the library. It contains definitions for common workload types, such as JobSet, PyTorchJob, and LeaderWorkerSet.
 - `Karta` resources in the cluster. A controller that reads them picks up new and changed definitions at runtime, with no rebuild or redeploy.
 
-The example controller reads `Karta` resources from the cluster, so its structure data is cluster data and not code. It needs the `Karta` CRD, which is a custom resource definition. It does not need the operator.
+The example controller reads `Karta` resources from the cluster, so its structure data is cluster data and not code. It needs the `Karta` CRD, which is a custom resource definition. It does not need the Karta Operator.
 
 ## How a Reconcile Loop Is Structured
 
@@ -85,4 +85,4 @@ There is no `switch` on the workload kind anywhere in the loop. The example cont
 
 - To run the example controller on a local cluster, follow the [tutorial](tutorial-build-a-controller-on-kind.mdx).
 - To write your own code against the library, refer to [Use the Go Library](use-the-go-library.mdx).
-- To make a running controller manage another workload type, refer to [Add Another Workload Type](add-another-workload-type.mdx).
+- To make a running controller manage another workload type, refer to [Watch Another Workload Type](watch-another-workload-type.mdx).

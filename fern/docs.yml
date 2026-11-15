@@ -99,9 +99,6 @@ navigation:
           - page: Watch Another Workload Type
             path: ../docs/building-on-workload-map/build-a-controller/watch-another-workload-type.mdx
             slug: watch-another-workload-type
-      - page: Set Up Gang Scheduling with KAI Scheduler
-        path: ../docs/building-on-workload-map/set-up-gang-scheduling-with-kai-scheduler.mdx
-        slug: set-up-gang-scheduling-with-kai-scheduler
   - section: Configuration
     slug: configuration
     contents:

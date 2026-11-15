@@ -10,7 +10,7 @@ in an upstream release.
 
 ## Read and write execution
 
-![Proposed SDK reference resolution and local mutation.](sdk-references.png)
+![Reference resolution through a Kubernetes reader or supplied objects.](sdk-references.png)
 
 For KServe, the caller asks to change the predictor's image. The SDK evaluates
 the write match, resolves `/spec/predictor/model`, and merges the supplied image
@@ -39,7 +39,8 @@ type WriteAccessor struct {
 ```
 
 Admission validates the field shape and compiles CEL. A fixed pointer must be
-valid; a computed pointer is checked after evaluation. Loaders for local YAML
+valid; a computed pointer is checked after evaluation. Reject duplicate variable
+names, unknown dependencies and dependency cycles. Loaders for local YAML
 run the same validation. Compile programs once per definition revision and reuse
 them. Keep workload values and reference bindings outside the compiled program.
 
@@ -118,18 +119,24 @@ again and recalculate the change using a new editor.
    or overlapping targets, and unknown or duplicate instance IDs.
 2. Apply each merge patch at its selected subtree in a private copy. Create
    missing object parents; never invent array entries or replace a scalar parent.
-3. Validate workload identity and re-extract the tree. Publish the new object
-   and tree together only if every operation succeeds.
+3. Validate workload identity and re-extract the tree through a new factory.
+   Publish the new object and tree together only if every operation succeeds.
 
-Merge Patch merges map keys, replaces scalars and arrays, and deletes a map key
-when its patch value is null. It cannot store literal null in a map or merge
-containers by name. A caller editing an array supplies the complete new array.
+The new factory uses the updated workload to resolve references. With manual
+bindings, reject a mutation that changes a reference lookup name or selector
+values. Change that reference on the input object and open a new editor with
+matching bindings.
+
+`Write.Value` must be a non-null JSON value. Merge Patch merges map keys, replaces
+scalars and arrays, and deletes a map key when its patch value is null. It cannot
+store literal null in a map or merge containers by name. A caller editing an
+array supplies the complete new array.
 There is no patch-format setting in the CRD or initial public SDK.
 
-The existing typed `Component.Update*` APIs need an explicit migration review:
-serializing a `corev1.Container` loses operator-specific fields. Their replacement
-behavior must not silently become partial-merge behavior. The new write call
-accepts raw JSON so callers can state the fields they intend to change.
+The SDK release that adds v1alpha2 removes the typed `Component.Update*` writers.
+Callers migrate to raw JSON `Mutate` calls; typed reads remain. Serializing a `corev1.Container`
+loses operator-specific fields. Raw JSON lets callers state only the fields
+they intend to change.
 
 ## References with a Kubernetes client
 
@@ -195,10 +202,11 @@ direct API reads. Consumers choosing a cache-backed reader own its setup and
 freshness.
 
 The factory keeps successful results. A failed resolution is not cached.
-Dependency checks are syntactic: Trainer's fallback mentions the runtime even
-when an image override is present, so that read still resolves it. `tree.Open`
-extracts the whole tree, so it can resolve references immediately; use component
-getters for status-only reads.
+Dependency checks use expression syntax. Trainer's fallback mentions the runtime
+even when an image override is present, so that read still resolves it.
+
+`tree.Open` extracts the whole tree, so it can resolve references immediately.
+Use component getters for status-only reads.
 
 ## References supplied manually
 
@@ -251,8 +259,9 @@ An SDK snapshot is not an atomic Kubernetes snapshot across several objects.
 
 Land the versioned API and validation, the CEL evaluator, local mutation, then
 reference resolution and the client adapter. Convert catalog definitions with
-read/write fixture checks. Keep the scope and version migration tests required
-by the KEP in the same release. Run the repository's generated-manifest and
+read/write fixture checks. Test null patch rejection and reference recipes that
+change during a mutation, with both reference sources. Keep the scope and version
+migration tests required by the KEP in the same release. Run the repository's generated-manifest and
 presubmit checks when those implementations change source or API types.
 
 ### Implementation evidence
@@ -267,7 +276,7 @@ The following are prototype evidence, not tests of this combined proposal:
   and [recordings](https://github.com/AviadHayumi/workload-map/tree/cd91d670a9b6613e4d1c21e066b37a8446eb9fb1/test/e2e/recorded_data/trainer/v1.34.0/trainer-kubeflow-org-trainjob-v1alpha1):
   effective runtime values, zero reference reads for status, and suspend/resume.
 
-The new `read`/`write` shape, independent matches, binding validation, adapter and
-`v1alpha2` migration remain proposed. The Go snippets describe that proposed API
+The new `read`/`write` shape, mutation rules, independent matches, binding validation,
+adapter and `v1alpha2` migration remain proposed. The Go snippets describe that proposed API
 and cannot compile against current upstream. Tests must prove those contracts
 before the implementation is described as complete.

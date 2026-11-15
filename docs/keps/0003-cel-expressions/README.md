@@ -16,7 +16,7 @@ locations, with an optional match expression on each. Read named references
 through a Kubernetes reader or objects supplied by the caller. The SDK changes
 the workload locally; the caller saves it to Kubernetes.
 
-![Proposed read, reference and write flow.](cel-overview.png)
+![KServe read and write flow, with the caller saving the result.](cel-overview.png)
 
 ## Motivation
 
@@ -258,9 +258,9 @@ creates a new SDK snapshot on its next observation. CEL evaluation needs cost
 limits and context cancellation.
 
 Keep one SDK format initially: [JSON Merge Patch](https://www.rfc-editor.org/rfc/rfc7396). It covers the model image,
-labels, resources and scalar values in these examples. Null deletes a map key;
-arrays replace in full. JSON Patch can be added for a demonstrated need to store
-literal null or edit a list by position. Keeping jq alongside CEL would require
+labels, resources and scalar values in these examples. Null inside a map patch
+deletes a key; arrays replace in full. JSON Patch can be added for a demonstrated
+need to store literal null or edit a list by position. Keeping jq alongside CEL would require
 maintaining and testing both expression contracts.
 
 ## History

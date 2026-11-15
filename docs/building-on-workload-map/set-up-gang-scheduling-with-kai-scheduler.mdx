@@ -107,7 +107,7 @@ The KAI integration keeps the generated structure simple:
 - KAI creates no nested subgroups, and no `minSubGroup` inside a subgroup.
 - KAI creates one subgroup for each component. All the pods that match a component attach to the subgroup of that component, whatever their grouping key.
 
-A component that uses a `componentInstanceSelector` or a `replicaSelector` is a poor candidate for a subgroup. It can still take part in the pod group, but one subgroup can hide the structure of its instances. For these selectors, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
+A component that uses a `componentInstanceSelector` or a `replicaSelector` is a poor candidate for a subgroup. It can still take part in the pod group, but one subgroup can hide the structure of its instances. For these selectors, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx).
 
 ### The Older podGroups Format
 
@@ -160,6 +160,6 @@ KAI skips a definition in the following cases, and then it uses the default pod 
 
 ## Next Steps
 
-- To write a definition for a workload type, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
+- To write a definition for a workload type, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx).
 - To learn what optimization instructions are, refer to [Core Concepts](../about/core-concepts.mdx).
 - To read the design of the KAI integration, refer to the [KAI Scheduler design document](https://github.com/kai-scheduler/KAI-Scheduler/blob/main/docs/developer/designs/no-code-grouping/kai-no-code-grouping.md).

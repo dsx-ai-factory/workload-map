@@ -11,9 +11,11 @@ From the repository root, run:
 
 Requires Docker, Kind, kubectl, Helm, Make, Go, Git, curl, tar and shasum on PATH.
 Allow about 8 GiB of Docker memory and internet access for images and Go modules.
-The script uses `make exporter-image` to build the exporter from this checkout
-and creates a two-node Kind cluster. Each run uses unique local image tags. It keeps the current Kubernetes context unchanged. Run `--help` for
-cluster and local-port options. An existing cluster with the same name is refused.
+The root launcher runs [up.sh](up.sh) beside the demo manifests and build files.
+It reuses `make exporter-image` and `charts/karta` to build and install the exporter.
+It creates a fresh two-node Kind cluster with unique local image tags and keeps
+the current Kubernetes context unchanged. Run `--help` for cluster and local-port
+options. An existing cluster with the same name is refused.
 
 The script prints dashboard links and a dedicated kubeconfig path. Keep it
 running while viewing Grafana. Ctrl-C stops its port-forwards and leaves the

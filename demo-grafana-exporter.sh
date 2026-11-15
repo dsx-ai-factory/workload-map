@@ -112,10 +112,13 @@ curl --fail --location --retry 3 \
   GOTOOLCHAIN=go1.25.4 CGO_ENABLED=0 GOOS=linux GOARCH="$architecture" \
     go build -trimpath -o bin/ ./cmd/status-updater ./cmd/status-exporter ./cmd/status-exporter-kwok
 )
+mkdir -p "$work_dir/fake-image"
+cp -R "$work_dir/fake-gpu-operator-0.0.72/bin" "$work_dir/fake-image/bin"
+cp "$work_dir/fake-gpu-operator-0.0.72/LICENSE" "$work_dir/fake-image/LICENSE"
 for component in status-updater status-exporter; do
   docker build --platform "linux/$architecture" --target "$component" \
     -t "local/fake-gpu-$component:0.0.72-pod-uid" \
-    -f "$assets/Dockerfile.fake-gpu" "$work_dir/fake-gpu-operator-0.0.72"
+    -f "$assets/Dockerfile.fake-gpu" "$work_dir/fake-image"
 done
 
 kind create cluster --name "$cluster_name" --image kindest/node:v1.34.0 \

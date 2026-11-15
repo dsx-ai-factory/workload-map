@@ -1,6 +1,6 @@
 ---
-title: Gang Scheduling with KAI Scheduler
-sidebar-title: Gang Scheduling with KAI Scheduler
+title: Set Up Gang Scheduling with KAI Scheduler
+sidebar-title: Set Up Gang Scheduling with KAI Scheduler
 description: Learn how to add gang scheduling instructions to a Workload Map definition so that KAI Scheduler schedules the pods of a workload type as a gang.
 ---
 
@@ -43,12 +43,12 @@ KAI also keeps the standard metadata that its pod grouper handles, such as the n
 
 ## Prerequisites
 
-- KAI Scheduler v0.19.0 or later. The Workload Map plugin shipped in KAI Scheduler v0.17.0. Release v0.19.0 changed KAI to find definitions under the label keys that the Workload Map operator stamps.
+- KAI Scheduler v0.19.0 or later. The Workload Map plugin shipped in KAI Scheduler v0.17.0. Release v0.19.0 changed KAI to find definitions under the label keys that the Karta Operator stamps.
 - The generic fallback enabled in the KAI pod grouper. The `generic-karta-fallback` option is `true` by default.
-- The `Karta` CRD and the Workload Map operator installed in the same cluster. For more information, refer to [Installation](../../get-started/installation.mdx#install-the-operator).
+- The `Karta` CRD and the Karta Operator installed in the same cluster. For more information, refer to [Installation](../getting-started/installation.mdx#install-the-karta-operator).
 - A workload type that has no native KAI plugin. A native plugin takes precedence over a definition.
 
-KAI finds a definition by the group, version, and kind of its root component. It matches them against three labels on the `Karta` object: `karta.run.ai/group`, `karta.run.ai/version`, and `karta.run.ai/kind`. The operator stamps these labels on each definition. Its admission webhook stamps them when you apply a definition, and its reconciler adds them to definitions that were created while the webhook was disabled.
+KAI finds a definition by the group, version, and kind of its root component. It matches them against three labels on the `Karta` object: `karta.run.ai/group`, `karta.run.ai/version`, and `karta.run.ai/kind`. The Karta Operator stamps these labels on each definition. Its admission webhook stamps them when you apply a definition, and its reconciler adds them to definitions that were created while the webhook was disabled.
 
 ## Add Gang Scheduling Instructions
 
@@ -107,7 +107,7 @@ The KAI integration keeps the generated structure simple:
 - KAI creates no nested subgroups, and no `minSubGroup` inside a subgroup.
 - KAI creates one subgroup for each component. All the pods that match a component attach to the subgroup of that component, whatever their grouping key.
 
-A component that uses a `componentInstanceSelector` or a `replicaSelector` is a poor candidate for a subgroup. It can still take part in the pod group, but one subgroup can hide the structure of its instances. For these selectors, refer to [Define a Workload Type](../define-a-workload-type.mdx).
+A component that uses a `componentInstanceSelector` or a `replicaSelector` is a poor candidate for a subgroup. It can still take part in the pod group, but one subgroup can hide the structure of its instances. For these selectors, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
 
 ### The Older podGroups Format
 
@@ -133,7 +133,7 @@ The two formats are not equivalent. A member of `podGroups` has `groupByKeyPaths
    kubectl apply -f my-workload.yaml
    ```
 
-3. Check that the operator stamped the labels that KAI uses to find the definition:
+3. Check that the Karta Operator stamped the labels that KAI uses to find the definition:
 
    ```bash
    kubectl get karta <name> --show-labels
@@ -160,6 +160,6 @@ KAI skips a definition in the following cases, and then it uses the default pod 
 
 ## Next Steps
 
-- To write a definition for a workload type, refer to [Define a Workload Type](../define-a-workload-type.mdx).
-- To learn what optimization instructions are, refer to [Core Concepts](../../about/core-concepts.mdx).
+- To write a definition for a workload type, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
+- To learn what optimization instructions are, refer to [Core Concepts](../about/core-concepts.mdx).
 - To read the design of the KAI integration, refer to the [KAI Scheduler design document](https://github.com/kai-scheduler/KAI-Scheduler/blob/main/docs/developer/designs/no-code-grouping/kai-no-code-grouping.md).

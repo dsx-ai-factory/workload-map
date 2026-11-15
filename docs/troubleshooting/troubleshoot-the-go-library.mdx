@@ -7,7 +7,7 @@ description: Find the cause and the fix for the errors that the Workload Map Go 
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-This page covers the errors that the `resource` package of the Go library returns at runtime. They occur when code reads a part of a definition that the definition does not have, or when a pod cannot be tied to a component instance. For validation errors in a definition, refer to [Troubleshoot Definitions](troubleshoot-definitions.mdx). For how to use the library, refer to [Use the Go Library](../guides/controller/use-the-go-library.mdx).
+This page covers the errors that the `resource` package of the Go library returns at runtime. They occur when code reads a part of a definition that the definition does not have, or when a pod cannot be tied to a component instance. For validation errors in a definition, refer to [Troubleshoot Definitions](troubleshoot-definitions.mdx). For how to use the library, refer to [Use the Go Library](../build-on-workload-map/build-a-controller/use-the-go-library.mdx).
 
 ## Accessor Errors
 
@@ -27,9 +27,9 @@ The message of `DefinitionNotFoundError` names the missing part. It has one of t
 - `component <name> does not have status definition`
 - `component <name> does not have suspendDefinition`
 
-## When You Get the Error and When You Get nil
+## What Each Method Returns
 
-Where the error appears depends on how you call the library:
+When a component does not define a part, the result depends on which method you call:
 
 - **The read methods of a component** return `nil` and no error when the component does not define the part. These are `GetPodTemplateSpec`, `GetPodSpec`, `GetPodMetadata`, `GetFragmentedPodSpec`, `GetScale`, and `GetStatus`. If a read method returns `nil` and you expected data, the component does not define that part. Check the definition of the component.
 - **The update methods of a component** return the error. These are `UpdatePodTemplateSpec`, `UpdatePodSpec`, `UpdatePodMetadata`, and `UpdateFragmentedPodSpec`. Calling one on a component without the matching part returns `DefinitionNotFoundError`.

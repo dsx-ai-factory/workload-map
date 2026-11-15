@@ -7,61 +7,61 @@ description: Look up the values of the Workload Map Helm chart, with the default
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-This page lists the values of the `karta` Helm chart, which installs the operator, the `Karta` CRD, and optionally the exporter. To install the chart, refer to [Installation](../get-started/installation.mdx). To override a value, use `--set key=value` or `-f my-values.yaml` with `helm upgrade --install`.
+This page lists the values of the `karta` Helm chart, which installs the Karta Operator, the `Karta` CRD, and optionally the exporter. To install the chart, refer to [Installation](../getting-started/installation.mdx). To override a value, use `--set key=value` or `-f my-values.yaml` with `helm upgrade --install`.
 
-## Global and Operator
+## Global and Karta Operator
 
 | Value | Default | Description |
 | --- | --- | --- |
-| `global.fipsMode` | `"off"` | The Go FIPS 140-3 runtime mode: `off`, `on`, or `only`. For more information, refer to [Run in FIPS Mode](../guides/operator/run-in-fips-mode.mdx). |
-| `operator.enabled` | `true` | Set it to `false` to skip the operator workload. The webhook resources also depend on it. |
+| `global.fipsMode` | `"off"` | The Go FIPS 140-3 runtime mode: `off`, `on`, or `only`. For more information, refer to [Run in FIPS Mode](../configure-the-karta-operator/run-in-fips-mode.mdx). |
+| `operator.enabled` | `true` | Set it to `false` to skip the Karta Operator workload. The webhook resources also depend on it. |
 | `fullnameOverride` | `""` | Overrides the names of the resources. You rarely need it. |
-| `replicaCount` | `1` | The number of operator replicas. Keep it at `1` unless `leaderElection.enabled` is `true`. Without leader election, multiple replicas would reconcile concurrently, and the chart fails to render if you set a value above `1` without leader election. |
+| `replicaCount` | `1` | The number of Karta Operator replicas. Keep it at `1` unless `leaderElection.enabled` is `true`. Without leader election, multiple replicas would reconcile concurrently, and the chart fails to render if you set a value above `1` without leader election. |
 | `leaderElection.enabled` | `false` | When enabled, only the replica that holds the lease reconciles. This is an active and passive setup. The chart also creates a namespaced Role and RoleBinding for the lease object. |
 | `leaderElection.id` | `karta-operator.run.ai` | The name of the lease object. |
-| `logLevel` | `info` | The log level of the operator. |
-| `extraArgs` | `[]` | Extra flags that the chart appends after its default arguments. Use it to add flags without replacing the defaults. For the flags, refer to [Operator Flags and Environment Variables](operator-flags-and-environment-variables.mdx). |
+| `logLevel` | `info` | The log level of the Karta Operator. |
+| `extraArgs` | `[]` | Extra flags that the chart appends after its default arguments. Use it to add flags without replacing the defaults. For the flags, refer to [Karta Operator Flags](karta-operator-flags.mdx). |
 
 ## Image
 
 | Value | Default | Description |
 | --- | --- | --- |
-| `image.repository` | `ghcr.io/dsx-ai-factory/workload-map/karta-operator` | The operator image. |
+| `image.repository` | `ghcr.io/dsx-ai-factory/workload-map/karta-operator` | The Karta Operator image. |
 | `image.tag` | `""` | The image tag. When it is empty, the chart uses the application version of the chart, so the chart version and the image version stay in lockstep. |
-| `image.pullPolicy` | `IfNotPresent` | The pull policy of the operator image. |
+| `image.pullPolicy` | `IfNotPresent` | The pull policy of the Karta Operator image. |
 | `imagePullSecrets` | `[]` | The image pull secrets for a private registry. The CRD upgrader job also uses them. |
 
 ## Pod Settings
 
 | Value | Default | Description |
 | --- | --- | --- |
-| `podAnnotations` | `{}` | The annotations of the operator pod, for example Prometheus scrape hints. |
+| `podAnnotations` | `{}` | The annotations of the Karta Operator pod, for example Prometheus scrape hints. |
 | `serviceAccount.create` | `true` | Set it to `false` to use a service account that you manage. Then set `serviceAccount.name`. |
 | `serviceAccount.name` | `""` | The name of the service account. The chart uses it only when `serviceAccount.create` is `false`. |
 | `ports.metrics` | `8080` | The port of the metrics endpoint. |
 | `ports.health` | `8081` | The port of the health endpoints. |
 | `podSecurityContext` | `runAsNonRoot: true`, `runAsUser: 65532`, `runAsGroup: 0`, and a `RuntimeDefault` seccomp profile | The security context of the pod. |
-| `securityContext` | `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, and `drop: [ALL]` capabilities | The security context of the operator container. |
-| `resources` | Requests of `50m` CPU and `64Mi` memory. Limits of `200m` CPU and `2Gi` memory. | The resource requests and limits of the operator container. |
+| `securityContext` | `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, and `drop: [ALL]` capabilities | The security context of the Karta Operator container. |
+| `resources` | Requests of `50m` CPU and `64Mi` memory. Limits of `200m` CPU and `2Gi` memory. | The resource requests and limits of the Karta Operator container. |
 | `nodeSelector` | `{}` | The node selector of the pod. |
 | `tolerations` | `[]` | The tolerations of the pod. |
 | `affinity` | `{}` | The affinity rules of the pod. |
 
 ## Webhook
 
-The webhook is the admission webhook that validates `Karta` definitions. For how the certificate modes work, refer to [Configure Webhook Certificates](../guides/operator/configure-webhook-certificates.mdx).
+The webhook is the admission webhook that validates `Karta` definitions. For how the certificate modes work, refer to [Configure Webhook Certificates](../configure-the-karta-operator/configure-webhook-certificates.mdx).
 
 | Value | Default | Description |
 | --- | --- | --- |
 | `webhook.enabled` | `true` | Enables the admission webhook and all its resources. |
 | `webhook.port` | `9443` | The port that the webhook server binds to. |
-| `webhook.cert.provisionMode` | `auto` | `auto`, where the operator self-signs and rotates the serving certificate, or `manual`, where you supply the certificate. |
+| `webhook.cert.provisionMode` | `auto` | `auto`, where the Karta Operator self-signs and rotates the serving certificate, or `manual`, where you supply the certificate. |
 | `webhook.cert.caBundle` | `""` | Manual mode only. A static, base64-encoded CA bundle that the chart stamps on the webhook configurations. |
 | `webhook.cert.annotations` | `{}` | Manual mode only. Annotations for the webhook configurations. Use it to connect cert-manager, for example `cert-manager.io/inject-ca-from: <namespace>/<certificate-name>`. |
 
 ## CRD Upgrader
 
-A job runs before each install and upgrade. It applies the CRD that the chart bundles with a server-side apply, so that `helm upgrade` rolls the schema forward. Helm itself never upgrades the `crds/` directory. For more information, refer to [Run in FIPS Mode](../guides/operator/run-in-fips-mode.mdx#how-the-crd-upgrader-job-behaves).
+A job runs before each install and upgrade. It applies the CRD that the chart bundles with a server-side apply, so that `helm upgrade` rolls the schema forward. Helm itself never upgrades the `crds/` directory. For more information, refer to [Run in FIPS Mode](../configure-the-karta-operator/run-in-fips-mode.mdx#how-the-crd-upgrader-job-behaves).
 
 | Value | Default | Description |
 | --- | --- | --- |
@@ -76,7 +76,7 @@ A job runs before each install and upgrade. It applies the CRD that the chart bu
 
 ## Admission Policies
 
-The native admission policies run in the API server. They need neither the operator nor the exporter, so `operator.enabled` does not affect them.
+The native admission policies run in the API server. They need neither the Karta Operator nor the exporter, so `operator.enabled` does not affect them.
 
 ### Submitter Capture
 
@@ -103,7 +103,7 @@ The exporter is a standalone metrics exporter with `/metrics`, `/healthz`, and `
 | --- | --- | --- |
 | `exporter.enabled` | `false` | Installs the exporter. |
 
-The `exporter` section has many more values. They cover the namespace and object selection, the sources of definitions, the number of workers, the resources, the permissions, the metric labels, and the `ServiceMonitor` for the Prometheus Operator. For the complete list, with the defaults, refer to the [exporter configuration reference](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/configuration.md#helm-values). To install the exporter, refer to [Installation](../get-started/installation.mdx#install-the-dsx-workload-exporter).
+The `exporter` section has many more values. They cover the namespace and object selection, the sources of definitions, the number of workers, the resources, the permissions, the metric labels, and the `ServiceMonitor` for the Prometheus Operator. For the complete list, with the defaults, refer to the [exporter configuration reference](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/configuration.md#helm-values). To install the exporter, refer to [Installation](../getting-started/installation.mdx#install-the-dsx-workload-exporter).
 
 <Note title="Values in newer builds">
 The `exporter` and `admissionPolicies` values are available in chart versions after 0.3.0.

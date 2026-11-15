@@ -7,18 +7,18 @@ description: Find the cause and the fix for the validation errors that you can g
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-This page maps the errors that you are most likely to get when you write a definition to their cause and fix. The errors fall into the following groups:
+This page lists the errors that can occur when you write a definition, with the cause and the fix for each. The errors fall into the following groups:
 
 - Structure validation errors, which the validator reports. They are on this page.
 - jq path errors, which occur when a path fails to parse, compile, or run. For more information, refer to [Troubleshoot jq Paths](troubleshoot-jq-paths.mdx).
 - Accessor errors, which occur at runtime when code reads a definition that is missing a part, or when a pod cannot be matched to an instance. For more information, refer to [Troubleshoot the Go Library](troubleshoot-the-go-library.mdx).
 - Silent mistakes, which pass validation but produce wrong behavior. They are at the end of this page.
 
-If you are new to writing definitions, start with the [tutorial](../get-started/tutorial-author-your-first-karta.mdx). For the full field reference, refer to the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
+If you are new to writing definitions, start with the [tutorial](../getting-started/tutorial-write-your-first-workload-definition.mdx). For the full field reference, refer to the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
 
 ## Structure Validation Errors
 
-The validator runs over the whole definition. The operator runs the same validator, so these errors also appear in the `Validated` condition of a definition. To run the validator yourself, use `kli validate`.
+The validator runs over the whole definition. The Karta Operator runs the same validator, so these errors also appear in the `Validated` condition of a definition. To run the validator yourself, use `kli validate`.
 
 The validator can report several errors at once. It joins them, so fix each component that the output names. One mistake can also cause more than one error. The following output shows two errors that come from one empty `name`:
 
@@ -62,7 +62,7 @@ The following mistakes pass validation but lead to a wrong status, missing pods,
 
 ## Still Stuck
 
-- Run through the validation checklist in [Step 4 of the tutorial](../get-started/tutorial-author-your-first-karta.mdx#step-4-validate-the-definition-and-see-it-work).
+- Run through the validation checklist in [Step 4 of the tutorial](../getting-started/tutorial-write-your-first-workload-definition.mdx#step-4-validate-the-definition-and-see-it-work).
 - Compare your definition against the closest one in the [Catalog of Definitions](../reference/catalog-of-definitions.mdx).
-- Check the definition against a real workload with `karta-verify`. Validation does not show whether a jq path resolves against a real object. For more information, refer to [Define a Workload Type](../guides/define-a-workload-type.mdx#check-the-definition-against-a-real-workload).
-- Run the offline example in the [Go library quickstart](../get-started/quickstart-go-library.mdx) to see what the uniform API reads back.
+- Check the definition against a real workload with `karta-verify`. Validation does not show whether a jq path resolves against a real object. For more information, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx#check-the-definition-against-a-real-workload).
+- Run the offline example in the [Go library quickstart](../getting-started/quickstarts/quickstart-go-library.mdx) to see what the uniform API reads back.

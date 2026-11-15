@@ -41,14 +41,14 @@ The native conditions of each workload map to one set of statuses. The suspend a
 | --- | --- |
 | Catalog of pre-built definitions | The catalog includes tested definitions for common workload types, such as JobSet, PyTorchJob, MPIJob, RayCluster, LeaderWorkerSet, KServe, NVIDIA NIM, NVIDIA Dynamo, Grove, and Volcano Job. |
 | Experimental definitions | A definition can set `spec.experimental: true`. The CLI, the Headlamp plugin, and the exporter exclude it until you enable experimental definitions. The Kueue Workload definition is an example. |
-| Definition validation | The library, the `kli validate` command, and the operator admission webhook check a definition. The webhook also rejects a second definition for the same group, version, and kind. |
+| Definition validation | The library, the `kli validate` command, and the Karta Operator admission webhook check a definition. The webhook also rejects a second definition for the same group, version, and kind. |
 
 ## Run and Visualize
 
 | Feature | Description |
 | --- | --- |
-| Operator and Helm chart | The operator validates definitions on admission and upgrades the CRD through a Helm chart hook. A FIPS 140-3 mode is available for the operator. |
-| DSX workload exporter | Maps each pod to its workload, component, instance, and group, and reports the status and creation time of each workload. Prometheus can join these identities with CPU, memory, and GPU measurements from other exporters. The exporter runs without the operator. |
+| Karta Operator and Helm chart | The Karta Operator validates definitions on admission and upgrades the CRD through a Helm chart hook. A FIPS 140-3 mode is available for the Karta Operator. |
+| DSX workload exporter | Maps each pod to its workload, component, instance, and group, and reports the status and creation time of each workload. Prometheus can join these identities with CPU, memory, and GPU measurements from other exporters. The exporter runs without the Karta Operator. |
 | Headlamp plugin | A workloads page in Headlamp shows any workload type through the Workload Map engine. The engine runs in the browser as WebAssembly, so no server-side component is needed. |
 
 ## Developer Tools
@@ -73,3 +73,8 @@ The `kli` command-line tool inspects workloads through their definitions. It sup
 | Go library | The `karta/sdk` module evaluates definitions, extracts and updates workload information, and builds the workload tree. |
 | Karta CRD | The `Karta` custom resource kind in the `run.ai/v1alpha1` API group stores the definition of a workload type in a cluster. |
 | WebAssembly engine | The `karta-wasm` module compiles the engine to WebAssembly so that it can run in a browser. |
+
+## Next Steps
+
+- To check what you need before you install, refer to [Prerequisites](../getting-started/prerequisites.mdx).
+- To see Workload Map work, follow the [Quickstart - CLI](../getting-started/quickstarts/quickstart-cli.mdx) or the [Quickstart - Go Library](../getting-started/quickstarts/quickstart-go-library.mdx).

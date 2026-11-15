@@ -7,14 +7,14 @@ description: Look up the pre-built Workload Map definitions that ship in the cat
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-The catalog is the set of pre-built, tested definitions that ship with Workload Map. It is built into the Go library and into `kli`, so the tools can read these workload types without any definition in the cluster.
+The catalog contains the pre-built, tested definitions that ship with Workload Map. The Go library and `kli` include the catalog, so they can read these workload types even when the cluster has no definition for them. This page explains how the catalog works and lists its definitions.
 
 ## How the Catalog Works
 
 - The definitions are Go code in `pkg/catalog`. The repository generates them into YAML files in the `docs/catalog/` directory.
 - The name of a definition follows the group, version, and kind of the workload, such as `leaderworkerset-x-k8s-io-leaderworkerset-v1`. The file has the same name with the `.yaml` extension.
 - A definition in the cluster overrides the catalog definition for the same group, version, and kind. `kli` lists such a definition once, with the origin `cluster`.
-- A definition marked `spec.experimental: true` is excluded by default. For more information, refer to [Use the CLI](../guides/use-the-cli.mdx#include-experimental-definitions).
+- A definition marked `spec.experimental: true` is excluded by default. For more information, refer to [Use the CLI](../inspect-workloads/use-the-cli.mdx#include-experimental-definitions).
 
 To list the definitions in the catalog, run the following command:
 
@@ -28,7 +28,7 @@ To print one definition, give its name. The YAML output applies and validates as
 kli definitions kubeflow-org-pytorchjob-v1 -o yaml
 ```
 
-To write your own definition, start from the catalog definition that is closest to your workload type. For more information, refer to [Define a Workload Type](../guides/define-a-workload-type.mdx).
+To write your own definition, start from the catalog definition that is closest to your workload type. For more information, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
 
 ## Definitions in the Catalog
 
@@ -69,9 +69,9 @@ The following definition is experimental. It is excluded from `kli`, the Headlam
 | --- | --- | --- | --- | --- |
 | Workload | `kueue.x-k8s.io/v1beta2` | Kueue | [`kueue-x-k8s-io-workload-v1beta2`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | `workload` |
 
-To include it in `kli`, use the `--catalog-experimental-definitions` option. For the Headlamp plugin, refer to [Include Experimental Definitions](../guides/visualize/headlamp-plugin.mdx#include-experimental-definitions).
+To include it in `kli`, use the `--catalog-experimental-definitions` option. For the Headlamp plugin, refer to [Include Experimental Definitions](../inspect-workloads/use-the-headlamp-plugin.mdx#include-experimental-definitions).
 
 ## Next Steps
 
-- To write a definition for a workload type that is not in the catalog, refer to [Define a Workload Type](../guides/define-a-workload-type.mdx).
+- To write a definition for a workload type that is not in the catalog, refer to [Define a Workload Type](../build-on-workload-map/define-a-workload-type.mdx).
 - To look up the fields of a definition, refer to the [Workload Definition Spec](workload-definition-spec.mdx).

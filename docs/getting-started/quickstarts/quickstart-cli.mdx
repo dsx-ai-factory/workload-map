@@ -1,17 +1,17 @@
 ---
 title: Quickstart - CLI
-sidebar-title: Quickstart - CLI
+sidebar-title: CLI
 description: Learn how to use the Workload Map kli CLI to see which workloads run in a cluster and how each one is structured.
 ---
 
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-This quickstart shows what the `kli` CLI is for: seeing which workloads run in a cluster and how each one is structured. You run a JobSet with a leader and workers, then use `kli` to see which pods play which role. The operator is not required.
+This quickstart shows what the `kli` CLI is for: seeing which workloads run in a cluster and how each one is structured. You run a JobSet with a leader and workers, then use `kli` to see which pods play which role. The Karta Operator is not required.
 
 ## Prerequisites
 
-- `kli` installed. For more information, refer to [Installation](installation.mdx#install-the-kli-cli).
+- `kli` installed. For more information, refer to [Installation](../installation.mdx#install-the-kli-cli).
 - `kubectl`, Docker, and [kind](https://kind.sigs.k8s.io/), to create a local cluster. If you already have a cluster, skip step 1 and use your own kubeconfig.
 
 ## Quickstart Steps
@@ -136,5 +136,5 @@ This quickstart shows what the `kli` CLI is for: seeing which workloads run in a
 ## Next Steps
 
 - To see the same structure for a manifest that you have not submitted, run `kli describe -f jobset.yaml`.
-- To learn the terms in the output, refer to [Core Concepts](../about/core-concepts.mdx).
-- For shell completion and more commands, refer to the [CLI Guide](../guides/use-the-cli.mdx).
+- To learn the terms in the output, refer to [Core Concepts](../../about/core-concepts.mdx).
+- For shell completion and more commands, refer to the [CLI Guide](../../inspect-workloads/use-the-cli.mdx).

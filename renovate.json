@@ -35,8 +35,19 @@
     "gomodTidy",
     "gomodUpdateImportPaths"
   ],
+  "postUpgradeTasks": {
+    "commands": [
+      "make generate-licenses"
+    ],
+    "fileFilters": [
+      "**/go.mod",
+      "**/go.sum",
+      "NOTICE",
+      "THIRD_PARTY_LICENSES"
+    ],
+    "executionMode": "branch"
+  },
   "vulnerabilityAlerts": {
-    "enabled": true,
     "labels": [
       "renovate",
       "security"
@@ -92,6 +103,16 @@
         "golang"
       ],
       "enabled": false
+    },
+    {
+      "description": "Include indirect Go dependencies in grouped updates so shared versions can advance together.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "enabled": true
     },
     {
       "description": "Group non-major Go module updates.",
@@ -183,20 +204,22 @@
       "enabled": false
     },
     {
-      "description": "After a Go module, Go version or build tool update, tidy every module and regenerate what is generated from the dependencies and tools (DeepCopy, CRDs, mocks, NOTICE and THIRD_PARTY_LICENSES) in the same commit.",
+      "description": "Regenerate SDK code, CRDs, SDK and exporter mocks, catalog files, and licenses after Go module or build tool updates.",
       "matchManagers": [
         "gomod",
         "custom.regex"
       ],
       "postUpgradeTasks": {
         "commands": [
-          "make lib-generate lib-manifests lib-generate-mocks generate-licenses"
+          "make tidy lib-generate lib-manifests lib-generate-mocks exporter-generate-mocks generate-samples generate-licenses"
         ],
         "fileFilters": [
           "**/go.mod",
           "**/go.sum",
           "karta/sdk/**",
+          "dsx-workload-exporter/**/*_mock.go",
           "charts/karta/crds/**",
+          "docs/catalog/**",
           "NOTICE",
           "THIRD_PARTY_LICENSES"
         ],
@@ -204,7 +227,32 @@
       }
     },
     {
-      "description": "Release branches up to 0.2 predate the move of the library to karta/sdk and keep the older make target names and layout, so their regeneration runs those. From 0.3 on a release branch carries the same targets as main and falls through to the rule above. Drop this rule once 0.2 ages out of the base branches renovate.yaml selects.",
+      "description": "Release branch 0.3 has the karta/sdk layout but predates the exporter module, so its regeneration skips the exporter mocks target it does not have. From 0.4 on a release branch carries the same targets as main and falls through to the rule above. Drop this rule once 0.3 ages out of the base branches renovate.yaml selects.",
+      "matchManagers": [
+        "gomod",
+        "custom.regex"
+      ],
+      "matchBaseBranches": [
+        "/^(v|release-)0\\.3$/"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "make tidy lib-generate lib-manifests lib-generate-mocks generate-samples generate-licenses"
+        ],
+        "fileFilters": [
+          "**/go.mod",
+          "**/go.sum",
+          "karta/sdk/**",
+          "charts/karta/crds/**",
+          "docs/catalog/**",
+          "NOTICE",
+          "THIRD_PARTY_LICENSES"
+        ],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Release branches up to 0.2 predate the move of the library to karta/sdk and keep the older make target names and layout, so their regeneration runs those. Drop this rule once 0.2 ages out of the base branches renovate.yaml selects.",
       "matchManagers": [
         "gomod",
         "custom.regex"
@@ -226,6 +274,41 @@
         ],
         "executionMode": "branch"
       }
+    },
+    {
+      "description": "Keep non-major security fixes enabled on release branches without overriding the major update restriction.",
+      "matchJsonata": [
+        "isVulnerabilityAlert = true"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Keep major updates disabled unless the quarterly main-branch rule enables them.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Run routine major updates on main on the first day of each calendar quarter. The golang base image stays disabled because the Go toolchain group owns it.",
+      "matchBaseBranches": [
+        "main"
+      ],
+      "matchPackageNames": [
+        "!golang"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "matchJsonata": [
+        "$not(isVulnerabilityAlert = true)"
+      ],
+      "enabled": true,
+      "schedule": [
+        "* * 1 1,4,7,10 *"
+      ],
+      "timezone": "UTC",
+      "updateNotScheduled": false
     }
   ]
 }

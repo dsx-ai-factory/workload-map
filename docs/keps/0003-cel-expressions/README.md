@@ -72,8 +72,8 @@ The result is the object containing `image` and `storageUri`. The
 (.spec.predictor | ( (.[]? | select(type == "object" and .storageUri)))) = $val
 ```
 
-Here `$val` must contain the entire replacement model. The component writer
-uses `AssignZip` to pair selected paths with values. Both forms replace this model.
+The writer uses `Assign`. `$val` must contain the entire replacement model,
+including `storageUri`.
 
 The proposed Karta separates that read from the write. This excerpt shows its
 placement in the CRD; other KServe fields follow the same pattern:

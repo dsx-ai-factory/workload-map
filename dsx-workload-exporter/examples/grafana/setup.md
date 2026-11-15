@@ -124,8 +124,9 @@ customMetrics: |
 ```
 
 The selector keeps the exporter off CPU-only nodes. Replace the example with
-your cluster's GPU labels if needed. Before installing, verify that the selector
-matches the intended GPU nodes:
+your cluster's GPU labels if needed. If you change `nodeSelector`, update `-l`
+below to match every configured label (`key=value,key2=value2`). Before
+installing, confirm that the command lists the intended GPU nodes:
 
 ```sh
 kubectl get nodes -l nvidia.com/gpu.present=true

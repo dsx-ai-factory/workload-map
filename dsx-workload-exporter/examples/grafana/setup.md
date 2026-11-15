@@ -96,7 +96,9 @@ standalone exporter on nodes with NVIDIA drivers and a working NVIDIA container
 runtime. Do not add a second exporter to nodes already running one.
 
 The following `dcgm-values.yaml` example matches
-[DCGM Exporter chart 4.8.3](https://github.com/NVIDIA/dcgm-exporter/blob/4.6.0-4.8.3/deployment/values.yaml):
+[DCGM Exporter chart 4.8.4](https://github.com/NVIDIA/dcgm-exporter/blob/4.8.4/deployment/values.yaml).
+It uses exporter 4.8.4 with DCGM 4.6.1
+(image tag `4.6.1-4.8.4-distroless`):
 
 ```yaml
 kubernetes:
@@ -104,6 +106,10 @@ kubernetes:
   rbac:
     create: true
 kubeletPath: /var/lib/kubelet/pod-resources
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
 serviceMonitor:
   enabled: true
   honorLabels: true
@@ -114,6 +120,11 @@ customMetrics: |
   DCGM_FI_DEV_FB_USED, gauge, Used framebuffer memory in MiB.
   DCGM_FI_PROF_GR_ENGINE_ACTIVE, gauge, Graphics engine active ratio.
 ```
+
+The toleration allows scheduling on nodes tainted `nvidia.com/gpu:NoSchedule`;
+the chart does not tolerate that taint by default. Add entries for any other
+taints on your GPU nodes. Helm replaces the toleration list, so preserve any
+existing entries those nodes need.
 
 `customMetrics` replaces the counter list. Add these entries to the existing
 list if other dashboards need its counters. Profiling support and permissions
@@ -128,7 +139,7 @@ For a new standalone installation:
 helm repo add gpu-helm-charts https://nvidia.github.io/dcgm-exporter/helm-charts
 helm repo update gpu-helm-charts
 helm upgrade --install dcgm-exporter gpu-helm-charts/dcgm-exporter \
-  --version 4.8.3 --namespace monitoring --create-namespace \
+  --version 4.8.4 --namespace monitoring --create-namespace \
   -f dcgm-values.yaml --wait --timeout 5m
 ```
 
@@ -143,7 +154,7 @@ env:
 ```
 
 Kubernetes mapping is enabled by the chart; Pod UID mapping is opt-in.
-The [DaemonSet](https://github.com/NVIDIA/dcgm-exporter/blob/4.6.0-4.8.3/deployment/templates/daemonset.yaml)
+The [DaemonSet](https://github.com/NVIDIA/dcgm-exporter/blob/4.8.4/deployment/templates/daemonset.yaml)
 mounts the host's pod-resources directory at `/var/lib/kubelet/pod-resources`.
 Its `kubelet.sock` must be accessible on each GPU node. Set `kubeletPath` if
 the host uses a different kubelet root. The exporter also needs a mounted
@@ -151,6 +162,23 @@ ServiceAccount token and a ClusterRoleBinding granting `get`, `list` and `watch`
 on Pods. The chart supplies these when UID mapping and its RBAC option are on.
 For another deployment method, configuring the environment alone does not
 supply the socket mount or Pod-read access.
+
+For Dynamic Resource Allocation (DRA), use exporter 4.8.4 or later.
+[Version 4.8.4 added Pod UIDs to DRA metrics](https://github.com/NVIDIA/dcgm-exporter/releases/tag/4.8.4);
+4.8.3 cannot supply this dashboard join for DRA workloads. Keep the values above
+and add this top-level setting to `dcgm-values.yaml` before installing:
+
+```yaml
+kubernetesDRA:
+  enabled: true
+```
+
+This sets `KUBERNETES_ENABLE_DRA=true`. The NVIDIA DRA driver must publish
+ResourceSlices, and kubelet must report the allocated dynamic resources through
+the same pod-resources socket. The exporter needs `get`, `list` and `watch`
+on `resource.k8s.io/resourceslices` as well as Pods. This chart creates the
+[RBAC](https://github.com/NVIDIA/dcgm-exporter/blob/4.8.4/deployment/templates/clusterrole.yaml)
+and mounts the ServiceAccount token with DRA enabled.
 
 Verify an allocated GPU Pod produces nonempty `pod_uid` and `UUID` labels.
 MIG samples also need `GPU_I_ID`; retain `GPU_CI_ID` when present. The workload

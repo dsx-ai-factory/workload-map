@@ -52,13 +52,16 @@ type querySample struct {
 }
 
 type queryDashboard struct {
-	Panels []struct {
-		ID      int `json:"id"`
-		Targets []struct {
-			RefID string `json:"refId"`
-			Expr  string `json:"expr"`
-		} `json:"targets"`
-	} `json:"panels"`
+	Panels []queryPanel `json:"panels"`
+}
+
+type queryPanel struct {
+	Panels  []queryPanel `json:"panels"`
+	ID      int          `json:"id"`
+	Targets []struct {
+		RefID string `json:"refId"`
+		Expr  string `json:"expr"`
+	} `json:"targets"`
 }
 
 var _ = Describe("Dashboard query results", Label("promql"), func() {
@@ -89,12 +92,24 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 			var document queryDashboard
 			Expect(json.Unmarshal(data, &document)).To(Succeed())
 			var expression string
-			for _, panel := range document.Panels {
+			panels := slices.Clone(document.Panels)
+			for len(panels) > 0 {
+				panel := panels[0]
+				panels = append(panels[1:], panel.Panels...)
 				if panel.ID == panelID {
 					for _, target := range panel.Targets {
 						if target.RefID == ref {
 							expression = target.Expr
 						}
+					}
+				}
+			}
+			if panelID == 0 {
+				for _, value := range readDashboard("workload-" + dashboard + ".json")["templating"].(map[string]any)["list"].([]any) {
+					variable := value.(map[string]any)
+					if variable["name"] == ref {
+						expression = variable["query"].(map[string]any)["query"].(string)
+						expression = strings.TrimSuffix(strings.TrimPrefix(expression, "query_result("), ")")
 					}
 				}
 			}
@@ -112,6 +127,12 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 			})
 			queryNames[expression] = name
 			return expression
+		}
+		maximumQuery := func(dashboard string, panelID int, ref, namespaceLabel string) string {
+			expression := query(dashboard, panelID, ref, namespaceLabel)
+			maximum := "max(" + expression + ")"
+			queryNames[maximum] = "maximum of " + queryNames[expression]
+			return maximum
 		}
 		stateExpectation := func(expression, evalTime, state string) queryExpectation {
 			return queryExpected(expression, evalTime, querySample{
@@ -179,6 +200,77 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				},
 				PromQLExprTest: []queryExpectation{stateExpectation(stateQuery, "4m", "unknown")},
 			})
+			for _, test := range []struct {
+				dashboard string
+				panel     int
+				ref       string
+				metric    string
+				value     string
+				expected  float64
+			}{
+				{"overview", 801, "A", "DCGM_FI_DEV_GPU_UTIL", "10", 1},
+				{"overview", 801, "A", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.1", 1},
+				{"overview", 16, "A", "DCGM_FI_DEV_GPU_UTIL", "10", 10},
+				{"overview", 16, "A", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.1", 10},
+				{"overview", 10, "A", "DCGM_FI_DEV_GPU_UTIL", "10", 10},
+				{"overview", 10, "A", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.1", 10},
+				{"overview", 11, "A", "DCGM_FI_DEV_FB_USED", "1024", 1024 * 1048576},
+				{"overview", 17, "A", "DCGM_FI_DEV_FB_USED", "1024", 1024 * 1048576},
+				{"overview", 24, "A", "DCGM_FI_DEV_GPU_UTIL", "10", 10},
+				{"overview", 24, "A", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.1", 10},
+				{"overview", 25, "A", "DCGM_FI_DEV_FB_USED", "1024", 1024 * 1048576},
+				{"structure", 9, "A", "DCGM_FI_DEV_GPU_UTIL", "10", 10},
+				{"structure", 9, "A", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.1", 10},
+				{"structure", 10, "A", "DCGM_FI_DEV_FB_USED", "1024", 1024 * 1048576 / 1e9},
+				{"structure", 4, "gpu", "DCGM_FI_DEV_GPU_UTIL", "10", 10},
+				{"structure", 4, "gpu", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.1", 10},
+				{"structure", 4, "framebuffer", "DCGM_FI_DEV_FB_USED", "1024", 1024 * 1048576},
+			} {
+				expression := maximumQuery(test.dashboard, test.panel, test.ref, namespaceLabel)
+				device := queryIdentity(gpu)
+				if test.metric == "DCGM_FI_PROF_GR_ENGINE_ACTIVE" {
+					device["GPU_I_ID"], device["GPU_CI_ID"] = "7", "0"
+				}
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: fmt.Sprintf("Raw GPU measurements expire after 90 seconds: %s/%d/%s/%s/%s", test.dashboard, test.panel, test.ref, test.metric, namespaceLabel),
+					InputSeries: []queryInputSeries{
+						attribution, querySeries(test.metric, test.value+" _x30", device),
+					},
+					PromQLExprTest: []queryExpectation{
+						queryExpected(expression, "0s", querySample{"{}", test.expected}),
+						queryExpected(expression, "90s", querySample{"{}", test.expected}),
+						queryExpected(expression, "2m"),
+					},
+				})
+				if test.metric == "DCGM_FI_PROF_GR_ENGINE_ACTIVE" {
+					fixture.Tests = append(fixture.Tests, queryTest{
+						Name: fmt.Sprintf("Fresh MIG profiling survives stale utilization evidence: %s/%d/%s/%s", test.dashboard, test.panel, test.ref, namespaceLabel),
+						InputSeries: []queryInputSeries{
+							attribution,
+							querySeries("DCGM_FI_DEV_GPU_UTIL", "80+0x30", gpu),
+							querySeries("DCGM_FI_DEV_GPU_UTIL", "0 _x30", device),
+							querySeries("DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.1+0x30", device),
+							querySeries("DCGM_FI_DEV_FB_USED", "1024+0x30", device),
+						},
+						PromQLExprTest: []queryExpectation{
+							queryExpected(expression, "0s", querySample{"{}", test.expected}),
+							queryExpected(expression, "2m", querySample{"{}", test.expected}),
+						},
+					})
+					continue
+				}
+				input := []queryInputSeries{attribution, querySeries(test.metric, test.value+"+0x30", gpu)}
+				for _, metric := range []string{"DCGM_FI_DEV_GPU_UTIL", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "DCGM_FI_DEV_FB_USED"} {
+					input = append(input, querySeries(metric, "0 _x30", queryIdentity(gpu, map[string]string{
+						"GPU_I_ID": "7", "GPU_CI_ID": "0",
+					})))
+				}
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name:           fmt.Sprintf("Raw GPU measurements ignore stale MIG evidence: %s/%d/%s/%s", test.dashboard, test.panel, test.ref, namespaceLabel),
+					InputSeries:    input,
+					PromQLExprTest: []queryExpectation{queryExpected(expression, "2m", querySample{"{}", test.expected})},
+				})
+			}
 			for _, test := range []struct {
 				dashboard string
 				panel     int
@@ -321,8 +413,76 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				})
 			}
 		}
+		for _, test := range []struct {
+			dashboard string
+			panel     int
+			ref       string
+			expected  float64
+		}{
+			{"overview", 104, "A", 1000},
+			{"overview", 8, "A", 1000},
+			{"overview", 19, "A", 1000},
+			{"overview", 109, "A", 1000},
+			{"overview", 111, "A", 1000},
+			{"structure", 11, "A", 1000},
+			{"structure", 4, "cpu", 1},
+		} {
+			expression := maximumQuery(test.dashboard, test.panel, test.ref, "namespace")
+			container := map[string]string{
+				"cluster": "test", "job": "cadvisor", "namespace": "workloads", "pod": "worker", "container": "main", "id": "first",
+			}
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: fmt.Sprintf("A stale CPU replica does not hide a healthy peer: %s/%d/%s", test.dashboard, test.panel, test.ref),
+				InputSeries: []queryInputSeries{
+					querySeries("dsx_workload_pod_info", "1+0x20", pod),
+					querySeries("container_cpu_usage_seconds_total", "0+30x20", queryIdentity(container, map[string]string{"instance": "replica-a"})),
+					querySeries("container_cpu_usage_seconds_total", "0+30x2 stale _x17", queryIdentity(container, map[string]string{"instance": "replica-b"})),
+				},
+				PromQLExprTest: []queryExpectation{queryExpected(expression, "5m", querySample{"{}", test.expected})},
+			})
+		}
+
+		failureQuery := query("overview", 103, "A", "namespace")
+		for _, test := range []struct {
+			name        string
+			peerUp      string
+			observation string
+			expected    []querySample
+		}{
+			{"Healthy replicas with successful observations return zero", "1", "1", []querySample{{"{}", 0}}},
+			{"A successful observation cannot bypass a down replica", "0", "1", nil},
+			{"Explicit failures remain visible with a down replica", "0", "0", []querySample{{"{}", 1}}},
+		} {
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: test.name,
+				InputSeries: []queryInputSeries{
+					querySeries("up", "1+0x2", map[string]string{"cluster": "test", "job": "dsx", "instance": "replica-a"}),
+					querySeries("up", test.peerUp+"+0x2", map[string]string{"cluster": "test", "job": "dsx", "instance": "replica-b"}),
+					querySeries("dsx_exporter_observation_valid", test.observation+"+0x2", queryIdentity(workload, map[string]string{
+						"job": "dsx", "instance": "replica-a", "scope": "workload",
+					})),
+				},
+				PromQLExprTest: []queryExpectation{queryExpected(failureQuery, "1m", test.expected...)},
+			})
+		}
+
+		workloadQuery := query("structure", 0, "workload_uid", "namespace")
+		for _, metric := range []string{"dsx_workload_status", "dsx_workload_created_timestamp_seconds", "dsx_workload_pod_info", "dsx_exporter_observation_valid"} {
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name:     "Workload observed between subquery boundaries is discoverable: " + metric,
+				Interval: "10s",
+				InputSeries: []queryInputSeries{querySeries(metric, "_ 1 stale", queryIdentity(workload, map[string]string{
+					"job": "dsx", "scope": "workload",
+				}))},
+				PromQLExprTest: []queryExpectation{queryExpected(workloadQuery, "30s", querySample{
+					queryLabels(queryIdentity(workload, map[string]string{"job": "dsx", "selection": "training / workload-1"})), 1,
+				})},
+			})
+		}
 		for i := range fixture.Tests {
-			fixture.Tests[i].Interval = "30s"
+			if fixture.Tests[i].Interval == "" {
+				fixture.Tests[i].Interval = "30s"
+			}
 		}
 
 		directory, err := os.MkdirTemp("", "dashboard-queries-")

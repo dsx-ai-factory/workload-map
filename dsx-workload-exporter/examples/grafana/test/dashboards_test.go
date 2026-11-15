@@ -114,6 +114,7 @@ var _ = Describe("Dashboard portability", func() {
 					Expect(err).NotTo(HaveOccurred(), name)
 					if strings.Contains(string(query), "$__range") {
 						Expect(variable["refresh"]).To(BeNumerically("==", 2), "variable %s", name)
+						Expect(variable["definition"]).To(Equal(variable["query"].(map[string]any)["query"]), "variable %s", name)
 					}
 				}
 			})

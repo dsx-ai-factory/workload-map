@@ -138,9 +138,11 @@ count once within each workload or graph node, including MIG identity.
 Parent framebuffer rows are excluded when MIG framebuffer rows exist for the
 same Pod and physical GPU. Conflicting readings are excluded even when their
 GPU index labels differ. These measurements do not isolate a process's
-memory or GPU use. DRA works through the same Pod UID join; claim labels alone
-cannot identify the consuming Pod. The dashboards do not resolve ResourceClaims
-or verify allocated GPU counts.
+memory or GPU use. Dynamic Resource Allocation (DRA) requires DCGM Exporter
+4.8.4 or later with DRA and Pod UID mapping enabled; see the
+[DRA setup](setup.md#gpu-measurements-from-dcgm). It uses the same Pod UID join.
+Claim labels alone cannot identify the consuming Pod. The dashboards do not
+resolve ResourceClaims or verify allocated GPU counts.
 
 ## GPU activity states
 

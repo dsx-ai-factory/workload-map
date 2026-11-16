@@ -69,12 +69,12 @@ navigation:
   - section: Observability
     slug: observability
     contents:
-      - page: Use the CLI
-        path: ../docs/observability/use-the-cli.mdx
-        slug: use-the-cli
-      - page: Use the Headlamp Plugin
-        path: ../docs/observability/use-the-headlamp-plugin.mdx
-        slug: use-the-headlamp-plugin
+      - page: Inspect Workloads with the CLI
+        path: ../docs/observability/inspect-workloads-with-the-cli.mdx
+        slug: inspect-workloads-with-the-cli
+      - page: Inspect Workloads in Headlamp
+        path: ../docs/observability/inspect-workloads-in-headlamp.mdx
+        slug: inspect-workloads-in-headlamp
   - section: Building on Workload Map
     slug: building-on-workload-map
     contents:

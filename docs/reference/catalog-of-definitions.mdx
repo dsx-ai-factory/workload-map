@@ -14,7 +14,7 @@ The catalog contains the pre-built, tested definitions that ship with Workload M
 - The definitions are Go code in `pkg/catalog`. The repository generates them into YAML files in the `docs/catalog/` directory.
 - The name of a definition follows the group, version, and kind of the workload, such as `leaderworkerset-x-k8s-io-leaderworkerset-v1`. The file has the same name with the `.yaml` extension.
 - A definition in the cluster overrides the catalog definition for the same group, version, and kind. `kli` lists such a definition once, with the origin `cluster`.
-- A definition marked `spec.experimental: true` is excluded by default. For more information, refer to [Use the CLI](../observability/use-the-cli.mdx#include-experimental-definitions).
+- A definition marked `spec.experimental: true` is excluded by default. For more information, refer to [Inspect Workloads with the CLI](../observability/inspect-workloads-with-the-cli.mdx#include-experimental-definitions).
 
 To list the definitions in the catalog, run the following command:
 
@@ -69,7 +69,7 @@ The following definition is experimental. It is excluded from `kli` and the Head
 | --- | --- | --- | --- | --- |
 | Workload | `kueue.x-k8s.io/v1beta2` | Kueue | [`kueue-x-k8s-io-workload-v1beta2`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | `workload` |
 
-To include it in `kli`, use the `--catalog-experimental-definitions` option. For the Headlamp plugin, refer to [Include Experimental Definitions](../observability/use-the-headlamp-plugin.mdx#include-experimental-definitions).
+To include it in `kli`, use the `--catalog-experimental-definitions` option. For the Headlamp plugin, refer to [Include Experimental Definitions](../observability/inspect-workloads-in-headlamp.mdx#include-experimental-definitions).
 
 ## Next Steps
 

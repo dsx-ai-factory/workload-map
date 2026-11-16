@@ -127,6 +127,8 @@ The `-w0` option is specific to GNU `base64`. On macOS, use `base64 < ca.crt | t
 
 Both webhook configurations use `failurePolicy: Fail`. If the API server cannot reach the webhook, it rejects the creation or the update of a `Karta` definition. This makes the labeling and the validation authoritative, but it means that the Karta Operator must be running, and the serving certificate must be ready, before you create a definition. In `auto` mode, the Karta Operator provisions the certificate. In `manual` mode, the external Secret must exist.
 
+Run the Karta Operator with more than one replica, so that the webhook keeps answering during rolling updates. Set `replicaCount` to a value above `1`, and set `leaderElection.enabled` to `true`. The chart does not render with more than one replica unless leader election is enabled.
+
 The webhook applies only to `Karta` definitions. It does not affect your workloads. The reconciler also stamps the same group, version, and kind labels on definitions that were created while the webhook was disabled.
 
 ## Values Reference

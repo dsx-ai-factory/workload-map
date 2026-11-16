@@ -81,6 +81,8 @@ For users who need more - custom CRDs, org-specific status mappings, different p
 
 The `ORIGIN` column in `karta definition list` shows where each definition came from (`community` or `cluster`).
 
+The `STATUS` column shows which definition the CLI selects for each workload type: `active`, `inactive` when a cluster definition overrides it or it names no workload type, or `ambiguous` when several definitions from one source claim the same type. Active means selected, not running.
+
 ---
 
 ## High-level design

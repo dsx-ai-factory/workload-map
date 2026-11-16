@@ -186,6 +186,47 @@ var _ = Describe("Runner", func() {
 			Expect(results).To(HaveLen(3))
 			Expect(results).To(ConsistOf(float64(0), float64(1), float64(2)))
 		})
+
+		It("should allow exactly the max number of results", func() {
+			results, err := limitedRunner.Evaluate(ctx, ".items[0:5][].id")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(results).To(HaveLen(5))
+		})
+
+		It("should allow one result under the limit", func() {
+			results, err := limitedRunner.Evaluate(ctx, ".items[0:4][].id")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(results).To(HaveLen(4))
+		})
+
+		It("should allow zero results for a limit of one", func() {
+			one := 1
+			oneRunner := NewRunner(largeObject, &one, nil)
+
+			results, err := oneRunner.Evaluate(ctx, ".items[0:0][].id")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(results).To(BeEmpty())
+		})
+
+		It("should reject one result over the limit", func() {
+			results, err := limitedRunner.Evaluate(ctx, ".items[0:6][].id")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("query results exceed the allowed number 5"))
+			Expect(results).To(BeNil())
+		})
+
+		It("should apply the same boundary to a limit of one", func() {
+			one := 1
+			oneRunner := NewRunner(largeObject, &one, nil)
+
+			results, err := oneRunner.Evaluate(ctx, ".items[0:1][].id")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(results).To(HaveLen(1))
+
+			results, err = oneRunner.Evaluate(ctx, ".items[0:2][].id")
+			Expect(err).To(HaveOccurred())
+			Expect(results).To(BeNil())
+		})
 	})
 
 	Describe("Timeout limits", func() {

@@ -33,8 +33,8 @@ var _ = Describe("Pod", Serial, Ordered, ContinueOnFailure, func() {
 			return hasSingleGauge(rows, 1)
 		})
 		fs := metrics("a")
-		if len(matching(fs, "dsx_workload_status", map[string]string{"workload_uid": uid})) != 9 {
-			Fail("expected nine phase gauges")
+		if len(matching(fs, "dsx_workload_status", map[string]string{"workload_uid": uid})) != 7 {
+			Fail("expected seven phase gauges")
 		}
 		created := matching(fs, "dsx_workload_created_timestamp_seconds", map[string]string{"workload_uid": uid})
 		stamp := strings.TrimSpace(command("", "get", "pod", "lifecycle", "-n", namespace, "-o", "jsonpath={.metadata.creationTimestamp}"))

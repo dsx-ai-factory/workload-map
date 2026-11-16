@@ -154,6 +154,6 @@ func hasNamespaceMetricsOnlyOn(destination, source string, workloads []handoffWo
 		}
 	}
 	return len(matching(dst, "dsx_workload_pod_info", namespaceLabels)) == podCount &&
-		len(matching(dst, "dsx_workload_status", namespaceLabels)) == 9*len(workloads) &&
+		len(matching(dst, "dsx_workload_status", namespaceLabels)) == 7*len(workloads) &&
 		len(matching(dst, "dsx_workload_created_timestamp_seconds", namespaceLabels)) == len(workloads)
 }

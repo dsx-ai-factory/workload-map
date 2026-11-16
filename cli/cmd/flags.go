@@ -17,6 +17,9 @@ const (
 	flagConfig                         = "config"
 	flagOutput                         = "output"
 	flagCatalogExperimentalDefinitions = "catalog-experimental-definitions"
+	flagNoHeaders                      = "no-headers"
+
+	usageNoHeaders = "Omit the table header row; has no effect on json or yaml output"
 )
 
 var kubeFlags *genericclioptions.ConfigFlags
@@ -37,6 +40,11 @@ func withOutput(cmd *cobra.Command, flags *pflag.FlagSet, supportsWide bool) *En
 			return out.Allowed(), cobra.ShellCompDirectiveNoFileComp
 		}))
 	return out
+}
+
+// withNoHeaders registers the --no-headers flag on flags, backed by target.
+func withNoHeaders(flags *pflag.FlagSet, target *bool) {
+	flags.BoolVar(target, flagNoHeaders, false, usageNoHeaders)
 }
 
 // withConfig registers the --config persistent flag on cmd.

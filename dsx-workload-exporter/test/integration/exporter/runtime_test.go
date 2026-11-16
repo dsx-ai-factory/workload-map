@@ -546,8 +546,8 @@ func expectZeroStatusMetrics(g Gomega, body string, root client.Object) {
 			samples = append(samples, line)
 		}
 	}
-	g.Expect(samples).To(HaveLen(9))
-	for _, phase := range []string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Suspending", "Resuming", "Undefined"} {
+	g.Expect(samples).To(HaveLen(7))
+	for _, phase := range []string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Undefined"} {
 		g.Expect(samples).To(ContainElement(SatisfyAll(
 			HaveSuffix(" 0"), ContainSubstring(`phase="`+phase+`"`),
 			ContainSubstring(`karta=""`), ContainSubstring(`karta_source=""`),

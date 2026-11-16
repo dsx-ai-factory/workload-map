@@ -71,23 +71,27 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
 
   const onRows = useCallback(
     (cluster: string, key: string, rows: WorkloadRow[]) => {
-    const scoped = scopedKey(cluster, key);
-    setRowsByKey(prev => ({ ...prev, [scoped]: rows }));
-    setErrorsByKey(prev => {
-      if (!(scoped in prev)) {
-        return prev;
-      }
-      const next = { ...prev };
-      delete next[scoped];
-      return next;
-    });
+      setRowsByKey(prev => ({ ...prev, [scopedKey(cluster, key)]: rows }));
     },
     [scopedKey]
   );
 
   const onError = useCallback(
-    (cluster: string, key: string, error: Error) => {
-      setErrorsByKey(prev => ({ ...prev, [scopedKey(cluster, key)]: error }));
+    (cluster: string, key: string, error: Error | null) => {
+      const scoped = scopedKey(cluster, key);
+      // Rows do not clear an error: receiving some rows does not mean every
+      // namespace succeeded. Only the fetcher knows the list recovered.
+      setErrorsByKey(prev => {
+        if (error) {
+          return { ...prev, [scoped]: error };
+        }
+        if (!(scoped in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[scoped];
+        return next;
+      });
     },
     [scopedKey]
   );

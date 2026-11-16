@@ -3,13 +3,14 @@
 
 # OTel Collector
 
-`Register` takes an OTel Meter and a Store `Capturer` and returns a
-`metric.Registration`. It creates four observable gauges and one callback.
+`Register` takes an OTel Meter, a Store `Capturer` and excluded statuses.
+It returns a `metric.Registration`. It creates four observable gauges and one callback.
 Each callback captures Store once and formats saved values, labels and health.
 
-Status emits all nine normalized phases as zeros or ones. A verified root with
-no selected Karta emits all phases as zero, with empty `karta` and `karta_source`
-labels. Workload label rules still apply. Invalid retained Pod
+Status emits each enabled normalized phase as zero or one. The default excludes
+`Suspending` and `Resuming`; see [configuration](../../../../docs/dsx-workload-exporter/configuration.md#status-phases).
+A verified root with no selected Karta emits enabled phases as zero, with empty
+`karta` and `karta_source` labels. Workload label rules still apply. Invalid retained Pod
 mapping and status values carry `observation_valid="false"`. Invalid creation
 timestamps are omitted. Collection does not read Kubernetes or run expressions.
 
@@ -38,4 +39,4 @@ unregisters collection, then shuts down the provider. Graceful HTTP and provider
 shutdown each use a ten-second context. Runtime cancellation and callback
 completion must cooperate; these contexts cannot interrupt a blocked callback.
 
-Phase selection and PromQL join tests remain separate work.
+PromQL join tests remain separate work.

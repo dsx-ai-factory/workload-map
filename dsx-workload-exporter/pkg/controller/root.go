@@ -38,6 +38,9 @@ func (r *Runtime) resolveSelectedObjectRoot(ctx context.Context, key objectJobKe
 		return nil
 	}
 
+	if r.state.unregisterAbsentObject(key) {
+		return nil
+	}
 	r.state.trackSelectedObject(key)
 	selection, selectionErr := r.state.lookupDefinition(key.Object.GVK)
 	if selection.Definition == nil && selectionErr != nil {

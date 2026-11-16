@@ -15,6 +15,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/kartadefinitioninventory"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 var _ = Describe("config defaults and rules", func() {
@@ -119,6 +120,27 @@ genericLabelEvaluationLimits:
 		Expect(cfg.Limits.MaxResultBytes).To(Equal(32))
 		Expect(cfg.Limits.CostLimit).To(Equal(defaultLabelEvaluationLimits.CostLimit))
 		Expect(cfg.Limits.MaxExpressionBytes).To(Equal(defaultLabelEvaluationLimits.MaxExpressionBytes))
+	})
+})
+
+var _ = Describe("status exclusions", func() {
+	DescribeTable("loads defaults and explicit replacements",
+		func(content string, want []v1alpha1.ResourceStatus) {
+			cfg, err := loadConfig(content, nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.ExcludeStatuses).To(Equal(want))
+		},
+		Entry("default", "", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
+		Entry("unrelated setting", "workers: 2", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
+		Entry("all phases", "excludeStatuses: []", []v1alpha1.ResourceStatus{}),
+		Entry("custom exclusions replace defaults", "excludeStatuses: [Running]", []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}),
+	)
+
+	It("rejects unknown or incorrectly cased phase names", func() {
+		for _, value := range []string{"unknown", "running", ""} {
+			_, err := loadConfig("excludeStatuses: [\""+value+"\"]", nil)
+			Expect(err).To(MatchError(ContainSubstring("unknown excluded status")))
+		}
 	})
 })
 

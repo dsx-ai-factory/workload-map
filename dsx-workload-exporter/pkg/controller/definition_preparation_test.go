@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+
 	inventory "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/kartadefinitioninventory"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
 )
@@ -33,10 +35,11 @@ func TestDefinitionPreparationDoesNotBlockStateAndRetainsSnapshotOnFailure(t *te
 	values := store.New()
 	r := newControllerState(&objectCache{objects: map[objectKey]cachedObject{}})
 	r.config.ClusterDefinitions = true
+	r.reader = &Reader{clients: Clients{Mapper: meta.NewDefaultRESTMapper(nil)}, options: ReaderOptions{RequestTimeout: time.Second}}
 	r.deps = Dependencies{Inventory: catalog, Publications: values}
 	r.podQueue = newQueue[objectJobKey]("definition-preparation-test")
 	t.Cleanup(r.podQueue.ShutDown)
-	if _, err := r.prepareWatchRequests(); err != nil {
+	if _, err := r.prepareWatchRequests(t.Context()); !meta.IsNoMatchError(err) {
 		t.Fatal(err)
 	}
 	before, version := r.selectedDefinitions, r.definitionVersion
@@ -47,7 +50,7 @@ func TestDefinitionPreparationDoesNotBlockStateAndRetainsSnapshotOnFailure(t *te
 	r.deps.Inventory = blocked
 	done := make(chan error, 1)
 	go func() {
-		_, err := r.prepareWatchRequests()
+		_, err := r.prepareWatchRequests(t.Context())
 		done <- err
 	}()
 	select {

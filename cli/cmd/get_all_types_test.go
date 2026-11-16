@@ -589,3 +589,33 @@ func TestGetAllTypesWarnsOnAKindServedAtAnUncoveredVersion(t *testing.T) {
 		t.Errorf("expected %q, got %q", want, errOut)
 	}
 }
+
+// TestGetAllTypesWideNoHeaders checks that --no-headers composes with
+// --all-types and -o wide.
+func TestGetAllTypesWideNoHeaders(t *testing.T) {
+	fakeMixedCluster(t, mixedNamespace()...)
+
+	withHeaders, errOut, code := runGetCmd(t, "--all-types", "-o", "wide")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	fakeMixedCluster(t, mixedNamespace()...)
+	out, errOut, code := runGetCmd(t, "--all-types", "-o", "wide", "--no-headers")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	lines := strings.Split(strings.TrimRight(withHeaders, "\n"), "\n")
+	if !strings.Contains(lines[0], "NAME") {
+		t.Fatalf("expected a header in the default output\n%s", withHeaders)
+	}
+	// The columns are as wide as their widest cell, so a missing header can
+	// narrow them; compare the cells.
+	if want, got := tableCells(strings.Join(lines[1:], "\n")), tableCells(out); !slices.Equal(want, got) {
+		t.Errorf("expected only the data rows\nwant:\n%v\ngot:\n%v", want, got)
+	}
+	for _, name := range []string{"web", "preprocess", "debug-shell"} {
+		if !strings.Contains(out, name) {
+			t.Errorf("missing row %q\n%s", name, out)
+		}
+	}
+}

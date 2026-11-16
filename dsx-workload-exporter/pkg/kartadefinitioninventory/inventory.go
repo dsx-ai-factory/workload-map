@@ -54,6 +54,8 @@ type Selection struct {
 	Definition *v1alpha1.Karta
 	GVK        schema.GroupVersionKind
 	Origin     Origin
+	// Explicit reports that an include list selected this workload type.
+	Explicit bool
 }
 
 // Origin identifies the definition. Catalog entries have no UID or resource version.
@@ -105,13 +107,14 @@ type Inventory struct {
 	enableExperimental bool
 	// catalog holds the catalog winners, filtered once in New. Only cluster
 	// Kartas keep arriving, so only their filter is kept.
-	catalog       map[schema.GroupKind]definitionEntry
-	clusterFilter sourceFilter
-	log           *slog.Logger
-	loaded        chan struct{}
-	done          chan struct{}
-	changes       chan struct{}
-	started       atomic.Bool
+	catalog         map[schema.GroupKind]definitionEntry
+	catalogExplicit bool
+	clusterFilter   sourceFilter
+	log             *slog.Logger
+	loaded          chan struct{}
+	done            chan struct{}
+	changes         chan struct{}
+	started         atomic.Bool
 
 	mu       sync.RWMutex
 	cluster  map[string]definitionEntry
@@ -178,6 +181,7 @@ func New(client dynamic.Interface, config Config) (*Inventory, error) {
 		requestTimeout:     config.RequestTimeout,
 		enableExperimental: config.EnableExperimental,
 		catalog:            make(map[schema.GroupKind]definitionEntry),
+		catalogExplicit:    catalogFilter.include.Len() != 0,
 		clusterFilter:      clusterFilter,
 		log:                slog.Default(),
 		loaded:             make(chan struct{}),
@@ -273,7 +277,7 @@ func (i *Inventory) Lookup(gvk schema.GroupVersionKind) (Selection, error) {
 	if winner.err != nil {
 		return Selection{}, winner.err
 	}
-	return selection(winner.definition, source), nil
+	return i.selection(winner.definition, source), nil
 }
 
 // List returns one elected definition per group and kind in GVK order.
@@ -285,7 +289,7 @@ func (i *Inventory) List() ([]SelectionResult, error) {
 		return nil, err
 	}
 	for n := range results {
-		results[n].Selection = selection(results[n].Definition, results[n].Origin.Source)
+		results[n].Selection = i.selection(results[n].Definition, results[n].Origin.Source)
 	}
 	slices.SortFunc(results, func(a, b SelectionResult) int { return strings.Compare(a.GVK.String(), b.GVK.String()) })
 	return results, nil
@@ -610,7 +614,8 @@ func (i *Inventory) notify() {
 	}
 }
 
-func selection(k *v1alpha1.Karta, source Source) Selection {
+// selection copies the winning definition and records whether an include list selected it.
+func (i *Inventory) selection(k *v1alpha1.Karta, source Source) Selection {
 	if k == nil {
 		return Selection{}
 	}
@@ -618,7 +623,10 @@ func selection(k *v1alpha1.Karta, source Source) Selection {
 	if source == SourceCluster {
 		origin.UID, origin.ResourceVersion = k.UID, k.ResourceVersion
 	}
-	return Selection{Definition: k.DeepCopy(), GVK: catalog.RootKey(k), Origin: origin}
+	gvk := catalog.RootKey(k)
+	explicit := source == SourceCluster && i.clusterFilter.include.Len() != 0
+	explicit = explicit || (i.catalogExplicit && i.catalog[gvk.GroupKind()].definition != nil)
+	return Selection{Definition: k.DeepCopy(), GVK: gvk, Origin: origin, Explicit: explicit}
 }
 
 // elect picks the winner under the read lock. Entries are replaced whole, so

@@ -86,6 +86,7 @@ const (
 type definitionRow struct {
 	Name       string
 	Kind       string
+	APIVersion string
 	Origin     string
 	Components []string
 }
@@ -107,6 +108,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 	var group, kind, version string
 	var componentLimit int
 	var catalogOnly bool
+	var noHeaders bool
 	var (
 		output *Enum[generator.Output]
 		filter definitionFilter
@@ -118,6 +120,15 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 		Long:    definitionsLong,
 		Example: definitionsExample,
 		Args:    usageArgs(cobra.MaximumNArgs(1)),
+		// One NAME addresses one definition, and a NAME cannot be combined with
+		// the type filters, so only a first argument without them is completed.
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) > 0 || cmd.Flags().Changed(flagGroup) || cmd.Flags().Changed(flagKind) ||
+				cmd.Flags().Changed(flagVersion) {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return completeDefinitionNames(cmd, toComplete), cobra.ShellCompDirectiveNoFileComp
+		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if componentLimit < 0 {
 				return usageError(cmd, fmt.Errorf("--%s must not be negative", flagComponentLimit))
@@ -168,18 +179,25 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 				kartas = append(kartas, def.Karta)
 			}
 			table := func(out io.Writer) error {
-				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit)
+				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit, output.Get() == generator.OutputWide, noHeaders)
 			}
 			return generator.Render(cmd.OutOrStdout(), output.Get(), kartas, len(args) == 1, table)
 		},
 	}
 
-	output = withOutput(cmd, cmd.Flags(), false)
+	output = withOutput(cmd, cmd.Flags(), true)
 	cmd.Flags().StringVar(&group, flagGroup, "", usageGroup)
 	cmd.Flags().StringVar(&kind, flagKind, "", usageKind)
 	cmd.Flags().StringVar(&version, flagVersion, "", usageVersion)
 	cmd.Flags().IntVar(&componentLimit, flagComponentLimit, defaultComponentLimit, usageDefinitionsComponentLimit)
 	cmd.Flags().BoolVar(&catalogOnly, flagCatalogOnly, false, usageCatalogOnly)
+	withNoHeaders(cmd.Flags(), &noHeaders)
+	for _, flag := range []string{flagGroup, flagKind, flagVersion} {
+		cobra.CheckErr(cmd.RegisterFlagCompletionFunc(flag,
+			func(cmd *cobra.Command, args []string, prefix string) ([]string, cobra.ShellCompDirective) {
+				return completeDefinitionFilter(cmd, args, flag, prefix), cobra.ShellCompDirectiveNoFileComp
+			}))
+	}
 
 	return cmd
 }
@@ -268,9 +286,11 @@ func definitionRows(defs []definitions.Definition) []definitionRow {
 		for _, child := range structure.ChildComponents {
 			components = append(components, child.Name)
 		}
+		gvk := catalog.RootKey(def.Karta)
 		rows = append(rows, definitionRow{
 			Name:       def.Karta.Name,
-			Kind:       catalog.RootKey(def.Karta).Kind,
+			Kind:       gvk.Kind,
+			APIVersion: schema.GroupVersion{Group: gvk.Group, Version: gvk.Version}.String(),
 			Origin:     string(def.Origin),
 			Components: components,
 		})
@@ -279,23 +299,39 @@ func definitionRows(defs []definitions.Definition) []definitionRow {
 	return rows
 }
 
-// renderDefinitions writes the table. The empty note goes to errOut so stdout
-// stays parseable.
-func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int) error {
+// renderDefinitions writes the table, with the APIVERSION column when wide is
+// set and without the header row when noHeaders is set. The empty note goes to
+// errOut so stdout stays parseable.
+func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLimit int, wide, noHeaders bool) error {
 	if len(rows) == 0 {
 		fmt.Fprintln(errOut, "No Karta definitions found.")
 		return nil
 	}
 	w := tabwriter.NewWriter(out, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tKIND\tORIGIN\tCOMPONENTS")
+	switch {
+	case noHeaders:
+	case wide:
+		fmt.Fprintln(w, "NAME\tKIND\tAPIVERSION\tORIGIN\tCOMPONENTS")
+	default:
+		fmt.Fprintln(w, "NAME\tKIND\tORIGIN\tCOMPONENTS")
+	}
 	for _, row := range rows {
 		// Still listed, so its author can see the one they wrote.
 		kind := row.Kind
 		if kind == "" {
 			kind = "<none>"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-			row.Name, kind, row.Origin, componentsCell(row.Components, componentLimit))
+		if wide {
+			apiVersion := row.APIVersion
+			if apiVersion == "" {
+				apiVersion = "<none>"
+			}
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				row.Name, kind, apiVersion, row.Origin, componentsCell(row.Components, componentLimit))
+		} else {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+				row.Name, kind, row.Origin, componentsCell(row.Components, componentLimit))
+		}
 	}
 	if err := w.Flush(); err != nil {
 		return fmt.Errorf("write definitions table: %w", err)

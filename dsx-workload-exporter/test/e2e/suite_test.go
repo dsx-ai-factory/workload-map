@@ -209,13 +209,13 @@ func hasPhases(fs map[string]*dto.MetricFamily, labels map[string]string, want .
 	}
 	all := matching(fs, "dsx_workload_status", identity)
 	rows := matching(fs, "dsx_workload_status", labels)
-	if len(all) != 9 || len(rows) != 9 {
+	if len(all) != 7 || len(rows) != 7 {
 		return false
 	}
 	seen := make(map[string]bool)
 	for _, row := range rows {
 		phase, ok := labelValue(row, "phase")
-		if !ok || seen[phase] || !slices.Contains([]string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Suspending", "Resuming", "Undefined"}, phase) {
+		if !ok || seen[phase] || !slices.Contains([]string{"Initializing", "Running", "Completed", "Failed", "Degraded", "Suspended", "Undefined"}, phase) {
 			return false
 		}
 		seen[phase] = true

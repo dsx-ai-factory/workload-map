@@ -58,6 +58,7 @@ var definitions = []func() *v1alpha1.Karta{
 	kartas.GrovePodCliqueSet,
 	kartas.Sandbox,
 	kartas.KueueWorkload,
+	kartas.VcJob,
 }
 
 // Catalog is an immutable set of built-in Kartas indexed by their root component GVK.

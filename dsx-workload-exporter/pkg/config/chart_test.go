@@ -21,6 +21,7 @@ import (
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/controller"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelevaluator"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/labelresolver"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 var _ = Describe("chart label configuration", func() {
@@ -126,6 +127,32 @@ var _ = Describe("chart label configuration", func() {
 			Expect(found).To(BeTrue(), "rendered exporter config was not found")
 		})
 	}
+})
+
+var _ = Describe("chart status exclusions", func() {
+	DescribeTable("preserves default and explicit lists",
+		func(values string, want []v1alpha1.ResourceStatus) {
+			out := renderExporterChart(GinkgoT(), values)
+			for _, raw := range chartDocuments(GinkgoT(), out) {
+				var doc struct {
+					Kind string            `yaml:"kind"`
+					Data map[string]string `yaml:"data"`
+				}
+				Expect(yaml.Unmarshal(raw, &doc)).To(Succeed())
+				if doc.Kind != "ConfigMap" || doc.Data["config.yaml"] == "" {
+					continue
+				}
+				cfg, err := loadConfig(doc.Data["config.yaml"], nil)
+				Expect(err).To(Succeed())
+				Expect(cfg.ExcludeStatuses).To(Equal(want))
+				return
+			}
+			Fail("exporter config not found")
+		},
+		Entry("default", "", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
+		Entry("all phases", "exporter:\n  excludeStatuses: []\n", []v1alpha1.ResourceStatus{}),
+		Entry("custom exclusions", "exporter:\n  excludeStatuses: [Running]\n", []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}),
+	)
 })
 
 var _ = Describe("chart definition source configuration", func() {
@@ -387,6 +414,89 @@ var _ = Describe("chart exporter metrics Service", func() {
 				Expect(spec.Ports[0].TargetPort).To(Equal("metrics"))
 			}
 			Expect(found).To(Equal(enabled), "exporter Service must only be rendered when enabled")
+		})
+	}
+})
+
+var _ = Describe("chart exporter GOMEMLIMIT", func() {
+	for _, tc := range []struct {
+		name    string
+		args    []string
+		want    string
+		failure string
+	}{
+		{name: "auto with the default 4Gi limit", want: "3865470566"},
+		{name: "auto with a binary limit", args: []string{"--set", "exporter.resources.limits.memory=2.5Gi"}, want: "2415919104"},
+		{name: "auto with a decimal limit", args: []string{"--set", "exporter.resources.limits.memory=1500M"}, want: "1350000000"},
+		{name: "auto with a byte limit", args: []string{"--set-json", "exporter.resources.limits.memory=4294967296"}, want: "3865470566"},
+		{name: "auto with a decimal exponent limit", args: []string{"--set-string", "exporter.resources.limits.memory=4e9"}, want: "3600000000"},
+		{name: "auto with a padded exponent limit", args: []string{"--set-string", "exporter.resources.limits.memory=4e009"}, want: "3600000000"},
+		{name: "auto with a micro limit", args: []string{"--set-string", "exporter.resources.limits.memory=4294967296000000u"}, want: "3865470566"},
+		{name: "auto with a large exponent limit", args: []string{"--set-string", "exporter.resources.limits.memory=0.00000000001e20"}, want: "900000000"},
+		{name: "auto with a fractional limit", args: []string{"--set-string", "exporter.resources.limits.memory=.5Gi"}, want: "483183820"},
+		{name: "auto without a memory limit", args: []string{"--set-json", "exporter.resources.limits=null"}},
+		// Zero means unlimited; GOMEMLIMIT=0 would be a zero-byte Go limit.
+		{name: "auto with a zero request and limit", args: []string{"--set-string", "exporter.resources.requests.memory=0",
+			"--set-string", "exporter.resources.limits.memory=0"}},
+		{name: "auto with a numeric zero limit", args: []string{"--set-json", "exporter.resources.limits.memory=0"}},
+		// An explicit value is a number of GiB, rendered as whole MiB.
+		{name: "an explicit GiB number", args: []string{"--set-json", "exporter.goMemLimit=3.5"}, want: "3584MiB"},
+		{name: "an explicit GiB string", args: []string{"--set", "exporter.goMemLimit=3.5"}, want: "3584MiB"},
+		{name: "an explicit whole GiB", args: []string{"--set-json", "exporter.goMemLimit=1"}, want: "1024MiB"},
+		{name: "an explicit zero", args: []string{"--set-json", "exporter.goMemLimit=0"},
+			failure: `exporter.goMemLimit 0 must be a number of GiB from 0.001 to 1024`},
+		{name: "an explicit value above 1024 GiB", args: []string{"--set-json", "exporter.goMemLimit=2000"},
+			failure: `exporter.goMemLimit 2000 must be a number of GiB from 0.001 to 1024`},
+		{name: "an explicit negative value", args: []string{"--set-json", "exporter.goMemLimit=-1"},
+			failure: `exporter.goMemLimit "-1" must be auto, a number of GiB such as 3.5, or empty`},
+		{name: "an explicit Go byte count", args: []string{"--set", "exporter.goMemLimit=3600MiB"},
+			failure: `exporter.goMemLimit "3600MiB" must be auto, a number of GiB such as 3.5, or empty`},
+		{name: "an explicit boolean", args: []string{"--set-json", "exporter.goMemLimit=true"},
+			failure: `exporter.goMemLimit "true" must be auto, a number of GiB such as 3.5, or empty`},
+		{name: "an empty value", args: []string{"--set", "exporter.goMemLimit="}},
+		{name: "an unreadable limit", args: []string{"--set", "exporter.resources.limits.memory=4Gx"},
+			failure: `cannot read exporter.resources.limits.memory "4Gx"`},
+		{name: "a limit too large for Go", args: []string{"--set-string", "exporter.resources.limits.memory=4e99"},
+			failure: `exporter.resources.limits.memory 4e99 is too large for a Go memory limit`},
+	} {
+		It("renders "+tc.name, func() {
+			helm, err := exec.LookPath("helm")
+			if err != nil {
+				Skip("helm is needed for chart rendering")
+			}
+			chart := filepath.Join("..", "..", "..", "charts", "karta")
+			args := append([]string{"template", "memlimit", chart, "--set", "exporter.enabled=true",
+				"--show-only", "templates/exporter-deployment.yaml"}, tc.args...)
+			out, err := exec.Command(helm, args...).CombinedOutput()
+			if tc.failure != "" {
+				Expect(err).To(HaveOccurred())
+				Expect(string(out)).To(ContainSubstring(tc.failure))
+				return
+			}
+			Expect(err).To(Succeed(), string(out))
+			var deployment struct {
+				Spec struct {
+					Template struct {
+						Spec struct {
+							Containers []struct {
+								Env []struct {
+									Name  string `yaml:"name"`
+									Value string `yaml:"value"`
+								} `yaml:"env"`
+							} `yaml:"containers"`
+						} `yaml:"spec"`
+					} `yaml:"template"`
+				} `yaml:"spec"`
+			}
+			Expect(yaml.Unmarshal(out, &deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
+			got := ""
+			for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+				if env.Name == "GOMEMLIMIT" {
+					got = env.Value
+				}
+			}
+			Expect(got).To(Equal(tc.want))
 		})
 	}
 })

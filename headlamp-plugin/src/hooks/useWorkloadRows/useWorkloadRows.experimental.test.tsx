@@ -4,6 +4,7 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { useEffect, useSyncExternalStore } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { gvkKey } from '../../lib/karta/gvkKey';
 import type { Karta } from '../../lib/karta/karta.types';
 import type { KindFetcherProps } from './KindFetcher/KindFetcher';
 import { useWorkloadRows, UseWorkloadRowsResult } from './useWorkloadRows';
@@ -50,13 +51,14 @@ vi.mock('../../config', () => ({
 vi.mock('./KindFetcher/KindFetcher', () => ({
   KindFetcher: ({ definition, onRows, onError }: KindFetcherProps) => {
     const name = definition.karta.metadata.name;
+    const key = gvkKey(definition.rootKind);
     useEffect(() => {
       mounted.add(name);
       if (!pending.has(name)) {
         if (name === 'broken-preview') {
-          onError(name, new Error('forbidden'));
+          onError(key, new Error('forbidden'));
         } else {
-          onRows(name, [{ id: name, name } as any]);
+          onRows(key, [{ id: name, name } as any]);
         }
       }
       return () => {
@@ -124,7 +126,7 @@ beforeEach(() => {
 
 describe('experimental workload definitions', () => {
   it('stays quiet by default and removes fetchers, rows, and errors when disabled', async () => {
-    let latest: UseWorkloadRowsResult;
+    let latest!: UseWorkloadRowsResult;
     render(<Harness onResult={result => (latest = result)} />);
 
     await waitFor(() => expect(latest.rows?.map(row => row.name)).toEqual(['stable']));
@@ -137,7 +139,9 @@ describe('experimental workload definitions', () => {
     expect(mounted).toEqual(new Set(['stable', 'preview', 'broken-preview']));
     expect(request).toHaveBeenCalledWith('/apis/preview.example/v1', expect.anything(), false, true);
     expect(request).toHaveBeenCalledWith('/apis/broken.example/v1', expect.anything(), false, true);
-    expect(latest.errorsByKind['cluster-a/broken-preview']?.message).toBe('forbidden');
+    expect(latest.errorsByKind['cluster-a/broken.example/v1, Kind=broken-preview']?.message).toBe(
+      'forbidden'
+    );
 
     setExperimental(false);
     await waitFor(() => expect(latest.rows?.map(row => row.name)).toEqual(['stable']));

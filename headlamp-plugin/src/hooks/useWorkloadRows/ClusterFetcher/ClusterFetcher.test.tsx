@@ -33,15 +33,16 @@ import type { Definition } from '../../../lib/karta/definitions';
 import type { ServedKind } from '../../useServedKinds/useServedKinds';
 import { ClusterFetcher, ClusterState } from './ClusterFetcher';
 
-function definition(name: string, group: string, version: string): Definition {
+function definition(name: string, group: string, version: string, kind = name): Definition {
   return {
     karta: {
       apiVersion: 'run.ai/v1alpha1',
       kind: 'Karta',
       metadata: { name },
-      spec: { structureDefinition: { rootComponent: { kind: { group, version, kind: name } } } },
+      spec: { structureDefinition: { rootComponent: { kind: { group, version, kind } } } },
     },
     origin: 'catalog',
+    rootKind: { group, version, kind },
   };
 }
 
@@ -132,7 +133,7 @@ describe('ClusterFetcher', () => {
 
     await waitFor(() => expect(states.length).toBeGreaterThan(0));
     expect(kindFetcherProps).toHaveLength(0);
-    expect(states.at(-1)?.expectedKinds).toEqual([]);
+    expect(states.slice(-1)[0]?.expectedKinds).toEqual([]);
   });
 
   // useList drops the namespaces for a cluster-scoped kind, so the selection
@@ -154,7 +155,7 @@ describe('ClusterFetcher', () => {
 
     await waitFor(() => expect(kindFetcherProps).toHaveLength(1));
     expect(kindFetcherProps[0].definition.karta.metadata.name).toBe('StorageClass');
-    expect(states.at(-1)?.expectedKinds).toEqual(['StorageClass']);
+    expect(states.slice(-1)[0]?.expectedKinds).toEqual(['storage.k8s.io/v1, Kind=StorageClass']);
   });
 
   // An empty table with no explanation reads as "no workloads".
@@ -166,11 +167,11 @@ describe('ClusterFetcher', () => {
     const states = renderCluster('cluster-a', ['team-a']);
 
     await waitFor(() => expect(states.length).toBeGreaterThan(0));
-    expect(states.at(-1)?.warning?.message).toBe(
+    expect(states.slice(-1)[0]?.warning?.message).toBe(
       'the selected namespaces are not allowed on this cluster'
     );
     // Not fatal: the cluster is readable, it just has nothing to show here.
-    expect(states.at(-1)?.error).toBeNull();
+    expect(states.slice(-1)[0]?.error).toBeNull();
   });
 
   it('narrows the selection to the namespaces the cluster allows', async () => {
@@ -201,8 +202,36 @@ describe('ClusterFetcher', () => {
     const states = renderCluster();
 
     await waitFor(() => expect(states.length).toBeGreaterThan(0));
-    expect(states.at(-1)?.expectedKinds).toEqual(['Deployment']);
-    expect(states.at(-1)?.loading).toBe(false);
+    expect(states.slice(-1)[0]?.expectedKinds).toEqual(['apps/v1, Kind=Deployment']);
+    expect(states.slice(-1)[0]?.loading).toBe(false);
+  });
+
+  // A cluster Karta can reuse the name the catalog gives another kind, and
+  // mergeDefinitions keeps both because their kinds differ. Keyed by name, the
+  // two would write to one entry and one would replace the other.
+  it('keeps two definitions that share a name but describe different kinds apart', async () => {
+    givenDefinitions([
+      definition('apps-deployment-v1', 'apps', 'v1', 'Deployment'),
+      definition('apps-deployment-v1', 'batch', 'v1', 'Job'),
+    ]);
+    givenDiscovery(
+      new Map([
+        ['apps/v1/Deployment', { plural: 'deployments', namespaced: true }],
+        ['batch/v1/Job', { plural: 'jobs', namespaced: true }],
+      ])
+    );
+
+    const states = renderCluster();
+
+    await waitFor(() =>
+      expect(states.slice(-1)[0]?.expectedKinds).toEqual([
+        'apps/v1, Kind=Deployment',
+        'batch/v1, Kind=Job',
+      ])
+    );
+    expect(new Set(kindFetcherProps.map(props => props.definition.rootKind.kind))).toEqual(
+      new Set(['Deployment', 'Job'])
+    );
   });
 
   it('reports a kind whose group never answered rather than omitting it', async () => {
@@ -212,7 +241,7 @@ describe('ClusterFetcher', () => {
     const states = renderCluster();
 
     await waitFor(() => expect(states.length).toBeGreaterThan(0));
-    expect(states.at(-1)?.discoveryFailures.RayJob?.message).toBe('discovery failed for ray.io/v1');
+    expect(states.slice(-1)[0]?.discoveryFailures['ray.io/v1, Kind=RayJob']?.message).toBe('discovery failed for ray.io/v1');
     expect(kindFetcherProps).toHaveLength(0);
   });
 
@@ -225,9 +254,9 @@ describe('ClusterFetcher', () => {
     const states = renderCluster();
 
     await waitFor(() => expect(states.length).toBeGreaterThan(0));
-    expect(states.at(-1)?.error).toBeNull();
-    expect(states.at(-1)?.warning?.message).toBe('kartas forbidden');
-    expect(states.at(-1)?.expectedKinds).toEqual(['Deployment']);
+    expect(states.slice(-1)[0]?.error).toBeNull();
+    expect(states.slice(-1)[0]?.warning?.message).toBe('kartas forbidden');
+    expect(states.slice(-1)[0]?.expectedKinds).toEqual(['apps/v1, Kind=Deployment']);
   });
 
   it('treats a definitions failure as fatal when nothing is left to describe', async () => {
@@ -237,7 +266,7 @@ describe('ClusterFetcher', () => {
     const states = renderCluster();
 
     await waitFor(() => expect(states.length).toBeGreaterThan(0));
-    expect(states.at(-1)?.error?.message).toBe('kartas forbidden');
+    expect(states.slice(-1)[0]?.error?.message).toBe('kartas forbidden');
   });
 
   it('reports a discovery failure as this cluster failing', async () => {
@@ -247,7 +276,7 @@ describe('ClusterFetcher', () => {
     const states = renderCluster();
 
     await waitFor(() => expect(states.length).toBeGreaterThan(0));
-    expect(states.at(-1)?.error?.message).toBe('discovery unreachable');
-    expect(states.at(-1)?.expectedKinds).toEqual([]);
+    expect(states.slice(-1)[0]?.error?.message).toBe('discovery unreachable');
+    expect(states.slice(-1)[0]?.expectedKinds).toEqual([]);
   });
 });

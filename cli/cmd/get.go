@@ -110,6 +110,7 @@ type getOptions struct {
 	selector  string
 	chunkSize int64
 	allTypes  bool
+	noHeaders bool
 }
 
 // newGetCommand builds the "kli get" command: one row per workload root.
@@ -161,6 +162,7 @@ func newGetCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.selector, flagSelector, "l", "", usageSelector)
 	cmd.Flags().Int64Var(&opts.chunkSize, flagChunkSize, defaultChunkSize, usageChunkSize)
 	cmd.Flags().BoolVar(&opts.allTypes, flagAllTypes, false, usageAllTypes)
+	withNoHeaders(cmd.Flags(), &opts.noHeaders)
 
 	return cmd
 }
@@ -260,6 +262,7 @@ func runGet(cmd *cobra.Command, opts *getOptions, format generator.Output) (err 
 		// spanned the cluster.
 		AllNamespaces: searched == "",
 		TypeOf:        typeOf,
+		NoHeaders:     opts.noHeaders,
 	})
 }
 

@@ -42,23 +42,32 @@ vi.mock('./lib/karta/karta', () => ({ getKartaWasm }));
 // page's import graph loads the engine at module scope either.
 import './index';
 
+// Registration happens at import time. Vitest clears mock history before each
+// test, so what the import recorded has to be captured here.
+const loadCalls = {
+  registerRoute: [...registerRoute.mock.calls],
+  registerSidebarEntry: [...registerSidebarEntry.mock.calls],
+  registerPluginSettings: [...registerPluginSettings.mock.calls],
+  getKartaWasm: [...getKartaWasm.mock.calls],
+};
+
 describe('plugin registration', () => {
   // The engine is ~19MB, and every Headlamp user would pay for it at startup
   // whether or not they open Karta. The page loads it when it mounts.
   it('does not load the engine when the plugin is registered', () => {
-    expect(getKartaWasm).not.toHaveBeenCalled();
+    expect(loadCalls.getKartaWasm).toHaveLength(0);
   });
 
   it('registers the workloads route and its sidebar entries', () => {
-    expect(registerRoute).toHaveBeenCalledWith(
-      expect.objectContaining({ path: '/karta/workloads', exact: true })
-    );
-    expect(registerSidebarEntry).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'karta-workloads', url: '/karta/workloads' })
-    );
+    expect(loadCalls.registerRoute).toContainEqual([
+      expect.objectContaining({ path: '/karta/workloads', exact: true }),
+    ]);
+    expect(loadCalls.registerSidebarEntry).toContainEqual([
+      expect.objectContaining({ name: 'karta-workloads', url: '/karta/workloads' }),
+    ]);
   });
 
   it('registers settings with Headlamp saving enabled', () => {
-    expect(registerPluginSettings).toHaveBeenCalledWith('karta', expect.any(Function), true);
+    expect(loadCalls.registerPluginSettings).toContainEqual(['karta', expect.any(Function), true]);
   });
 });

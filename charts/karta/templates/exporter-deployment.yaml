@@ -72,10 +72,17 @@ spec:
             {{- if dig "pprof" "enabled" false .Values.exporter }}
             - {{ printf "--pprof-bind-address=127.0.0.1:%v" (dig "pprof" "port" 6060 .Values.exporter) | quote }}
             {{- end }}
-          {{- if ne $fipsMode "off" }}
+          {{- $goMemLimit := include "karta.exporter.goMemLimit" . }}
+          {{- if or (ne $fipsMode "off") $goMemLimit }}
           env:
+            {{- if ne $fipsMode "off" }}
             - name: GODEBUG
               value: "fips140={{ $fipsMode }}"
+            {{- end }}
+            {{- with $goMemLimit }}
+            - name: GOMEMLIMIT
+              value: {{ . | quote }}
+            {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.exporter.resources | nindent 12 }}

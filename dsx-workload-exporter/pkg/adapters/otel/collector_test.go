@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 type countingCapturer struct {
@@ -89,7 +90,7 @@ func (c *countingCapturer) Capture() store.CapturedView {
 	return c.Capturer.Capture()
 }
 
-func collectorFixture(t testing.TB) (store.PublicationStore, *store.WorkloadResult, *store.PodResult, func() string) {
+func collectorFixture(t testing.TB, excludeStatuses ...v1alpha1.ResourceStatus) (store.PublicationStore, *store.WorkloadResult, *store.PodResult, func() string) {
 	t.Helper()
 	g := NewWithT(t)
 	s := store.New()
@@ -115,7 +116,7 @@ func collectorFixture(t testing.TB) (store.PublicationStore, *store.WorkloadResu
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader), sdkmetric.WithCardinalityLimit(0))
 	t.Cleanup(func() { g.Expect(provider.Shutdown(context.Background())).To(Succeed()) })
 	source := &countingCapturer{Capturer: s}
-	registration, err := Register(provider.Meter("test"), source)
+	registration, err := Register(provider.Meter("test"), source, excludeStatuses)
 	g.Expect(err).NotTo(HaveOccurred())
 	t.Cleanup(func() { g.Expect(registration.Unregister()).To(Succeed()) })
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
@@ -156,6 +157,46 @@ func TestFourMetricFamiliesAndDensePhases(t *testing.T) {
 			}
 			g.Expect(line).To(HaveSuffix(expected))
 		}
+	}
+}
+
+func TestExcludedStatusPhases(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		excluded []v1alpha1.ResourceStatus
+		count    int
+	}{
+		{name: "transitions excluded", excluded: []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}, count: 7},
+		{name: "all phases enabled", count: 9},
+		{name: "custom exclusion", excluded: []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}, count: 8},
+		{name: "all phases excluded", excluded: allPhases, count: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g := NewWithT(t)
+			s, workload, _, scrape := collectorFixture(t, tc.excluded...)
+			workload.Record.Phases = []string{"Running", "Suspending", "Resuming"}
+			s.UpsertWorkload(workload)
+			output := scrape()
+			g.Expect(strings.Count(output, MetricWorkloadStatus+"{")).To(Equal(tc.count))
+			for _, phase := range tc.excluded {
+				g.Expect(output).NotTo(ContainSubstring(`phase="` + string(phase) + `"`))
+			}
+			for _, line := range strings.Split(output, "\n") {
+				if strings.HasPrefix(line, MetricWorkloadStatus+"{") {
+					expected := " 0"
+					for _, phase := range workload.Record.Phases {
+						if strings.Contains(line, `phase="`+phase+`"`) {
+							expected = " 1"
+						}
+					}
+					g.Expect(line).To(HaveSuffix(expected))
+				}
+			}
+			g.Expect(s.Workload("root").Record.Phases).To(Equal(workload.Record.Phases))
+			g.Expect(output).To(ContainSubstring(MetricPodWorkloadInfo + "{"))
+			g.Expect(output).To(ContainSubstring(MetricWorkloadCreatedTimestamp + "{"))
+			g.Expect(output).NotTo(ContainSubstring(`observation_valid="false"`))
+		})
 	}
 }
 
@@ -230,7 +271,7 @@ func TestDefaultPrometheusScopeLabels(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader), sdkmetric.WithCardinalityLimit(0))
 	t.Cleanup(func() { g.Expect(provider.Shutdown(context.Background())).To(Succeed()) })
-	registration, err := Register(provider.Meter("scope-test"), s)
+	registration, err := Register(provider.Meter("scope-test"), s, nil)
 	g.Expect(err).NotTo(HaveOccurred())
 	t.Cleanup(func() { g.Expect(registration.Unregister()).To(Succeed()) })
 	response := httptest.NewRecorder()

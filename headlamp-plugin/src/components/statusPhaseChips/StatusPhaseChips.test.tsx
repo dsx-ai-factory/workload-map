@@ -29,6 +29,12 @@ describe('StatusPhaseChips', () => {
     expect(screen.getByText('Running')).toBeTruthy();
   });
 
+  it('shows the evaluation error instead of the phases', () => {
+    render(<StatusPhaseChips phases={[]} error="engine unavailable" />);
+
+    expect(screen.getByText('Unavailable').getAttribute('title')).toBe('engine unavailable');
+  });
+
   it('renders multiple matched phases worst-severity first', () => {
     render(<StatusPhaseChips phases={['Running', 'Degraded']} />);
 

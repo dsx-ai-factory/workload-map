@@ -24,6 +24,7 @@ reads it at startup.
 | `metricsPort` | `8080` | Shared listener, container, probe and Service port. |
 | `pprof.enabled`, `pprof.port` | `false`, `6060` | Serve Go pprof profiles on `127.0.0.1:<port>` inside the Pod. No Service exposes them; reach them with `kubectl port-forward`. |
 | `resources` | Requests: `500m` CPU, `512Mi` memory. Limits: `2` CPU, `4Gi` memory. | For large clusters, increase requests and limits based on measured CPU and memory usage. Watched object count, object size and scrape frequency affect usage. |
+| `goMemLimit` | `auto` | Go runtime soft memory limit (`GOMEMLIMIT`). `auto` sets 90% of `resources.limits.memory`, so the garbage collector runs more often near the limit, which lowers the risk of an OOM kill. `auto` reads any Kubernetes quantity that fits in 64-bit bytes; no limit or a zero limit leaves `GOMEMLIMIT` unset. A number sets it in GiB, such as `3.5`, from 0.001 to 1024; empty leaves it unset. |
 | `nodeSelector`, `affinity` | `{}` | Exporter placement. |
 | `tolerations` | `[]` | Exporter tolerations. |
 | `podLabels`, `podAnnotations` | `{}` | Additional Pod metadata; selector labels and `checksum/config` are reserved. |
@@ -38,6 +39,7 @@ reads it at startup.
 | `podWorkloadAssociation` | `null` | Optional Pod-to-workload metric identity, described below. |
 | `resourceRules` | `[]` | Allowed root API types; empty means unrestricted. |
 | `excludeResourceRules` | Core ConfigMaps and Secrets, all versions | Excluded root types. Set `[]` to remove these exclusions. |
+| `excludeStatuses` | `[Suspending, Resuming]` | Status gauge phases to omit. Set `[]` to emit all nine phases. |
 | `ignoredOwnerKinds`, `requiredKinds` | `[]` | Owner boundaries and additional watched kinds. |
 | `workers` | `4` | Default concurrency for each Pod/workload queue. |
 | `leafWorkers` | `0` | Goroutines processing Pod queue jobs. Zero inherits `workers`. |
@@ -63,6 +65,15 @@ configure the exporter. `fullnameOverride` changes its resource-name prefix.
 The default worker settings start four Pod workers and four workload workers.
 These counts control queue processing, not the total goroutines or API requests.
 
+`goMemLimit` is a soft limit. As memory nears it, the garbage collector runs
+more often, which usually keeps memory under the limit and costs CPU. If the
+live data alone is larger than the limit, the runtime caps garbage collection at
+about half of the CPU and lets memory grow past it. The container can then be
+OOM-killed if it reaches a configured `resources.limits.memory`. A working set
+that stays at the limit while exporter CPU rises means the live data has
+outgrown it. Raise `resources.limits.memory`; with `auto`, `GOMEMLIMIT` follows.
+The other 10% of the limit covers memory outside the Go runtime.
+
 For an unreleased checkout, set `image.repository` and `image.tag` to an image
 built from that checkout and accessible to cluster nodes. The chart appVersion
 does not guarantee that an exporter image has been published. See
@@ -72,7 +83,7 @@ does not guarantee that an exporter image has been published. See
 
 Put runtime keys at the YAML root without `exporter:`. Omit chart-only keys such
 as `enabled`, `image`, `metricsPort`, placement and `rbac`. Unknown YAML keys fail
-startup. Selectors and definition sources use YAML only.
+startup. Selectors, definition sources and `excludeStatuses` use YAML only.
 
 Explicit flags override environment variables, then YAML, then binary defaults.
 An empty numeric override is an error. `--config=""` skips an environment-provided
@@ -307,6 +318,27 @@ Kubernetes may warn when a watched API version is deprecated. The exporter logs
 each distinct API warning once per process. Select a Karta definition using the
 supported API version to address the warning. Enabling the catalog does not
 replace a deprecated version selected by a cluster definition.
+
+## Status phases
+
+`excludeStatuses` removes phases from `dsx_workload_status`. The default omits
+`Suspending` and `Resuming`, reducing each workload's status gauges from nine to
+seven. Sandbox is the only bundled definition that maps these transitions.
+To observe Sandbox transitions or custom definitions that use these phases,
+remove them from the exclusion list.
+
+Set `excludeStatuses: []` to emit all nine phases, or provide a list that replaces
+the default exclusions. For Helm, put the setting under `exporter`:
+
+```yaml
+exporter:
+  excludeStatuses: []
+```
+
+Names are case-sensitive: `Initializing`, `Running`, `Completed`, `Failed`,
+`Degraded`, `Suspended`, `Suspending`, `Resuming` and `Undefined`. Unknown names
+fail startup. Each enabled phase remains a zero-or-one gauge. Exclusions affect
+only metric output; status evaluation and observation health are unchanged.
 
 ## Configured labels
 

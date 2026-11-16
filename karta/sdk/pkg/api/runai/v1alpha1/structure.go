@@ -176,6 +176,7 @@ type ScaleDefinition struct {
 }
 
 // PodSelector defines how to identify pods belonging to a specific component.
+// +kubebuilder:validation:XValidation:rule="!has(self.rootLink) || has(self.componentTypeSelector)",message="rootLink requires componentTypeSelector"
 type PodSelector struct {
 	// ComponentTypeSelector determines whether a pod belongs to this component type
 	// by matching a pod label or annotation value via a JQ path, a set of pod labels, or both.
@@ -204,6 +205,29 @@ type PodSelector struct {
 	// the level where replicas are created, not repeated in descendants.
 	// +kubebuilder:validation:Optional
 	ReplicaSelector *ReplicaSelector `json:"replicaSelector,omitempty"`
+
+	// RootLink ties a pod that the root workload does not own to this component.
+	// Use it for dependencies installed without owner references, such as a
+	// Helm-installed etcd whose pods carry a label derived from the root's name.
+	// A linked pod must also match ComponentTypeSelector.
+	// +kubebuilder:validation:Optional
+	RootLink *RootLink `json:"rootLink,omitempty"`
+}
+
+// RootLink matches a pod when its LabelKey label equals the string that
+// ValuePath reads from the root workload object.
+type RootLink struct {
+	// LabelKey is the pod label that carries the root-derived value.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	LabelKey string `json:"labelKey"`
+
+	// ValuePath is the JQ expression evaluated against the root workload object,
+	// not the pod. It must produce exactly one string.
+	// For example: .metadata.name + "-etcd"
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	ValuePath string `json:"valuePath" jq:"validate"`
 }
 
 // ComponentTypeSelector matches a pod when every condition that is set holds (AND).

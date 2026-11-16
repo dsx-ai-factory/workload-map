@@ -17,6 +17,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/metadata"
+
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
 )
 
 // podsGVR is the fixed core/v1 Pod resource, which discovery does not need to map.
@@ -26,11 +29,22 @@ var podsGVR = schema.GroupVersionResource{Version: "v1", Resource: "pods"}
 // A Karta PodSelector names a component type, never a workload.
 type PodAttributor struct {
 	owners *OwnerWalker
+	// root and karta are set by LinkedThrough; a pod the root does not own is
+	// then still claimed when one of the definition's RootLinks ties it to root.
+	root  *unstructured.Unstructured
+	karta *v1alpha1.Karta
 }
 
 // NewPodAttributor returns an attributor reading pod owners through client.
 func NewPodAttributor(client metadata.Interface, mapper meta.RESTMapper) *PodAttributor {
 	return &PodAttributor{owners: NewOwnerWalker(client, mapper)}
+}
+
+// LinkedThrough also claims pods that root does not own when a RootLink in
+// karta ties them to root. Without it, only the owner chain counts.
+func (a *PodAttributor) LinkedThrough(root *unstructured.Unstructured, karta *v1alpha1.Karta) *PodAttributor {
+	a.root, a.karta = root, karta
+	return a
 }
 
 // Filter returns the pods whose owner chain reaches rootUID, decoding only the
@@ -51,13 +65,23 @@ func (a *PodAttributor) Filter(
 			failures.Add(err, pods[i].GetName())
 			continue
 		}
-		if !owned {
+		if !owned && a.karta == nil {
 			continue
 		}
 
 		var pod corev1.Pod
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(pods[i].Object, &pod); err != nil {
 			return nil, nil, fmt.Errorf("decode pod %s: %w", pods[i].GetName(), err)
+		}
+		if !owned {
+			linked, err := resource.LinksToRoot(ctx, a.root.Object, a.karta, &pod)
+			if err != nil {
+				failures.Add(err, pod.Name)
+				continue
+			}
+			if !linked {
+				continue
+			}
 		}
 		matched = append(matched, pod)
 	}

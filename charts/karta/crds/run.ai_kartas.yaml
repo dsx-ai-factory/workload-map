@@ -336,7 +336,33 @@ spec:
                               required:
                               - keyPath
                               type: object
+                            rootLink:
+                              description: |-
+                                RootLink ties a pod that the root workload does not own to this component.
+                                Use it for dependencies installed without owner references, such as a
+                                Helm-installed etcd whose pods carry a label derived from the root's name.
+                                A linked pod must also match ComponentTypeSelector.
+                              properties:
+                                labelKey:
+                                  description: LabelKey is the pod label that carries
+                                    the root-derived value.
+                                  minLength: 1
+                                  type: string
+                                valuePath:
+                                  description: |-
+                                    ValuePath is the JQ expression evaluated against the root workload object,
+                                    not the pod. It must produce exactly one string.
+                                    For example: .metadata.name + "-etcd"
+                                  minLength: 1
+                                  type: string
+                              required:
+                              - labelKey
+                              - valuePath
+                              type: object
                           type: object
+                          x-kubernetes-validations:
+                          - message: rootLink requires componentTypeSelector
+                            rule: '!has(self.rootLink) || has(self.componentTypeSelector)'
                         scaleDefinition:
                           description: ScaleDefinition defines how to extract scaling
                             information from this component
@@ -1141,7 +1167,33 @@ spec:
                             required:
                             - keyPath
                             type: object
+                          rootLink:
+                            description: |-
+                              RootLink ties a pod that the root workload does not own to this component.
+                              Use it for dependencies installed without owner references, such as a
+                              Helm-installed etcd whose pods carry a label derived from the root's name.
+                              A linked pod must also match ComponentTypeSelector.
+                            properties:
+                              labelKey:
+                                description: LabelKey is the pod label that carries
+                                  the root-derived value.
+                                minLength: 1
+                                type: string
+                              valuePath:
+                                description: |-
+                                  ValuePath is the JQ expression evaluated against the root workload object,
+                                  not the pod. It must produce exactly one string.
+                                  For example: .metadata.name + "-etcd"
+                                minLength: 1
+                                type: string
+                            required:
+                            - labelKey
+                            - valuePath
+                            type: object
                         type: object
+                        x-kubernetes-validations:
+                        - message: rootLink requires componentTypeSelector
+                          rule: '!has(self.rootLink) || has(self.componentTypeSelector)'
                       scaleDefinition:
                         description: ScaleDefinition defines how to extract scaling
                           information from this component

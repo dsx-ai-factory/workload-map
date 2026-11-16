@@ -357,6 +357,15 @@ func Milvus() *v1alpha1.Karta {
 						ScaleDefinition: &v1alpha1.ScaleDefinition{
 							ReplicasPath: ptr.To(".spec.dependencies.etcd.inCluster.values.replicaCount"),
 						},
+						PodSelector: &v1alpha1.PodSelector{
+							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
+								MatchLabels: map[string]string{"app.kubernetes.io/name": "etcd"},
+							},
+							RootLink: &v1alpha1.RootLink{
+								LabelKey:  "app.kubernetes.io/instance",
+								ValuePath: `.metadata.name + "-etcd"`,
+							},
+						},
 					},
 					{
 						Name:     "minio",
@@ -365,6 +374,15 @@ func Milvus() *v1alpha1.Karta {
 						SpecDefinition: &v1alpha1.SpecDefinition{
 							FragmentedPodSpecDefinition: &v1alpha1.FragmentedPodSpecDefinition{
 								ResourcesPath: ptr.To(".spec.dependencies.storage.inCluster.values.resources"),
+							},
+						},
+						PodSelector: &v1alpha1.PodSelector{
+							ComponentTypeSelector: &v1alpha1.ComponentTypeSelector{
+								MatchLabels: map[string]string{"app": "minio"},
+							},
+							RootLink: &v1alpha1.RootLink{
+								LabelKey:  "release",
+								ValuePath: `.metadata.name + "-minio"`,
 							},
 						},
 					},

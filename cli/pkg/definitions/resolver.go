@@ -35,25 +35,16 @@ var (
 type Status string
 
 const (
-	// StatusActive is the one definition selected for its workload type.
-	StatusActive Status = "active"
-	// StatusInactive is never selected: a cluster definition overrides it, or it
-	// names no workload type.
-	StatusInactive Status = "inactive"
-	// StatusAmbiguous claims its workload type together with another definition
-	// from the same source, so none of them is selected.
+	StatusActive    Status = "active"
+	StatusInactive  Status = "inactive"
 	StatusAmbiguous Status = "ambiguous"
 )
 
-// Definition is a Karta together with the source it was read from.
+// Definition is a Karta together with the source it was read from. Status is set
+// by ListAll.
 type Definition struct {
 	Karta  *v1alpha1.Karta
 	Origin Origin
-}
-
-// Listed is a definition together with its selection status.
-type Listed struct {
-	Definition
 	Status Status
 }
 
@@ -168,7 +159,7 @@ func (r *Resolver) List() []Definition {
 // the same order, followed by the catalog definitions a cluster definition
 // overrides. List stays the set lookups choose from; ListAll also shows what the
 // cluster hides.
-func (r *Resolver) ListAll() []Listed {
+func (r *Resolver) ListAll() []Definition {
 	claimants := make(map[schema.GroupVersionKind]int, len(r.definitions))
 	for _, def := range r.definitions {
 		if gvk, ok := mappable(def); ok {
@@ -176,20 +167,22 @@ func (r *Resolver) ListAll() []Listed {
 		}
 	}
 
-	out := make([]Listed, 0, len(r.definitions)+len(r.overridden))
+	out := make([]Definition, 0, len(r.definitions)+len(r.overridden))
 	for _, def := range r.definitions {
 		gvk, ok := mappable(def)
 		switch {
 		case !ok:
-			out = append(out, Listed{Definition: def, Status: StatusInactive})
+			def.Status = StatusInactive
 		case claimants[gvk] > 1:
-			out = append(out, Listed{Definition: def, Status: StatusAmbiguous})
+			def.Status = StatusAmbiguous
 		default:
-			out = append(out, Listed{Definition: def, Status: StatusActive})
+			def.Status = StatusActive
 		}
+		out = append(out, def)
 	}
 	for _, def := range r.overridden {
-		out = append(out, Listed{Definition: def, Status: StatusInactive})
+		def.Status = StatusInactive
+		out = append(out, def)
 	}
 	return out
 }

@@ -158,7 +158,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 						args[0])
 				}
 				matches = []definitions.Definition{def}
-				entries = slices.DeleteFunc(entries, func(e definitions.Listed) bool { return e.Karta != def.Karta })
+				entries = slices.DeleteFunc(entries, func(e definitions.Definition) bool { return e.Karta != def.Karta })
 
 			case filter.set:
 				if matches = filter.narrow(matches); len(matches) == 0 {
@@ -166,7 +166,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 						`no Karta definition covers %q. Run "kli definitions" to see what is available`,
 						filter.String())
 				}
-				entries = slices.DeleteFunc(entries, func(e definitions.Listed) bool { return !filter.covers(e.Definition) })
+				entries = slices.DeleteFunc(entries, func(e definitions.Definition) bool { return !filter.covers(e) })
 			}
 
 			kartas := make([]*v1alpha1.Karta, 0, len(matches))
@@ -270,7 +270,7 @@ func (f definitionFilter) String() string {
 
 // definitionRows projects entries into rows sorted by name. Resolver.ListAll
 // sorts by GVK, so display order is set here.
-func definitionRows(entries []definitions.Listed) []definitionRow {
+func definitionRows(entries []definitions.Definition) []definitionRow {
 	rows := make([]definitionRow, 0, len(entries))
 	for _, def := range entries {
 		structure := def.Karta.Spec.StructureDefinition

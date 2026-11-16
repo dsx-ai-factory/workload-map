@@ -420,7 +420,7 @@ var _ = DescribeTable("FormatGVK names a type as group/version/Kind",
 )
 
 var _ = Describe("Resolver ListAll", func() {
-	statusesOf := func(listed []Listed) map[string]Status {
+	statusesOf := func(listed []Definition) map[string]Status {
 		out := make(map[string]Status, len(listed))
 		for _, l := range listed {
 			out[string(l.Origin)+"/"+l.Karta.Name] = l.Status

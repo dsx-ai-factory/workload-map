@@ -1,24 +1,40 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright (c) 2026 NVIDIA Corporation -->
 
+<a id="implementation-evidence"></a>
+
 # CEL and references: SDK implementation design
 
-[KEP-0002](../../keps/0002-cel-expressions/README.md) defines the CRD and the
-KServe and Trainer examples. This design describes the proposed SDK changes.
-The current upstream SDK still uses jq. The API sketches below are not available
-in an upstream release.
+[KEP-0002](../../keps/0002-cel-expressions/README.md) separates CEL reads from write locations in a Karta definition.  
+The SDK reads and changes workloads through those rules. The application saves changes to Kubernetes.  
+These examples describe the proposed `v1alpha2` SDK. They cannot compile against current upstream, which still uses jq.  
+Karta definitions use `*kartav1alpha2.Karta`; decoded workloads use `*unstructured.Unstructured`.
 
-## Read and write execution
+## Validation
 
-![Reference resolution through a Kubernetes reader or supplied objects.](sdk-references.png)
+The Karta operator's validating webhook checks definitions on create and update.  
+The same validator is available to SDK callers:
 
-For KServe, the caller asks to change the predictor's image. The SDK evaluates
-the write match, resolves `/spec/predictor/model`, and merges the supplied image
-into that object. It returns an updated InferenceService. The caller decides
-when to send that object to Kubernetes.
+```go
+if err := kartav1alpha2.NewKartaValidator(kserveKarta).Validate(); err != nil {
+    return err
+}
+```
 
-The versioned API uses these types. Pointer fields distinguish an omitted path
-from `path: ""`, which selects the whole workload:
+Validation checks field shapes, compiles CEL and rejects unavailable inputs. A valid definition returns no error.
+
+| Invalid definition | Example |
+| --- | --- |
+| Duplicate variable | Two `spec.variables` entries both use `name: model`. |
+| Missing variable | An expression reads `variables.image`, but `image` is not declared. |
+| Dependency cycle | `a` reads `variables.b`, and `b` reads `variables.a`. Neither can be evaluated first. |
+
+A fixed `write.path` is a JSON Pointer into the workload, such as `/spec/predictor/model` in an InferenceService.  
+The validator checks fixed paths when loading the definition. Paths returned by `write.pathExpression` are checked after evaluation.
+
+## Value accessors
+
+An accessor defines a read, a write, or both:
 
 ```go
 type ValueAccessor struct {
@@ -38,39 +54,36 @@ type WriteAccessor struct {
 }
 ```
 
-Admission validates the field shape and compiles CEL. A fixed pointer must be
-valid; a computed pointer is checked after evaluation. Reject duplicate variable
-names, unknown dependencies and dependency cycles. Loaders for local YAML
-run the same validation. Compile programs once per definition revision and reuse
-them. Keep workload values and reference bindings outside the compiled program.
-
-Each operation evaluates its match before its value or path. Resolve only the
-workload variables needed by that operation, against its workload snapshot.
+Each operation evaluates its match before the read expression or write path. An omitted match means true.  
+A false read match returns `resource.ErrValueNotFound`; whole-workload reads skip that field.  
+A false write match prevents the change. Type and evaluation errors remain errors.  
+An omitted `Path` differs from `path: ""`, which selects the whole workload.
 
 | Expression | Inputs |
 | --- | --- |
-| Workload read, its match, or a shared variable | Root workload as `object`, `variables`, `references` |
-| Write path or its match | The same workload inputs, plus `instance` and `index` |
+| Workload read, its match, or a shared variable | Original workload as `object`, plus `variables` and `references` |
+| Write path or its match | The same inputs, plus `instance` and `index` |
 | Pod selector or grouping expression | One Pod as `object` only |
-| Reference lookup or selector recipe | Root workload as `object` only |
+| Reference lookup or selector | `object` is the workload passed to the SDK, such as a TrainJob. These expressions cannot use `variables` or `references`. |
 
-Admission rejects unavailable bindings, including `variables` or `references`
-in Pod expressions. Write expressions never receive the caller's new value.
-`instance` is the selected string ID; `index` is its zero-based CEL integer
-position in `instanceIds.read.expression`. The ID list and component read values
-must have the same order. For IDs `["gpu", "cpu"]`, requesting `"gpu"` gives
-`instance = "gpu"` and `index = 0`. A component without named instances receives
-`instance = ""` and `index = 0`. The caller supplies the ID, never the index.
+Callers select an instance by ID. The SDK finds its index in the ordered ID list.  
+For IDs `["gpu", "cpu"]`, selecting `"gpu"` gives `instance = "gpu"` and `index = 0`.  
+The ID list and component values have the same order. Without named instances, the inputs are `instance = ""` and `index = 0`.  
+Write expressions cannot read the caller's new value.
 
-Use cel-go optional values, strings and list extensions for the KEP examples.
-A missing optional lookup can supply a default. An explicit null remains null;
-it is not automatically the same as a missing field. Normalize inputs to JSON
-values, check output types, and apply an evaluation cost limit plus context
-cancellation. Errors identify the component and field without object contents.
+The SDK compiles each definition revision once and reuses the CEL programs.  
+Each evaluation has its own workload snapshot and reference inputs, and resolves only the variables it needs.  
+The evaluator supports cel-go optional values, strings and list extensions. An explicit null stays null; only a missing optional value takes its default.
 
-## Applying a change
+CEL receives workload and reference data as plain maps, lists and values.  
+Results must have the expected type: a boolean for a match or a string for a write path.  
+SDK options set the CEL cost limit and evaluation timeout. Evaluation also respects context cancellation.  
+Errors identify the component and field without including object contents.
 
-The public write call carries the logical field and a JSON Merge Patch value:
+## Writing a value
+
+`Field` names the value to change. Its matching Karta accessor supplies the write rule.  
+A field without a writable accessor returns an error.
 
 ```go
 type Write struct {
@@ -82,10 +95,16 @@ type Write struct {
 
 type Field string
 
-const Container Field = "fragmented.container"
+const (
+    PodTemplateSpec Field = "podTemplateSpec"
+    PodSpec         Field = "podSpec"
+    Container       Field = "container"
+)
 ```
 
-For the KEP's InferenceService, the proposed call is:
+For KServe, `Container` selects `fragmentedPodSpecDefinition.container`.  
+Definitions that map a complete PodSpec or PodTemplateSpec use the corresponding selector.  
+This call updates the model image in the KEP's InferenceService:
 
 ```go
 editor, err := tree.Open(ctx, kserveKarta, inferenceService)
@@ -106,41 +125,126 @@ if err != nil {
 return k8sClient.Update(ctx, updated)
 ```
 
-Here `k8sClient` is the caller's controller-runtime client. The editor works on
-a copy. It does not call the client. The selected model keeps `storageUri` and
-any other keys that the patch does not mention. If Kubernetes rejects the update,
-the caller handles the error. On a resource-version conflict, fetch the workload
-again and recalculate the change using a new editor.
+The image becomes `ghcr.io/example/inference:v2`; `storageUri` and other unspecified fields stay unchanged.  
+The editor changes a copy; `k8sClient.Update` saves it to Kubernetes.  
+Update errors return to the application. After a resource-version conflict, it fetches the workload again and opens a new editor.
 
-`Mutate` follows this order:
+`Mutate(ctx, writes...)` applies one batch atomically. A later call starts from the last successful batch.  
+It resolves all matches and destinations against the starting workload.  
+Missing write rules, false matches, invalid pointers, duplicate or overlapping targets, and unknown or duplicate instance IDs all fail before mutation.  
+It then applies each JSON Merge Patch to a private copy. Missing object parents are created, but paths through scalars or missing array entries fail.  
+Finally, it checks workload identity and extracts the tree again with a new factory. The updated object and tree become available together only if every operation succeeds.
 
-1. Resolve all write matches and destinations against the starting workload.
-   Reject absent write definitions, false matches, invalid pointers, duplicate
-   or overlapping targets, and unknown or duplicate instance IDs.
-2. Apply each merge patch at its selected subtree in a private copy. Create
-   missing object parents; never invent array entries or replace a scalar parent.
-3. Validate workload identity and re-extract the tree through a new factory.
-   Publish the new object and tree together only if every operation succeeds.
+`Write.Value` accepts non-null JSON values. Maps merge, scalars and arrays replace, and null map values delete keys.  
+Changing a container list therefore requires the full array. Merge Patch cannot merge containers by name or store a literal null in a map.  
+The initial API supports only Merge Patch. Raw JSON writes replace typed `Component.Update*` methods in v1alpha2 so operator-specific fields can be preserved.
 
-The new factory uses the updated workload to resolve references. With manual
-bindings, reject a mutation that changes a reference lookup name or selector
-values. Change that reference on the input object and open a new editor with
-matching bindings.
+## Reading a value
 
-`Write.Value` must be a non-null JSON value. Merge Patch merges map keys, replaces
-scalars and arrays, and deletes a map key when its patch value is null. It cannot
-store literal null in a map or merge containers by name. A caller editing an
-array supplies the complete new array.
-There is no patch-format setting in the CRD or initial public SDK.
+This read uses the KEP's original InferenceService, with image `ghcr.io/example/inference:v1`.  
+Its predictor component exposes the mapped container through a typed getter:
 
-The SDK release that adds v1alpha2 removes the typed `Component.Update*` writers.
-Callers migrate to raw JSON `Mutate` calls; typed reads remain. Serializing a `corev1.Container`
-loses operator-specific fields. Raw JSON lets callers state only the fields
-they intend to change.
+```go
+factory := resource.NewComponentFactoryFromObject(kserveKarta, inferenceService)
+predictor, err := factory.GetComponent("predictor")
+if err != nil {
+    return err
+}
+podSpecFragments, err := predictor.GetFragmentedPodSpec(ctx)
+if err != nil {
+    return err
+}
+fmt.Println(podSpecFragments[""].Container.Image)
+```
 
-## References with a Kubernetes client
+The result is `ghcr.io/example/inference:v1`. The empty key identifies the single unnamed instance.  
+CEL evaluates the mapping against the whole InferenceService as `object`; the getter converts the result to a container value.  
+Typed reads omit operator-specific fields such as `storageUri`. Their results therefore cannot replace the original object in a write.
 
-The SDK owns reference resolution. A replaceable reader owns fetching:
+## Tree traversal
+
+The [LeaderWorkerSet example](../../examples/quickstart/lws.yaml) has a `group` component with `leader` and `worker` children.  
+`lwsKarta` is its catalog definition converted to CEL; `leaderWorkerSet` is the example decoded as an unstructured object:
+
+```go
+factory := resource.NewComponentFactoryFromObject(lwsKarta, leaderWorkerSet)
+workload, err := tree.Build(ctx, factory)
+if err != nil {
+    return err
+}
+var visit func([]tree.ComponentNode)
+visit = func(nodes []tree.ComponentNode) {
+    for _, component := range nodes {
+        fmt.Println(component.Name)
+        for _, instance := range component.Instances {
+            visit(instance.Children)
+        }
+    }
+}
+visit(workload.Children)
+```
+
+The local `visit` function prints `group`, `leader`, then `worker`.  
+`tree.Build` validates the definition and extracts component values. Its `Children` excludes the root, which is available through `factory.GetRootComponent()`.  
+The tree describes component structure. Replica counts remain values rather than expanding into generated replicas.
+
+## Pod mapping
+
+For a Pod already associated with an InferenceService, the SDK identifies its component.  
+Here, `pod` is a `*corev1.Pod` with labels `component: predictor` and `serving.kserve.io/inferenceservice: model`:
+
+```go
+summary, err := instructions.NewStructureSummary(kserveKarta)
+if err != nil {
+    return err
+}
+querier := resource.NewPodQuerier(pod)
+component, err := instructions.InferPodComponent(ctx, querier, summary)
+if err != nil {
+    return err
+}
+fmt.Println(component)
+```
+
+The result is `predictor`. Pod selectors evaluate against the Pod as `object`.  
+With the InferenceService factory from the read example, `instructions.InferPodComponentInstance(ctx, querier, component, factory)` returns its instance ID as a `*string`.  
+This predictor has one unnamed instance, so the result is nil.
+
+## Scheduling groups
+
+The same Pod, component and summary identify its scheduling group and keys:
+
+```go
+group, err := instructions.GetPodGroupingEffectiveComponent(
+    ctx, querier, component, summary)
+if err != nil {
+    return err
+}
+if group == nil {
+    return nil
+}
+keys, err := querier.ExtractGroupKeysFor(ctx, *group.MemberDefinition)
+if err != nil {
+    return err
+}
+fmt.Println(group.PodGroupName, keys)
+```
+
+For the KEP's KServe definition, the result is `service [model]`. A transformer Pod for the same InferenceService has the same group and key.  
+`ExtractGroupKeysFor` evaluates that member's CEL `groupByExpressions` against the Pod.  
+The application collects Pods with the same workload identity, group name and ordered keys. The consuming scheduler admits each group as a gang.  
+Pod collection, scheduler PodGroup resources and scheduling remain outside the SDK.
+
+## References
+
+Trainer v2 reads an image from the TrainJob override or its referenced ClusterTrainingRuntime.  
+The application supplies a reader that can fetch the declared reference or passes the runtime object directly.
+
+![Reference resolution through a Kubernetes reader or supplied objects.](sdk-references-kubernetes.png)
+
+### Kubernetes reader
+
+`ResourceReader` provides lookups and lists without requiring a Kubernetes client in the core SDK:
 
 ```go
 type ResourceReader interface {
@@ -156,10 +260,8 @@ type ListQuery struct {
 }
 ```
 
-`schema.GroupVersionKind` identifies the Kubernetes type. The objects use
-Kubernetes `unstructured` types; the core SDK needs no Kubernetes client.
-A separate controller-runtime adapter receives the reader the consumer already
-uses, plus its REST mapper for resource scope:
+`schema.GroupVersionKind` identifies the Kubernetes type.  
+The controller-runtime adapter uses the application's reader and REST mapper:
 
 ```go
 reader := ctrlreader.New(mgr.GetAPIReader(), mgr.GetRESTMapper())
@@ -169,48 +271,24 @@ root, err := factory.GetRootComponent()
 if err != nil {
     return err
 }
-parts, err := root.GetFragmentedPodSpec(ctx)
+podSpecFragments, err := root.GetFragmentedPodSpec(ctx)
 if err != nil {
     return err
 }
-fmt.Println(parts[""].Image)
+fmt.Println(podSpecFragments[""].Image)
 ```
 
-The empty map key identifies a component with one unnamed instance. For the
-KEP input, this prints `ghcr.io/example/trainer:v1`. The calls are ordinary Go
-client calls; no `kubectl` process runs.
+For the KEP's TrainJob and runtime, the result is `ghcr.io/example/trainer:v1`.  
+The lookup expression reads the runtime name `torch` from the TrainJob.  
+The adapter sets the object or list GVK and calls `Get` for a lookup or `List` for a label selector.  
+These Go client calls return the complete result or an error; no `kubectl` process runs.
 
-Resolution is lazy at the factory level. A status read whose expressions and
-variables do not mention references performs zero fetches. The first dependent
-read resolves all declared references:
+The REST mapper determines resource scope. Cluster-scoped targets use no namespace; namespaced targets use the workload namespace.  
+A namespaced target with an empty namespace is an error. Access uses the application's credentials and RBAC permissions.
 
-1. Evaluate each declaration's name or selector values against the TrainJob.
-   For `trainingRuntime`, the name is `torch`.
-2. Ask the reader for that kind and name. The adapter uses the REST mapper to
-   determine scope. It passes an empty namespace for ClusterTrainingRuntime;
-   a namespaced kind uses the workload namespace and rejects an empty namespace.
-3. For a lookup, set the object's GVK and call `client.Reader.Get`. For a list,
-   set the corresponding list GVK and call `List` with the namespace and label
-   selector. Return the complete result or an error.
-4. Bind the returned object's content as `references.trainingRuntime`, then
-   evaluate the image expression and decode its result.
+### Objects supplied by the application
 
-The caller's credentials and RBAC apply. Map a not-found response to
-`references.ErrNotFound`. Preserve other errors, including forbidden responses;
-never convert a denied read into an absent reference. `GetAPIReader` performs
-direct API reads. Consumers choosing a cache-backed reader own its setup and
-freshness.
-
-The factory keeps successful results. A failed resolution is not cached.
-Dependency checks use expression syntax. Trainer's fallback mentions the runtime
-even when an image override is present, so that read still resolves it.
-
-`tree.Open` extracts the whole tree, so it can resolve references immediately.
-Use component getters for status-only reads.
-
-## References supplied manually
-
-A caller that already has the runtime can bind it directly:
+An application that already has the runtime can pass it directly:
 
 ```go
 resolved := references.ResolvedReferences{
@@ -220,8 +298,7 @@ factory := resource.NewComponentFactoryFromObject(trainJobKarta, trainJob,
     resource.WithReferences(resolved))
 ```
 
-`runtimeObject` is an `*unstructured.Unstructured` containing the runtime shown
-in the KEP. The named values have this shape; only one member may be set:
+`runtimeObject` is the KEP runtime as an `*unstructured.Unstructured`. Each reference holds a lookup result or list:
 
 ```go
 type ResolvedReferences map[string]ReferenceValue
@@ -232,51 +309,111 @@ type ReferenceValue struct {
 }
 ```
 
-`NewLookupValue(nil)` records a miss. `NewListValue(nil)` creates a non-nil empty
-list, so a list miss binds `[]` instead of looking like a lookup miss. The SDK
-copies the supplied values. No client call occurs; the image result is identical.
+At most one field is set. `NewLookupValue(nil)` records a missing object; `NewListValue(nil)` creates a non-nil empty list.  
+The SDK copies the values, and the image getter returns the same result without client calls.
 
-The caller must supply the object selected by the declaration's name, kind and
-namespace rules. The SDK checks the binding shape and declared reference name,
-but performs no lookup to verify that selection. Test lookup recipes with an in-memory
-`ResourceReader` over recorded objects instead. Supplying both a reader and
-resolved values is an error.
+Supplied objects must follow the declaration's name, kind and namespace rules.  
+The SDK checks names and binding shape without fetching objects to verify selection. Supplying both values and a reader is an error.  
+Lookup-recipe tests use an in-memory `ResourceReader` over recorded objects.
 
-Reference declarations use unique names and exactly one lookup or list.
-Lookup recipes must return a nonempty string. Lists use Kubernetes
-`matchLabels` and `matchExpressions`; each label value is either a literal
-`value` or a CEL `expression`. Recipes see only `object`, so references cannot
-form chains. Sort list results by namespace and name before binding.
+### Deployment status with or without Pod references
 
-A lookup miss leaves its name unbound; optional CEL access can handle it.
-An empty list binds `[]`. A dependent read without either reference source
-returns an error naming that requirement. Create a new factory for each new
-workload observation and serialize access to it. Reference updates or deletion
-become visible through a new factory or manual values. Consumers own watches and retry.
-An SDK snapshot is not an atomic Kubernetes snapshot across several objects.
+The input is a Deployment named `web` in `team-a`, with two replicas and selector `app: web`.  
+The selector below matches that Deployment's full selector and lists Pods in its namespace.
 
-## Implementation and verification
+```yaml
+# Under spec.structureDefinition in deploymentKarta.
+references:
+  - name: pods
+    apiVersion: v1
+    kind: Pod
+    list:
+      matchLabels:
+        app:
+          expression: object.spec.selector.matchLabels.app
+rootComponent:
+  name: deployment
+  kind: {group: apps, version: v1, kind: Deployment}
+  statusDefinition:
+    statusMappings:
+      running:
+        - byExpression:
+            expression: >-
+              object.spec.replicas > 0 &&
+              object.?status.?observedGeneration.orValue(0) >= object.metadata.generation &&
+              object.?status.?updatedReplicas.orValue(0) == object.spec.replicas &&
+              ("pods" in references ?
+                references.pods.size() == object.spec.replicas &&
+                references.pods.all(p,
+                  p.?metadata.?deletionTimestamp.orValue(null) == null &&
+                  p.?status.?phase.orValue("") == "Running" &&
+                  p.?status.?conditions.orValue([]).exists(c,
+                    c.type == "Ready" && c.status == "True")) :
+                object.?status.?conditions.orValue([]).exists(c,
+                  c.type == "Available" && c.status == "True"))
+```
 
-Land the versioned API and validation, the CEL evaluator, local mutation, then
-reference resolution and the client adapter. Convert catalog definitions with
-read/write fixture checks. Test null patch rejection and reference recipes that
-change during a mutation, with both reference sources. Keep the scope and version
-migration tests required by the KEP in the same release. Run the repository's generated-manifest and
-presubmit checks when those implementations change source or API types.
+`object` is the Deployment. The generation check compares its own `observedGeneration` and `metadata.generation`; Pod generations are unrelated.  
+With Pod references, the rule also requires the desired number of Pods, all Running, Ready and not terminating.  
+Without them, it uses the Deployment's `Available` condition. A successful empty Pod list does not use that fallback.
 
-### Implementation evidence
+The proposed Go option chooses whether this factory uses references:
 
-The following are prototype evidence, not tests of this combined proposal:
+```go
+withPods := resource.NewComponentFactoryFromObject(deploymentKarta, deployment,
+    resource.WithReferencesEnabled(true),
+    resource.WithReferenceReader(reader))
 
-- [KServe read/write example](https://github.com/AviadHayumi/workload-map/blob/3e5a302084d606422293cc8e2c022c088b790ba6/pkg/tree/example_editable_test.go):
-  dynamic `model` and `sklearn` destinations; image updates preserve `storageUri`.
-- [Trainer unit tests](https://github.com/AviadHayumi/workload-map/blob/cd91d670a9b6613e4d1c21e066b37a8446eb9fb1/pkg/catalog/trainjob_references_test.go):
-  runtime fallback, override precedence, and selection past initializers/sidecars.
-- [Trainer live test](https://github.com/AviadHayumi/workload-map/blob/cd91d670a9b6613e4d1c21e066b37a8446eb9fb1/test/e2e/flows/references_live_test.go)
-  and [recordings](https://github.com/AviadHayumi/workload-map/tree/cd91d670a9b6613e4d1c21e066b37a8446eb9fb1/test/e2e/recorded_data/trainer/v1.34.0/trainer-kubeflow-org-trainjob-v1alpha1):
-  effective runtime values, zero reference reads for status, and suspend/resume.
+statusOnly := resource.NewComponentFactoryFromObject(deploymentKarta, deployment,
+    resource.WithReferencesEnabled(false))
+```
 
-The new `read`/`write` shape, mutation rules, independent matches, binding validation,
-adapter and `v1alpha2` migration remain proposed. The Go snippets describe that proposed API
-and cannot compile against current upstream. Tests must prove those contracts
-before the implementation is described as complete.
+`WithReferencesEnabled` defaults to true and is also accepted by `tree.Open`. False prevents reference reads and exposes an empty `references` map, even if values were supplied.  
+The CEL expression defines the fallback; the SDK does not choose a workload status on its own. A definition that accesses a missing reference without a fallback still fails.  
+When enabled, reference read errors remain errors. This option does not add a CRD field.
+
+Both factories use the same status getter:
+
+```go
+root, err := withPods.GetRootComponent()
+if err != nil {
+    return err
+}
+status, err := root.GetStatus(ctx)
+if err != nil {
+    return err
+}
+fmt.Println(status.MatchedStatuses)
+```
+
+For two Ready Pods in the current rollout, `withPods` returns `[Running]`.  
+Using `statusOnly` requires the same generation and updated-replica checks plus `Available=True`, without listing Pods.  
+The result is a computed Karta status; neither call writes the Deployment's Kubernetes `.status`.
+
+### Resolution and lifetime
+
+Each reference has a unique name and declares one lookup or list. Lookups require a nonempty name.  
+Lists accept `matchLabels` and `matchExpressions`, with literal `value` or CEL `expression` entries. Results are sorted by namespace and name.  
+Lookup and selector expressions only see the original workload, so references cannot form chains.
+
+Reads without reference dependencies make no fetches.  
+With references enabled, the first dependent read resolves all declared references and keeps successful results. Failed resolutions are not cached.  
+Dependencies come from expression syntax, so Trainer's fallback resolves its runtime even when the TrainJob has an image override.  
+Whole-tree extraction can trigger resolution immediately. Component getters allow status-only reads.
+
+For a missing object, the adapter returns `references.ErrNotFound`. The SDK leaves that lookup unbound and continues evaluation.  
+A TrainJob image override can still be returned; without an override, reading the missing runtime fails. An empty list binds `[]`.  
+Other reader errors, including denied reads, stop evaluation even when an override is present. With references enabled, a dependent read also fails if the factory has no reference source.  
+A cache-backed reader is responsible for its setup and freshness; `GetAPIReader` reads the API directly.
+
+Each workload observation gets a new factory, used serially. Its reader results or supplied values expose reference updates and deletions.  
+The consuming application owns watches and retries. Reads of several Kubernetes objects do not form an atomic snapshot.
+
+After a mutation, the new factory keeps the reference option. If enabled, it resolves references against the updated workload.  
+With references enabled and supplied values, a mutation cannot change a reference's lookup name or selector. Such a change requires an updated input object and a new editor with matching reference values.
+
+## Release verification
+
+Release tests compare status results on existing recordings and check that jq and CEL mutations produce equivalent objects.  
+New recordings cover Pod mapping and grouping. Tests also cover match failures, null patch rejection, both reference sources, changed reference recipes, and the KEP's schema and migration cases.  
+Source and API changes also require generated-manifest and presubmit checks.

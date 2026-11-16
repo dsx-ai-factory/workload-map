@@ -43,8 +43,7 @@ They can change the fallback or add conditions without changing SDK code.
 ### Non-goals
 
 Writes to references and cross-namespace references.  
-The SDK does not start watches or retry loops, even when given a Kubernetes reader.  
-The supplied reader can provide caching and retries.  
+The SDK does not start watches or retry loops, even when given a Kubernetes reader. The supplied reader can provide caching and retries.  
 The [implementation design](../../design/cel-expressions/README.md) explains the SDK interfaces and execution order.
 
 ## Proposal
@@ -75,8 +74,7 @@ Read it from left to right:
 - `.spec.predictor` reads the predictor from the InferenceService.
 - `.[]?` visits its values.  
   `?` suppresses an error if the predictor is not an object or array.
-- `select(...)` keeps objects whose `storageUri` is neither null nor false.  
-  An empty string still matches.
+- `select(...)` keeps objects whose `storageUri` is neither null nor false. An empty string still matches.
 
 For the input above, the result is the model object:
 
@@ -97,10 +95,8 @@ For writing, the [jq runner from v0.3.0](https://github.com/dsx-ai-factory/workl
 `$val` must therefore include the entire model, including `storageUri`, even when only the image changes.
 
 CEL solves the same case by separating the jobs.  
-`spec.variables` gives shared expressions a name so reads and writes can reuse them.  
-Here, `containerKeys` finds the matching predictor keys.  
-Both sides use `variables.containerKeys`: `read` returns the model, and `write` builds its location.  
-The SDK applies the new value.  
+`spec.variables` gives shared expressions a name so reads and writes can reuse them. Here, `containerKeys` finds the matching predictor keys.  
+Both sides use `variables.containerKeys`: `read` returns the model, and `write` builds its location. The SDK applies the new value.  
 This excerpt shows the proposed CRD fields:
 
 ```yaml
@@ -142,8 +138,7 @@ spec:
                   variables.containerKeys[0].replace("~", "~0").replace("/", "~1")
 ```
 
-`object` is the InferenceService, not its Deployment or Pod.  
-`containerKeys` is `["model"]`.  
+`object` is the InferenceService, not its Deployment or Pod. `containerKeys` is `["model"]`.  
 The read returns the model object; the write returns `/spec/predictor/model`.  
 For a `sklearn` entry, the same definition returns `/spec/predictor/sklearn`.  
 The two replacements escape a key as a JSON Pointer.
@@ -158,8 +153,7 @@ If both `model` and `sklearn` match, the SDK returns an error for both reads and
 <summary>Full proposed CEL KServe Karta</summary>
 
 This is the complete KServe definition using the proposed `run.ai/v1alpha2` API.  
-Workload fields read the InferenceService.  
-Selectors and grouping expressions read each Pod.
+Workload fields read the InferenceService. Selectors and grouping expressions read each Pod.
 
 ```yaml
 # SPDX-License-Identifier: Apache-2.0
@@ -332,18 +326,15 @@ spec:
 
 ### CRD rules
 
-A field has `read`, `write`, or both.  
-`read.expression` returns its value.  
+A field has `read`, `write`, or both. `read.expression` returns its value.  
 `write` has exactly one of `path` or `pathExpression`.  
 A fixed path is a JSON Pointer ([RFC 6901](https://www.rfc-editor.org/rfc/rfc6901)) such as `/spec/predictor/schedulerName`; a path expression returns one.  
 `path: ""` selects the workload root, as needed for a standalone Pod's `podTemplateSpec`.  
 Without `write`, the SDK rejects mutation requests for that field.  
 Omit it for fields that are immutable or should only be read.
 
-Each side evaluates its own `matchExpression` first.  
-Omission means true.  
-A false read match skips the read expression and returns `ErrValueNotFound` for that field.  
-Whole-workload reads skip fields with this error.  
+Each side evaluates its own `matchExpression` first. Omission means true.  
+A false read match skips the read expression and returns `ErrValueNotFound` for that field. Whole-workload reads skip fields with this error.  
 A false write match returns an error before changing anything.  
 A match must return a boolean; errors never mean false.  
 CEL conditional expressions handle alternative reads or locations.
@@ -361,8 +352,7 @@ CEL conditional expressions handle alternative reads or locations.
 
 Component kinds, ownership and scheduling structure retain their current shape.  
 Workload reads and shared variables use the root workload as `object`.  
-Pod selectors and grouping expressions run separately for each Pod, with that Pod as `object`.  
-They do not receive shared variables or references.  
+Pod selectors and grouping expressions run separately for each Pod, with that Pod as `object`. They do not receive shared variables or references.  
 Reference recipes see only the root workload.
 
 <details>
@@ -467,8 +457,7 @@ spec:
 
 Read and write have separate optional match expressions.  
 An omitted match means true; `path: ""` remains a valid write location.  
-Reference lists use `matchLabels` and `matchExpressions`, with literal `value` or CEL `expression` entries.  
-Their full schema is not shown here.  
+Reference lists use `matchLabels` and `matchExpressions`, with literal `value` or CEL `expression` entries. Their full schema is not shown here.  
 The webhook and local loader compile expressions, check their available inputs, and reject variable dependency cycles.  
 They also check fixed JSON Pointer syntax; the SDK checks computed pointers after evaluation.
 
@@ -514,8 +503,7 @@ The consuming scheduler admits each group as a gang.
 
 ### Status mapping
 
-A status read maps a workload's status to a Karta status.  
-Here, `object` is this RayJob:
+A status read maps a workload's status to a Karta status. Here, `object` is this RayJob:
 
 ```yaml
 apiVersion: ray.io/v1
@@ -607,8 +595,7 @@ This field has no write location.
 
 A reference declares exactly one lookup or label-selector list.  
 A lookup names one object; a list returns matching objects.  
-Namespaced targets use the workload's namespace.  
-Cluster-scoped targets have no namespace.  
+Namespaced targets use the workload's namespace. Cluster-scoped targets have no namespace.  
 Lookup misses stay unbound; empty lists bind `[]`.  
 Read failures are errors, not missing objects.  
 References are read-only, whether a reader fetches them or the caller supplies them.
@@ -616,8 +603,7 @@ References are read-only, whether a reader fetches them or the caller supplies t
 ## Compatibility and migration
 
 Karta definitions move from `run.ai/v1alpha1` (jq) to `run.ai/v1alpha2` (CEL).  
-This is a breaking change for definitions and Go consumers.  
-Existing jq definitions are not converted automatically.
+This is a breaking change for definitions and Go consumers. Existing jq definitions are not converted automatically.
 
 The CEL release will include CEL versions of every catalog definition.  
 To install the full catalog in the cluster, enable this chart option:
@@ -628,14 +614,12 @@ catalogInstaller:
 ```
 
 The option defaults to `false`.  
-The installer applies the definitions bundled with that chart release after the new CRD and webhook are ready.  
-It rejects conflicts with custom definitions.
+The installer applies the definitions bundled with that chart release after the new CRD and webhook are ready. It rejects conflicts with custom definitions.
 
 The [add-workload-type skill](../../../skills/add-workload-type/SKILL.md) will also support CEL.  
 Use it to create and validate CEL replacements for custom Karta definitions.
 
-Back up existing definitions before the coordinated CRD and SDK upgrade.  
-Helm rollback alone cannot restore the old definitions.
+Back up existing definitions before the coordinated CRD and SDK upgrade. Helm rollback alone cannot restore the old definitions.
 
 ## Test plan
 
@@ -653,8 +637,7 @@ Catalog installation, partial failures, retries, and migration in both direction
 
 Separate expressions can read and write different fields; catalog fixtures must check both.  
 References can become stale between Kubernetes reads; the consumer creates a new SDK snapshot on its next observation.  
-Karta SDK options configure the CEL cost limit and evaluation timeout.  
-Evaluation also respects cancellation from the caller's context.
+Karta SDK options configure the CEL cost limit and evaluation timeout. Evaluation also respects cancellation from the caller's context.
 
 Keep one SDK format initially: [JSON Merge Patch](https://www.rfc-editor.org/rfc/rfc7396).  
 It covers the model image, labels, resources and scalar values in these examples.  
@@ -664,6 +647,5 @@ Keeping jq alongside CEL would require maintaining and testing both expression c
 
 ## History
 
-- 2026-11-15: Proposal opened.  
-  CEL writes and Trainer references have separate prototypes.  
+- 2026-11-15: Proposal opened. CEL writes and Trainer references have separate prototypes.  
   This combined CRD and SDK contract is proposed; see the [implementation evidence](../../design/cel-expressions/README.md#implementation-evidence).

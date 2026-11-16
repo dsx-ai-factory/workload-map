@@ -3,7 +3,7 @@
 
 # CEL and references: SDK implementation design
 
-[KEP-0003](../../keps/0003-cel-expressions/README.md) defines the CRD and the
+[KEP-0002](../../keps/0002-cel-expressions/README.md) defines the CRD and the
 KServe and Trainer examples. This design describes the proposed SDK changes.
 The current upstream SDK still uses jq. The API sketches below are not available
 in an upstream release.

@@ -57,4 +57,4 @@ updates, open a new issue if the original is closed.
 ## Index
 
 - [KEP-0001: DSX workload exporter](0001-metrics-exporter/README.md)
-- [KEP-0003: CEL expressions and resource references](0003-cel-expressions/README.md)
+- [KEP-0002: CEL expressions and resource references](0002-cel-expressions/README.md)

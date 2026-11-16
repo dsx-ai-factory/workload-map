@@ -92,8 +92,8 @@ Karta is a Go project. To set up a local environment:
 
 ```bash
 # 1. Clone your fork
-git clone https://github.com/<your-username>/karta.git
-cd karta
+git clone https://github.com/<your-username>/workload-map.git
+cd workload-map
 
 # 2. Build the packages (uses the Go version pinned in go.mod)
 go build ./...

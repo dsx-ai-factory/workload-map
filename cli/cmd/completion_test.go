@@ -331,3 +331,88 @@ func TestCompleteOffersCatalogDefinitionNamesWhenTheClusterRefuses(t *testing.T)
 		t.Errorf("expected stderr %q, got %q", want, errOut)
 	}
 }
+
+func TestCompleteOffersDefinitionFilterValues(t *testing.T) {
+	fakeCluster(t)
+
+	// A kind at a second version of a group sorts after the group's v1 kinds in
+	// the resolver's own order, so the candidates must be sorted, not passed on.
+	bundle := kartas.Deployment()
+	bundle.Name = "apps-appbundle-v2"
+	bundle.Spec.StructureDefinition.RootComponent.Kind.Version = "v2"
+	bundle.Spec.StructureDefinition.RootComponent.Kind.Kind = "AppBundle"
+	restore := loadDefinitions
+	loadDefinitions = func(context.Context, genericclioptions.RESTClientGetter, bool) (*definitions.Resolver, []definitions.Warning) {
+		return definitions.New([]*v1alpha1.Karta{
+			kartas.Pod(), kartas.Deployment(), kartas.StatefulSet(), bundle, kartas.Jobset(), kartas.Dynamo(), kartas.DynamoV1beta1(),
+		}, nil), nil
+	}
+	t.Cleanup(func() { loadDefinitions = restore })
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"every group once, sorted, without the core group", []string{"definitions", "--group", ""}, []string{"apps", "jobset.x-k8s.io", "nvidia.com"}},
+		{"a group prefix", []string{"definitions", "--group", "job"}, []string{"jobset.x-k8s.io"}},
+		{"a group prefix nothing matches", []string{"definitions", "--group", "zz"}, nil},
+		{"the kinds of the group, sorted", []string{"definitions", "--group", "apps", "--kind", ""}, []string{"AppBundle", "Deployment", "StatefulSet"}},
+		{"a kind prefix", []string{"definitions", "--group", "apps", "--kind", "S"}, []string{"StatefulSet"}},
+		{"the kinds of the core group", []string{"definitions", "--group", "", "--kind", ""}, []string{"Pod"}},
+		{"the kinds of a group nothing covers", []string{"definitions", "--group", "example.com", "--kind", ""}, nil},
+		{"no kind without a group", []string{"definitions", "--kind", ""}, nil},
+		{"the versions of the kind, once each", []string{"definitions", "--group", "nvidia.com", "--kind", "DynamoGraphDeployment", "--version", ""}, []string{"v1alpha1", "v1beta1"}},
+		{"a version prefix", []string{"definitions", "--group", "nvidia.com", "--kind", "DynamoGraphDeployment", "--version", "v1b"}, []string{"v1beta1"}},
+		{"the kind matches case-insensitively", []string{"definitions", "--group", "nvidia.com", "--kind", "dynamographdeployment", "--version", ""}, []string{"v1alpha1", "v1beta1"}},
+		{"the version of the core group", []string{"definitions", "--group", "", "--kind", "Pod", "--version", ""}, []string{"v1"}},
+		{"no version without a kind", []string{"definitions", "--group", "nvidia.com", "--version", ""}, nil},
+		{"no version without a group", []string{"definitions", "--kind", "Pod", "--version", ""}, nil},
+		{"nothing after a NAME", []string{"definitions", kartas.Jobset().Name, "--group", ""}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := complete(t, tc.args...); !slices.Equal(got, tc.want) {
+				t.Errorf("expected %v, got %v", tc.want, got)
+			}
+		})
+	}
+
+	// complete skips blank lines, so check the raw output: the core group is the
+	// empty string, and a blank candidate would reach the shell as an empty line.
+	out, _, _ := runCmd(t, "__complete", "definitions", "--group", "")
+	for line := range strings.Lines(out) {
+		if strings.TrimSpace(line) == "" {
+			t.Errorf("expected no blank candidate, got %q", out)
+		}
+	}
+}
+
+// A configured cluster that refuses the definitions request still completes
+// the filters from the catalog, quietly: stderr has only cobra's directive line.
+func TestCompleteOffersCatalogDefinitionFiltersWhenTheClusterRefuses(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		http.Error(w, `{"kind":"Status","apiVersion":"v1","status":"Failure","reason":"Forbidden","code":403}`,
+			http.StatusForbidden)
+	}))
+	t.Cleanup(server.Close)
+
+	restore := clusterAccess
+	clusterAccess = func() genericclioptions.RESTClientGetter { return clusterGetter(server) }
+	t.Cleanup(func() { clusterAccess = restore })
+
+	out, errOut, code := runCmd(t, "__complete", "definitions", "--group", "jobset.x-k8s.io", "--kind", "Job")
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d\n%s", code, errOut)
+	}
+	if got, want := candidates(out), []string{"JobSet"}; !slices.Equal(got, want) {
+		t.Errorf("expected %v, got %v", want, got)
+	}
+	if requests.Load() == 0 {
+		t.Error("expected completion to ask the cluster for its definitions")
+	}
+	if want := "Completion ended with directive: ShellCompDirectiveNoFileComp\n"; errOut != want {
+		t.Errorf("expected stderr %q, got %q", want, errOut)
+	}
+}

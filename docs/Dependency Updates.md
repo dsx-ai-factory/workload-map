@@ -4,8 +4,8 @@
 # Dependency Updates
 
 Renovate keeps dependencies current through `.github/workflows/renovate.yaml`.
-The workflow runs every Sunday at 03:00 UTC. It also runs on January 1, April 1,
-July 1, and October 1 at 03:00 UTC. A maintainer can start it from the Actions tab
+The workflow runs weekly, with an additional quarterly run for routine major upgrades.
+A maintainer can start it from the Actions tab
 (Run workflow), optionally at `debug` log level. The update policy lives in
 `renovate.json`.
 

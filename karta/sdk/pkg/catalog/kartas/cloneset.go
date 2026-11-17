@@ -29,10 +29,10 @@ import (
 //	  expectedUpdatedReplicas = replicas - partition, so updatedReplicas
 //	  reaching that target is enough. A paused rollout reads Running:
 //	  the user chose to pause, and scaling still works while paused.
-//	Initializing ← (1) draining: generation current, status.replicas >
-//	  spec.replicas. (2) not Running: observedGeneration > 0 and any
-//	  Running condition fails (generation stale, counter mismatch,
-//	  availableReplicas mismatch, or update in progress while not paused).
+//	Initializing ← not Running: observedGeneration > 0 and any Running
+//	  condition fails (generation stale, a counter mismatch such as a drain
+//	  with status.replicas > spec.replicas, availableReplicas mismatch, or an
+//	  update in progress while not paused).
 //	Degraded ← not mapped. FailedScale and FailedUpdate conditions
 //	  (clonesetutils) are set once and never cleared by the controller;
 //	  a consumer wanting the fault reads the condition directly.
@@ -65,16 +65,10 @@ func CloneSet() *v1alpha1.Karta {
 								Expression:     `(.status.observedGeneration // 0) > 0 and (.status.observedGeneration // 0) == (.metadata.generation // 0) and (.status.replicas // 0) == (.spec.replicas // 1) and (.status.readyReplicas // 0) == (.spec.replicas // 1) and (.status.availableReplicas // 0) == (.spec.replicas // 1) and ((.spec.updateStrategy.paused // false) or (.status.updatedReplicas // 0) >= (.status.expectedUpdatedReplicas // 0))`,
 								ExpectedResult: "true",
 							}}},
-							Initializing: []v1alpha1.StatusMatcher{
-								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     `(.status.observedGeneration // 0) > 0 and .status.observedGeneration == .metadata.generation and (.status.replicas // 0) > (.spec.replicas // 1)`,
-									ExpectedResult: "true",
-								}},
-								{ByExpression: &v1alpha1.ExpressionMatcher{
-									Expression:     `(.status.observedGeneration // 0) > 0 and ((.status.observedGeneration // 0) != (.metadata.generation // 0) or (.status.replicas // 0) != (.spec.replicas // 1) or (.status.readyReplicas // 0) != (.spec.replicas // 1) or (.status.availableReplicas // 0) != (.spec.replicas // 1) or (((.spec.updateStrategy.paused // false) | not) and (.status.updatedReplicas // 0) < (.status.expectedUpdatedReplicas // 0)))`,
-									ExpectedResult: "true",
-								}},
-							},
+							Initializing: []v1alpha1.StatusMatcher{{ByExpression: &v1alpha1.ExpressionMatcher{
+								Expression:     `(.status.observedGeneration // 0) > 0 and ((.status.observedGeneration // 0) != (.metadata.generation // 0) or (.status.replicas // 0) != (.spec.replicas // 1) or (.status.readyReplicas // 0) != (.spec.replicas // 1) or (.status.availableReplicas // 0) != (.spec.replicas // 1) or (((.spec.updateStrategy.paused // false) | not) and (.status.updatedReplicas // 0) < (.status.expectedUpdatedReplicas // 0)))`,
+								ExpectedResult: "true",
+							}}},
 						},
 					},
 				},

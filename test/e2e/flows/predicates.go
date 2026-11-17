@@ -397,7 +397,6 @@ func SandboxMode(want string) recorder.StateCheck {
 // and the rollout is paused or updatedReplicas has reached expectedUpdatedReplicas. As in the
 // definition, a missing counter reads 0 and a missing spec.replicas reads 1.
 func CloneSetRunning() recorder.StateCheck {
-	available := AvailableReady()
 	return func(u *unstructured.Unstructured) bool {
 		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
 		if !ok {
@@ -406,18 +405,18 @@ func CloneSetRunning() recorder.StateCheck {
 		observed, _, _ := unstructured.NestedInt64(u.Object, "status", "observedGeneration")
 		replicas, _, _ := unstructured.NestedInt64(u.Object, "status", "replicas")
 		ready, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
+		available, _, _ := unstructured.NestedInt64(u.Object, "status", "availableReplicas")
 		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
 		expected, _, _ := unstructured.NestedInt64(u.Object, "status", "expectedUpdatedReplicas")
 		paused, _, _ := unstructured.NestedBool(u.Object, "spec", "updateStrategy", "paused")
 		return observed > 0 && observed == u.GetGeneration() &&
-			replicas == desired && ready == desired && available(u) &&
+			replicas == desired && ready == desired && available == desired &&
 			(paused || updated >= expected)
 	}
 }
 
-// CloneSetInitializing mirrors the CloneSet definition's two Initializing rules. Rule 2 is the
-// negation of every Running condition after the observedGeneration > 0 guard, and rule 1 (a drain,
-// status.replicas > spec.replicas) is a case of it, so together they read as: observed, and not
+// CloneSetInitializing mirrors the CloneSet definition's Initializing rule: the controller has
+// observed the CloneSet and at least one Running condition fails, so it reads as observed and not
 // Running.
 func CloneSetInitializing() recorder.StateCheck {
 	running := CloneSetRunning()
@@ -468,21 +467,6 @@ func PausedReady() recorder.StateCheck {
 		expected, _, _ := unstructured.NestedInt64(u.Object, "status", "expectedUpdatedReplicas")
 		updated, _, _ := unstructured.NestedInt64(u.Object, "status", "updatedReplicas")
 		return replicas == desired && ready == desired && available == desired && updated < expected
-	}
-}
-
-// AvailableReady matches when status.availableReplicas equals spec.replicas, for a workload whose
-// Karta definition checks availability (CloneSet). A missing field reads 0, matching the definition's
-// (.status.availableReplicas // 0). FullyAvailable, the StatefulSet predicate, does not read the
-// field because the StatefulSet definition does not check it.
-func AvailableReady() recorder.StateCheck {
-	return func(u *unstructured.Unstructured) bool {
-		desired, ok, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
-		if !ok {
-			desired = 1
-		}
-		available, _, _ := unstructured.NestedInt64(u.Object, "status", "availableReplicas")
-		return available == desired
 	}
 }
 

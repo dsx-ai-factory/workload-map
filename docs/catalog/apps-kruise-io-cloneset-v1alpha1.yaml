@@ -20,9 +20,6 @@ spec:
         statusMappings:
           initializing:
             - byExpression:
-                expression: (.status.observedGeneration // 0) > 0 and .status.observedGeneration == .metadata.generation and (.status.replicas // 0) > (.spec.replicas // 1)
-                expectedResult: "true"
-            - byExpression:
                 expression: (.status.observedGeneration // 0) > 0 and ((.status.observedGeneration // 0) != (.metadata.generation // 0) or (.status.replicas // 0) != (.spec.replicas // 1) or (.status.readyReplicas // 0) != (.spec.replicas // 1) or (.status.availableReplicas // 0) != (.spec.replicas // 1) or (((.spec.updateStrategy.paused // false) | not) and (.status.updatedReplicas // 0) < (.status.expectedUpdatedReplicas // 0)))
                 expectedResult: "true"
           running:

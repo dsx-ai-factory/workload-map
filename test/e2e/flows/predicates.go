@@ -4,6 +4,8 @@
 package flows
 
 import (
+	"strconv"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/dsx-ai-factory/workload-map/test/e2e/recorder"
@@ -21,6 +23,19 @@ func AllOf(checks ...recorder.StateCheck) recorder.StateCheck {
 			}
 		}
 		return len(checks) > 0
+	}
+}
+
+// NoneMatch matches when none of the given checks match, for a fallback state that covers everything
+// the explicit states do not (a Rollout is Initializing when it is not Running, Degraded or Suspended).
+func NoneMatch(checks ...recorder.StateCheck) recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		for _, c := range checks {
+			if c(u) {
+				return false
+			}
+		}
+		return true
 	}
 }
 
@@ -127,6 +142,15 @@ func PhaseEq(want string, path ...string) recorder.StateCheck {
 	}
 }
 
+// PhaseExclude matches when the string at the path does not equal the excluded value (including absent
+// or empty, which are never equal to the excluded value).
+func PhaseExclude(exclude string, path ...string) recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		got, _, _ := unstructured.NestedString(u.Object, path...)
+		return got != exclude
+	}
+}
+
 // PhaseAny matches when the string at the path equals any of wants (some operators map one state from
 // several phase strings).
 func PhaseAny(wants []string, path ...string) recorder.StateCheck {
@@ -161,6 +185,17 @@ func BoolTrue(path ...string) recorder.StateCheck {
 	return func(u *unstructured.Unstructured) bool {
 		got, found, err := unstructured.NestedBool(u.Object, path...)
 		return err == nil && found && got
+	}
+}
+
+// BoolFalseOrAbsent matches when the bool field at the given path is false or not present.
+func BoolFalseOrAbsent(path ...string) recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		got, found, err := unstructured.NestedBool(u.Object, path...)
+		if err != nil || !found {
+			return true
+		}
+		return !got
 	}
 }
 
@@ -354,5 +389,18 @@ func SandboxMode(want string) recorder.StateCheck {
 			mode = "Running"
 		}
 		return mode == want
+	}
+}
+
+// StringGenerationCurrent matches when status.observedGeneration (stored as a string by the
+// controller, e.g. Argo Rollouts) equals metadata.generation converted to string. This mirrors
+// the definition's ByExpression guard so the recorder and the definition agree on Running.
+func StringGenerationCurrent() recorder.StateCheck {
+	return func(u *unstructured.Unstructured) bool {
+		observed, found, _ := unstructured.NestedString(u.Object, "status", "observedGeneration")
+		if !found {
+			return false
+		}
+		return observed == strconv.FormatInt(u.GetGeneration(), 10)
 	}
 }

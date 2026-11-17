@@ -10,13 +10,6 @@ on:
       - .github/workflows/renovate.yaml
       - .github/workflows/renovate-validate.yaml
       - hack/renovate/**
-  push:
-    branches: [main]
-    paths:
-      - renovate.json
-      - .github/workflows/renovate.yaml
-      - .github/workflows/renovate-validate.yaml
-      - hack/renovate/**
   workflow_dispatch:
 
 permissions:

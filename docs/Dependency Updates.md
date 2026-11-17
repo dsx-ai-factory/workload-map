@@ -91,8 +91,8 @@ digest updates within these limits.
 
 ### Validate the configuration and policy
 
-The `Validate Renovate` workflow runs on relevant pull requests and pushes to
-`main`. It also supports manual runs. It uses the exact Renovate version from
+The `Validate Renovate Changes` workflow runs on relevant pull requests and
+supports manual runs. It uses the exact Renovate version from
 `.github/workflows/renovate.yaml`, validates the configuration in strict mode,
 and runs the policy regression suite. It needs no App token or repository write
 permission. The regression suite tests fixed examples without dependency lookups.

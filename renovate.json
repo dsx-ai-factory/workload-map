@@ -81,6 +81,39 @@
   ],
   "packageRules": [
     {
+      "description": "Keep patch candidates available on release branches when a newer minor release also exists.",
+      "matchBaseBranches": [
+        "/^(v|release-)\\d+\\.\\d+$/"
+      ],
+      "separateMinorPatch": true
+    },
+    {
+      "description": "Filter Go module releases against the Go minor declared by each module.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDatasources": [
+        "go"
+      ],
+      "constraintsFiltering": "strict"
+    },
+    {
+      "description": "Wait two days before routine tagged Go module upgrades. Security alerts bypass this wait.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDatasources": [
+        "go"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch"
+      ],
+      "minimumReleaseAge": "2 days",
+      "minimumReleaseAgeBuffer": null
+    },
+    {
       "description": "Bump the go directive itself; the default range strategy treats it as a floor and never moves it.",
       "matchDatasources": [
         "golang-version"

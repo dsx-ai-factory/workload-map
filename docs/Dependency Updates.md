@@ -71,15 +71,43 @@ lets a maintainer trigger or retry one.
 Every commit carries a `Signed-off-by` trailer for the bot identity, so the DCO
 check passes.
 
+## Go module eligibility
+
+Routine tagged Go module releases wait at least two days before Renovate proposes
+them. Security updates bypass this wait and the routine update schedule.
+Go toolchain updates and updates from other ecosystems keep their existing policies.
+
+Renovate filters Go module releases against the Go minor version in each
+module's `go.mod`. For example, a module that declares Go 1.27 accepts declared
+requirements through Go 1.27.x. This filter also applies to security updates.
+A security fix that requires a newer Go minor needs a coordinated toolchain upgrade.
+
+The filter depends on published Go version metadata. It cannot resolve missing
+metadata or prove API, behavior, or Go patch compatibility. Reviewers must still
+read the changes and the CI results. Release branches retain their patch and
+digest updates within these limits.
+
 ## Testing a configuration change
 
-### Validate the configuration
+### Validate the configuration and policy
 
-Run the validator with the same Renovate version as the workflow:
+The `Validate Renovate` workflow runs on relevant pull requests and pushes to
+`main`. It also supports manual runs. It uses the exact Renovate version from
+`.github/workflows/renovate.yaml`, validates the configuration in strict mode,
+and runs the policy regression suite. It needs no App token or repository write
+permission. The regression suite tests fixed examples without dependency lookups.
+
+For the same local checks, use Node 26 and run these commands from the repository
+root. The installation uses a temporary directory and adds no project dependencies:
 
 ```bash
-npx --yes --package=node@26.13.0 --package=renovate@44.222.3 -- \
-  renovate-config-validator --strict renovate.json
+renovate_version=$(sed -n 's/^ *RENOVATE_VERSION: //p' .github/workflows/renovate.yaml)
+renovate_prefix=$(mktemp -d)
+npm install --prefix "$renovate_prefix" --ignore-scripts --no-audit --no-fund \
+  --package-lock=false "renovate@$renovate_version"
+export RENOVATE_PACKAGE_DIR="$renovate_prefix/node_modules/renovate"
+node "$RENOVATE_PACKAGE_DIR/dist/config-validator.js" --strict renovate.json
+node --test hack/renovate/policy.test.mjs
 ```
 
 ### Dry run
@@ -87,9 +115,8 @@ npx --yes --package=node@26.13.0 --package=renovate@44.222.3 -- \
 A dry run reads `renovate.json` from the working tree instead of the default
 branch, looks up every dependency, and logs the branches, PRs and commit
 messages it would create. It pushes nothing and opens nothing. It needs a
-GitHub token that can read the repository. The workflow uses Node 26, so the
-command fetches it through `npx` whatever the local Node version is. Run it
-from the repository root:
+GitHub token that can read the repository. After the temporary installation
+above, run this command from the repository root with Node 26:
 
 ```bash
 RENOVATE_TOKEN=$(gh auth token) \
@@ -97,8 +124,8 @@ RENOVATE_CONFIG_FILE=renovate.json \
 RENOVATE_REQUIRE_CONFIG=ignored \
 RENOVATE_FORCE='{"baseBranchPatterns":["main","v0.2"]}' \
 LOG_LEVEL=info \
-npx --yes --package=node@26.13.0 --package=renovate@44.222.3 -- \
-  renovate --platform=github --dry-run=full dsx-ai-factory/workload-map
+node "$RENOVATE_PACKAGE_DIR/dist/renovate.js" \
+  --platform=github --dry-run=full dsx-ai-factory/workload-map
 ```
 
 List in `baseBranchPatterns` the branches to check, and use the Renovate

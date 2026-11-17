@@ -23,6 +23,7 @@ import (
 
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/catalog"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/catalog/kartas"
 )
 
@@ -414,5 +415,38 @@ func TestCompleteOffersCatalogDefinitionFiltersWhenTheClusterRefuses(t *testing.
 	}
 	if want := "Completion ended with directive: ShellCompDirectiveNoFileComp\n"; errOut != want {
 		t.Errorf("expected stderr %q, got %q", want, errOut)
+	}
+}
+
+// With --catalog-only, completing definition names and filter values reads the
+// catalog alone and never asks the cluster.
+func TestCompleteDefinitionsCatalogOnlyMakesNoClusterCalls(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		http.Error(w, "unexpected request", http.StatusInternalServerError)
+	}))
+	t.Cleanup(server.Close)
+
+	restore := clusterAccess
+	clusterAccess = func() genericclioptions.RESTClientGetter { return clusterGetter(server) }
+	t.Cleanup(func() { clusterAccess = restore })
+
+	name := kartas.Jobset().Name
+	if got := complete(t, "definitions", "--"+flagCatalogOnly, name[:len(name)-1]); !slices.Contains(got, name) {
+		t.Errorf("expected %q among %v", name, got)
+	}
+	gvk := catalog.RootKey(kartas.Jobset())
+	if got := complete(t, "definitions", "--"+flagCatalogOnly, "--"+flagGroup, gvk.Group, "--"+flagKind, ""); !slices.Contains(got, gvk.Kind) {
+		t.Errorf("expected kind %q among %v", gvk.Kind, got)
+	}
+	if got := complete(t, "definitions", "--"+flagCatalogOnly, "--"+flagGroup, ""); !slices.Contains(got, gvk.Group) {
+		t.Errorf("expected group %q among %v", gvk.Group, got)
+	}
+	if got := complete(t, "definitions", "--"+flagCatalogOnly, "--"+flagGroup, gvk.Group, "--"+flagKind, gvk.Kind, "--"+flagVersion, ""); !slices.Contains(got, gvk.Version) {
+		t.Errorf("expected version %q among %v", gvk.Version, got)
+	}
+	if n := requests.Load(); n != 0 {
+		t.Errorf("expected no cluster requests with --%s, got %d", flagCatalogOnly, n)
 	}
 }

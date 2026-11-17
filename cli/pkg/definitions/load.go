@@ -75,15 +75,11 @@ func Load(ctx context.Context, rcg genericclioptions.RESTClientGetter, enableExp
 	return resolver, l.warnings
 }
 
-// LoadCatalog builds a resolver from the built-in catalog alone. It loads no
-// kubeconfig and makes no Kubernetes request, so it works offline; with no
-// cluster definitions there is nothing to collide and nothing to warn about.
+// LoadCatalog returns catalog definitions without reading kubeconfig or contacting Kubernetes.
 func LoadCatalog(enableExperimental bool) *Resolver {
 	return New(builtins(enableExperimental), nil)
 }
 
-// builtins lists the catalog definitions, without the experimental ones unless
-// enableExperimental is true.
 func builtins(enableExperimental bool) []*v1alpha1.Karta {
 	kartas := catalog.List()
 	if !enableExperimental {

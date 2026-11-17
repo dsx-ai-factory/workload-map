@@ -141,6 +141,10 @@ func completionDefinitions(cmd *cobra.Command) []definitions.Definition {
 		cobra.CompDebugln(err.Error(), true)
 		return nil
 	}
+	// --catalog-only must stay offline while completing too, not just in RunE.
+	if catalogOnly, _ := cmd.Flags().GetBool(flagCatalogOnly); catalogOnly {
+		return definitions.LoadCatalog(isExperimentalEnabled(cmd)).List()
+	}
 	ctx, cancel := context.WithTimeout(cmd.Context(), completionTimeout)
 	defer cancel()
 	cmd.SetContext(ctx)

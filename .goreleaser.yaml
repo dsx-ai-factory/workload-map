@@ -111,6 +111,19 @@ homebrew_casks:
         end
       end
 
+krews:
+  - name: kli
+    ids:
+      - karta
+    homepage: "https://github.com/{{ .Env.RELEASE_REPOSITORY }}"
+    short_description: Show workload components and status
+    description: |
+      Use Karta definitions to show a workload's component tree, normalized
+      status, and resource requests by role. For example, see leader and
+      worker roles in a LeaderWorkerSet or preview its manifest offline.
+    url_template: "https://github.com/{{ .Env.RELEASE_REPOSITORY }}/releases/download/v{{ .Version }}/{{ .ArtifactName }}"
+    skip_upload: true
+
 release:
   github:
     owner: "{{ dir .Env.RELEASE_REPOSITORY }}"

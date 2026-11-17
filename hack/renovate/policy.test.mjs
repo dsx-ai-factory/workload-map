@@ -8,6 +8,8 @@ import path from 'node:path';
 import { after, mock, test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+// RENOVATE_PACKAGE_DIR must point to the version pinned in renovate.yaml.
+// These tests use internal dist modules, so version bumps can require import updates.
 assert(process.env.RENOVATE_PACKAGE_DIR, 'Set RENOVATE_PACKAGE_DIR to the installed Renovate package.');
 const runtime = path.resolve(process.env.RENOVATE_PACKAGE_DIR);
 const root = fileURLToPath(new URL('../../', import.meta.url));

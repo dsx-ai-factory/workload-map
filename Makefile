@@ -504,7 +504,7 @@ exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mock
 
 .PHONY: test-exporter-dashboards
 test-exporter-dashboards: ## Check portable Grafana dashboard imports
-	cd dsx-workload-exporter && go test -race ./examples/grafana/test
+	cd dsx-workload-exporter && go test -count=1 -race ./examples/grafana/test
 
 .PHONY: test-exporter-dashboard-queries
 test-exporter-dashboard-queries: ## Evaluate Grafana queries with promtool (Docker or PROMTOOL=/path/to/promtool)

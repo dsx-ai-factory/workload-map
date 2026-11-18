@@ -553,6 +553,10 @@ componentTypeSelector:
     component: proxy
 ```
 
+Give every `matchLabels` entry a value. The API server drops an entry with no
+value (`component:`), and the selector then matches more pods. To match an
+empty label value, write `component: ""`.
+
 `componentInstanceSelector` must pair with a component-level `instanceIdPath`,
 and vice versa. Selectors of the same kind must be mutually exclusive across
 components.

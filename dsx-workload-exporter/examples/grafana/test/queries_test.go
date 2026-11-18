@@ -201,6 +201,66 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				gpu["namespace"] = "monitoring"
 			}
 			attribution := querySeries("dsx_workload_pod_info", "1+0x30", pod)
+			variables["activity_view"] = []string{"5"}
+			if namespaceLabel == "exported_namespace" {
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: "Activity agreement preserves the original scrape namespace",
+					InputSeries: []queryInputSeries{
+						attribution,
+						querySeries("DCGM_FI_DEV_GPU_UTIL", "80+0x30", gpu),
+						querySeries("DCGM_FI_DEV_GPU_UTIL", "80 0", queryIdentity(gpu, map[string]string{"namespace": "monitoring-peer"})),
+					},
+					PromQLExprTest: []queryExpectation{
+						stateExpectation(query("overview", 306, "A", namespaceLabel), "0s", "active"),
+						queryExpected(query("overview", 304, "A", namespaceLabel), "0s", querySample{"{}", 1}),
+						queryExpected(maximumQuery("overview", 308, "A", namespaceLabel), "0s", querySample{"{}", 1}),
+						stateExpectation(query("overview", 306, "A", namespaceLabel), "30s", "unknown"),
+						queryExpected(query("overview", 310, "A", namespaceLabel), "30s", querySample{"{}", 1}),
+						queryExpected(maximumQuery("overview", 308, "A", namespaceLabel), "30s", querySample{"{}", 4}),
+					},
+				})
+			}
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: "Activity rejects conflicting components until mappings agree: " + namespaceLabel,
+				InputSeries: []queryInputSeries{
+					attribution,
+					querySeries("dsx_workload_pod_info", "1 stale", queryIdentity(pod, map[string]string{"component": "conflicting"})),
+					querySeries("DCGM_FI_DEV_GPU_UTIL", "80+0x30", gpu),
+				},
+				PromQLExprTest: []queryExpectation{
+					stateExpectation(query("overview", 306, "A", namespaceLabel), "0s", "unknown"),
+					queryExpected(query("overview", 304, "A", namespaceLabel), "0s"),
+					queryExpected(query("overview", 302, "A", namespaceLabel), "0s"),
+					queryExpected(query("overview", 310, "A", namespaceLabel), "0s", querySample{"{}", 1}),
+					queryExpected(maximumQuery("overview", 308, "A", namespaceLabel), "0s", querySample{"{}", 4}),
+					queryExpected(maximumQuery("overview", 16, "A", namespaceLabel), "0s"),
+					stateExpectation(query("overview", 306, "A", namespaceLabel), "30s", "active"),
+					queryExpected(query("overview", 304, "A", namespaceLabel), "30s", querySample{"{}", 1}),
+					queryExpected(query("overview", 302, "A", namespaceLabel), "30s", querySample{"{}", 1}),
+					queryExpected(query("overview", 310, "A", namespaceLabel), "30s", querySample{"{}", 0}),
+					queryExpected(maximumQuery("overview", 308, "A", namespaceLabel), "30s", querySample{"{}", 1}),
+					queryExpected(maximumQuery("overview", 16, "A", namespaceLabel), "30s", querySample{"{}", 80}),
+				},
+			})
+			variables["namespace"] = []string{"$__all"}
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: "Only same-namespace MIG evidence suppresses a full GPU: " + namespaceLabel,
+				InputSeries: []queryInputSeries{
+					attribution,
+					querySeries("DCGM_FI_DEV_GPU_UTIL", "80+0x30", gpu),
+					querySeries("DCGM_FI_DEV_FB_USED", "100+0x30", queryIdentity(gpu, map[string]string{namespaceLabel: "other", "GPU_I_ID": "7", "GPU_CI_ID": "0"})),
+					querySeries("DCGM_FI_DEV_FB_USED", "_ 100+0x30", queryIdentity(gpu, map[string]string{"GPU_I_ID": "7", "GPU_CI_ID": "0"})),
+				},
+				PromQLExprTest: []queryExpectation{
+					stateExpectation(query("overview", 306, "A", namespaceLabel), "0s", "active"),
+					queryExpected(query("overview", 310, "A", namespaceLabel), "0s", querySample{"{}", 0}),
+					queryExpected(maximumQuery("overview", 308, "A", namespaceLabel), "0s", querySample{"{}", 1}),
+					stateExpectation(query("overview", 306, "A", namespaceLabel), "30s", "unknown"),
+					queryExpected(query("overview", 310, "A", namespaceLabel), "30s", querySample{"{}", 1}),
+					queryExpected(maximumQuery("overview", 308, "A", namespaceLabel), "30s", querySample{"{}", 4}),
+				},
+			})
+			variables["namespace"], variables["activity_view"] = []string{"workloads"}, []string{"4"}
 			fixture.Tests = append(fixture.Tests, queryTest{
 				Name: "GPU active, warming, low and stale: " + namespaceLabel,
 				InputSeries: []queryInputSeries{
@@ -412,6 +472,30 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					},
 				})
 				if namespaceLabel == "exported_namespace" {
+					half, err := strconv.ParseFloat(test.value, 64)
+					Expect(err).NotTo(HaveOccurred())
+					initial, conflicting := test.expected, test.expected/2
+					if test.metric == "DCGM_FI_DEV_FB_USED" {
+						initial, conflicting = half*1.5*1048576, half/2*1048576
+						if test.dashboard == "structure" && test.panel == 10 {
+							initial, conflicting = initial/1e9, conflicting/1e9
+						}
+					} else if test.panel == 801 {
+						conflicting = 1
+					}
+					fixture.Tests = append(fixture.Tests, queryTest{
+						Name: fmt.Sprintf("Scrape namespaces remain distinct until GPU agreement: %s/%d/%s/%s", test.dashboard, test.panel, test.ref, test.metric),
+						InputSeries: []queryInputSeries{
+							attribution,
+							querySeries(test.metric, test.value+"+0x30", device),
+							querySeries(test.metric, test.value+" 0", queryIdentity(device, map[string]string{"namespace": "monitoring-peer"})),
+							querySeries(test.metric, strconv.FormatFloat(half/2, 'g', -1, 64)+"+0x30", queryIdentity(device, map[string]string{"UUID": "GPU-2"})),
+						},
+						PromQLExprTest: []queryExpectation{
+							queryExpected(expression, "0s", querySample{"{}", initial}),
+							queryExpected(expression, "30s", querySample{"{}", conflicting}),
+						},
+					})
 					savedNamespace := variables["namespace"]
 					variables["namespace"] = []string{"$__all"}
 					allNamespaces := maximumQuery(test.dashboard, test.panel, test.ref, namespaceLabel)
@@ -674,6 +758,24 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				accepted = []querySample{{"{}", 80}}
 			}
 			expectations = append(expectations, queryExpected("max(("+query("structure", 4, "gpu", "namespace")+`) and on (id) label_replace(vector(1), "id", "pod|workloads|pod-1", "", ""))`, "2m", accepted...))
+			if test.name == "Recreated Pods retain both UID identities" {
+				expectations = append(expectations, queryExpected("max(("+query("structure", 4, "gpu", "namespace")+`) and on (id) label_replace(vector(1), "id", "pod|workloads|old-pod", "", ""))`, "2m"))
+			}
+			if test.name == "Stale component conflicts expire" {
+				var pairs []querySample
+				for _, edge := range []struct{ source, target string }{
+					{"workload|workloads|workload-1", "component|workloads|workload-1|trainer"},
+					{"component|workloads|workload-1|trainer", "instance|workloads|workload-1|trainer|replica"},
+					{"instance|workloads|workload-1|trainer|replica", "group|workloads|workload-1|trainer|replica|group-a"},
+					{"instance|workloads|workload-1|trainer|replica", "pod|workloads|pod-1"},
+					{"instance|workloads|workload-1|trainer|replica", "pod|workloads|pod-2"},
+					{"group|workloads|workload-1|trainer|replica|group-a", "pod|workloads|pod-1"},
+					{"group|workloads|workload-1|trainer|replica|group-a", "pod|workloads|pod-2"},
+				} {
+					pairs = append(pairs, querySample{queryLabels(map[string]string{"source": edge.source, "target": edge.target}), 1})
+				}
+				expectations = append(expectations, queryExpected("group by (source, target) ("+edges+")", "2m", pairs...))
+			}
 			for i, expectation := range expectations {
 				queryNames[expectation.Expr] = fmt.Sprintf("graph identity assertion %d", i)
 			}
@@ -704,6 +806,29 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				querySeries("dsx_workload_pod_info", "1+0x20", pod),
 				querySeries(test.metric, test.values, queryIdentity(container, map[string]string{"instance": "replica-a"})),
 				querySeries(test.metric, test.values, queryIdentity(container, map[string]string{"instance": "replica-b"})),
+			}
+			for _, mapping := range []struct {
+				name     string
+				values   string
+				fresh    bool
+				expected []querySample
+			}{
+				{"Stale mappings cannot attribute current container usage", "1+0x6 _x20", false, nil},
+				{"Stale old UID does not reject a fresh replacement", "1+0x6 _x20", true, []querySample{{queryLabels(resultLabels), test.expected}}},
+				{"Fresh same-name UIDs remain ambiguous for containers", "1+0x20", true, nil},
+			} {
+				input := []queryInputSeries{
+					querySeries("dsx_workload_pod_info", mapping.values, queryIdentity(pod, map[string]string{"pod_uid": "old-pod"})),
+					querySeries(test.metric, test.values, container),
+				}
+				if mapping.fresh {
+					input = append(input, querySeries("dsx_workload_pod_info", "1+0x20", pod))
+				}
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name:           fmt.Sprintf("%s: %s/%d", mapping.name, test.dashboard, test.panel),
+					InputSeries:    input,
+					PromQLExprTest: []queryExpectation{queryExpected(expression, "5m", mapping.expected...)},
+				})
 			}
 			fixture.Tests = append(fixture.Tests, queryTest{
 				Name:           fmt.Sprintf("Agreeing replicas of one container ID: %s/%d", test.dashboard, test.panel),
@@ -1015,7 +1140,7 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				querySeries("DCGM_FI_DEV_GPU_UTIL", "0+0x3 80+0x4", queryIdentity(rangeGPU, map[string]string{"pod_uid": "pod-1", "UUID": "GPU-1"})),
 				querySeries("DCGM_FI_DEV_GPU_UTIL", "80+0x3 0+0x4", queryIdentity(rangeGPU, map[string]string{"pod_uid": "pod-2", "UUID": "GPU-2"})),
 			},
-			// The outer evaluation fixes end() while the subquery evaluates each earlier point.
+			// The selected end stays fixed while the subquery evaluates earlier points.
 			PromQLExprTest: []queryExpectation{
 				queryExpected("count_over_time(("+timelineExpression+")[4m:30s])", "4m", querySample{rangeLabels, 8}),
 				queryExpected("count_over_time((("+timelineExpression+") == 3)[4m:30s])", "4m", querySample{rangeLabels, 3}),
@@ -1026,10 +1151,41 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 			queryNames[expectation.Expr] = fmt.Sprintf("activity timeline range assertion %d", i)
 		}
 		fixture.Tests = append(fixture.Tests, rangeTest)
+		variables["__range"] = []string{"11m"}
+		// Grafana's selected end is 650s, while its 60s display step rounds the query end to 600s.
+		selectedEnd := strings.ReplaceAll(query("overview", 308, "A", "namespace"), "${__to:date:seconds}", "650")
+		queryNames[selectedEnd] = "activity timeline with selected end 650s"
+		fixture.Tests = append(fixture.Tests, queryTest{
+			Name: "Timeline row selection uses the selected end instead of the rounded display end",
+			InputSeries: []queryInputSeries{
+				querySeries("dsx_workload_pod_info", "1+0x22", queryIdentity(activeWorkload, rangePod, map[string]string{"pod_uid": "pod-1"})),
+				querySeries("dsx_workload_pod_info", "1+0x22", queryIdentity(quietWorkload, rangePod, map[string]string{"pod_uid": "pod-2"})),
+				querySeries("DCGM_FI_DEV_GPU_UTIL", "0+0x20 80+0x1", queryIdentity(rangeGPU, map[string]string{"pod_uid": "pod-1", "UUID": "GPU-1"})),
+				querySeries("DCGM_FI_DEV_GPU_UTIL", "80+0x20 0+0x1", queryIdentity(rangeGPU, map[string]string{"pod_uid": "pod-2", "UUID": "GPU-2"})),
+			},
+			PromQLExprTest: []queryExpectation{
+				queryExpected(selectedEnd, "2m", querySample{rangeLabels, 3}),
+				queryExpected(selectedEnd, "10m", querySample{rangeLabels, 2}),
+				queryExpected(selectedEnd, "10m50s", querySample{rangeLabels, 1}),
+			},
+		})
 		variables = defaults
 		for i := range fixture.Tests {
 			if fixture.Tests[i].Interval == "" {
 				fixture.Tests[i].Interval = "30s"
+			}
+			for j := range fixture.Tests[i].PromQLExprTest {
+				expectation := &fixture.Tests[i].PromQLExprTest[j]
+				if strings.Contains(expectation.Expr, "${__to:date:seconds}") {
+					// Existing fixtures select a range ending at their evaluation time.
+					end, err := time.ParseDuration(expectation.EvalTime)
+					Expect(err).NotTo(HaveOccurred())
+					resolved := strings.ReplaceAll(expectation.Expr, "${__to:date:seconds}", strconv.FormatInt(int64(end.Round(time.Second)/time.Second), 10))
+					if name, ok := queryNames[expectation.Expr]; ok {
+						queryNames[resolved] = name
+					}
+					expectation.Expr = resolved
+				}
 			}
 		}
 

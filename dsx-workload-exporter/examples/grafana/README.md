@@ -42,9 +42,12 @@ simulated full-GPU telemetry and kubelet CPU/RAM metrics; it needs no GPU hardwa
 
 Cluster and job values must be single-line strings without backticks. Filter
 values must not contain Grafana variable syntax such as `$__range` or
-`${__range}`. Grafana expands these tokens even inside PromQL strings. Use a
-plain scrape `job_name`, such as `cadvisor`, and normalize affected cluster
-labels with scrape relabeling before ingestion.
+`${__range}`. Grafana expands these tokens even inside PromQL strings. Normalize
+affected labels before ingestion. A plain scrape `job_name`, such as `cadvisor`,
+works when it supplies the final `job` label. If `honor_labels` or another rule
+preserves a different value, change the source or rule that supplies that label.
+Verify the stored job labels with the [source discovery queries](#troubleshoot-missing-panels)
+in the dashboard datasource.
 
 Use one exporter job containing replicas of one exporter configuration. For a
 backend with several clusters, every selected source must carry the same
@@ -91,6 +94,12 @@ transitions. All workloads includes roots without GPU telemetry. Long time range
 can omit brief transitions because Grafana returns fewer display points. Zoom in
 and check that the query step is 30 seconds or less in Query Inspector when
 inspecting individual transitions.
+
+Timeline row selection samples the range every 30 seconds, regardless of the
+display step. Prometheus defaults to 50 million samples per query. Seven days
+across 3,000 workloads already produces about 60.5 million state samples before
+other query work. On a sample-limit or timeout error, select Last 1 hour and
+fewer workloads. Actual limits depend on the backend.
 
 ## Read the structure
 

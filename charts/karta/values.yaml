@@ -15,109 +15,38 @@ operator:
 # Standalone metrics exporter with /metrics, /healthz and /readyz.
 exporter:
   enabled: false
-  # Shared listener, container and Service port for metrics and health endpoints.
-  metricsPort: 8080
-  # Tune for watched object count, object size and scrape frequency.
-  resources:
-    requests:
-      cpu: 500m
-      memory: 512Mi
-    limits:
-      cpu: "2"
-      memory: 4Gi
-  # Soft memory limit of the Go runtime (GOMEMLIMIT). The GC runs more often as the
-  # heap nears it, instead of letting the heap reach twice its live size. This
-  # lowers the risk of an OOM kill; it does not remove it. auto: 90% of
-  # resources.limits.memory, any Kubernetes quantity; no limit or a zero limit
-  # leaves it unset. A number sets it in GiB, such as 3.5; empty leaves it unset.
-  goMemLimit: auto
-  # Go pprof profiles on 127.0.0.1:<port> inside the Pod, for kubectl port-forward
-  # only; no Service exposes them. Off by default.
-  pprof:
-    enabled: false
-    port: 6060
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-  # Selector labels and checksum/config are reserved and cannot be overridden.
-  podLabels: {}
-  podAnnotations: {}
-  service:
-    annotations: {}
-  # Requires an existing Prometheus Operator and ServiceMonitor CRD.
-  serviceMonitor:
-    enabled: false
-    # Match the labels selected by your Prometheus instance.
-    additionalLabels: {}
-    # Empty values inherit the Prometheus scrape settings.
-    interval: ""
-    scrapeTimeout: ""
-  image:
-    repository: ghcr.io/dsx-ai-factory/workload-map/dsx-workload-exporter
-    # When empty, falls back to .Chart.AppVersion.
-    tag: ""
-    pullPolicy: IfNotPresent
-  # Skip Kubernetes system namespaces. Set matchExpressions: [] to include them.
-  namespaceSelector:
-    matchExpressions:
-      - key: kubernetes.io/metadata.name
-        operator: NotIn
-        values:
-          - kube-system
-          - kube-public
-          - kube-node-lease
-  # Label filters for workload roots. Omit apiVersion and kind for a global filter.
-  # All applicable filters must match. An empty list allows every root.
-  objectSelectors: []
-  podSelector: {}
-  # Select roots that publish workload status and creation time. Pod info remains.
-  workloadMetricSelector: {}
-  # Optional bare-Pod metric association. The selected target Karta supplies its
-  # watch; target ownerReferences must include the Pod name and current UID.
-  podWorkloadAssociation: null
-  resourceRules: []
-  # Skip ConfigMaps and Secrets as workload roots. RBAC is unchanged.
-  # Set [] to allow them as workload roots.
-  excludeResourceRules:
-    - apiGroups: [""]
-      apiVersions: ["*"]
-      resources: ["configmaps", "secrets"]
-  # Omit transition phases. Set [] to emit all phases, including transitions
-  # used by the Sandbox catalog definition and custom definitions.
-  excludeStatuses: [Suspending, Resuming]
-  ignoredOwnerKinds: []
-  requiredKinds: []
-  workers: 4
-  # Goroutines processing Pod queue jobs. Zero inherits workers.
-  leafWorkers: 0
-  # Goroutines processing workload queue jobs. Zero inherits workers.
-  rootWorkers: 0
-  requestTimeout: 30s
-  apiQPS: 20
-  apiBurst: 40
-  rbac:
-    # LIST/WATCH all resource types, including custom owners and Secrets.
-    # Replace with explicit API groups and resources to limit access.
-    workloadRules:
-      - apiGroups: ["*"]
-        resources: ["*"]
-  # Extra labels for Pod info and workload status. Expressions read object.
-  # See dsx-workload-exporter/pkg/labelevaluator/README.md.
-  labelRules: []
-  # Shared generic label evaluation limits. Zero selects the default.
-  genericLabelEvaluationLimits:
-    costLimit: 10000
-    maxExpressionBytes: 4096
-    maxResultBytes: 1024
-  # Copied as is into the exporter's config file (ConfigMap). Each source
-  # picks definitions by name: include lists the names to use (empty means
-  # all) and exclude removes names; exclude wins. For each workload kind, a
-  # selected cluster Karta replaces the catalog definition. A kind with no
-  # selected cluster Karta (none exists, or it is excluded or not included)
-  # uses the selected catalog definition, if any. Example, with the catalog
-  # enabled: excluding the cluster Karta team-job (batch/Job) makes Jobs use
-  # the catalog's batch-job-v1; also excluding batch-job-v1 leaves Jobs with
-  # no definition. Disabling the catalog also removes this fallback.
+
+  # Choose namespaces, workload roots, Pods and owner kinds to observe.
+  selection:
+    # Skip Kubernetes system namespaces. Set matchExpressions: [] to include them.
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - kube-public
+            - kube-node-lease
+    # Allowed workload root types. An empty list allows all types.
+    includeRootResources: []
+    # Skip ConfigMaps and Secrets as workload roots. RBAC is unchanged.
+    # Set [] to allow them as workload roots.
+    excludeRootResources:
+      - apiGroups: [""]
+        apiVersions: ["*"]
+        resources: ["configmaps", "secrets"]
+    # Label filters for workload roots. Omit apiVersion and kind for a global filter.
+    # All applicable filters must match. An empty list allows every root.
+    rootSelectors: []
+    # Select Pods for attribution rows. All Pods are watched.
+    podSelector: {}
+    # Stop owner traversal before a kind in this list.
+    ignoredOwnerKinds: []
+    # Watch these kinds even without a selected Karta definition.
+    requiredWatchKinds: []
+
+  # Select Karta definitions by name. Empty includes allow all names. Exclusions win.
+  # For each workload kind, a selected cluster definition overrides the catalog.
   kartaDefinitionSource:
     # Allow spec.experimental definitions from either source. Includes do not
     # override this gate. Stable definitions remain enabled by default.
@@ -133,6 +62,88 @@ exporter:
       enabled: true
       include: []
       exclude: []
+
+  # Choose which series and labels the exporter publishes.
+  metrics:
+    # Select roots that publish workload status and creation time. Pod info remains.
+    workloadSelector: {}
+    # Omit transition phases. Set [] to emit all phases, including transitions
+    # used by the Sandbox catalog definition and custom definitions.
+    excludeStatuses: [Suspending, Resuming]
+    # Extra labels for Pod info and workload status. Expressions read object.
+    # See dsx-workload-exporter/pkg/labelevaluator/README.md.
+    labelRules: []
+    # Optional bare-Pod metric association. The selected target Karta supplies its
+    # watch; target ownerReferences must include the Pod name and current UID.
+    podWorkloadAssociation: null
+    # Shared generic label evaluation limits. Zero selects the default.
+    labelEvaluationLimits:
+      costLimit: 10000
+      maxExpressionBytes: 4096
+      maxResultBytes: 1024
+
+  # Shared listener, container and Service port for metrics and health endpoints.
+  metricsPort: 8080
+
+  # Requires an existing Prometheus Operator and ServiceMonitor CRD.
+  serviceMonitor:
+    enabled: false
+    # Match the labels selected by your Prometheus instance.
+    additionalLabels: {}
+    # Empty values inherit the Prometheus scrape settings.
+    interval: ""
+    scrapeTimeout: ""
+
+  rbac:
+    # LIST/WATCH all resource types, including custom owners and Secrets.
+    # Replace with explicit API groups and resources to limit access.
+    workloadRules:
+      - apiGroups: ["*"]
+        resources: ["*"]
+
+  image:
+    repository: ghcr.io/dsx-ai-factory/workload-map/dsx-workload-exporter
+    # When empty, falls back to .Chart.AppVersion.
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  # Tune for watched object count, object size and scrape frequency.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Selector labels and checksum/config are reserved and cannot be overridden.
+  podLabels: {}
+  podAnnotations: {}
+  service:
+    annotations: {}
+
+  # Queue workers, Kubernetes API client limits and Go runtime settings.
+  tuning:
+    workers:
+      # Number of workers for each queue unless overridden below.
+      default: 4
+      # Zero uses the default above.
+      pods: 0
+      workloads: 0
+    apiClient:
+      # Timeout for resource discovery and each LIST page.
+      requestTimeout: 30s
+      qps: 20
+      burst: 40
+    # GOMEMLIMIT: auto uses 90% of the container memory limit. A number is GiB.
+    # An empty value, or auto with no memory limit, leaves GOMEMLIMIT unset.
+    goMemoryLimit: auto
+    # Serve Go profiles on localhost for kubectl port-forward.
+    pprof:
+      enabled: false
+      port: 6060
 
 # Overrides for resource names. Rarely needed.
 fullnameOverride: ""

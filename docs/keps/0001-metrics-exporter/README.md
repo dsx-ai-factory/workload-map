@@ -149,19 +149,20 @@ recalculated against recovered inputs. See the
 
 ## Configured labels
 
-Use `exporter.labelRules` to add labels to Pod info or workload status. A rule
+Use `exporter.metrics.labelRules` to add labels to Pod info or workload status. A rule
 names its target metrics, ordered sources and CEL expression. The evaluator
 receives the root workload or the specific Pod as `object`.
 
 ```yaml
 exporter:
-  labelRules:
-    - name: team
-      metrics: [dsx_workload_pod_info, dsx_workload_status]
-      sources: [workload]
-      expression: |
-        has(object.metadata.labels) && "example.com/team" in object.metadata.labels
-          ? object.metadata.labels["example.com/team"] : ""
+  metrics:
+    labelRules:
+      - name: team
+        metrics: [dsx_workload_pod_info, dsx_workload_status]
+        sources: [workload]
+        expression: |
+          has(object.metadata.labels) && "example.com/team" in object.metadata.labels
+            ? object.metadata.labels["example.com/team"] : ""
 ```
 
 Pod info may read the workload, its Pod, or both in order. Workload status cannot

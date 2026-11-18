@@ -55,7 +55,7 @@ var _ = Describe("exporter construction", func() {
 		Expect(components.Runtime).NotTo(BeNil())
 		Expect(components.Definitions).NotTo(BeNil())
 		Expect(components.Store).NotTo(BeNil())
-		Expect(components.ExcludeStatuses).To(Equal(cfg.ExcludeStatuses))
+		Expect(components.ExcludeStatuses).To(Equal(cfg.Metrics.ExcludeStatuses))
 		Expect(components.Runtime.Ready()).To(BeFalse())
 		Expect(client.QPS).To(Equal(float32(3)))
 		Expect(client.Burst).To(Equal(5))
@@ -68,7 +68,7 @@ var _ = Describe("exporter construction", func() {
 		cfg := config.DefaultConfig()
 		_, err := bootstrap.New(cfg, nil)
 		Expect(err).To(MatchError("kubernetes configuration is required"))
-		cfg.RequestTimeout = "-1s"
+		cfg.Tuning.APIClient.RequestTimeout = "-1s"
 		_, err = bootstrap.New(cfg, &rest.Config{Host: "https://example.test"})
 		Expect(err).To(HaveOccurred())
 	})

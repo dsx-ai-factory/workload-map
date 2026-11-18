@@ -75,6 +75,16 @@ spec:
 `kind` is the workload's full GVK. Always provide all three of group, version,
 and kind. (The one exception is the core `Pod` kind, which has an empty group.)
 
+For a definition that needs an explicit opt-in, set `spec.experimental: true`.
+It stays available in the SDK and catalog. The CLI, Headlamp and exporter exclude
+it until their experimental setting is enabled, even if it is installed in the
+cluster. Omitted or `false` keeps the normal behavior.
+
+Before installing an experimental definition, update the Karta CRD to a version
+that includes `spec.experimental`. The chart updates it during upgrades by
+default. If the CRD is managed separately, apply the updated
+[`run.ai_kartas.yaml`](../charts/karta/crds/run.ai_kartas.yaml) first.
+
 ## Step 3: Map the status
 
 `statusDefinition` translates the workload's own conditions or phases into
@@ -176,7 +186,8 @@ the whole group.
 
 Every `componentName` here must match a component you defined above. This part
 of the API is experimental and may change. The older `podGroups` list format
-still appears in some samples; it is deprecated in favor of `podGroup`.
+still appears in some samples, including `docs/catalog/batch-job-v1.yaml`; it is
+deprecated in favor of `podGroup`.
 
 ## Step 7: Validate against the checklist
 
@@ -197,16 +208,37 @@ definition is loaded. If a check fails, the error message names the component
 and the problem. See [Troubleshooting](./Troubleshooting.md) for each message
 and its fix.
 
+To check your file before using it, run `kli validate`. It checks schema shape,
+required fields and jq expression validity locally, with no cluster:
+
+```bash
+kli validate job.yaml
+```
+
+A valid file prints `OK: job.yaml is a valid Karta definition (GVK: batch/v1/Job)`.
+Validation does not reject unknown field names. A misspelled field passes and is
+ignored, so check the spelling of each field.
+It exits 0 when the definition is valid, 1 when it is not, and 2 when the file
+cannot be read as YAML. Without the CLI, run the
+[karta-verify](../karta/sdk/hack/karta-verify/README.md) validator from the
+`karta/sdk/` directory instead:
+
+```bash
+go run ./hack/karta-verify --karta /path/to/job.yaml
+```
+
 ## Step 8: See it in action
 
 The offline quickstart at [`docs/examples/quickstart/`](./examples/quickstart/)
 loads a Karta definition together with a sample workload and exercises the
 uniform API: it reads status, scale, and pod template, mutates the pods (it
 injects a scheduler name and a label), and writes them back, all without a
-cluster.
+cluster. The example is its own Go module, so run it from its directory,
+starting at the repository root:
 
 ```bash
-go run ./docs/examples/quickstart --print-mutated
+cd docs/examples/quickstart
+go run . --print-mutated
 ```
 
 The quickstart ships with JobSet and LeaderWorkerSet definitions. Use it as the

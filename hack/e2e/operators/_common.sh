@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 #
-# Shared helpers for the per-operator e2e scripts under hack/e2e/operators/.
+# Shared helpers for workload and infrastructure operator e2e scripts.
 # Each operator ships a standalone install.sh (and, if it has a smoke.yaml, a
 # verify.sh). Every such script sources this file once at its top:
 #

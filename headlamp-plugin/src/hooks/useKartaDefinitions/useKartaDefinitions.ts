@@ -2,6 +2,7 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { useEffect, useState } from 'react';
+import { useKartaConfig } from '../../config';
 import { Definition, KartaCR, mergeDefinitions } from '../../lib/karta/definitions';
 import { Karta } from '../../lib/karta/karta.types';
 import { listCatalog } from '../../lib/karta/kartaUtil';
@@ -23,6 +24,7 @@ export interface UseKartaDefinitionsResult {
 // clusters each defining Deployment would collapse into one entry, leaving a
 // workload liable to be read through the other cluster's definition.
 export function useKartaDefinitions(cluster: string, attempt = 0): UseKartaDefinitionsResult {
+  const enableExperimental = useKartaConfig()?.enableExperimental === true;
   const [catalog, setCatalog] = useState<Karta[]>([]);
   const [catalogError, setCatalogError] = useState<Error | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -71,7 +73,7 @@ export function useKartaDefinitions(cluster: string, attempt = 0): UseKartaDefin
   const installed = clusterKartas !== null && !crdMissing;
 
   return {
-    definitions: mergeDefinitions(catalog, clusterDefinitions),
+    definitions: mergeDefinitions(catalog, clusterDefinitions, enableExperimental),
     installed,
     crdMissing,
     loading: catalogLoading,

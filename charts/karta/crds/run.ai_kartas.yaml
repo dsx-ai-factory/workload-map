@@ -52,6 +52,10 @@ spec:
             type: object
           spec:
             properties:
+              experimental:
+                description: Experimental marks definitions that consumers must explicitly
+                  enable.
+                type: boolean
               optimizationInstructions:
                 description: Instructions contains optimization-specific instructions
                   for the workload

@@ -17,10 +17,11 @@ By contributing to this project, you agree to the DCO. You must sign off your co
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
-You can sign off automatically by using the `-s` or `--signoff` flag when committing:
+Use lowercase `-s` for the DCO sign-off and uppercase `-S` for the required cryptographic signature.
+Configure your signing key before you run this command (see [Commit signing](#commit-signing)):
 
 ```bash
-git commit -s -m "Your commit message"
+git commit -s -S -m "Your commit message"
 ```
 
 You must use your real name (sorry, no pseudonyms or anonymous contributions).
@@ -82,7 +83,7 @@ For more information about the DCO, please visit: https://developercertificate.o
 ### Design Proposals
 
 For changes that need design agreement before implementation, follow the
-[Karta Enhancement Proposal process](keps/README.md). It describes when to write
+[Karta Enhancement Proposal process](docs/keps/README.md). It describes when to write
 one and provides a template.
 
 ### Development Environment Setup
@@ -91,8 +92,8 @@ Karta is a Go project. To set up a local environment:
 
 ```bash
 # 1. Clone your fork
-git clone https://github.com/<your-username>/karta.git
-cd karta
+git clone https://github.com/<your-username>/workload-map.git
+cd workload-map
 
 # 2. Build the packages (uses the Go version pinned in go.mod)
 go build ./...
@@ -145,11 +146,30 @@ Commit messages follow [Conventional Commits v1.0.0](https://www.conventionalcom
 [optional body]
 ```
 
-Types: `feat`, `fix`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`. When picking a scope, match an existing one from `git log`. Combine the format with the DCO sign-off described above:
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`. When picking a scope, match an existing one from `git log`. Include both the DCO sign-off and a cryptographic signature:
 
 ```bash
-git commit -s -m "fix(api): validate status mapping expressions before applying them"
+git commit -s -S -m "fix(api): validate status mapping expressions before applying them"
 ```
+
+### Commit signing
+
+Every contribution commit must include a cryptographic signature, which proves that the signing key signed the commit.
+The DCO sign-off records your agreement to the DCO. Both are required.
+
+Set up a GPG or SSH signing key with
+[GitHub's commit signature verification guide](https://docs.github.com/en/authentication/managing-commit-signature-verification).
+Add the public signing key to your GitHub account and configure Git to use it.
+Then enable automatic signing in this repository:
+
+```bash
+git config commit.gpgsign true
+```
+
+Use `git config --global commit.gpgsign true` to enable automatic signing in all repositories on your computer.
+After pushing, open the pull request's Commits tab and make sure that each commit shows "Verified".
+"Unverified" can indicate an invalid signature or missing GitHub configuration. Unsigned commits can also lack a verification badge.
+See [GitHub's signature status explanations](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification) to diagnose the cause.
 
 ### Commit Attribution
 
@@ -187,7 +207,7 @@ commit's message.
 2. Create a feature branch from the main branch
 3. Make your changes
 4. Ensure all tests pass
-5. Sign off your commits with the DCO (see above)
+5. Include a DCO sign-off and a cryptographic signature in every commit (see above)
 6. Submit a pull request
 
 ### Pull Request Process
@@ -195,7 +215,7 @@ commit's message.
 1. Ensure your pull request includes:
    - A clear description of the changes
    - Reference to any related issues
-   - All commits signed off with DCO
+   - All commits signed off with DCO and cryptographically signed with a "Verified" status on GitHub
    - Tests for new functionality (if applicable)
    - Updated documentation (if applicable)
 
@@ -248,13 +268,20 @@ Adding one means, in order:
      server, and name objects `karta-e2e-<workload>-<flow>`.
    - Install: if the operator is new or its install needs new pieces, follow
      Adding an operator in `hack/e2e/README.md` (`install.sh`, `verify.sh`,
-     `smoke.yaml`, the version pin in `global.env`, `ALL_WORKLOADS` and
+     executable `check-updates.sh`, `smoke.yaml`, the version pin in
+     `global.env`, `ALL_WORKLOADS` and
      `version_of` in `up.sh`) so `make e2e-up` still provisions everything. A
      new kind for an operator already installed keeps its directory, pin, and
      `up.sh` entries; it extends any flag in `install.sh` that gates which
      kinds the controller serves and adds a `<kind>-smoke.yaml` plus a
      `run_smoke` line in `verify.sh`. A Kubernetes builtin needs none of
      this.
+   - Update checks: every external workload and infrastructure operator needs
+     an executable, registered `check-updates.sh` and offline tests. Follow the
+     [checker contract](hack/operator-updates/README.md#add-an-operator) and run
+     `make test-e2e-updates`. It reports candidate tags; installation, smoke
+     verification, recording, and replay establish compatibility. Kubernetes
+     builtins and locally built Karta are exempt.
    - Naming: the operator directory takes the upstream project's short name
      (`kuberay`, `spark-operator`). `Fixture.Operator` in the flow must equal
      that directory name; that is how the recording is filed under the

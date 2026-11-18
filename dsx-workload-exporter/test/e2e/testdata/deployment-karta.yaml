@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+apiVersion: run.ai/v1alpha1
+kind: Karta
+metadata:
+  name: exporter-e2e-deployment
+spec:
+  structureDefinition:
+    rootComponent:
+      name: deployment
+      kind: {group: apps, version: v1, kind: Deployment}
+      statusDefinition:
+        phaseDefinition:
+          path: .metadata.labels.phase
+        statusMappings:
+          running: [{byPhase: ready}]

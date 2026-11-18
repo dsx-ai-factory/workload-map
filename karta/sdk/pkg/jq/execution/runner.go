@@ -146,7 +146,7 @@ func (r *runner) safeRunWithVariables(ctx context.Context, q *gojq.Code, input a
 		}
 		results = append(results, v)
 
-		if len(results) >= r.maxResults {
+		if len(results) > r.maxResults {
 			return nil, fmt.Errorf("query results exceed the allowed number %d", r.maxResults)
 		}
 	}

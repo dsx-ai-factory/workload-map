@@ -31,7 +31,10 @@ at a field no real object carries. Only step 7 shows that.
 
 Pinning examples:
 
-- Newest non-prerelease tag: `git ls-remote --tags --refs <repo-url> | sort -V -k2`.
+- Read the release workflow or guide in a local clone before choosing a tag.
+  A chart may publish in another repository or use a component-specific
+  prefix. The newest matching release still needs a Kubernetes/API support
+  check and installation, smoke, recording, and replay validation.
 - Helm-installed operators pin the chart version: kuberay `1.6.2`, milvus
   `1.3.7`.
 - An operator already in `hack/e2e/global.env`, for example a new kind for
@@ -104,9 +107,22 @@ release spells it (`kuberay`, `spark-operator`). The same string is
 `Fixture.Operator`, the first `Label`, and the `version_of` case; a hyphen is
 fine in all three.
 
+### Required update checker
+
+Every external workload and infrastructure operator needs an executable
+`check-updates.sh` beside its install/verify scripts and smoke manifest.
+Workloads live in `hack/e2e/operators/<name>/`; infrastructure lives in
+`hack/e2e/infra/<name>/` and is selected by `up.sh` before dependent workloads.
+Follow the [checker contract](../../../hack/operator-updates/README.md#add-an-operator)
+for clone inspection, release mappings, aggregate registration, and offline tests.
+
+`make e2e-operators-check-latest-supported-versions OPERATORS=<name>` reports
+candidate tags. It does not establish support or compatibility, change pins,
+or replace `verify.sh`. Builtin workloads and locally built Karta are exempt.
+
 ### Builtins
 
-A builtin needs no install scripts, pin, or `up.sh` entry. `up.sh` rejects any
+A builtin needs no install scripts, update checker, pin, or `up.sh` entry. `up.sh` rejects any
 name outside `ALL_WORKLOADS`, so `e2e-up` takes `WORKLOADS=none`. In the flow,
 `Fixture.Operator` and the first `Label` are the same name (`deployment`,
 `batch-job`) and the second label is `builtin`. `operatorVersion()` falls back

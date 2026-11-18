@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cobra"
 
+	"github.com/dsx-ai-factory/workload-map/cli/pkg/definitions"
 	"github.com/dsx-ai-factory/workload-map/cli/pkg/generator"
 )
 
@@ -21,7 +22,7 @@ var _ = Describe("config loading", func() {
 		dir = GinkgoT().TempDir()
 		DeferCleanup(os.Setenv, "HOME", os.Getenv("HOME"))
 		Expect(os.Setenv("HOME", GinkgoT().TempDir())).To(Succeed())
-		for _, key := range []string{"KARTA_CONFIG", "KARTA_OUTPUT"} {
+		for _, key := range []string{"KARTA_CONFIG", "KARTA_OUTPUT", "KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS"} {
 			DeferCleanup(os.Setenv, key, os.Getenv(key))
 			Expect(os.Unsetenv(key)).To(Succeed())
 		}
@@ -153,6 +154,44 @@ var _ = Describe("config loading", func() {
 			Expect(c.Output).To(Equal("table"))
 		})
 	})
+
+	DescribeTable("experimental definition precedence",
+		func(file, env, flag string, want bool) {
+			var args []string
+			if file != "" {
+				path := filepath.Join(dir, "config.yaml")
+				writeFile(path, "catalog-experimental-definitions: "+file+"\n")
+				args = append(args, "--config", path)
+			}
+			if env != "" {
+				Expect(os.Setenv("KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS", env)).To(Succeed())
+			}
+			if flag != "" {
+				args = append(args, "--catalog-experimental-definitions="+flag)
+			}
+			root := NewRootCommand()
+			root.AddCommand(&cobra.Command{Use: "noop", RunE: func(cmd *cobra.Command, _ []string) error {
+				resolver, warnings := loadDefinitionsForCommand(cmd, noClusterGetter())
+				Expect(warnings).To(BeEmpty())
+				_, err := resolver.ByName("kueue-x-k8s-io-workload-v1beta2")
+				if want {
+					Expect(err).NotTo(HaveOccurred())
+				} else {
+					Expect(err).To(MatchError(definitions.ErrNameNotFound))
+				}
+				return nil
+			}})
+			root.SetArgs(append(args, "noop"))
+			Expect(root.Execute()).To(Succeed())
+			Expect(config.CatalogExperimentalDefinitions).To(Equal(want))
+		},
+		Entry("disabled by default", "", "", "", false),
+		Entry("config enables", "true", "", "", true),
+		Entry("environment enables without a config file", "", "true", "", true),
+		Entry("environment overrides config", "true", "false", "", false),
+		Entry("flag overrides environment", "false", "false", "true", true),
+		Entry("explicit false overrides true preferences", "true", "true", "false", false),
+	)
 
 })
 

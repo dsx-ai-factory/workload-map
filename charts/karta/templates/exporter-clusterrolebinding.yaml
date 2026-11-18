@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+{{- if and .Values.exporter .Values.exporter.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "karta.exporter.clusterScopedName" . }}
+  labels:
+    {{- include "karta.exporter.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "karta.exporter.clusterScopedName" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "karta.exporter.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

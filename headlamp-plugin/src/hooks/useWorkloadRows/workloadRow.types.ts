@@ -14,6 +14,9 @@ export interface WorkloadRow {
 
   // Karta-normalized phases, in no guaranteed order.
   phases: string[];
+  // Set when the status could not be evaluated, in which case phases is empty
+  // rather than holding the last known result.
+  statusError?: string;
 
   componentsCount: number;
 }

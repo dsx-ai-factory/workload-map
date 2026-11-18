@@ -1,0 +1,414 @@
+events:
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:26:34Z"
+      generation: 1
+      name: karta-e2e-vcjob
+      namespace: test-m6rxx
+      uid: 04f62ef8-1446-479d-a5c5-fc5854fc2628
+    spec:
+      maxRetry: 3
+      minAvailable: 3
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 2
+        name: worker
+        replicas: 2
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 64Mi
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+            restartPolicy: Never
+      - maxRetry: 3
+        minAvailable: 1
+        name: helper
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: helper
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:26:34Z"
+        status: Pending
+      minAvailable: 3
+      state:
+        lastTransitionTime: "2026-11-11T15:26:34Z"
+        phase: Pending
+  phases:
+  - Initializing
+  resourceVersion: "85263"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:26:34Z"
+      generation: 1
+      name: karta-e2e-vcjob
+      namespace: test-m6rxx
+      uid: 04f62ef8-1446-479d-a5c5-fc5854fc2628
+    spec:
+      maxRetry: 3
+      minAvailable: 3
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 2
+        name: worker
+        replicas: 2
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 64Mi
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+            restartPolicy: Never
+      - maxRetry: 3
+        minAvailable: 1
+        name: helper
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: helper
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:26:34Z"
+        status: Pending
+      minAvailable: 3
+      pending: 3
+      state:
+        lastTransitionTime: "2026-11-11T15:26:34Z"
+        phase: Pending
+      taskStatusCount:
+        helper:
+          phase:
+            Pending: 1
+        worker:
+          phase:
+            Pending: 2
+  phases:
+  - Initializing
+  resourceVersion: "85271"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:26:34Z"
+      generation: 1
+      name: karta-e2e-vcjob
+      namespace: test-m6rxx
+      uid: 04f62ef8-1446-479d-a5c5-fc5854fc2628
+    spec:
+      maxRetry: 3
+      minAvailable: 3
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 2
+        name: worker
+        replicas: 2
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 64Mi
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+            restartPolicy: Never
+      - maxRetry: 3
+        minAvailable: 1
+        name: helper
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: helper
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:26:37Z"
+        status: Pending
+      minAvailable: 3
+      pending: 2
+      running: 1
+      state:
+        lastTransitionTime: "2026-11-11T15:26:37Z"
+        phase: Pending
+      taskStatusCount:
+        helper:
+          phase:
+            Pending: 1
+        worker:
+          phase:
+            Pending: 1
+            Running: 1
+  phases:
+  - Initializing
+  resourceVersion: "85301"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:26:34Z"
+      generation: 1
+      name: karta-e2e-vcjob
+      namespace: test-m6rxx
+      uid: 04f62ef8-1446-479d-a5c5-fc5854fc2628
+    spec:
+      maxRetry: 3
+      minAvailable: 3
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 2
+        name: worker
+        replicas: 2
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 64Mi
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+            restartPolicy: Never
+      - maxRetry: 3
+        minAvailable: 1
+        name: helper
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: helper
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:26:37Z"
+        status: Pending
+      minAvailable: 3
+      pending: 1
+      running: 2
+      state:
+        lastTransitionTime: "2026-11-11T15:26:37Z"
+        phase: Pending
+      taskStatusCount:
+        helper:
+          phase:
+            Pending: 1
+        worker:
+          phase:
+            Running: 2
+  phases:
+  - Initializing
+  resourceVersion: "85303"
+  state: Initializing
+- kind: STATE
+  object:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      creationTimestamp: "2026-11-11T15:26:34Z"
+      generation: 1
+      name: karta-e2e-vcjob
+      namespace: test-m6rxx
+      uid: 04f62ef8-1446-479d-a5c5-fc5854fc2628
+    spec:
+      maxRetry: 3
+      minAvailable: 3
+      queue: default
+      schedulerName: volcano
+      tasks:
+      - maxRetry: 3
+        minAvailable: 2
+        name: worker
+        replicas: 2
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: worker
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 64Mi
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+            restartPolicy: Never
+      - maxRetry: 3
+        minAvailable: 1
+        name: helper
+        replicas: 1
+        template:
+          metadata: {}
+          spec:
+            automountServiceAccountToken: false
+            containers:
+            - command:
+              - sleep
+              - infinity
+              image: busybox:1.36
+              name: helper
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+            restartPolicy: Never
+    status:
+      conditions:
+      - lastTransitionTime: "2026-11-11T15:26:37Z"
+        status: Pending
+      - lastTransitionTime: "2026-11-11T15:26:37Z"
+        status: Running
+      minAvailable: 3
+      running: 3
+      state:
+        lastTransitionTime: "2026-11-11T15:26:37Z"
+        phase: Running
+      taskStatusCount:
+        helper:
+          phase:
+            Running: 1
+        worker:
+          phase:
+            Running: 2
+  phases:
+  - Running
+  resourceVersion: "85305"
+  state: Running
+flow: running
+kartaFile: docs/catalog/batch-volcano-sh-job-v1alpha1.yaml
+kartaName: batch-volcano-sh-job-v1alpha1
+operator: volcano
+result:
+  succeeded: true
+schemaVersion: 1
+summary:
+- amount: 4
+  phases:
+  - Initializing
+- amount: 1
+  phases:
+  - Running
+version: v1.16.0
+want: Running

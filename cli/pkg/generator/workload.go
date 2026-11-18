@@ -28,6 +28,9 @@ type Options struct {
 	ByName bool
 	// TypeOf fills a TYPE column for a listing across types; nil omits it.
 	TypeOf func(workload.View) string
+	// NoHeaders omits the table's header row, so scripts read only data rows.
+	// It has no effect on the machine formats or the empty-result notice.
+	NoHeaders bool
 }
 
 // RenderWorkloads writes views to out. The machine formats go through Render, so
@@ -51,13 +54,16 @@ func RenderWorkloads(out, errOut io.Writer, views []workload.View, opts Options)
 			}
 			return nil
 		}
-		return renderWorkloadTable(w, views, format, opts.TypeOf)
+		return renderWorkloadTable(w, views, format, opts.TypeOf, opts.NoHeaders)
 	}
 
 	return Render(out, format, views, opts.ByName, table)
 }
 
-func renderWorkloadTable(out io.Writer, views []workload.View, format Output, typeOf func(workload.View) string) error {
+// renderWorkloadTable writes views as a kubectl-style table: NAME and NAMESPACE,
+// TYPE when typeOf is set, then PHASE and AGE, plus ORIGIN for -o wide. With
+// noHeaders it writes only the data rows, in the same order.
+func renderWorkloadTable(out io.Writer, views []workload.View, format Output, typeOf func(workload.View) string, noHeaders bool) error {
 	writer := printers.GetNewTabWriter(out)
 
 	headers := []string{"NAME", "NAMESPACE"}
@@ -68,7 +74,9 @@ func renderWorkloadTable(out io.Writer, views []workload.View, format Output, ty
 	if format == OutputWide {
 		headers = append(headers, "ORIGIN")
 	}
-	fmt.Fprintln(writer, strings.Join(headers, "\t"))
+	if !noHeaders {
+		fmt.Fprintln(writer, strings.Join(headers, "\t"))
+	}
 
 	now := time.Now()
 	for _, view := range views {

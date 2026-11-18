@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A Rollout with a nonexistent image and a short progressDeadlineSeconds: the
+# controller marks it Degraded once the deadline expires without a successful rollout.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: karta-e2e-rollout-degraded
+  namespace: default
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  progressDeadlineSeconds: 15
+  selector:
+    matchLabels:
+      app: karta-e2e-rollout-degraded
+  strategy:
+    canary:
+      steps: []
+  template:
+    metadata:
+      labels:
+        app: karta-e2e-rollout-degraded
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: worker
+          image: registry.invalid/no-such-image:v0.0.1
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {cpu: 20m, memory: 32Mi}

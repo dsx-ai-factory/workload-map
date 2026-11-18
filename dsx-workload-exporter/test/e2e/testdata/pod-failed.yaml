@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+apiVersion: v1
+kind: Pod
+metadata:
+  name: failed
+  namespace: exporter-workloads-a
+spec:
+  restartPolicy: Never
+  containers:
+    - name: fail
+      image: busybox:1.37.0
+      command: [sh, -c, 'exit 1']

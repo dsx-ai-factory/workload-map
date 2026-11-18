@@ -3,7 +3,7 @@
 
 # AGENTS.md - Guide for AI Coding Agents
 
-You are contributing to Karta, an Apache 2.0 open-source Kubernetes project. Stack: Go 1.25, controller-runtime, Helm. Goal: a CRD that lets controllers and platforms inspect, modify, and manage workloads of any type without per-CRD adapters.
+You are contributing to Karta, an Apache 2.0 open-source Kubernetes project. Stack: Go 1.27, controller-runtime, Helm. Goal: a CRD that lets controllers and platforms inspect, modify, and manage workloads of any type without per-CRD adapters.
 
 If you are an AI coding agent (Cursor, Codex, Claude Code, Aider, Continue, Copilot, etc.) opening this repo for the first time, read this file end to end before making changes. For Claude Code, the sibling `CLAUDE.md` imports this file via `@AGENTS.md`.
 
@@ -12,11 +12,13 @@ If you are an AI coding agent (Cursor, Codex, Claude Code, Aider, Continue, Copi
 Always do:
 - Run `make check` before pushing.
 - Sign off commits with `-s` (DCO).
+- Cryptographically sign commits with `-S` using a configured GPG or SSH key.
 - Add SPDX + copyright header to new source and Markdown files.
 - Use Conventional Commits: `feat(scope):`, `fix(scope):`, `refactor(scope):`. Match an existing scope from `git log` when possible.
 - Reference an open GitHub issue in the PR.
 - Regenerate manifests after changing API types: `make lib-generate && make lib-manifests`.
 - Ship a recorded e2e flow with every new catalog definition (see Catalog Definitions in `CONTRIBUTING.md`): the recording is how the mapped states are proven, and the replay suite keeps proving them.
+- Add an executable `check-updates.sh` and offline Go tests for every new external workload or infrastructure operator; follow [Adding an operator](hack/e2e/README.md#adding-an-operator) and run `make test-e2e-updates`.
 - Use `git mv` when moving files so history is preserved.
 
 Discuss in the PR description:
@@ -69,7 +71,7 @@ For vulnerability handling and disclosure, `SECURITY.md` is authoritative.
 
 One `Makefile` at the repository root is the only one in the repo; there is no per-component Makefile. Use it to build, test, lint, and generate code. `make help` lists everything.
 
-`make check` is the full Go presubmit and CI runs it verbatim, but CI also runs `helm-lint`, `helm-validate`, `image-lock-verify`, `image-lock-test` and `lint-shell`, so a green `check` alone does not guarantee a green CI. `lint` is read-only; `fmt` and the per-component `fmt-*` targets are the only ones that rewrite files. For a single test use `go test` inside the module's directory.
+`make check` is the full Go presubmit and CI runs it verbatim, but CI also runs `helm-lint`, `helm-validate`, `image-lock-verify`, `image-lock-test` and `lint-shell`, so a green `check` alone does not guarantee a green CI. `check` needs `helm` on the PATH for the chart admission tests. `lint` is read-only; `fmt` and the per-component `fmt-*` targets are the only ones that rewrite files. For a single test use `go test` inside the module's directory.
 
 The library is the `karta/sdk/` module, and there is no `go.work`. `cli`, `operator`,
 `karta-wasm`, `test/e2e`, and `docs/examples` require it at `v0.0.0` with a
@@ -105,6 +107,11 @@ recipe, so a workspace would change what you build locally but not what CI build
 ## Commits and Pull Requests
 
 Commit messages follow Conventional Commits v1.0.0 with a DCO sign-off (`git commit -s`, real name required). The format, allowed types, and scope conventions are documented in `CONTRIBUTING.md` under Commit Messages; that section is the single source of truth. Do not restate the format here.
+
+Each commit also requires a cryptographic signature, which proves that the signing key signed the commit.
+Use `git commit -s -S` to include both the DCO sign-off and the signature.
+Follow [Commit signing](CONTRIBUTING.md#commit-signing) for key setup and GitHub verification guidance.
+Only rewrite commits or force-push when the contributor explicitly requests it.
 
 Use the PR template at `.github/PULL_REQUEST_TEMPLATE.md`. Required: link to an open issue, run `make check`, add or update tests (or explain why none).
 

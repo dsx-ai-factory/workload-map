@@ -204,13 +204,13 @@
       }
     },
     {
-      "description": "Release branches predate the move of the library to karta/sdk and keep the older make target names and layout, so their regeneration runs those.",
+      "description": "Release branches up to 0.2 predate the move of the library to karta/sdk and keep the older make target names and layout, so their regeneration runs those. From 0.3 on a release branch carries the same targets as main and falls through to the rule above. Drop this rule once 0.2 ages out of the base branches renovate.yaml selects.",
       "matchManagers": [
         "gomod",
         "custom.regex"
       ],
       "matchBaseBranches": [
-        "/^(v|release-)\\d+\\.\\d+$/"
+        "/^(v|release-)0\\.[0-2]$/"
       ],
       "postUpgradeTasks": {
         "commands": [

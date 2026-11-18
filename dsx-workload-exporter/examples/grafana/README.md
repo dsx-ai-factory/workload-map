@@ -33,14 +33,18 @@ simulated full-GPU telemetry and kubelet CPU/RAM metrics; it needs no GPU hardwa
    label. Otherwise enter one exact cluster value before choosing the jobs.
 5. Job dropdowns discover names from available metrics. Grafana can select the
    first available value; confirm the exporter job is the intended one. Select
-   the CPU/memory and DCGM jobs if those sources are collected. Cluster and
-   selected job values must be single-line strings without backticks. The queries
-   match them literally.
+   the CPU/memory and DCGM jobs if those sources are collected.
 6. Set DCGM namespace label to the label containing the workload namespace.
    The default is `namespace`. Choose `exported_namespace` when scrape-label
    collisions put the workload namespace there instead.
 7. Select namespaces and a time range. Select a workload name in Overview to
    open its structure, or choose a workload UID directly in Structure.
+
+Cluster and job values must be single-line strings without backticks. Filter
+values must not contain Grafana variable syntax such as `$__range` or
+`${__range}`. Grafana expands these tokens even inside PromQL strings. Use a
+plain scrape `job_name`, such as `cadvisor`, and normalize affected cluster
+labels with scrape relabeling before ingestion.
 
 Use one exporter job containing replicas of one exporter configuration. For a
 backend with several clusters, every selected source must carry the same

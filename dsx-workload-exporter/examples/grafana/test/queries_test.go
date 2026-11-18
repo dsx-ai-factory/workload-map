@@ -143,6 +143,7 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					if variable["name"] == ref {
 						expression = variable["query"].(map[string]any)["query"].(string)
 						if strings.HasPrefix(expression, "label_values(") {
+							// This checks selector interpolation, not Grafana's range-based metadata API.
 							parts := strings.TrimSuffix(strings.TrimPrefix(expression, "label_values("), ")")
 							separator := strings.LastIndex(parts, ",")
 							Expect(separator).To(BeNumerically(">", 0))
@@ -377,6 +378,18 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					zeroExpected = 1
 				}
 				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: fmt.Sprintf("GPU attribution uses UID across Pod name reuse: %s/%d/%s/%s", test.dashboard, test.panel, test.ref, namespaceLabel),
+					InputSeries: []queryInputSeries{
+						attribution,
+						querySeries("dsx_workload_pod_info", "1+0x30", queryIdentity(pod, map[string]string{"pod_uid": "old-pod"})),
+						querySeries("dsx_workload_pod_info", "_ 1+0x30", queryIdentity(pod, map[string]string{"component": "conflicting"})),
+						querySeries(test.metric, test.value+"+0x30", device),
+					},
+					PromQLExprTest: []queryExpectation{
+						queryExpected(expression, "0s", querySample{"{}", test.expected}),
+						queryExpected(expression, "30s"),
+					},
+				}, queryTest{
 					Name: fmt.Sprintf("GPU measurements require fresh attribution: %s/%d/%s/%s", test.dashboard, test.panel, test.ref, namespaceLabel),
 					InputSeries: []queryInputSeries{
 						querySeries("dsx_workload_pod_info", "1 _x30", pod),
@@ -600,6 +613,73 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 			}
 		}
 
+		nodes := query("structure", 4, "nodes", "namespace")
+		edges := query("structure", 4, "edges", "namespace")
+		ancestors := query("structure", 4, "layoutAncestors", "namespace")
+		leaves := query("structure", 4, "layoutLeaves", "namespace")
+		graphPod := queryIdentity(pod, map[string]string{"component": "trainer", "component_instance": "replica", "replica_group_id": "group-a"})
+		for _, test := range []struct {
+			name      string
+			values    string
+			peer      map[string]string
+			peerValue string
+			leaves    float64
+			accepted  bool
+		}{
+			{"Stale component conflicts expire", "1+0x20", map[string]string{"component": "old"}, "1 _x20", 2, true},
+			{"Recreated Pods retain both UID identities", "1+0x20", map[string]string{"pod_uid": "old-pod"}, "1+0x20", 3, true},
+			{"One UID with conflicting names is rejected", "1+0x20", map[string]string{"pod_name": "conflicting"}, "1+0x20", 1, false},
+			{"One UID with conflicting components is rejected", "1+0x20", map[string]string{"component": "conflicting"}, "1+0x20", 1, false},
+			{"Stale Pod mappings do not retain measurements", "1 _x20", nil, "", 1, false},
+		} {
+			input := []queryInputSeries{
+				querySeries("dsx_workload_pod_info", test.values, graphPod),
+				querySeries("dsx_workload_pod_info", "1+0x20", queryIdentity(graphPod, map[string]string{"pod_name": "healthy", "pod_uid": "pod-2"})),
+			}
+			if test.peer != nil {
+				input = append(input, querySeries("dsx_workload_pod_info", test.peerValue, queryIdentity(graphPod, test.peer)))
+			}
+			for _, identity := range []struct{ name, uid, value string }{{"worker", "pod-1", "80"}, {"healthy", "pod-2", "10"}} {
+				device := map[string]string{"cluster": "test", "namespace": "workloads", "job": "dcgm", "pod_uid": identity.uid, "UUID": "GPU-" + identity.uid}
+				container := map[string]string{"cluster": "test", "namespace": "workloads", "job": "cadvisor", "pod": identity.name, "container": "main", "id": identity.uid}
+				input = append(input,
+					querySeries("DCGM_FI_DEV_GPU_UTIL", identity.value+"+0x20", device),
+					querySeries("DCGM_FI_DEV_FB_USED", "300+0x20", device),
+					querySeries("container_cpu_usage_seconds_total", "0+30x20", container),
+					querySeries("container_memory_working_set_bytes", "4096+0x20", container),
+				)
+			}
+			expectations := []queryExpectation{
+				queryExpected("count("+nodes+")", "2m", querySample{"{}", test.leaves + 4}),
+				queryExpected("count("+leaves+")", "2m", querySample{"{}", test.leaves}),
+				queryExpected("count("+query("structure", 5, "A", "namespace")+")", "2m", querySample{"{}", test.leaves}),
+				queryExpected("("+ancestors+") unless on (cluster, id) ("+nodes+")", "2m"),
+				queryExpected("("+nodes+") unless on (cluster, id) ("+ancestors+")", "2m"),
+			}
+			for _, endpoint := range []string{"source", "target"} {
+				expectations = append(expectations, queryExpected("label_replace(("+edges+"), \"id\", \"$1\", \""+endpoint+"\", \"(.+)\") unless on (cluster, id) ("+nodes+")", "2m"))
+			}
+			for _, resource := range []struct {
+				ref   string
+				value float64
+			}{{"gpu", 10}, {"framebuffer", 300 * 1048576}, {"cpu", 0.4}, {"memory", 4096}} {
+				expression := query("structure", 4, resource.ref, "namespace")
+				expectations = append(expectations,
+					queryExpected("("+expression+") unless on (cluster, id) ("+nodes+")", "2m"),
+					queryExpected("max(("+expression+`) and on (id) label_replace(vector(1), "id", "pod|workloads|pod-2", "", ""))`, "2m", querySample{"{}", resource.value}),
+				)
+			}
+			var accepted []querySample
+			if test.accepted {
+				accepted = []querySample{{"{}", 80}}
+			}
+			expectations = append(expectations, queryExpected("max(("+query("structure", 4, "gpu", "namespace")+`) and on (id) label_replace(vector(1), "id", "pod|workloads|pod-1", "", ""))`, "2m", accepted...))
+			for i, expectation := range expectations {
+				queryNames[expectation.Expr] = fmt.Sprintf("graph identity assertion %d", i)
+			}
+			fixture.Tests = append(fixture.Tests, queryTest{Name: test.name, InputSeries: input, PromQLExprTest: expectations})
+		}
+
 		for _, test := range []struct {
 			dashboard string
 			panel     int
@@ -732,6 +812,17 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 
 		workloadQuery := query("structure", 0, "workload_uid", "namespace")
 		for _, metric := range []string{"dsx_workload_status", "dsx_workload_created_timestamp_seconds", "dsx_workload_pod_info", "dsx_exporter_observation_valid"} {
+			variables["__range"] = []string{"15s"}
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: "Workload remains selectable between scrapes: " + metric,
+				InputSeries: []queryInputSeries{querySeries(metric, "1 1", queryIdentity(workload, map[string]string{
+					"job": "dsx", "scope": "workload",
+				}))},
+				PromQLExprTest: []queryExpectation{queryExpected(query("structure", 0, "workload_uid", "namespace"), "20s", querySample{
+					queryLabels(queryIdentity(workload, map[string]string{"job": "dsx", "selection": "training / workload-1"})), 1,
+				})},
+			})
+			variables["__range"] = []string{"10m"}
 			fixture.Tests = append(fixture.Tests, queryTest{
 				Name:     "Workload observed between subquery boundaries is discoverable: " + metric,
 				Interval: "10s",
@@ -816,14 +907,36 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 		}
 		variables = maps.Clone(defaults)
 		variables["workload"] = []string{"training"}
+		gpuOnlyTimeline := maximumQuery("overview", 308, "A", "namespace")
+		variables["activity_view"] = []string{"5"}
 		fixture.Tests = append(fixture.Tests, queryTest{
 			Name:        "Failure-only workloads can be selected and retain their inventory row",
-			InputSeries: []queryInputSeries{querySeries("dsx_exporter_observation_valid", "0+0x2", queryIdentity(workload, map[string]string{"job": "dsx", "scope": "workload"}))},
+			InputSeries: []queryInputSeries{querySeries("dsx_exporter_observation_valid", "0+0x2 _x8", queryIdentity(workload, map[string]string{"job": "dsx", "scope": "workload"}))},
 			PromQLExprTest: []queryExpectation{
 				queryExpected(query("overview", 0, "workload", "namespace"), "1m", querySample{`{workload_name="training"}`, 1}),
 				queryExpected(query("overview", 4, "A", "namespace"), "1m", querySample{queryLabels(queryIdentity(workload, map[string]string{"job": "dsx"})), 1}),
+				queryExpected(query("overview", 310, "A", "namespace"), "1m", querySample{"{}", 1}),
+				stateExpectation(query("overview", 306, "A", "namespace"), "1m", "unknown"),
+				queryExpected(maximumQuery("overview", 308, "A", "namespace"), "1m", querySample{"{}", 4}),
+				queryExpected(gpuOnlyTimeline, "1m"),
+				queryExpected(query("overview", 310, "A", "namespace"), "3m"),
+				queryExpected(query("overview", 306, "A", "namespace"), "3m"),
+				queryExpected(maximumQuery("overview", 308, "A", "namespace"), "3m"),
 			},
 		})
+		fixture.Tests = append(fixture.Tests, queryTest{
+			Name: "Activity identities require workload scope and a UID",
+			InputSeries: []queryInputSeries{
+				querySeries("dsx_exporter_observation_valid", "0+0x2", queryIdentity(workload, map[string]string{"job": "dsx", "scope": "collection"})),
+				querySeries("dsx_exporter_observation_valid", "0+0x2", queryIdentity(workload, map[string]string{"job": "dsx", "scope": "workload", "workload_uid": ""})),
+			},
+			PromQLExprTest: []queryExpectation{
+				queryExpected(query("overview", 310, "A", "namespace"), "1m"),
+				queryExpected(query("overview", 306, "A", "namespace"), "1m"),
+				queryExpected(maximumQuery("overview", 308, "A", "namespace"), "1m"),
+			},
+		})
+		variables = maps.Clone(defaults)
 		for _, job := range []string{"cadvisor.o'hare", `cadvisor.path\job`} {
 			for _, test := range []struct {
 				dashboard string
@@ -848,7 +961,7 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 			variables = maps.Clone(defaults)
 			variables["exporter_job"] = []string{job}
 			fixture.Tests = append(fixture.Tests, queryTest{
-				Name:        "Exporter job names remain literal during discovery: " + job,
+				Name:        "Exporter job selectors preserve literal names: " + job,
 				InputSeries: []queryInputSeries{querySeries("dsx_workload_status", "1+0x2", queryIdentity(workload, map[string]string{"job": job}))},
 				PromQLExprTest: []queryExpectation{
 					queryExpected(query("structure", 0, "namespace", "namespace"), "1m", querySample{`{namespace="workloads"}`, 1}),

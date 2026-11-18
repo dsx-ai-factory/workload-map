@@ -10,15 +10,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 var _ = Describe("Karta CRD schema (envtest)", func() {
-	AfterEach(func() {
-		_ = k8sClient.DeleteAllOf(testCtx, &kartav1alpha1.Karta{})
-	})
-
 	// The selector is sent as a raw map because the typed fields use omitempty,
 	// which drops an empty keyPath or matchLabels before it reaches the API server.
 	DescribeTable("componentTypeSelector",
@@ -31,7 +28,8 @@ var _ = Describe("Karta CRD schema (envtest)", func() {
 			Expect(unstructured.SetNestedField(obj.Object, map[string]any{"componentTypeSelector": selector},
 				"spec", "structureDefinition", "rootComponent", "podSelector")).To(Succeed())
 
-			err = k8sClient.Create(testCtx, obj)
+			// A dry run validates the request without storing it, so no cleanup is needed
+			err = k8sClient.Create(testCtx, obj, client.DryRunAll)
 			if expectedErr == "" {
 				Expect(err).NotTo(HaveOccurred())
 				return

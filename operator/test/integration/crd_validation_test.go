@@ -7,27 +7,31 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	kartav1alpha1 "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
 )
 
 var _ = Describe("Karta CRD schema (envtest)", func() {
-	worker := "worker"
-
 	AfterEach(func() {
 		_ = k8sClient.DeleteAllOf(testCtx, &kartav1alpha1.Karta{})
 	})
 
+	// The selector is sent as a raw map because the typed fields use omitempty,
+	// which drops an empty keyPath or matchLabels before it reaches the API server.
 	DescribeTable("componentTypeSelector",
-		func(selector *kartav1alpha1.ComponentTypeSelector, expectedErr string) {
+		func(selector map[string]any, expectedErr string) {
 			gvk := schema.GroupVersionKind{Group: "test.run.ai", Version: "v1", Kind: "Foo"}
-			k := newValidKarta("envtest-selector", &gvk)
-			k.Spec.StructureDefinition.RootComponent.PodSelector = &kartav1alpha1.PodSelector{
-				ComponentTypeSelector: selector,
-			}
+			content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(newValidKarta("envtest-selector", &gvk))
+			Expect(err).NotTo(HaveOccurred())
+			obj := &unstructured.Unstructured{Object: content}
+			obj.SetGroupVersionKind(kartav1alpha1.GroupVersion.WithKind("Karta"))
+			Expect(unstructured.SetNestedField(obj.Object, map[string]any{"componentTypeSelector": selector},
+				"spec", "structureDefinition", "rootComponent", "podSelector")).To(Succeed())
 
-			err := k8sClient.Create(testCtx, k)
+			err = k8sClient.Create(testCtx, obj)
 			if expectedErr == "" {
 				Expect(err).NotTo(HaveOccurred())
 				return
@@ -36,14 +40,18 @@ var _ = Describe("Karta CRD schema (envtest)", func() {
 			Expect(err.Error()).To(ContainSubstring(expectedErr))
 		},
 		Entry("accepts keyPath and value",
-			&kartav1alpha1.ComponentTypeSelector{KeyPath: ".metadata.labels.role", Value: &worker}, ""),
+			map[string]any{"keyPath": ".metadata.labels.role", "value": "worker"}, ""),
 		Entry("accepts matchLabels only",
-			&kartav1alpha1.ComponentTypeSelector{MatchLabels: map[string]string{"app": "pulsar", "component": "proxy"}}, ""),
+			map[string]any{"matchLabels": map[string]any{"app": "pulsar", "component": "proxy"}}, ""),
 		Entry("accepts keyPath and matchLabels",
-			&kartav1alpha1.ComponentTypeSelector{KeyPath: ".metadata.annotations.leader", MatchLabels: map[string]string{"app": "pulsar"}}, ""),
+			map[string]any{"keyPath": ".metadata.annotations.leader", "matchLabels": map[string]any{"app": "pulsar"}}, ""),
 		Entry("rejects a selector with no conditions",
-			&kartav1alpha1.ComponentTypeSelector{}, "at least one of keyPath or matchLabels must be set"),
+			map[string]any{}, "at least one of keyPath or matchLabels must be set"),
 		Entry("rejects value without keyPath",
-			&kartav1alpha1.ComponentTypeSelector{Value: &worker, MatchLabels: map[string]string{"app": "pulsar"}}, "value requires keyPath"),
+			map[string]any{"value": "worker", "matchLabels": map[string]any{"app": "pulsar"}}, "value requires keyPath"),
+		Entry("rejects an empty keyPath",
+			map[string]any{"keyPath": ""}, "componentTypeSelector.keyPath: Invalid value: \"\": spec.structureDefinition.rootComponent.podSelector.componentTypeSelector.keyPath in body should be at least 1 chars long"),
+		Entry("rejects an empty matchLabels",
+			map[string]any{"keyPath": ".metadata.labels.role", "matchLabels": map[string]any{}}, "componentTypeSelector.matchLabels: Invalid value: 0: spec.structureDefinition.rootComponent.podSelector.componentTypeSelector.matchLabels in body should have at least 1 properties"),
 	)
 })

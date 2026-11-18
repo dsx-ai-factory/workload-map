@@ -98,8 +98,9 @@ inspecting individual transitions.
 Timeline row selection samples the range every 30 seconds, regardless of the
 display step. Prometheus defaults to 50 million samples per query. Seven days
 across 3,000 workloads already produces about 60.5 million state samples before
-other query work. On a sample-limit or timeout error, select Last 1 hour and
-fewer workloads. Actual limits depend on the backend.
+other query work. On a sample-limit or timeout error, narrow the range around
+the incident and select fewer workloads. Last 1 hour is a starting point for
+current telemetry. Actual limits depend on the backend.
 
 ## Read the structure
 
@@ -126,9 +127,21 @@ is below the histories.
 | DCGM Exporter | `DCGM_FI_DEV_GPU_UTIL`, `DCGM_FI_DEV_FB_USED`; `DCGM_FI_PROF_GR_ENGINE_ACTIVE` for MIG activity | Selected namespace label, nonempty `pod_uid`, nonempty `UUID`; MIG entity labels where applicable |
 
 CPU is a five-minute rate. A newly scraped container needs multiple samples
-before a rate appears. Memory is working-set bytes. Both join cAdvisor Pod names
-to DSX attribution and retain the documented
+before a rate appears. Kubelet normally reports `cpu="total"`. Per-core counters
+are also supported: replicas must agree for each reported core before its rate
+is included in the container sum. A reported total takes precedence over cores.
+Conflicting or incomplete readings leave the container unavailable.
+
+Preserve the `cpu` label. A missing label is accepted only for a counter already
+known to be a container total. Removing `cpu` from per-core counters does not
+produce a total. Memory is working-set bytes. Both sources join Pod names to
+DSX attribution and retain the documented
 [Pod-name reuse and rate-window limits](../../../docs/dsx-workload-exporter/queries.md#2-cpu-and-memory-by-component-instance-and-group).
+
+GPU queries require device-level readings. Keep DCGM's optional
+`--kubernetes-virtual-gpus` mode disabled (`KUBERNETES_VIRTUAL_GPUS=false`, the
+default). That mode derives per-Pod utilization and framebuffer values, which
+need different aggregation. See the [DCGM implementation](https://github.com/NVIDIA/dcgm-exporter/blob/fafd151148052628061a80450b4ee037a5fa0c3c/internal/pkg/transformation/kubernetes.go#L486-L500).
 
 Enable [DCGM Pod UID mapping](../../../docs/dsx-workload-exporter/queries.md#3-gpu-measurements-by-pod-uid).
 GPU joins use Pod UID, not the name of the DCGM exporter Pod. Missing Pod UIDs

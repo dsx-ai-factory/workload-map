@@ -201,6 +201,50 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				gpu["namespace"] = "monitoring"
 			}
 			attribution := querySeries("dsx_workload_pod_info", "1+0x30", pod)
+			for _, shared := range []struct {
+				name, metric, value string
+				labels              map[string]string
+			}{
+				{"full GPU", "DCGM_FI_DEV_GPU_UTIL", "2", nil},
+				{"MIG instance", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.02", map[string]string{"GPU_I_ID": "7", "GPU_CI_ID": "0"}},
+			} {
+				device := queryIdentity(gpu, shared.labels)
+				for _, survivor := range []struct {
+					name, prefix, state string
+					timeline, low       float64
+				}{{"continuous reporter", "", "low_activity", 2, 1}, {"new reporter", "_x3 ", "warming", 3, 0}} {
+					fixture.Tests = append(fixture.Tests, queryTest{
+						Name: "A shared device remains present after one Pod departs: " + shared.name + "/" + survivor.name + "/" + namespaceLabel,
+						InputSeries: []queryInputSeries{
+							querySeries("dsx_workload_pod_info", "1+0x2 stale", pod),
+							querySeries("dsx_workload_pod_info", survivor.prefix+"1+0x30", queryIdentity(pod, map[string]string{"pod_uid": "pod-2", "pod_name": "survivor"})),
+							querySeries(shared.metric, shared.value+"+0x2 stale", device),
+							querySeries(shared.metric, survivor.prefix+shared.value+"+0x30", queryIdentity(device, map[string]string{"pod_uid": "pod-2"})),
+						},
+						PromQLExprTest: []queryExpectation{
+							stateExpectation(stateQuery, "3m", survivor.state),
+							queryExpected(query("overview", 305, "A", namespaceLabel), "3m", querySample{"{}", survivor.low}),
+							queryExpected(query("overview", 310, "A", namespaceLabel), "3m", querySample{"{}", 0}),
+							queryExpected(maximumQuery("overview", 308, "A", namespaceLabel), "3m", querySample{"{}", survivor.timeline}),
+						},
+					})
+				}
+			}
+			variables["workload"] = []string{"$__all"}
+			isolatedState := "(" + query("overview", 306, "A", namespaceLabel) + `) and on (workload_uid) label_replace(vector(1), "workload_uid", "workload-1", "", "")`
+			queryNames[isolatedState] = "disappearing device remains scoped to its workload (" + namespaceLabel + ")"
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: "Another workload cannot hide a disappearing device: " + namespaceLabel,
+				InputSeries: []queryInputSeries{
+					attribution,
+					querySeries("dsx_workload_pod_info", "1+0x30", queryIdentity(pod, map[string]string{"pod_uid": "pod-2", "pod_name": "other", "workload_name": "other", "workload_uid": "workload-2"})),
+					querySeries("DCGM_FI_DEV_GPU_UTIL", "2+0x2 stale", gpu),
+					querySeries("DCGM_FI_DEV_GPU_UTIL", "2+0x30", queryIdentity(gpu, map[string]string{"UUID": "GPU-2"})),
+					querySeries("DCGM_FI_DEV_GPU_UTIL", "2+0x30", queryIdentity(gpu, map[string]string{"pod_uid": "pod-2"})),
+				},
+				PromQLExprTest: []queryExpectation{stateExpectation(isolatedState, "3m", "unknown")},
+			})
+			variables["workload"] = []string{"training"}
 			variables["activity_view"] = []string{"5"}
 			if namespaceLabel == "exported_namespace" {
 				fixture.Tests = append(fixture.Tests, queryTest{
@@ -480,20 +524,23 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 						if test.dashboard == "structure" && test.panel == 10 {
 							initial, conflicting = initial/1e9, conflicting/1e9
 						}
-					} else if test.panel == 801 {
-						conflicting = 1
+					}
+					input := []queryInputSeries{
+						attribution,
+						querySeries(test.metric, test.value+"+0x30", device),
+						querySeries(test.metric, test.value+" 0", queryIdentity(device, map[string]string{"namespace": "monitoring-peer"})),
+					}
+					var remaining []querySample
+					if test.panel != 801 {
+						input = append(input, querySeries(test.metric, strconv.FormatFloat(half/2, 'g', -1, 64)+"+0x30", queryIdentity(device, map[string]string{"UUID": "GPU-2"})))
+						remaining = []querySample{{"{}", conflicting}}
 					}
 					fixture.Tests = append(fixture.Tests, queryTest{
-						Name: fmt.Sprintf("Scrape namespaces remain distinct until GPU agreement: %s/%d/%s/%s", test.dashboard, test.panel, test.ref, test.metric),
-						InputSeries: []queryInputSeries{
-							attribution,
-							querySeries(test.metric, test.value+"+0x30", device),
-							querySeries(test.metric, test.value+" 0", queryIdentity(device, map[string]string{"namespace": "monitoring-peer"})),
-							querySeries(test.metric, strconv.FormatFloat(half/2, 'g', -1, 64)+"+0x30", queryIdentity(device, map[string]string{"UUID": "GPU-2"})),
-						},
+						Name:        fmt.Sprintf("Scrape namespaces remain distinct until GPU agreement: %s/%d/%s/%s", test.dashboard, test.panel, test.ref, test.metric),
+						InputSeries: input,
 						PromQLExprTest: []queryExpectation{
 							queryExpected(expression, "0s", querySample{"{}", initial}),
-							queryExpected(expression, "30s", querySample{"{}", conflicting}),
+							queryExpected(expression, "30s", remaining...),
 						},
 					})
 					savedNamespace := variables["namespace"]
@@ -802,6 +849,9 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 			container := map[string]string{
 				"cluster": "test", "job": "cadvisor", "namespace": "workloads", "pod": "worker", "container": "main", "id": "first",
 			}
+			if test.metric == "container_cpu_usage_seconds_total" {
+				container["cpu"] = "total"
+			}
 			valid := []queryInputSeries{
 				querySeries("dsx_workload_pod_info", "1+0x20", pod),
 				querySeries(test.metric, test.values, queryIdentity(container, map[string]string{"instance": "replica-a"})),
@@ -818,16 +868,31 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				{"Fresh same-name UIDs remain ambiguous for containers", "1+0x20", true, nil},
 			} {
 				input := []queryInputSeries{
-					querySeries("dsx_workload_pod_info", mapping.values, queryIdentity(pod, map[string]string{"pod_uid": "old-pod"})),
+					querySeries("dsx_workload_pod_info", mapping.values, queryIdentity(pod, map[string]string{"pod_uid": "old-pod", "workload_name": "retired", "workload_uid": "old-workload"})),
 					querySeries(test.metric, test.values, container),
 				}
 				if mapping.fresh {
 					input = append(input, querySeries("dsx_workload_pod_info", "1+0x20", pod))
 				}
+				expectations := []queryExpectation{queryExpected(expression, "5m", mapping.expected...)}
+				if test.dashboard == "overview" {
+					panel := 19
+					if test.metric == "container_memory_working_set_bytes" {
+						panel = 20
+					}
+					selectedWorkloads := variables["workload"]
+					variables["workload"] = []string{"$__all"}
+					var attributed []querySample
+					if len(mapping.expected) > 0 {
+						attributed = []querySample{{queryLabels(workload), test.expected}}
+					}
+					expectations = append(expectations, queryExpected(query("overview", panel, "A", "namespace"), "5m", attributed...))
+					variables["workload"] = selectedWorkloads
+				}
 				fixture.Tests = append(fixture.Tests, queryTest{
 					Name:           fmt.Sprintf("%s: %s/%d", mapping.name, test.dashboard, test.panel),
 					InputSeries:    input,
-					PromQLExprTest: []queryExpectation{queryExpected(expression, "5m", mapping.expected...)},
+					PromQLExprTest: expectations,
 				})
 			}
 			fixture.Tests = append(fixture.Tests, queryTest{
@@ -899,7 +964,57 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 			expression := maximumQuery(test.dashboard, test.panel, test.ref, "namespace")
 			container := map[string]string{
 				"cluster": "test", "job": "cadvisor", "namespace": "workloads", "pod": "worker", "container": "main", "id": "first",
+				"cpu": "total",
 			}
+
+			firstCore, secondCore := 0.2, 0.4
+			for _, shape := range []struct {
+				name, core, peer, total, totalPeer, aggregate string
+				cores                                         float64
+				unavailable                                   bool
+			}{
+				{name: "Unequal cores sum after replica agreement", core: "12+12x20", cores: firstCore + secondCore},
+				{name: "Equal cores are distinct CPU measurements", core: "6+6x20", cores: firstCore + firstCore},
+				{name: "Unreported zero-cumulative cores need no invented sample", cores: firstCore},
+				{name: "A total stream wins over per-core streams", core: "12+12x20", total: "0+30x20", cores: 1},
+				{name: "One conflicting core rejects the entire container", core: "12+12x20", peer: "18+18x20", unavailable: true},
+				{name: "Conflicting total streams cannot fall back to cores", core: "12+12x20", total: "0+30x20", totalPeer: "0+60x20", unavailable: true},
+				{name: "Verified normalized and explicit totals agree", core: "12+12x20", total: "0+30x20", aggregate: "0+30x20", cores: 1},
+				{name: "Conflicting normalized and explicit totals are unavailable", core: "12+12x20", total: "0+30x20", aggregate: "0+60x20", unavailable: true},
+				{name: "A new total without rate history blocks core fallback", core: "12+12x20", total: "_x10 30", unavailable: true},
+				{name: "A new reported core without rate history prevents a partial sum", core: "_x10 6", unavailable: true},
+			} {
+				input := []queryInputSeries{querySeries("dsx_workload_pod_info", "1+0x20", pod)}
+				for _, replica := range []string{"replica-a", "replica-b"} {
+					input = append(input, querySeries("container_cpu_usage_seconds_total", "6+6x20", queryIdentity(container, map[string]string{"cpu": "cpu00", "instance": replica})))
+					if shape.core != "" {
+						values := shape.core
+						if replica == "replica-b" && shape.peer != "" {
+							values = shape.peer
+						}
+						input = append(input, querySeries("container_cpu_usage_seconds_total", values, queryIdentity(container, map[string]string{"cpu": "cpu01", "instance": replica})))
+					}
+					if shape.total != "" && replica == "replica-a" {
+						input = append(input, querySeries("container_cpu_usage_seconds_total", shape.total, queryIdentity(container, map[string]string{"instance": "total-a"})))
+					}
+				}
+				if shape.totalPeer != "" {
+					input = append(input, querySeries("container_cpu_usage_seconds_total", shape.totalPeer, queryIdentity(container, map[string]string{"instance": "total-b"})))
+				}
+				if shape.aggregate != "" {
+					input = append(input, querySeries("container_cpu_usage_seconds_total", shape.aggregate, queryIdentity(container, map[string]string{"cpu": "", "instance": "normalized"})))
+				}
+				var expected []querySample
+				if !shape.unavailable {
+					expected = []querySample{{"{}", shape.cores * test.expected}}
+				}
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name:           fmt.Sprintf("%s: %s/%d/%s", shape.name, test.dashboard, test.panel, test.ref),
+					InputSeries:    input,
+					PromQLExprTest: []queryExpectation{queryExpected(expression, "5m", expected...)},
+				})
+			}
+
 			fixture.Tests = append(fixture.Tests, queryTest{
 				Name: fmt.Sprintf("A stale CPU replica does not hide a healthy peer: %s/%d/%s", test.dashboard, test.panel, test.ref),
 				InputSeries: []queryInputSeries{

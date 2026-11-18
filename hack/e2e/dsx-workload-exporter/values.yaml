@@ -14,8 +14,15 @@ exporter:
     repository: dsx-workload-exporter
     tag: e2e
     pullPolicy: Never
-  namespaceSelector:
-    matchExpressions: []
+  selection:
+    namespaceSelector:
+      matchExpressions: []
+    requiredWatchKinds:
+      - v1/Pod
+      - apps/v1/Deployment
+      - batch/v1/Job
+      - jobset.x-k8s.io/v1alpha2/JobSet
+      - leaderworkerset.x-k8s.io/v1/LeaderWorkerSet
   kartaDefinitionSource:
     catalog:
       enabled: true
@@ -24,12 +31,6 @@ exporter:
         - batch-job-v1
         - jobset-x-k8s-io-jobset-v1alpha2
         - leaderworkerset-x-k8s-io-leaderworkerset-v1
-  requiredKinds:
-    - v1/Pod
-    - apps/v1/Deployment
-    - batch/v1/Job
-    - jobset.x-k8s.io/v1alpha2/JobSet
-    - leaderworkerset.x-k8s.io/v1/LeaderWorkerSet
   rbac:
     workloadRules:
       - apiGroups: [""]
@@ -42,16 +43,17 @@ exporter:
         resources: [jobsets]
       - apiGroups: [leaderworkerset.x-k8s.io]
         resources: [leaderworkersets]
-  labelRules:
-    - name: team
-      metrics: [dsx_workload_pod_info, dsx_workload_status]
-      sources: [workload]
-      expression: 'has(object.metadata.labels) && "team" in object.metadata.labels ? object.metadata.labels["team"] : ""'
-    - name: pod_team
-      metrics: [dsx_workload_pod_info]
-      sources: [pod]
-      expression: 'has(object.metadata.labels) && "team" in object.metadata.labels ? object.metadata.labels["team"] : ""'
-    - name: root_replicas
-      metrics: [dsx_workload_status]
-      sources: [workload]
-      expression: 'has(object.spec.replicas) ? string(object.spec.replicas) : ""'
+  metrics:
+    labelRules:
+      - name: team
+        metrics: [dsx_workload_pod_info, dsx_workload_status]
+        sources: [workload]
+        expression: 'has(object.metadata.labels) && "team" in object.metadata.labels ? object.metadata.labels["team"] : ""'
+      - name: pod_team
+        metrics: [dsx_workload_pod_info]
+        sources: [pod]
+        expression: 'has(object.metadata.labels) && "team" in object.metadata.labels ? object.metadata.labels["team"] : ""'
+      - name: root_replicas
+        metrics: [dsx_workload_status]
+        sources: [workload]
+        expression: 'has(object.spec.replicas) ? string(object.spec.replicas) : ""'

@@ -14,7 +14,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"slices"
 	"strconv"
 	"time"
 
@@ -40,24 +39,44 @@ type Loader struct {
 // Config is the exporter configuration. It is read from the YAML file named by
 // --config. A flag, or its environment variable, overrides the file when set.
 type Config struct {
+	Selection             SelectionConfig             `yaml:"selection" json:"selection"`
+	KartaDefinitionSource KartaDefinitionSourceConfig `yaml:"kartaDefinitionSource" json:"kartaDefinitionSource"`
+	Metrics               MetricsConfig               `yaml:"metrics" json:"metrics"`
+	Tuning                TuningConfig                `yaml:"tuning" json:"tuning"`
+}
+
+type SelectionConfig struct {
+	NamespaceSelector    *metav1.LabelSelector       `yaml:"namespaceSelector" json:"namespaceSelector"`
+	IncludeRootResources []controller.ResourceRule   `yaml:"includeRootResources" json:"includeRootResources"`
+	ExcludeRootResources []controller.ResourceRule   `yaml:"excludeRootResources" json:"excludeRootResources"`
+	RootSelectors        []controller.ObjectSelector `yaml:"rootSelectors" json:"rootSelectors"`
+	PodSelector          *metav1.LabelSelector       `yaml:"podSelector" json:"podSelector"`
+	IgnoredOwnerKinds    Kinds                       `yaml:"ignoredOwnerKinds" json:"ignoredOwnerKinds"`
+	RequiredWatchKinds   Kinds                       `yaml:"requiredWatchKinds" json:"requiredWatchKinds"`
+}
+
+type MetricsConfig struct {
 	labelresolver.Config   `yaml:",inline"`
-	ResourceRules          []controller.ResourceRule          `yaml:"resourceRules" json:"resourceRules"`
-	ExcludeResourceRules   []controller.ResourceRule          `yaml:"excludeResourceRules" json:"excludeResourceRules"`
+	WorkloadSelector       *metav1.LabelSelector              `yaml:"workloadSelector" json:"workloadSelector"`
 	ExcludeStatuses        []v1alpha1.ResourceStatus          `yaml:"excludeStatuses" json:"excludeStatuses"`
-	NamespaceSelector      *metav1.LabelSelector              `yaml:"namespaceSelector" json:"namespaceSelector"`
-	ObjectSelectors        []controller.ObjectSelector        `yaml:"objectSelectors" json:"objectSelectors"`
-	PodSelector            *metav1.LabelSelector              `yaml:"podSelector" json:"podSelector"`
-	WorkloadMetricSelector *metav1.LabelSelector              `yaml:"workloadMetricSelector" json:"workloadMetricSelector"`
 	PodWorkloadAssociation *controller.PodWorkloadAssociation `yaml:"podWorkloadAssociation" json:"podWorkloadAssociation"`
-	KartaDefinitionSource  KartaDefinitionSourceConfig        `yaml:"kartaDefinitionSource" json:"kartaDefinitionSource"`
-	IgnoredOwnerKinds      Kinds                              `yaml:"ignoredOwnerKinds" json:"ignoredOwnerKinds"`
-	RequiredKinds          Kinds                              `yaml:"requiredKinds" json:"requiredKinds"`
-	RequestTimeout         string                             `yaml:"requestTimeout" json:"requestTimeout"`
-	APIQPS                 float32                            `yaml:"apiQPS" json:"apiQPS"`
-	APIBurst               int                                `yaml:"apiBurst" json:"apiBurst"`
-	Workers                int                                `yaml:"workers" json:"workers"`
-	LeafWorkers            int                                `yaml:"leafWorkers" json:"leafWorkers"`
-	RootWorkers            int                                `yaml:"rootWorkers" json:"rootWorkers"`
+}
+
+type TuningConfig struct {
+	Workers   WorkerConfig    `yaml:"workers" json:"workers"`
+	APIClient APIClientConfig `yaml:"apiClient" json:"apiClient"`
+}
+
+type WorkerConfig struct {
+	Default   int `yaml:"default" json:"default"`
+	Pods      int `yaml:"pods" json:"pods"`
+	Workloads int `yaml:"workloads" json:"workloads"`
+}
+
+type APIClientConfig struct {
+	RequestTimeout string  `yaml:"requestTimeout" json:"requestTimeout"`
+	QPS            float32 `yaml:"qps" json:"qps"`
+	Burst          int     `yaml:"burst" json:"burst"`
 }
 
 // KartaDefinitionSourceConfig selects definitions from the configured sources.
@@ -81,9 +100,9 @@ type setting struct {
 
 const (
 	flagConfig             = "config"
-	flagCostLimit          = "generic-label-eval-cost-limit"
-	flagMaxExpressionBytes = "generic-label-eval-max-expression-bytes"
-	flagMaxResultBytes     = "generic-label-eval-max-result-bytes"
+	flagCostLimit          = "label-eval-cost-limit"
+	flagMaxExpressionBytes = "label-eval-max-expression-bytes"
+	flagMaxResultBytes     = "label-eval-max-result-bytes"
 )
 
 var errMultipleDocuments = errors.New("must contain a single YAML document")
@@ -99,31 +118,31 @@ var configSetting = setting{flag: flagConfig, env: "DSX_WORKLOAD_EXPORTER_CONFIG
 var settings = []setting{
 	{
 		flag: flagCostLimit,
-		env:  "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_COST_LIMIT",
-		usage: fmt.Sprintf("CEL cost units one label evaluation may spend (default %d). Overrides genericLabelEvaluationLimits.costLimit.",
+		env:  "DSX_WORKLOAD_EXPORTER_LABEL_EVAL_COST_LIMIT",
+		usage: fmt.Sprintf("CEL cost units one label evaluation may spend (default %d). Overrides metrics.labelEvaluationLimits.costLimit.",
 			defaultLabelEvaluationLimits.CostLimit),
 		apply: func(c *Config, v string) (err error) {
-			c.Limits.CostLimit, err = strconv.ParseUint(v, 10, 64)
+			c.Metrics.Limits.CostLimit, err = strconv.ParseUint(v, 10, 64)
 			return err
 		},
 	},
 	{
 		flag: flagMaxExpressionBytes,
-		env:  "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_EXPRESSION_BYTES",
-		usage: fmt.Sprintf("Maximum length of the label expression (default %d). Overrides genericLabelEvaluationLimits.maxExpressionBytes.",
+		env:  "DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_EXPRESSION_BYTES",
+		usage: fmt.Sprintf("Maximum length of the label expression (default %d). Overrides metrics.labelEvaluationLimits.maxExpressionBytes.",
 			defaultLabelEvaluationLimits.MaxExpressionBytes),
 		apply: func(c *Config, v string) (err error) {
-			c.Limits.MaxExpressionBytes, err = strconv.Atoi(v)
+			c.Metrics.Limits.MaxExpressionBytes, err = strconv.Atoi(v)
 			return err
 		},
 	},
 	{
 		flag: flagMaxResultBytes,
-		env:  "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_RESULT_BYTES",
-		usage: fmt.Sprintf("Maximum length of an extracted label value (default %d). Overrides genericLabelEvaluationLimits.maxResultBytes.",
+		env:  "DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_RESULT_BYTES",
+		usage: fmt.Sprintf("Maximum length of an extracted label value (default %d). Overrides metrics.labelEvaluationLimits.maxResultBytes.",
 			defaultLabelEvaluationLimits.MaxResultBytes),
 		apply: func(c *Config, v string) (err error) {
-			c.Limits.MaxResultBytes, err = strconv.Atoi(v)
+			c.Metrics.Limits.MaxResultBytes, err = strconv.Atoi(v)
 			return err
 		},
 	},
@@ -133,7 +152,7 @@ var settings = []setting{
 		usage: "Shared Kubernetes API request rate (default 20).",
 		apply: func(c *Config, v string) error {
 			n, err := strconv.ParseFloat(v, 32)
-			c.APIQPS = float32(n)
+			c.Tuning.APIClient.QPS = float32(n)
 			return err
 		},
 	},
@@ -142,7 +161,7 @@ var settings = []setting{
 		env:   "DSX_WORKLOAD_EXPORTER_API_BURST",
 		usage: "Shared Kubernetes API request burst (default 40).",
 		apply: func(c *Config, v string) (err error) {
-			c.APIBurst, err = strconv.Atoi(v)
+			c.Tuning.APIClient.Burst, err = strconv.Atoi(v)
 			return err
 		},
 	},
@@ -151,25 +170,25 @@ var settings = []setting{
 		env:   "DSX_WORKLOAD_EXPORTER_WORKERS",
 		usage: "Default workers per Pod and workload queue (default 4).",
 		apply: func(c *Config, v string) (err error) {
-			c.Workers, err = strconv.Atoi(v)
+			c.Tuning.Workers.Default, err = strconv.Atoi(v)
 			return err
 		},
 	},
 	{
-		flag:  "leaf-workers",
-		env:   "DSX_WORKLOAD_EXPORTER_LEAF_WORKERS",
+		flag:  "pod-workers",
+		env:   "DSX_WORKLOAD_EXPORTER_POD_WORKERS",
 		usage: "Pod discovery and publication workers; zero inherits workers (default 0).",
 		apply: func(c *Config, v string) (err error) {
-			c.LeafWorkers, err = strconv.Atoi(v)
+			c.Tuning.Workers.Pods, err = strconv.Atoi(v)
 			return err
 		},
 	},
 	{
-		flag:  "root-workers",
-		env:   "DSX_WORKLOAD_EXPORTER_ROOT_WORKERS",
+		flag:  "workload-workers",
+		env:   "DSX_WORKLOAD_EXPORTER_WORKLOAD_WORKERS",
 		usage: "Candidate discovery and workload publication workers; zero inherits workers (default 0).",
 		apply: func(c *Config, v string) (err error) {
-			c.RootWorkers, err = strconv.Atoi(v)
+			c.Tuning.Workers.Workloads, err = strconv.Atoi(v)
 			return err
 		},
 	},
@@ -178,7 +197,7 @@ var settings = []setting{
 		env:   "DSX_WORKLOAD_EXPORTER_REQUEST_TIMEOUT",
 		usage: "Timeout for resource discovery and each LIST page (default 30s).",
 		apply: func(c *Config, v string) error {
-			c.RequestTimeout = v
+			c.Tuning.APIClient.RequestTimeout = v
 			return nil
 		},
 	},
@@ -256,53 +275,65 @@ func (l *Loader) Load() (Config, error) {
 // DefaultConfig selects bundled and cluster definitions and bounds API requests and worker concurrency.
 func DefaultConfig() Config {
 	return Config{
-		Config: labelresolver.Config{Limits: defaultLabelEvaluationLimits},
+		Metrics: MetricsConfig{
+			Config:          labelresolver.Config{Limits: defaultLabelEvaluationLimits},
+			ExcludeStatuses: []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus},
+		},
 		KartaDefinitionSource: KartaDefinitionSourceConfig{
 			Catalog: DefinitionSourceConfig{Enabled: true},
 			Cluster: DefinitionSourceConfig{Enabled: true},
 		},
-		ExcludeStatuses: []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus},
-		RequestTimeout:  "30s",
-		Workers:         4,
-		APIQPS:          20,
-		APIBurst:        40,
+		Tuning: TuningConfig{
+			Workers:   WorkerConfig{Default: 4},
+			APIClient: APIClientConfig{RequestTimeout: "30s", QPS: 20, Burst: 40},
+		},
 	}
 }
 
 // Validate rejects runtime settings before any clients start.
 func (cfg Config) Validate() error {
-	if cfg.Limits.MaxExpressionBytes < 0 || cfg.Limits.MaxResultBytes < 0 {
-		return labelevaluator.ErrNegativeLimit
+	if cfg.Metrics.Limits.MaxExpressionBytes < 0 || cfg.Metrics.Limits.MaxResultBytes < 0 {
+		return fmt.Errorf("metrics.labelEvaluationLimits: %w", labelevaluator.ErrNegativeLimit)
 	}
-	if err := labelresolver.ValidateConfig(cfg.Config); err != nil {
-		return err
+	if err := labelresolver.ValidateConfig(cfg.Metrics.Config); err != nil {
+		return fmt.Errorf("metrics.labelRules: %w", err)
 	}
-	for _, selector := range []*metav1.LabelSelector{cfg.NamespaceSelector, cfg.PodSelector, cfg.WorkloadMetricSelector} {
-		if selector != nil {
-			if _, err := metav1.LabelSelectorAsSelector(selector); err != nil {
-				return err
+	for _, field := range []struct {
+		path     string
+		selector *metav1.LabelSelector
+	}{
+		{"selection.namespaceSelector", cfg.Selection.NamespaceSelector},
+		{"selection.podSelector", cfg.Selection.PodSelector},
+		{"metrics.workloadSelector", cfg.Metrics.WorkloadSelector},
+	} {
+		if field.selector != nil {
+			if _, err := metav1.LabelSelectorAsSelector(field.selector); err != nil {
+				return fmt.Errorf("%s: %w", field.path, err)
 			}
 		}
 	}
-	if err := controller.ValidateResourceRules(slices.Concat(cfg.ResourceRules, cfg.ExcludeResourceRules)); err != nil {
-		return err
+	if err := controller.ValidateResourceRules(cfg.Selection.IncludeRootResources); err != nil {
+		return fmt.Errorf("selection.includeRootResources: %w", err)
 	}
-	for _, status := range cfg.ExcludeStatuses {
+	if err := controller.ValidateResourceRules(cfg.Selection.ExcludeRootResources); err != nil {
+		return fmt.Errorf("selection.excludeRootResources: %w", err)
+	}
+	for _, status := range cfg.Metrics.ExcludeStatuses {
 		switch status {
 		case v1alpha1.InitializingStatus, v1alpha1.RunningStatus, v1alpha1.CompletedStatus,
 			v1alpha1.FailedStatus, v1alpha1.DegradedStatus, v1alpha1.SuspendedStatus,
 			v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus, v1alpha1.UndefinedStatus:
 		default:
-			return fmt.Errorf("unknown excluded status %q", status)
+			return fmt.Errorf("metrics.excludeStatuses: unknown excluded status %q", status)
 		}
 	}
-	if err := controller.ValidateObjectSelectors(cfg.ObjectSelectors); err != nil {
+	if err := controller.ValidateObjectSelectors(cfg.Selection.RootSelectors); err != nil {
 		return err
 	}
-	if err := controller.ValidatePodWorkloadAssociation(cfg.PodWorkloadAssociation); err != nil {
+	if err := controller.ValidatePodWorkloadAssociation(cfg.Metrics.PodWorkloadAssociation); err != nil {
 		return err
 	}
-	for _, kinds := range [][]schema.GroupVersionKind{cfg.IgnoredOwnerKinds, cfg.RequiredKinds} {
+	for _, kinds := range [][]schema.GroupVersionKind{cfg.Selection.IgnoredOwnerKinds, cfg.Selection.RequiredWatchKinds} {
 		seen := map[schema.GroupVersionKind]bool{}
 		for _, kind := range kinds {
 			if kind.Kind == "" || kind.Version == "" || seen[kind] {
@@ -311,21 +342,24 @@ func (cfg Config) Validate() error {
 			seen[kind] = true
 		}
 	}
-	timeout, err := time.ParseDuration(cfg.RequestTimeout)
+	timeout, err := time.ParseDuration(cfg.Tuning.APIClient.RequestTimeout)
 	if err != nil || timeout <= 0 {
-		return errors.New("requestTimeout must be a positive duration")
+		return errors.New("tuning.apiClient.requestTimeout must be a positive duration")
 	}
-	if cfg.APIQPS <= 0 || math.IsNaN(float64(cfg.APIQPS)) || math.IsInf(float64(cfg.APIQPS), 0) {
-		return errors.New("apiQPS must be finite and positive")
+	if cfg.Tuning.APIClient.QPS <= 0 || math.IsNaN(float64(cfg.Tuning.APIClient.QPS)) || math.IsInf(float64(cfg.Tuning.APIClient.QPS), 0) {
+		return errors.New("tuning.apiClient.qps must be finite and positive")
 	}
-	if cfg.APIBurst <= 0 {
-		return errors.New("apiBurst must be positive")
+	if cfg.Tuning.APIClient.Burst <= 0 {
+		return errors.New("tuning.apiClient.burst must be positive")
 	}
-	if cfg.Workers <= 0 {
-		return errors.New("workers must be positive")
+	if cfg.Tuning.Workers.Default <= 0 {
+		return errors.New("tuning.workers.default must be positive")
 	}
-	if cfg.LeafWorkers < 0 || cfg.RootWorkers < 0 {
-		return errors.New("leafWorkers and rootWorkers must not be negative")
+	if cfg.Tuning.Workers.Pods < 0 {
+		return errors.New("tuning.workers.pods must not be negative")
+	}
+	if cfg.Tuning.Workers.Workloads < 0 {
+		return errors.New("tuning.workers.workloads must not be negative")
 	}
 	return nil
 }

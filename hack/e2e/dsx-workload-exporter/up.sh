@@ -35,7 +35,7 @@ for shard in a b; do
   helm upgrade --install "exporter-e2e-$shard" "$ROOT/charts/karta" \
     --namespace "exporter-e2e-$shard" --create-namespace \
     -f "$ROOT/hack/e2e/dsx-workload-exporter/values.yaml" \
-    --set "exporter.namespaceSelector.matchLabels.exporter-e2e-shard=$shard" \
+    --set "exporter.selection.namespaceSelector.matchLabels.exporter-e2e-shard=$shard" \
     --timeout 3m
   # Restart before waiting so old unready Pods cannot block the rebuilt image.
   if "$installed"; then

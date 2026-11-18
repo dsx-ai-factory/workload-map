@@ -277,6 +277,39 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					queryExpected(timelineQuery, "6m", querySample{"{}", 2}),
 				},
 			})
+			for _, device := range []struct {
+				name   string
+				labels map[string]string
+			}{
+				{"full GPU", map[string]string{"UUID": "GPU-2"}},
+				{"MIG device", map[string]string{"UUID": "GPU-2", "GPU_I_ID": "7", "GPU_CI_ID": "0"}},
+			} {
+				unknownQuery := query("overview", 310, "A", namespaceLabel)
+				quietWindowQuery := maximumQuery("overview", 306, "D", namespaceLabel)
+				// Unavailable quiet windows are NaN, which JSON fixtures cannot encode.
+				queryNames[quietWindowQuery+" >= 0"] = queryNames[quietWindowQuery] + " (available)"
+				quietWindowQuery += " >= 0"
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: "Framebuffer-only device remains in recent history: " + device.name + "/" + namespaceLabel,
+					InputSeries: []queryInputSeries{
+						attribution,
+						querySeries("DCGM_FI_DEV_GPU_UTIL", "0+0x30", gpu),
+						querySeries("DCGM_FI_DEV_FB_USED", "1024+0x2 _x28", queryIdentity(gpu, device.labels)),
+					},
+					PromQLExprTest: []queryExpectation{
+						stateExpectation(stateQuery, "3m", "unknown"),
+						queryExpected(timelineQuery, "3m", querySample{"{}", 4}),
+						queryExpected(lowQuery, "3m", querySample{"{}", 0}),
+						queryExpected(unknownQuery, "3m", querySample{"{}", 1}),
+						queryExpected(quietWindowQuery, "3m"),
+						stateExpectation(stateQuery, "6m", "low_activity"),
+						queryExpected(timelineQuery, "6m", querySample{"{}", 2}),
+						queryExpected(lowQuery, "6m", querySample{"{}", 1}),
+						queryExpected(unknownQuery, "6m", querySample{"{}", 0}),
+						queryExpected(quietWindowQuery, "6m", querySample{"{}", 180}),
+					},
+				})
+			}
 			staleMIG := []queryInputSeries{
 				attribution,
 				querySeries("DCGM_FI_DEV_GPU_UTIL", "_x8 10+0x12", gpu),

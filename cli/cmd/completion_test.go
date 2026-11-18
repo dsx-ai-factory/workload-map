@@ -421,6 +421,7 @@ func TestCompleteOffersCatalogDefinitionFiltersWhenTheClusterRefuses(t *testing.
 // With --catalog-only, completing definition names and filter values reads the
 // catalog alone and never asks the cluster.
 func TestCompleteDefinitionsCatalogOnlyMakesNoClusterCalls(t *testing.T) {
+	isolateConfig(t)
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		requests.Add(1)

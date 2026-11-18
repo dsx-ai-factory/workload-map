@@ -52,7 +52,17 @@ type querySample struct {
 }
 
 type queryDashboard struct {
-	Panels []queryPanel `json:"panels"`
+	Panels     []queryPanel `json:"panels"`
+	Templating struct {
+		List []queryVariable `json:"list"`
+	} `json:"templating"`
+}
+
+type queryVariable struct {
+	Name       string `json:"name"`
+	Multi      bool   `json:"multi"`
+	IncludeAll bool   `json:"includeAll"`
+	AllValue   string `json:"allValue"`
 }
 
 type queryPanel struct {
@@ -65,12 +75,33 @@ type queryPanel struct {
 }
 
 var _ = Describe("Dashboard query results", Label("promql"), func() {
+	It("matches Grafana's interpolation for supported selections", func() {
+		multi := queryVariable{Multi: true, IncludeAll: true, AllValue: ".*"}
+		// Expected values come from Grafana 12.2.1 and Scenes 6.34.0 interpolation.
+		for _, test := range []struct {
+			values   []string
+			variable queryVariable
+			format   string
+			expected string
+		}{
+			{[]string{"foo.bar"}, multi, "regex", `foo\.bar`},
+			{[]string{"foo.bar"}, multi, "", `foo\\.bar`},
+			{[]string{"foo.bar", "other.job"}, multi, "regex", `(foo\.bar|other\.job)`},
+			{[]string{"foo.bar", "other.job"}, multi, "", `(foo\\.bar|other\\.job)`},
+			{[]string{"$__all"}, multi, "regex", `.*`},
+			{[]string{"$__all"}, multi, "", `.*`},
+			{[]string{"cadvisor.prod+(gpu)"}, queryVariable{}, "regex", `cadvisor\.prod\+\(gpu\)`},
+			{[]string{"cadvisor.prod+(gpu)"}, queryVariable{}, "", `cadvisor.prod+(gpu)`},
+		} {
+			Expect(interpolateQueryVariable(test.values, test.variable, test.format)).To(Equal(test.expected))
+		}
+	})
 	It("evaluates the shipped queries against synthetic telemetry", func() {
-		variables := map[string]string{
-			"cluster": "test", "exporter_job": "dsx", "cadvisor_job": "cadvisor", "dcgm_job": "dcgm",
-			"namespace": "workloads", "workload": "training", "workload_uid": "workload-1",
-			"component": ".*", "component_instance": ".*", "gpu_device": ".*", "activity_view": "4",
-			"__range": "10m", "__rate_interval": "5m",
+		variables := map[string][]string{
+			"cluster": {"test"}, "exporter_job": {"dsx"}, "cadvisor_job": {"cadvisor"}, "dcgm_job": {"dcgm"},
+			"namespace": {"workloads"}, "workload": {"training"}, "workload_uid": {"workload-1"},
+			"component": {"$__all"}, "component_instance": {"$__all"}, "gpu_device": {"$__all"}, "activity_view": {"4"},
+			"__range": {"10m"}, "__rate_interval": {"5m"},
 		}
 		workload := map[string]string{
 			"cluster": "test", "namespace": "workloads", "workload_name": "training", "workload_uid": "workload-1",
@@ -84,7 +115,7 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 		}
 		queryNames := map[string]string{}
 		// Named Grafana variables must not consume PromQL's literal $1 replacements.
-		variablePattern := regexp.MustCompile(`\$(?:\{([A-Za-z_]\w*)(?::\w+)?\}|([A-Za-z_]\w*))`)
+		variablePattern := regexp.MustCompile(`\$(?:\{([A-Za-z_]\w*)(?::(\w+))?\}|([A-Za-z_]\w*))`)
 		query := func(dashboard string, panelID int, ref, namespaceLabel string) string {
 			name := fmt.Sprintf("workload-%s/%d/%s (%s)", dashboard, panelID, ref, namespaceLabel)
 			data, err := os.ReadFile(filepath.Join(dashboardDirectory, "workload-"+dashboard+".json"))
@@ -114,16 +145,23 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				}
 			}
 			Expect(expression).NotTo(BeEmpty(), "missing query %s", name)
-			variables["dcgm_namespace_label"] = namespaceLabel
+			variables["dcgm_namespace_label"] = []string{namespaceLabel}
 			expression = variablePattern.ReplaceAllStringFunc(expression, func(match string) string {
 				groups := variablePattern.FindStringSubmatch(match)
 				variable := groups[1]
 				if variable == "" {
-					variable = groups[2]
+					variable = groups[3]
 				}
 				value, exists := variables[variable]
 				Expect(exists).To(BeTrue(), "unknown variable %s in %s", variable, name)
-				return value
+				definition := queryVariable{}
+				for _, candidate := range document.Templating.List {
+					if candidate.Name == variable {
+						definition = candidate
+						break
+					}
+				}
+				return interpolateQueryVariable(value, definition, groups[2])
 			})
 			queryNames[expression] = name
 			return expression
@@ -176,6 +214,67 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				PromQLExprTest: []queryExpectation{
 					stateExpectation(stateQuery, "2m30s", "warming"),
 					stateExpectation(stateQuery, "3m", "low_activity"),
+				},
+			})
+			activeQuery := query("overview", 304, "A", namespaceLabel)
+			observedQuery := query("overview", 302, "A", namespaceLabel)
+			lowQuery := query("overview", 305, "A", namespaceLabel)
+			for _, test := range []struct {
+				name     string
+				values   string
+				peer     string
+				expected []querySample
+			}{
+				{"Missing GPU readings leave active count unavailable", "", "", nil},
+				{"Quiet GPU readings produce zero active workloads", "2+0x30", "", []querySample{{"{}", 0}}},
+				{"Active GPU readings produce one active workload", "80+0x30", "", []querySample{{"{}", 1}}},
+				{"Out-of-range GPU readings leave active count unavailable", "101+0x30", "", nil},
+				{"Conflicting GPU readings leave active count unavailable", "80+0x30", "2+0x30", nil},
+				{"Stale GPU readings leave active count unavailable", "80 _x30", "", nil},
+			} {
+				input := []queryInputSeries{attribution}
+				if test.values != "" {
+					input = append(input, querySeries("DCGM_FI_DEV_GPU_UTIL", test.values, gpu))
+				}
+				if test.peer != "" {
+					input = append(input, querySeries("DCGM_FI_DEV_GPU_UTIL", test.peer, queryIdentity(gpu, map[string]string{"instance": "replica-b"})))
+				}
+				var observed, low []querySample
+				if len(test.expected) > 0 {
+					observed = []querySample{{"{}", 1}}
+					low = []querySample{{"{}", 1 - test.expected[0].Value}}
+				}
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name:        test.name + ": " + namespaceLabel,
+					InputSeries: input,
+					PromQLExprTest: []queryExpectation{
+						queryExpected(activeQuery, "2m", test.expected...),
+						queryExpected(observedQuery, "3m", observed...),
+						queryExpected(lowQuery, "3m", low...),
+					},
+				})
+			}
+			timelineQuery := maximumQuery("overview", 308, "A", namespaceLabel)
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: "GPU timeline preserves the seven-point quiet boundary: " + namespaceLabel,
+				InputSeries: []queryInputSeries{
+					attribution,
+					querySeries("DCGM_FI_DEV_GPU_UTIL", "0+0x30", gpu),
+				},
+				PromQLExprTest: []queryExpectation{
+					queryExpected(timelineQuery, "2m30s", querySample{"{}", 3}),
+					queryExpected(timelineQuery, "3m", querySample{"{}", 2}),
+				},
+			}, queryTest{
+				Name: "GPU timeline retains a device last reported 120 seconds ago: " + namespaceLabel,
+				InputSeries: []queryInputSeries{
+					attribution,
+					querySeries("DCGM_FI_DEV_GPU_UTIL", "0+0x30", gpu),
+					querySeries("DCGM_FI_DEV_GPU_UTIL", "0+0x2 _x28", queryIdentity(gpu, map[string]string{"UUID": "GPU-2"})),
+				},
+				PromQLExprTest: []queryExpectation{
+					queryExpected(timelineQuery, "3m", querySample{"{}", 4}),
+					queryExpected(timelineQuery, "6m", querySample{"{}", 2}),
 				},
 			})
 			staleMIG := []queryInputSeries{
@@ -479,6 +578,78 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				})},
 			})
 		}
+		defaults := maps.Clone(variables)
+		for _, test := range []struct {
+			name      string
+			selection []string
+			expected  float64
+		}{
+			{"Dotted workload selection excludes regex-like names", []string{"train.one"}, 1},
+			{"Multiple dotted workloads exclude regex-like names", []string{"train.one", "train.two"}, 2},
+			{"All workloads preserves the configured wildcard", []string{"$__all"}, 3},
+		} {
+			variables = maps.Clone(defaults)
+			variables["workload"] = test.selection
+			var input []queryInputSeries
+			for i, name := range []string{"train.one", "train.two", "trainXone"} {
+				input = append(input, querySeries("dsx_workload_status", "1+0x2", queryIdentity(workload, map[string]string{
+					"job": "dsx", "workload_name": name, "workload_uid": fmt.Sprintf("workload-%d", i+1),
+				})))
+			}
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name:           test.name,
+				InputSeries:    input,
+				PromQLExprTest: []queryExpectation{queryExpected(query("overview", 2, "A", "namespace"), "1m", querySample{"{}", test.expected})},
+			})
+		}
+		for _, test := range []struct {
+			dashboard string
+			panel     int
+			ref       string
+			expected  float64
+		}{{"overview", 104, "A", 1000}, {"structure", 11, "A", 1000}, {"structure", 4, "cpu", 1}} {
+			variables = maps.Clone(defaults)
+			variables["cadvisor_job"] = []string{"cadvisor.prod+(gpu)"}
+			container := map[string]string{
+				"cluster": "test", "namespace": "workloads", "pod": "worker", "container": "main", "id": "first",
+			}
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: fmt.Sprintf("CPU job selection is literal: %s/%d/%s", test.dashboard, test.panel, test.ref),
+				InputSeries: []queryInputSeries{
+					querySeries("dsx_workload_pod_info", "1+0x20", pod),
+					querySeries("container_cpu_usage_seconds_total", "0+30x20", queryIdentity(container, map[string]string{"job": "cadvisor.prod+(gpu)"})),
+					querySeries("container_cpu_usage_seconds_total", "0+60x20", queryIdentity(container, map[string]string{"job": "cadvisorXproddgpu"})),
+				},
+				PromQLExprTest: []queryExpectation{queryExpected(maximumQuery(test.dashboard, test.panel, test.ref, "namespace"), "5m", querySample{"{}", test.expected})},
+			})
+		}
+		for _, test := range []struct {
+			dashboard string
+			panel     int
+		}{{"overview", 16}, {"structure", 9}} {
+			for _, selectedJob := range []string{"exporter_job", "dcgm_job"} {
+				variables = maps.Clone(defaults)
+				variables[selectedJob] = []string{"source.prod+(gpu)"}
+				attributionJob, gpuJob := "dsx", "dcgm"
+				if selectedJob == "exporter_job" {
+					attributionJob = variables[selectedJob][0]
+				} else {
+					gpuJob = variables[selectedJob][0]
+				}
+				gpu := map[string]string{"cluster": "test", "namespace": "workloads", "pod_uid": "pod-1", "UUID": "GPU-1"}
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: fmt.Sprintf("GPU source job selection is literal: %s/%d/%s", test.dashboard, test.panel, selectedJob),
+					InputSeries: []queryInputSeries{
+						querySeries("dsx_workload_pod_info", "1+0x2", queryIdentity(pod, map[string]string{"job": attributionJob})),
+						querySeries("dsx_workload_pod_info", "1+0x2", queryIdentity(pod, map[string]string{"job": "sourceXproddgpu", "workload_name": "wrong"})),
+						querySeries("DCGM_FI_DEV_GPU_UTIL", "10+0x2", queryIdentity(gpu, map[string]string{"job": gpuJob})),
+						querySeries("DCGM_FI_DEV_GPU_UTIL", "80+0x2", queryIdentity(gpu, map[string]string{"job": "sourceXproddgpu"})),
+					},
+					PromQLExprTest: []queryExpectation{queryExpected(query(test.dashboard, test.panel, "A", "namespace"), "1m", querySample{queryLabels(workload), 10})},
+				})
+			}
+		}
+		variables = defaults
 		for i := range fixture.Tests {
 			if fixture.Tests[i].Interval == "" {
 				fixture.Tests[i].Interval = "30s"
@@ -542,4 +713,28 @@ func querySeries(metric, values string, identity map[string]string) queryInputSe
 
 func queryExpected(expression, evalTime string, samples ...querySample) queryExpectation {
 	return queryExpectation{Expr: expression, EvalTime: evalTime, ExpSamples: append([]querySample{}, samples...)}
+}
+
+// Grafana 12.2.1's default Prometheus formatting differs from the explicit regex formatter.
+func interpolateQueryVariable(values []string, variable queryVariable, format string) string {
+	if len(values) == 1 && values[0] == "$__all" && variable.AllValue != "" {
+		return variable.AllValue
+	}
+	escaped := make([]string, len(values))
+	for i, value := range values {
+		switch {
+		case format == "raw":
+			escaped[i] = value
+		case format == "regex":
+			escaped[i] = strings.ReplaceAll(regexp.QuoteMeta(value), "/", `\/`)
+		case variable.Multi || variable.IncludeAll:
+			escaped[i] = strings.ReplaceAll(regexp.QuoteMeta(value), `\`, `\\`)
+		default:
+			escaped[i] = strings.NewReplacer(`\`, `\\`, "'", `\\'`).Replace(value)
+		}
+	}
+	if len(escaped) == 1 {
+		return escaped[0]
+	}
+	return "(" + strings.Join(escaped, "|") + ")"
 }

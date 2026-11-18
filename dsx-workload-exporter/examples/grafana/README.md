@@ -81,7 +81,10 @@ panels differ from the current direct-query version.
 The activity timeline defaults to workloads with GPU evidence in the selected
 time range. Active only and All workloads are also available. Filtering uses
 the last observed state and preserves each displayed workload's earlier
-transitions. All workloads includes roots without GPU telemetry.
+transitions. All workloads includes roots without GPU telemetry. Long time ranges
+can omit brief transitions because Grafana returns fewer display points. Zoom in
+and check that the query step is 30 seconds or less in Query Inspector when
+inspecting individual transitions.
 
 ## Read the structure
 

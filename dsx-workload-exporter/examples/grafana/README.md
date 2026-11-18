@@ -33,7 +33,9 @@ simulated full-GPU telemetry and kubelet CPU/RAM metrics; it needs no GPU hardwa
    label. Otherwise enter one exact cluster value before choosing the jobs.
 5. Job dropdowns discover names from available metrics. Grafana can select the
    first available value; confirm the exporter job is the intended one. Select
-   the CPU/memory and DCGM jobs if those sources are collected.
+   the CPU/memory and DCGM jobs if those sources are collected. Cluster and
+   selected job values must be single-line strings without backticks. The queries
+   match them literally.
 6. Set DCGM namespace label to the label containing the workload namespace.
    The default is `namespace`. Choose `exported_namespace` when scrape-label
    collisions put the workload namespace there instead.

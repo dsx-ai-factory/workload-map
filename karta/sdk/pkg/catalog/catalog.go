@@ -59,6 +59,7 @@ var definitions = []func() *v1alpha1.Karta{
 	kartas.Sandbox,
 	kartas.KueueWorkload,
 	kartas.Rollout,
+	kartas.CloneSet,
 	kartas.VcJob,
 }
 

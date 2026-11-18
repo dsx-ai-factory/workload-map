@@ -310,6 +310,7 @@ Karta supports any workload type. The following are pre-built and tested Karta d
 | PodCliqueSet | Grove |
 | Sandbox | Kubernetes Agent Sandbox |
 | Rollout | Argo Rollouts |
+| CloneSet | OpenKruise |
 | Volcano Job | Volcano |
 | [Workload](docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | Kueue (v1beta2, experimental; requires opt-in) |
 

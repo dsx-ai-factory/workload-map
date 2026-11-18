@@ -150,12 +150,12 @@ kli definitions
 ```
 
 ```text
-NAME                                            KIND                   ORIGIN   COMPONENTS
-agents-x-k8s-io-sandbox-v1beta1                 Sandbox                catalog  sandbox, agent, companion
-apps-deployment-v1                              Deployment             catalog  deployment, replicaset
-apps-nvidia-com-nimcache-v1alpha1               NIMCache               catalog  nimcache
-apps-nvidia-com-nimservice-v1alpha1             NIMService             catalog  nimservice
-apps-statefulset-v1                             StatefulSet            catalog  statefulset
+NAME                                            KIND                   ORIGIN   STATUS  COMPONENTS
+agents-x-k8s-io-sandbox-v1beta1                 Sandbox                catalog  active  sandbox, agent, companion
+apps-deployment-v1                              Deployment             catalog  active  deployment, replicaset
+apps-nvidia-com-nimcache-v1alpha1               NIMCache               catalog  active  nimcache
+apps-nvidia-com-nimservice-v1alpha1             NIMService             catalog  active  nimservice
+apps-statefulset-v1                             StatefulSet            catalog  active  statefulset
 ...
 ```
 
@@ -309,6 +309,7 @@ Karta supports any workload type. The following are pre-built and tested Karta d
 | DynamoGraphDeployment | NVIDIA Dynamo |
 | PodCliqueSet | Grove |
 | Sandbox | Kubernetes Agent Sandbox |
+| Rollout | Argo Rollouts |
 | Volcano Job | Volcano |
 | [Workload](docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | Kueue (v1beta2, experimental; requires opt-in) |
 

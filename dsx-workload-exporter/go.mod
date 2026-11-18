@@ -3,7 +3,7 @@
 
 module github.com/dsx-ai-factory/workload-map/dsx-workload-exporter
 
-go 1.27.3
+go 1.27.4
 
 godebug fips140=off
 

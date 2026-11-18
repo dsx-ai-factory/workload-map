@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+kind: Karta
+apiVersion: run.ai/v1alpha1
+metadata:
+  name: argoproj-io-rollout-v1alpha1
+spec:
+  structureDefinition:
+    rootComponent:
+      name: rollout
+      kind:
+        group: argoproj.io
+        version: v1alpha1
+        kind: Rollout
+      specDefinition:
+        podTemplateSpecPath: .spec.template
+      scaleDefinition:
+        replicasPath: .spec.replicas
+      statusDefinition:
+        phaseDefinition:
+          path: .status.phase
+        conditionsDefinition:
+          path: .status.conditions
+          typeFieldName: type
+          statusFieldName: status
+          messageFieldName: message
+          reasonFieldName: reason
+        statusMappings:
+          initializing:
+            - byExpression:
+                expression: ((.status.phase // "") != "Healthy" or .status.observedGeneration != (.metadata.generation | tostring) or (.spec.paused // false)) and ((.status.phase // "") != "Degraded" or .status.observedGeneration != (.metadata.generation | tostring)) and (((.spec.paused // false) | not) or (.status.phase // "") == "Degraded")
+                expectedResult: "true"
+          running:
+            - byPhase: Healthy
+              byExpression:
+                expression: .status.observedGeneration == (.metadata.generation | tostring) and ((.spec.paused // false) | not)
+                expectedResult: "true"
+          degraded:
+            - byPhase: Degraded
+              byExpression:
+                expression: .status.observedGeneration == (.metadata.generation | tostring)
+                expectedResult: "true"
+          suspended:
+            - byExpression:
+                expression: (.spec.paused // false) and (.status.phase // "") != "Degraded"
+                expectedResult: "true"
+      suspendDefinition:
+        suspendActions:
+          - path: .spec.paused
+            value: "true"
+        resumeActions:
+          - path: .spec.paused
+            value: "false"
+    childComponents:
+      - name: replicaset
+        kind:
+          group: apps
+          version: v1
+          kind: ReplicaSet
+        ownerRef: rollout
+  optimizationInstructions: {}

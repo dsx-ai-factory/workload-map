@@ -1,6 +1,6 @@
 module github.com/dsx-ai-factory/workload-map/operator
 
-go 1.27.3
+go 1.27.4
 
 godebug fips140=off
 
@@ -15,7 +15,7 @@ require (
 	k8s.io/apimachinery v0.37.2
 	k8s.io/client-go v0.37.2
 	k8s.io/utils v0.0.0-20261023123148-ca04ba58ecab
-	sigs.k8s.io/controller-runtime v0.25.2
+	sigs.k8s.io/controller-runtime v0.25.3
 )
 
 require (

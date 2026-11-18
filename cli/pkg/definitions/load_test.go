@@ -424,3 +424,29 @@ var _ = Describe("listWithClient", func() {
 		Expect(kartas).To(BeEmpty())
 	})
 })
+
+var _ = Describe("LoadCatalog", func() {
+	DescribeTable("lists the built-in catalog alone, honoring the experimental opt-in",
+		func(enabled bool) {
+			want := catalog.List()
+			if !enabled {
+				want = slices.DeleteFunc(want, func(karta *v1alpha1.Karta) bool { return karta.Spec.Experimental })
+			}
+
+			list := LoadCatalog(enabled).List()
+			Expect(list).To(HaveLen(len(want)))
+			for _, def := range list {
+				Expect(def.Origin).To(Equal(OriginCatalog))
+			}
+
+			_, err := LoadCatalog(enabled).ByName(kartas.KueueWorkload().Name)
+			if enabled {
+				Expect(err).NotTo(HaveOccurred())
+			} else {
+				Expect(err).To(MatchError(ErrNameNotFound))
+			}
+		},
+		Entry("default", false),
+		Entry("enabled", true),
+	)
+})

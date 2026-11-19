@@ -110,14 +110,39 @@ var _ = Describe("OwnerWalker.TopLevel", func() {
 		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeTrue())
 	})
 
-	// Only the controller reference says who manages an object.
-	It("ignores an owner reference that is not the controller", func() {
+	// Flink and Strimzi tie a child to its workload only through a reference
+	// that is not the controller.
+	It("drops an object whose only owner is covered but not its controller", func() {
 		client, mapper := fakeCluster()
 
 		ref := controllerOf(deploymentGVK, "web", "deploy-uid")
 		ref.Controller = ptr.To(false)
 		p := pod("adopted", ref)
+		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeFalse())
+	})
+
+	// The controller says who manages an object, so a covered owner beside it
+	// that is not the controller does not nest the object.
+	It("follows the controller alone when an object has one", func() {
+		wrapper := owned(replicaSetGVK, "wrapper", "wrapper-uid", nil)
+		client, mapper := fakeCluster(wrapper)
+
+		other := controllerOf(deploymentGVK, "web", "deploy-uid")
+		other.Controller = ptr.To(false)
+		p := pod("wrapped", controllerOf(replicaSetGVK, "wrapper", "wrapper-uid"))
+		p.SetOwnerReferences(append(p.GetOwnerReferences(), *other))
 		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeTrue())
+	})
+
+	It("drops an object whose chain reaches a covered kind through an owner that is not a controller", func() {
+		ref := controllerOf(deploymentGVK, "web", "deploy-uid")
+		ref.Controller = ptr.To(false)
+		middle := owned(replicaSetGVK, "middle", "middle-uid", nil)
+		middle.SetOwnerReferences([]metav1.OwnerReference{*ref})
+		client, mapper := fakeCluster(middle)
+
+		p := pod("deep", controllerOf(replicaSetGVK, "middle", "middle-uid"))
+		Expect(topLevel(NewOwnerWalker(client, mapper), &p)).To(BeFalse())
 	})
 
 	// The owner is gone, so nothing owns the object any more.

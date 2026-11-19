@@ -35,18 +35,18 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 	if kubeConfig == nil {
 		return app.Components{}, errors.New("kubernetes configuration is required")
 	}
-	timeout, err := time.ParseDuration(cfg.RequestTimeout)
+	timeout, err := time.ParseDuration(cfg.Tuning.APIClient.RequestTimeout)
 	if err != nil {
-		return app.Components{}, fmt.Errorf("requestTimeout: %w", err)
+		return app.Components{}, fmt.Errorf("tuning.apiClient.requestTimeout: %w", err)
 	}
 	kubeConfig = rest.CopyConfig(kubeConfig)
 	if kubeConfig.WarningHandler == nil && kubeConfig.WarningHandlerWithContext == nil {
 		// Namespace watches can receive the same API warning on each connection.
 		kubeConfig.WarningHandler = rest.NewWarningWriter(os.Stderr, rest.WarningWriterOptions{Deduplicate: true})
 	}
-	kubeConfig.QPS = cfg.APIQPS
-	kubeConfig.Burst = cfg.APIBurst
-	kubeConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(cfg.APIQPS, cfg.APIBurst)
+	kubeConfig.QPS = cfg.Tuning.APIClient.QPS
+	kubeConfig.Burst = cfg.Tuning.APIClient.Burst
+	kubeConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(cfg.Tuning.APIClient.QPS, cfg.Tuning.APIClient.Burst)
 	dynamicClient, err := dynamic.NewForConfig(kubeConfig)
 	if err != nil {
 		return app.Components{}, err
@@ -75,29 +75,29 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 	if err != nil {
 		return app.Components{}, err
 	}
-	ownership, err := discovery.New(reader, discovery.Config{IgnoredTopOwners: cfg.IgnoredOwnerKinds})
+	ownership, err := discovery.New(reader, discovery.Config{IgnoredTopOwners: cfg.Selection.IgnoredOwnerKinds})
 	if err != nil {
 		return app.Components{}, err
 	}
-	labels, err := labelresolver.New(cfg.Config, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
+	labels, err := labelresolver.New(cfg.Metrics.Config, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
 	if err != nil {
 		return app.Components{}, err
 	}
 	publications := store.New()
 	runtime, err := controller.New(controller.Config{
-		IgnoredOwnerKinds:      cfg.IgnoredOwnerKinds,
-		ResourceRules:          cfg.ResourceRules,
-		ExcludeResourceRules:   cfg.ExcludeResourceRules,
-		NamespaceSelector:      cfg.NamespaceSelector,
-		ObjectSelectors:        cfg.ObjectSelectors,
-		PodSelector:            cfg.PodSelector,
-		WorkloadMetricSelector: cfg.WorkloadMetricSelector,
-		PodWorkloadAssociation: cfg.PodWorkloadAssociation,
+		IgnoredOwnerKinds:      cfg.Selection.IgnoredOwnerKinds,
+		ResourceRules:          cfg.Selection.IncludeRootResources,
+		ExcludeResourceRules:   cfg.Selection.ExcludeRootResources,
+		NamespaceSelector:      cfg.Selection.NamespaceSelector,
+		ObjectSelectors:        cfg.Selection.RootSelectors,
+		PodSelector:            cfg.Selection.PodSelector,
+		WorkloadMetricSelector: cfg.Metrics.WorkloadSelector,
+		PodWorkloadAssociation: cfg.Metrics.PodWorkloadAssociation,
 		ClusterDefinitions:     cfg.KartaDefinitionSource.Cluster.Enabled,
-		RequiredKinds:          cfg.RequiredKinds,
-		Workers:                cfg.Workers,
-		LeafWorkers:            cfg.LeafWorkers,
-		RootWorkers:            cfg.RootWorkers,
+		RequiredKinds:          cfg.Selection.RequiredWatchKinds,
+		Workers:                cfg.Tuning.Workers.Default,
+		LeafWorkers:            cfg.Tuning.Workers.Pods,
+		RootWorkers:            cfg.Tuning.Workers.Workloads,
 	}, controller.Dependencies{
 		Discovery:    ownership,
 		Inventory:    definitions,
@@ -107,5 +107,5 @@ func New(cfg config.Config, kubeConfig *rest.Config) (app.Components, error) {
 	if err != nil {
 		return app.Components{}, err
 	}
-	return app.Components{Runtime: runtime, Store: publications, Definitions: definitions, ExcludeStatuses: cfg.ExcludeStatuses}, nil
+	return app.Components{Runtime: runtime, Store: publications, Definitions: definitions, ExcludeStatuses: cfg.Metrics.ExcludeStatuses}, nil
 }

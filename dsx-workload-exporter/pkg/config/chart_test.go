@@ -47,10 +47,10 @@ var _ = Describe("chart label configuration", func() {
 			}
 			cfg, err := loadConfig(doc.Data["config.yaml"], nil)
 			Expect(err).To(Succeed())
-			Expect(cfg.PodWorkloadAssociation).NotTo(BeNil())
-			Expect(cfg.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("platform.example.com/workload-name"))
-			Expect(cfg.Rules).To(HaveLen(1))
-			_, err = labelevaluator.NewCompiler().Compile(labelevaluator.Config{Expression: cfg.Rules[0].Expression, Limits: cfg.Limits})
+			Expect(cfg.Metrics.PodWorkloadAssociation).NotTo(BeNil())
+			Expect(cfg.Metrics.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("platform.example.com/workload-name"))
+			Expect(cfg.Metrics.Rules).To(HaveLen(1))
+			_, err = labelevaluator.NewCompiler().Compile(labelevaluator.Config{Expression: cfg.Metrics.Rules[0].Expression, Limits: cfg.Metrics.Limits})
 			Expect(err).To(Succeed())
 			return
 		}
@@ -66,9 +66,9 @@ var _ = Describe("chart label configuration", func() {
 		{
 			name: "overrides",
 			args: []string{
-				"--set", "exporter.genericLabelEvaluationLimits.costLimit=500",
-				"--set", "exporter.genericLabelEvaluationLimits.maxExpressionBytes=512",
-				"--set", "exporter.genericLabelEvaluationLimits.maxResultBytes=32",
+				"--set", "exporter.metrics.labelEvaluationLimits.costLimit=500",
+				"--set", "exporter.metrics.labelEvaluationLimits.maxExpressionBytes=512",
+				"--set", "exporter.metrics.labelEvaluationLimits.maxResultBytes=32",
 			},
 			limits: labelevaluator.Limits{CostLimit: 500, MaxExpressionBytes: 512, MaxResultBytes: 32},
 		},
@@ -89,10 +89,10 @@ var _ = Describe("chart label configuration", func() {
 			Expect(err).To(Succeed())
 			args := []string{"template", "labels", chart,
 				"--set", "exporter.enabled=true",
-				"--set-json", `exporter.objectSelectors=[{"selector":{"matchLabels":{"environment":"production"}}},{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"app.kubernetes.io/managed-by":"example-platform"}}}]`,
-				"--set-json", "exporter.labelRules=" + string(raw),
-				"--set-json", `exporter.workloadMetricSelector={"matchExpressions":[{"key":"example.org/group","operator":"DoesNotExist"}]}`,
-				"--set-json", `exporter.podWorkloadAssociation={"target":{"apiVersion":"scheduling.example.org/v1","kind":"Workload","nameFromLabel":"example.org/group"}}`,
+				"--set-json", `exporter.selection.rootSelectors=[{"selector":{"matchLabels":{"environment":"production"}}},{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"app.kubernetes.io/managed-by":"example-platform"}}}]`,
+				"--set-json", "exporter.metrics.labelRules=" + string(raw),
+				"--set-json", `exporter.metrics.workloadSelector={"matchExpressions":[{"key":"example.org/group","operator":"DoesNotExist"}]}`,
+				"--set-json", `exporter.metrics.podWorkloadAssociation={"target":{"apiVersion":"scheduling.example.org/v1","kind":"Workload","nameFromLabel":"example.org/group"}}`,
 			}
 			out, err := exec.Command(helm, append(args, tc.args...)...).CombinedOutput()
 			Expect(err).To(Succeed(), string(out))
@@ -114,13 +114,13 @@ var _ = Describe("chart label configuration", func() {
 				found = true
 				cfg, err := loadConfig(doc.Data["config.yaml"], nil)
 				Expect(err).To(Succeed())
-				Expect(cfg.Rules).To(Equal(rules))
-				Expect(cfg.ObjectSelectors).To(Equal([]controller.ObjectSelector{{Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"environment": "production"}}}, {APIVersion: "scheduling.example.org/v1", Kind: "Workload", Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app.kubernetes.io/managed-by": "example-platform"}}}}))
-				Expect(cfg.Limits).To(Equal(tc.limits))
-				Expect(cfg.WorkloadMetricSelector).To(Equal(&metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "example.org/group", Operator: metav1.LabelSelectorOpDoesNotExist}}}))
-				Expect(cfg.PodWorkloadAssociation).To(Equal(&controller.PodWorkloadAssociation{Target: controller.AssociationTarget{APIVersion: "scheduling.example.org/v1", Kind: "Workload", NameFromLabel: "example.org/group"}}))
-				for _, rule := range cfg.Rules {
-					_, err = labelevaluator.NewCompiler().Compile(labelevaluator.Config{Expression: rule.Expression, Limits: cfg.Limits})
+				Expect(cfg.Metrics.Rules).To(Equal(rules))
+				Expect(cfg.Selection.RootSelectors).To(Equal([]controller.ObjectSelector{{Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"environment": "production"}}}, {APIVersion: "scheduling.example.org/v1", Kind: "Workload", Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app.kubernetes.io/managed-by": "example-platform"}}}}))
+				Expect(cfg.Metrics.Limits).To(Equal(tc.limits))
+				Expect(cfg.Metrics.WorkloadSelector).To(Equal(&metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "example.org/group", Operator: metav1.LabelSelectorOpDoesNotExist}}}))
+				Expect(cfg.Metrics.PodWorkloadAssociation).To(Equal(&controller.PodWorkloadAssociation{Target: controller.AssociationTarget{APIVersion: "scheduling.example.org/v1", Kind: "Workload", NameFromLabel: "example.org/group"}}))
+				for _, rule := range cfg.Metrics.Rules {
+					_, err = labelevaluator.NewCompiler().Compile(labelevaluator.Config{Expression: rule.Expression, Limits: cfg.Metrics.Limits})
 					Expect(err).To(Succeed())
 				}
 			}
@@ -144,14 +144,14 @@ var _ = Describe("chart status exclusions", func() {
 				}
 				cfg, err := loadConfig(doc.Data["config.yaml"], nil)
 				Expect(err).To(Succeed())
-				Expect(cfg.ExcludeStatuses).To(Equal(want))
+				Expect(cfg.Metrics.ExcludeStatuses).To(Equal(want))
 				return
 			}
 			Fail("exporter config not found")
 		},
 		Entry("default", "", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
-		Entry("all phases", "exporter:\n  excludeStatuses: []\n", []v1alpha1.ResourceStatus{}),
-		Entry("custom exclusions", "exporter:\n  excludeStatuses: [Running]\n", []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}),
+		Entry("all phases", "exporter:\n  metrics:\n    excludeStatuses: []\n", []v1alpha1.ResourceStatus{}),
+		Entry("custom exclusions", "exporter:\n  metrics:\n    excludeStatuses: [Running]\n", []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}),
 	)
 })
 
@@ -196,7 +196,7 @@ var _ = Describe("chart definition source configuration", func() {
 		chart := filepath.Join("..", "..", "..", "charts", "karta")
 		out, err := exec.Command(helm, "template", "sources", chart,
 			"--set", "exporter.enabled=true",
-			"--set-json", `exporter.objectSelectors=[{"selector":{"matchLabels":{"environment":"production"}}},{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"app.kubernetes.io/managed-by":"example-platform"}}}]`,
+			"--set-json", `exporter.selection.rootSelectors=[{"selector":{"matchLabels":{"environment":"production"}}},{"apiVersion":"scheduling.example.org/v1","kind":"Workload","selector":{"matchLabels":{"app.kubernetes.io/managed-by":"example-platform"}}}]`,
 			"--set", "exporter.kartaDefinitionSource.cluster.enabled=null",
 		).CombinedOutput()
 		Expect(err).To(HaveOccurred())
@@ -293,15 +293,21 @@ var _ = Describe("chart exporter ServiceMonitor", func() {
 })
 
 var _ = Describe("chart exporter pprof", func() {
+	It("rejects a quoted false instead of enabling profiling", func() {
+		out, err := runExporterChart(GinkgoT(), "", "--set-string", "exporter.tuning.pprof.enabled=false")
+		Expect(err).To(HaveOccurred())
+		Expect(string(out)).To(ContainSubstring("exporter.tuning.pprof.enabled must be true or false"))
+	})
+
 	for _, tc := range []struct {
 		name string
 		args []string
 		flag string
 	}{
 		{name: "disabled by default"},
-		{name: "enabled on the default port", args: []string{"--set", "exporter.pprof.enabled=true"}, flag: "--pprof-bind-address=127.0.0.1:6060"},
-		{name: "enabled on a custom port", args: []string{"--set", "exporter.pprof.enabled=true", "--set", "exporter.pprof.port=7070"}, flag: "--pprof-bind-address=127.0.0.1:7070"},
-		{name: "null", args: []string{"--set-json", "exporter.pprof=null"}},
+		{name: "enabled on the default port", args: []string{"--set", "exporter.tuning.pprof.enabled=true"}, flag: "--pprof-bind-address=127.0.0.1:6060"},
+		{name: "enabled on a custom port", args: []string{"--set", "exporter.tuning.pprof.enabled=true", "--set", "exporter.tuning.pprof.port=7070"}, flag: "--pprof-bind-address=127.0.0.1:7070"},
+		{name: "null", args: []string{"--set-json", "exporter.tuning.pprof=null"}},
 	} {
 		It(tc.name, func() {
 			out := string(renderExporterChart(GinkgoT(), "", tc.args...))
@@ -440,20 +446,20 @@ var _ = Describe("chart exporter GOMEMLIMIT", func() {
 			"--set-string", "exporter.resources.limits.memory=0"}},
 		{name: "auto with a numeric zero limit", args: []string{"--set-json", "exporter.resources.limits.memory=0"}},
 		// An explicit value is a number of GiB, rendered as whole MiB.
-		{name: "an explicit GiB number", args: []string{"--set-json", "exporter.goMemLimit=3.5"}, want: "3584MiB"},
-		{name: "an explicit GiB string", args: []string{"--set", "exporter.goMemLimit=3.5"}, want: "3584MiB"},
-		{name: "an explicit whole GiB", args: []string{"--set-json", "exporter.goMemLimit=1"}, want: "1024MiB"},
-		{name: "an explicit zero", args: []string{"--set-json", "exporter.goMemLimit=0"},
-			failure: `exporter.goMemLimit 0 must be a number of GiB from 0.001 to 1024`},
-		{name: "an explicit value above 1024 GiB", args: []string{"--set-json", "exporter.goMemLimit=2000"},
-			failure: `exporter.goMemLimit 2000 must be a number of GiB from 0.001 to 1024`},
-		{name: "an explicit negative value", args: []string{"--set-json", "exporter.goMemLimit=-1"},
-			failure: `exporter.goMemLimit "-1" must be auto, a number of GiB such as 3.5, or empty`},
-		{name: "an explicit Go byte count", args: []string{"--set", "exporter.goMemLimit=3600MiB"},
-			failure: `exporter.goMemLimit "3600MiB" must be auto, a number of GiB such as 3.5, or empty`},
-		{name: "an explicit boolean", args: []string{"--set-json", "exporter.goMemLimit=true"},
-			failure: `exporter.goMemLimit "true" must be auto, a number of GiB such as 3.5, or empty`},
-		{name: "an empty value", args: []string{"--set", "exporter.goMemLimit="}},
+		{name: "an explicit GiB number", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=3.5"}, want: "3584MiB"},
+		{name: "an explicit GiB string", args: []string{"--set", "exporter.tuning.goMemoryLimit=3.5"}, want: "3584MiB"},
+		{name: "an explicit whole GiB", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=1"}, want: "1024MiB"},
+		{name: "an explicit zero", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=0"},
+			failure: `exporter.tuning.goMemoryLimit 0 must be a number of GiB from 0.001 to 1024`},
+		{name: "an explicit value above 1024 GiB", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=2000"},
+			failure: `exporter.tuning.goMemoryLimit 2000 must be a number of GiB from 0.001 to 1024`},
+		{name: "an explicit negative value", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=-1"},
+			failure: `exporter.tuning.goMemoryLimit "-1" must be auto, a number of GiB such as 3.5, or empty`},
+		{name: "an explicit Go byte count", args: []string{"--set", "exporter.tuning.goMemoryLimit=3600MiB"},
+			failure: `exporter.tuning.goMemoryLimit "3600MiB" must be auto, a number of GiB such as 3.5, or empty`},
+		{name: "an explicit boolean", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=true"},
+			failure: `exporter.tuning.goMemoryLimit "true" must be auto, a number of GiB such as 3.5, or empty`},
+		{name: "an empty value", args: []string{"--set", "exporter.tuning.goMemoryLimit="}},
 		{name: "an unreadable limit", args: []string{"--set", "exporter.resources.limits.memory=4Gx"},
 			failure: `cannot read exporter.resources.limits.memory "4Gx"`},
 		{name: "a limit too large for Go", args: []string{"--set-string", "exporter.resources.limits.memory=4e99"},

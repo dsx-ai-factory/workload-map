@@ -59,7 +59,7 @@ type ResolvedMetricLabels struct {
 
 type Config struct {
 	Rules  []LabelRule           `json:"labelRules" yaml:"labelRules"`
-	Limits labelevaluator.Limits `json:"genericLabelEvaluationLimits" yaml:"genericLabelEvaluationLimits"`
+	Limits labelevaluator.Limits `json:"labelEvaluationLimits" yaml:"labelEvaluationLimits"`
 }
 
 type LabelRule struct {

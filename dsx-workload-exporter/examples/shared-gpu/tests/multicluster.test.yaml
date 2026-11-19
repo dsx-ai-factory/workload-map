@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Two clusters that reuse a group value, evaluated with the cluster-aware rules.
+
+rule_files:
+  - ../shared-gpu-rules.cluster.yaml
+evaluation_interval: 30s
+
+tests:
+  - name: cluster-aware rules keep the fan-out inside cluster-a and report cluster-b as unmapped
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{cluster="cluster-a",UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-a",pod_uid="res-a"}'
+        values: '40x12'
+      - series: 'dsx_workload_pod_info{cluster="cluster-a",namespace="kai-resource-reservation",pod_name="gpu-reservation-a",pod_uid="res-a",workload_name="gpu-reservation-a",workload_version="v1",workload_kind="Pod",workload_uid="res-a",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{cluster="cluster-a",namespace="team-b",pod_name="a-0",pod_uid="a-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-a",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{cluster="cluster-a",namespace="team-b",pod_name="a-1",pod_uid="a-1",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-a",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{cluster="cluster-b",namespace="team-b",pod_name="b-0",pod_uid="b-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-b",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: count(dsx:shared_gpu_util:by_consumer)
+        eval_time: 2m
+        exp_samples:
+          - labels: '{}'
+            value: 2
+      - expr: dsx:shared_gpu_util:equal_share{pod_name="a-0"}
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{cluster="cluster-a",UUID="GPU-aaaa",namespace="team-b",pod_name="a-0",pod_uid="a-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-a",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 20
+      - expr: dsx:shared_gpu_group:consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:consumers{cluster="cluster-a",gpu_group="g-1",node="node-1"}'
+            value: 2
+          - labels: 'dsx:shared_gpu_group:consumers{cluster="cluster-b",gpu_group="g-1",node="node-1"}'
+            value: 1
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_group:unmapped_consumers{cluster="cluster-b",gpu_group="g-1",node="node-1"}'
+            value: 1
+
+  - name: both clusters mapped, same group value, same Pod names, attributed independently
+    interval: 1m
+    input_series:
+      - series: 'DCGM_FI_DEV_GPU_UTIL{cluster="cluster-a",UUID="GPU-aaaa",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-a"}'
+        values: '40x12'
+      - series: 'DCGM_FI_DEV_GPU_UTIL{cluster="cluster-b",UUID="GPU-bbbb",gpu="0",Hostname="node-1",namespace="kai-resource-reservation",pod="gpu-reservation-1a2b3c4d",pod_uid="res-b"}'
+        values: '80x12'
+      # Same reservation Pod name and same consumer name in both clusters, different UIDs.
+      - series: 'dsx_workload_pod_info{cluster="cluster-a",namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-a",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-a",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-aaaa"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{cluster="cluster-b",namespace="kai-resource-reservation",pod_name="gpu-reservation-1a2b3c4d",pod_uid="res-b",workload_name="gpu-reservation-1a2b3c4d",workload_version="v1",workload_kind="Pod",workload_uid="res-b",owner_resolution="resolved",component="pod",observation_valid="true",gpu_group="g-1",node="node-1",gpu_uuid="GPU-bbbb"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{cluster="cluster-a",namespace="team-b",pod_name="runner-0",pod_uid="a-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-a",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+      - series: 'dsx_workload_pod_info{cluster="cluster-b",namespace="team-b",pod_name="runner-0",pod_uid="b-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-b",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+        values: '1x12'
+    promql_expr_test:
+      - expr: dsx:shared_gpu_device:ambiguous
+        eval_time: 2m
+        exp_samples: []
+      - expr: dsx:shared_gpu_util:equal_share
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dsx:shared_gpu_util:equal_share{cluster="cluster-a",UUID="GPU-aaaa",namespace="team-b",pod_name="runner-0",pod_uid="a-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-a",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 40
+          - labels: 'dsx:shared_gpu_util:equal_share{cluster="cluster-b",UUID="GPU-bbbb",namespace="team-b",pod_name="runner-0",pod_uid="b-0",workload_name="runner-pool",workload_group="apps",workload_version="v1",workload_kind="Deployment",workload_uid="pool-b",owner_resolution="resolved",component="deployment",observation_valid="true",gpu_group="g-1",node="node-1"}'
+            value: 80
+      - expr: dsx:shared_gpu_group:unmapped_consumers
+        eval_time: 2m
+        exp_samples: []

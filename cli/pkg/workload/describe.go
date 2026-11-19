@@ -343,7 +343,7 @@ func (c *ComponentView) attach(pods []corev1.Pod) {
 			c.Nodes = mergeNodes(c.Nodes, []string{node})
 		}
 		if !ready {
-			row.Reason = podReason(pod.Status)
+			row.Reason = podReason(pod)
 		}
 		c.Pods = append(c.Pods, row)
 	}
@@ -375,11 +375,17 @@ func (c *ComponentView) aggregate(child ComponentView) {
 
 // podReason explains a pod that is not ready. The scheduler's reason is the
 // short form a tree row has space for; a failure falls back to its own.
-func podReason(status corev1.PodStatus) string {
+func podReason(pod *corev1.Pod) string {
+	status := pod.Status
 	for _, condition := range status.Conditions {
 		if condition.Type == corev1.PodScheduled && condition.Status == corev1.ConditionFalse {
 			return condition.Reason
 		}
+	}
+	// A pending init container blocks the regular ones, so it explains the pod
+	// better than the ready condition's generic ContainersNotReady.
+	if reason := initReason(pod); reason != "" {
+		return reason
 	}
 	if status.Reason != "" {
 		return status.Reason
@@ -389,6 +395,38 @@ func podReason(status corev1.PodStatus) string {
 	for _, condition := range status.Conditions {
 		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionFalse {
 			return condition.Reason
+		}
+	}
+	return ""
+}
+
+// initReason reports the init container holding the pod back, in the status
+// form kubectl prints, or nothing once the pod is past its init phase.
+func initReason(pod *corev1.Pod) string {
+	sidecars := make(map[string]bool, len(pod.Spec.InitContainers))
+	for _, container := range pod.Spec.InitContainers {
+		sidecars[container.Name] = container.RestartPolicy != nil &&
+			*container.RestartPolicy == corev1.ContainerRestartPolicyAlways
+	}
+
+	total := len(pod.Spec.InitContainers)
+	for i, container := range pod.Status.InitContainerStatuses {
+		terminated, waiting := container.State.Terminated, container.State.Waiting
+		switch {
+		case terminated != nil && terminated.ExitCode == 0:
+			continue
+		case sidecars[container.Name] && container.Started != nil && *container.Started:
+			continue
+		case terminated != nil && terminated.Reason != "":
+			return "Init:" + terminated.Reason
+		case terminated != nil && terminated.Signal != 0:
+			return fmt.Sprintf("Init:Signal:%d", terminated.Signal)
+		case terminated != nil:
+			return fmt.Sprintf("Init:ExitCode:%d", terminated.ExitCode)
+		case waiting != nil && waiting.Reason != "" && waiting.Reason != "PodInitializing":
+			return "Init:" + waiting.Reason
+		default:
+			return fmt.Sprintf("Init:%d/%d", i, total)
 		}
 	}
 	return ""

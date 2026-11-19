@@ -22,5 +22,3 @@ fern docs dev
 ```bash
 fern check
 ```
-
-The `Fern Docs CI` workflow runs `fern check` on pull requests that change `docs/` or `fern/`.

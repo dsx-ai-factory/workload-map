@@ -7,7 +7,7 @@ description: Look up the values of the Workload Map Helm chart, with the default
 {/* SPDX-License-Identifier: Apache-2.0 */}
 {/* Copyright (c) 2026 NVIDIA Corporation */}
 
-This page lists the values of the `karta` Helm chart, which installs the Karta Operator, the `Karta` CRD, and optionally the exporter. To install the chart, refer to [Installation](../getting-started/installation.mdx). To override a value, use `--set key=value` or `-f my-values.yaml` with `helm upgrade --install`.
+This page lists the values of the `karta` Helm chart, which installs the Karta Operator and the `Karta` CRD. To install the chart, refer to [Installation](../getting-started/installation.mdx). To override a value, use `--set key=value` or `-f my-values.yaml` with `helm upgrade --install`.
 
 ## Global and Karta Operator
 
@@ -76,7 +76,7 @@ A job runs before each install and upgrade. It applies the CRD that the chart bu
 
 ## Admission Policies
 
-The native admission policies run in the API server. They need neither the Karta Operator nor the exporter, so `operator.enabled` does not affect them.
+The native admission policies run in the API server. They do not need the Karta Operator, so `operator.enabled` does not affect them.
 
 ### Submitter Capture
 
@@ -95,16 +95,6 @@ The policy requires `MutatingAdmissionPolicy` `v1` on Kubernetes 1.36 and later,
 | `admissionPolicies.submitter.objectSelector` | `{}` | Captures the objects that match these labels. The value `{}` matches all objects. |
 | `admissionPolicies.submitter.matchConditions` | `[]` | Extra CEL conditions on the `CREATE` request. All must pass for the capture. An expression that fails to evaluate skips the capture. Names that start with `karta-` are reserved. |
 
-## Exporter
-
-The exporter is a standalone metrics exporter with `/metrics`, `/healthz`, and `/readyz` endpoints. It is off by default.
-
-| Value | Default | Description |
-| --- | --- | --- |
-| `exporter.enabled` | `false` | Installs the exporter. |
-
-The `exporter` section has many more values. They cover the namespace and object selection, the sources of definitions, the number of workers, the resources, the permissions, the metric labels, and the `ServiceMonitor` for the Prometheus Operator. For the complete list, with the defaults, refer to the [exporter configuration reference](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/configuration.md#helm-values). To install the exporter, refer to [Installation](../getting-started/installation.mdx#install-the-dsx-workload-exporter).
-
 <Note title="Values in newer builds">
-The `exporter` and `admissionPolicies` values are available in chart versions after 0.3.0.
+The `admissionPolicies` values are available in chart versions after 0.3.0.
 </Note>

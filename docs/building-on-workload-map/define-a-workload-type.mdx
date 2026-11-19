@@ -163,7 +163,7 @@ Set the following fields only if they apply to your workload type:
 | `suspendDefinition` | Lists the path and value assignments that suspend and resume the workload. Use it only if the framework supports suspension natively, such as `.spec.suspend` on a Job. |
 | `additionalChildKinds` | Lists the kinds that the workload creates but that no component models. The list is required for RBAC purposes. Do not list a kind that a component already declares. |
 | `optimizationInstructions` | Tells a scheduler how to group the pods of the workload. Use the `gangScheduling.podGroup` format. The catalog definition `batch-job-v1` and some others still use the older `podGroups` list format, which is deprecated in favor of `podGroup`. |
-| `spec.experimental` | Set it to `true` for a definition that consumers must enable explicitly. The SDK and the catalog keep the definition available. The CLI, the Headlamp plugin, and the exporter exclude it until their experimental setting is on, even if the definition is installed in the cluster. If you omit the field or set it to `false`, the definition behaves normally. |
+| `spec.experimental` | Set it to `true` for a definition that consumers must enable explicitly. The SDK and the catalog keep the definition available. The CLI and the Headlamp plugin exclude it until their experimental setting is on, even if the definition is installed in the cluster. If you omit the field or set it to `false`, the definition behaves normally. |
 
 ## Validate the Definition
 

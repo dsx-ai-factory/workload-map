@@ -1804,9 +1804,10 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 						}
 						for _, i := range scope.pods {
 							value := resource.value
-							if resource.ref == "cpu" {
+							switch resource.ref {
+							case "cpu":
 								value = float64(i + 1)
-							} else if resource.ref == "memory" {
+							case "memory":
 								value = float64(4096 * (i + 1))
 							}
 							id := "pod|" + clusterPods[i]["namespace"] + "|" + clusterPods[i]["pod_uid"]

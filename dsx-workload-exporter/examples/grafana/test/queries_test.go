@@ -1112,17 +1112,6 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					queryExpected(expression, "5m"),
 					queryExpected(expression, "10m", querySample{"{}", test.expected}),
 				},
-			}, queryTest{
-				Name: fmt.Sprintf("Defensive malformed Pod UID mappings reject CPU: %s/%d/%s", test.dashboard, test.panel, test.ref),
-				InputSeries: []queryInputSeries{
-					querySeries("dsx_workload_pod_info", "1+0x30", pod),
-					querySeries("dsx_workload_pod_info", "1+0x10 stale", queryIdentity(pod, map[string]string{"pod_name": "other", "workload_name": "other", "workload_uid": "workload-2"})),
-					querySeries("container_cpu_usage_seconds_total", "0+30x30", container),
-				},
-				PromQLExprTest: []queryExpectation{
-					queryExpected(expression, "5m"),
-					queryExpected(expression, "6m", querySample{"{}", test.expected}),
-				},
 			})
 			for _, cpu := range []string{"total", "cpu00"} {
 				fixture.Tests = append(fixture.Tests, queryTest{
@@ -1192,6 +1181,48 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					querySeries("container_cpu_usage_seconds_total", "0+30x2 stale _x17", queryIdentity(container, map[string]string{"instance": "replica-b"})),
 				},
 				PromQLExprTest: []queryExpectation{queryExpected(expression, "5m", querySample{"{}", test.expected})},
+			})
+		}
+
+		for _, test := range []struct {
+			dashboard           string
+			panel               int
+			ref, metric, values string
+			expected            float64
+		}{
+			{"overview", 104, "A", "container_cpu_usage_seconds_total", "0+30x30", 1000},
+			{"overview", 8, "A", "container_cpu_usage_seconds_total", "0+30x30", 1000},
+			{"overview", 19, "A", "container_cpu_usage_seconds_total", "0+30x30", 1000},
+			{"overview", 109, "A", "container_cpu_usage_seconds_total", "0+30x30", 1000},
+			{"overview", 111, "A", "container_cpu_usage_seconds_total", "0+30x30", 1000},
+			{"structure", 11, "A", "container_cpu_usage_seconds_total", "0+30x30", 1000},
+			{"structure", 4, "cpu", "container_cpu_usage_seconds_total", "0+30x30", 1},
+			{"overview", 105, "A", "container_memory_working_set_bytes", "4096+0x30", 4096},
+			{"overview", 9, "A", "container_memory_working_set_bytes", "4096+0x30", 4096},
+			{"overview", 20, "A", "container_memory_working_set_bytes", "4096+0x30", 4096},
+			{"overview", 110, "A", "container_memory_working_set_bytes", "4096+0x30", 4096},
+			{"overview", 112, "A", "container_memory_working_set_bytes", "4096+0x30", 4096},
+			{"structure", 12, "A", "container_memory_working_set_bytes", "4096+0x30", 4096},
+			{"structure", 4, "memory", "container_memory_working_set_bytes", "4096+0x30", 4096},
+		} {
+			expression := maximumQuery(test.dashboard, test.panel, test.ref, "namespace")
+			container := map[string]string{
+				"cluster": "test", "job": "cadvisor", "namespace": "workloads", "pod": "worker", "container": "main", "id": "first",
+			}
+			if test.metric == "container_cpu_usage_seconds_total" {
+				container["cpu"] = "total"
+			}
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: fmt.Sprintf("Defensive malformed Pod UID mappings reject resource telemetry: %s/%d/%s", test.dashboard, test.panel, test.ref),
+				InputSeries: []queryInputSeries{
+					querySeries("dsx_workload_pod_info", "1+0x30", pod),
+					querySeries("dsx_workload_pod_info", "1+0x10 stale", queryIdentity(pod, map[string]string{"pod_name": "other", "workload_name": "other", "workload_uid": "workload-2"})),
+					querySeries(test.metric, test.values, container),
+				},
+				PromQLExprTest: []queryExpectation{
+					queryExpected(expression, "5m"),
+					queryExpected(expression, "6m", querySample{"{}", test.expected}),
+				},
 			})
 		}
 

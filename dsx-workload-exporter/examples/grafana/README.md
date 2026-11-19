@@ -128,9 +128,11 @@ is below the histories.
 
 CPU is a five-minute rate. A newly scraped container needs multiple samples
 before a rate appears. Kubelet normally reports `cpu="total"`. Per-core counters
-are also supported: replicas must agree for each reported core before its rate
-is included in the container sum. A reported total takes precedence over cores.
-Conflicting or incomplete readings leave the container unavailable.
+are also supported. Available replica rates must agree for each core, and every
+currently reported core needs a usable rate before summing. Otherwise the
+container is unavailable. A new replica without enough history does not
+invalidate another replica's rate for that core. A reported total takes
+precedence over cores.
 
 Preserve the `cpu` label. A missing label is accepted only for a counter already
 known to be a container total. Removing `cpu` from per-core counters does not
@@ -143,13 +145,17 @@ GPU queries require device-level readings. Keep DCGM's optional
 default). That mode derives per-Pod utilization and framebuffer values, which
 need different aggregation. See the [DCGM implementation](https://github.com/NVIDIA/dcgm-exporter/blob/fafd151148052628061a80450b4ee037a5fa0c3c/internal/pkg/transformation/kubernetes.go#L486-L500).
 
+In device-plugin mode, DCGM can retain only one Pod mapping per shared device
+key. Some Pods sharing a GPU can therefore lack attributed readings. DRA uses
+a separate mapping that can emit a row for each Pod. Verify device-level rows
+for every expected Pod UID, not just the GPU UUID. See the
+[device-plugin mapping](https://github.com/NVIDIA/dcgm-exporter/blob/fafd151148052628061a80450b4ee037a5fa0c3c/internal/pkg/transformation/kubernetes.go#L1280-L1308).
+
 Enable [DCGM Pod UID mapping](../../../docs/dsx-workload-exporter/queries.md#3-gpu-measurements-by-pod-uid).
 GPU joins use Pod UID, not the name of the DCGM exporter Pod. Missing Pod UIDs
 cannot be repaired by changing the dashboard's job selector. DCGM Exporter
 versions supporting this option need Kubernetes mapping and
 `DCGM_EXPORTER_KUBERNETES_ENABLE_POD_UID=true`, plus the required Pod-read RBAC.
-Verify the emitted labels after deployment; a healthy scrape alone does not
-prove that workload attribution is available.
 
 A compatible metric name is not enough. For example, fake GPU operator 0.0.72
 emits DCGM-shaped metrics without `pod_uid`. Its stock output cannot satisfy

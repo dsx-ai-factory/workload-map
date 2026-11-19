@@ -209,6 +209,37 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 				{"MIG instance", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.02", map[string]string{"GPU_I_ID": "7", "GPU_CI_ID": "0"}},
 			} {
 				device := queryIdentity(gpu, shared.labels)
+				for _, replacement := range []struct {
+					name, prefix, state, device string
+					low, timeline               float64
+				}{{"new device", "_x13 ", "warming", "GPU-2", 0, 3}, {"unchanged devices", "", "low_activity", "GPU-2", 1, 2}, {"new reporter on a quiet device", "_x13 ", "warming", "GPU-1", 0, 3}} {
+					quietWindow := maximumQuery("overview", 306, "D", namespaceLabel) + " >= 0"
+					queryNames[quietWindow] = "quiet duration after device replacement (" + namespaceLabel + ")"
+					var duration []querySample
+					if replacement.low == 1 {
+						duration = []querySample{{"{}", 180}}
+					}
+					fixture.Tests = append(fixture.Tests, queryTest{
+						Interval: "15s",
+						Name:     "Each current device needs its own quiet history: " + shared.name + "/" + replacement.name + "/" + namespaceLabel,
+						InputSeries: []queryInputSeries{
+							querySeries("dsx_workload_pod_info", "1+0x12 stale", pod),
+							querySeries("dsx_workload_pod_info", "1+0x50", queryIdentity(pod, map[string]string{"pod_uid": "pod-2", "pod_name": "survivor"})),
+							querySeries("dsx_workload_pod_info", replacement.prefix+"1+0x50", queryIdentity(pod, map[string]string{"pod_uid": "pod-3", "pod_name": "third"})),
+							querySeries(shared.metric, shared.value+"+0x12 stale", device),
+							querySeries(shared.metric, shared.value+"+0x50", queryIdentity(device, map[string]string{"pod_uid": "pod-2"})),
+							querySeries(shared.metric, replacement.prefix+shared.value+"+0x50", queryIdentity(device, map[string]string{"pod_uid": "pod-3", "UUID": replacement.device})),
+						},
+						PromQLExprTest: []queryExpectation{
+							stateExpectation(stateQuery, "3m15s", replacement.state),
+							queryExpected(query("overview", 305, "A", namespaceLabel), "3m15s", querySample{"{}", replacement.low}),
+							queryExpected(query("overview", 310, "A", namespaceLabel), "3m15s", querySample{"{}", 0}),
+							queryExpected(query("overview", 308, "A", namespaceLabel), "3m15s", querySample{queryLabels(queryIdentity(workload, map[string]string{"uid_short": "workload"})), replacement.timeline}),
+							queryExpected(quietWindow, "3m15s", duration...),
+							stateExpectation(stateQuery, "6m30s", "low_activity"),
+						},
+					})
+				}
 				for _, survivor := range []struct {
 					name, prefix, state string
 					timeline, low       float64
@@ -225,11 +256,100 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 							stateExpectation(stateQuery, "3m", survivor.state),
 							queryExpected(query("overview", 305, "A", namespaceLabel), "3m", querySample{"{}", survivor.low}),
 							queryExpected(query("overview", 310, "A", namespaceLabel), "3m", querySample{"{}", 0}),
-							queryExpected(maximumQuery("overview", 308, "A", namespaceLabel), "3m", querySample{"{}", survivor.timeline}),
+							queryExpected(query("overview", 308, "A", namespaceLabel), "3m", querySample{queryLabels(queryIdentity(workload, map[string]string{"uid_short": "workload"})), survivor.timeline}),
 						},
 					})
 				}
 			}
+			variables["activity_view"] = []string{"5"}
+			for _, device := range []struct {
+				name, metric, active string
+				labels               map[string]string
+			}{{"full GPU", "DCGM_FI_DEV_GPU_UTIL", "80", nil}, {"MIG instance", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.8", map[string]string{"GPU_I_ID": "7", "GPU_CI_ID": "0"}}} {
+				for _, peer := range []struct {
+					name, state string
+					labels      map[string]string
+					timeline    float64
+				}{{"same device", "unknown", nil, 4}, {"different device", "active", map[string]string{"UUID": "GPU-2"}, 1}, {"different MIG entity", "active", map[string]string{"GPU_I_ID": "8"}, 1}} {
+					if device.name == "full GPU" && peer.name == "different MIG entity" {
+						continue
+					}
+					var active []querySample
+					unknown := 1.0
+					if peer.state == "active" {
+						active = []querySample{{"{}", 1}}
+						unknown = 0
+					}
+					var graphValues, historyValues []querySample
+					agreedGraph := []querySample{
+						{queryLabels(map[string]string{"cluster": "test", "id": "workload|workloads|workload-1"}), 80},
+						{queryLabels(map[string]string{"cluster": "test", "id": "pod|workloads|pod-1"}), 80},
+						{queryLabels(map[string]string{"cluster": "test", "id": "pod|workloads|pod-2"}), 80},
+					}
+					if peer.state == "active" {
+						graphValues = slices.Clone(agreedGraph)
+						graphValues[2].Value = 0
+						historyValues = []querySample{{queryLabels(workload), 80}}
+					}
+					fixture.Tests = append(fixture.Tests, queryTest{
+						Name: "Shared device reporters must agree: " + device.name + "/" + peer.name + "/" + namespaceLabel,
+						InputSeries: []queryInputSeries{
+							attribution,
+							querySeries("dsx_workload_pod_info", "1+0x30", queryIdentity(pod, map[string]string{"pod_uid": "pod-2", "pod_name": "peer"})),
+							querySeries(device.metric, device.active+"+0x30", queryIdentity(gpu, device.labels)),
+							querySeries(device.metric, "0 "+device.active+"+0x29", queryIdentity(gpu, device.labels, peer.labels, map[string]string{"pod_uid": "pod-2"})),
+						},
+						PromQLExprTest: []queryExpectation{
+							stateExpectation(query("overview", 306, "A", namespaceLabel), "0s", peer.state),
+							queryExpected(query("structure", 4, "gpu", namespaceLabel), "0s", graphValues...),
+							queryExpected(query("structure", 9, "A", namespaceLabel), "0s", historyValues...),
+							queryExpected(query("structure", 4, "gpu", namespaceLabel), "30s", agreedGraph...),
+							queryExpected(query("structure", 9, "A", namespaceLabel), "30s", querySample{queryLabels(workload), 80}),
+							queryExpected(query("overview", 304, "A", namespaceLabel), "0s", active...),
+							queryExpected(query("overview", 310, "A", namespaceLabel), "0s", querySample{"{}", unknown}),
+							queryExpected(query("overview", 308, "A", namespaceLabel), "0s", querySample{queryLabels(queryIdentity(workload, map[string]string{"uid_short": "workload"})), peer.timeline}),
+							stateExpectation(query("overview", 306, "A", namespaceLabel), "30s", "active"),
+							queryExpected(query("overview", 304, "A", namespaceLabel), "30s", querySample{"{}", 1}),
+							queryExpected(query("overview", 310, "A", namespaceLabel), "30s", querySample{"{}", 0}),
+							queryExpected(query("overview", 308, "A", namespaceLabel), "30s", querySample{queryLabels(queryIdentity(workload, map[string]string{"uid_short": "workload"})), 1}),
+						},
+					})
+				}
+			}
+			for _, entity := range []struct {
+				name   string
+				labels map[string]string
+			}{{"full GPU", nil}, {"MIG instance", map[string]string{"GPU_I_ID": "7", "GPU_CI_ID": "0"}}} {
+				var agreedGraph []querySample
+				for _, id := range []string{
+					"workload|workloads|workload-1", "component|workloads|workload-1|trainer", "component|workloads|workload-1|evaluator",
+					"pod|workloads|pod-1", "pod|workloads|pod-2",
+				} {
+					agreedGraph = append(agreedGraph, querySample{queryLabels(map[string]string{"cluster": "test", "id": id}), 64 * 1048576})
+				}
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: "Device framebuffer readings agree across components: " + entity.name + "/" + namespaceLabel,
+					InputSeries: []queryInputSeries{
+						querySeries("dsx_workload_pod_info", "1+0x30", queryIdentity(pod, map[string]string{"component": "trainer"})),
+						querySeries("dsx_workload_pod_info", "1+0x30", queryIdentity(pod, map[string]string{"pod_uid": "pod-2", "pod_name": "peer", "component": "evaluator"})),
+						querySeries("DCGM_FI_DEV_FB_USED", "64+0x30", queryIdentity(gpu, entity.labels)),
+						querySeries("DCGM_FI_DEV_FB_USED", "32 64+0x29", queryIdentity(gpu, entity.labels, map[string]string{"pod_uid": "pod-2"})),
+					},
+					PromQLExprTest: []queryExpectation{
+						queryExpected(query("structure", 4, "framebuffer", namespaceLabel), "0s"),
+						queryExpected(query("structure", 4, "framebuffer", namespaceLabel), "30s", agreedGraph...),
+						queryExpected(query("structure", 10, "A", namespaceLabel), "0s"),
+						queryExpected(query("structure", 10, "A", namespaceLabel), "30s", querySample{queryLabels(workload), 64 * 1048576 / 1e9}),
+						queryExpected(query("overview", 11, "A", namespaceLabel), "0s"),
+						queryExpected(query("overview", 11, "A", namespaceLabel), "30s", querySample{queryLabels(workload), 64 * 1048576}),
+						queryExpected(query("overview", 17, "A", namespaceLabel), "0s"),
+						queryExpected(query("overview", 17, "A", namespaceLabel), "30s", querySample{queryLabels(workload), 64 * 1048576}),
+						queryExpected(maximumQuery("overview", 25, "A", namespaceLabel), "0s"),
+						queryExpected(maximumQuery("overview", 25, "A", namespaceLabel), "30s", querySample{"{}", 64 * 1048576}),
+					},
+				})
+			}
+			variables["activity_view"] = []string{"4"}
 			variables["workload"] = []string{"$__all"}
 			isolatedState := "(" + query("overview", 306, "A", namespaceLabel) + `) and on (workload_uid) label_replace(vector(1), "workload_uid", "workload-1", "", "")`
 			queryNames[isolatedState] = "disappearing device remains scoped to its workload (" + namespaceLabel + ")"
@@ -697,14 +817,28 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					expression = "max((" + measurement + `) and on (id) label_replace(vector(1), "id", "workload|workloads|workload-1", "", ""))`
 					queryNames[expression] = "shared workload VRAM (" + namespaceLabel + ")"
 					podExpression = "max((" + measurement + `) and on (id) label_replace(vector(1), "id", "pod|workloads|pod-2", "", ""))`
-					queryNames[podExpression] = "unaffected Pod VRAM (" + namespaceLabel + ")"
+					queryNames[podExpression] = "conflicted shared device Pod VRAM (" + namespaceLabel + ")"
 				}
 				expectations := []queryExpectation{
 					queryExpected(expression, "0s", querySample{"{}", 300 * 1048576 / test.divisor}),
 					queryExpected(expression, "1m"),
 				}
 				if podExpression != "" {
-					expectations = append(expectations, queryExpected(podExpression, "1m", querySample{"{}", 300 * 1048576}))
+					expectations = append(expectations, queryExpected(podExpression, "1m"))
+					fixture.Tests = append(fixture.Tests, queryTest{
+						Name: "A different GPU is unaffected by framebuffer disagreement: " + namespaceLabel,
+						InputSeries: []queryInputSeries{
+							attribution,
+							querySeries("dsx_workload_pod_info", "1+0x30", queryIdentity(pod, map[string]string{"pod_name": "worker-b", "pod_uid": "pod-2"})),
+							querySeries("DCGM_FI_DEV_FB_USED", "100+0x30", queryIdentity(gpu, map[string]string{"instance": "replica-a"})),
+							querySeries("DCGM_FI_DEV_FB_USED", "200+0x30", queryIdentity(gpu, map[string]string{"instance": "replica-b"})),
+							querySeries("DCGM_FI_DEV_FB_USED", "300+0x30", queryIdentity(gpu, map[string]string{"pod_uid": "pod-2", "UUID": "GPU-2"})),
+						},
+						PromQLExprTest: []queryExpectation{queryExpected(query("structure", 4, "framebuffer", namespaceLabel), "1m",
+							querySample{queryLabels(map[string]string{"cluster": "test", "id": "workload|workloads|workload-1"}), 300 * 1048576},
+							querySample{queryLabels(map[string]string{"cluster": "test", "id": "pod|workloads|pod-2"}), 300 * 1048576},
+						)},
+					})
 				}
 				fixture.Tests = append(fixture.Tests, queryTest{
 					Name: fmt.Sprintf("Conflicting Pod VRAM cannot be hidden by another Pod: %s/%d/%s/%s", test.dashboard, test.panel, test.ref, namespaceLabel),
@@ -965,6 +1099,41 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 			container := map[string]string{
 				"cluster": "test", "job": "cadvisor", "namespace": "workloads", "pod": "worker", "container": "main", "id": "first",
 				"cpu": "total",
+			}
+
+			fixture.Tests = append(fixture.Tests, queryTest{
+				Name: fmt.Sprintf("A first-sample replacement ID blocks the old container rate: %s/%d/%s", test.dashboard, test.panel, test.ref),
+				InputSeries: []queryInputSeries{
+					querySeries("dsx_workload_pod_info", "1+0x30", pod),
+					querySeries("container_cpu_usage_seconds_total", "0+30x10 stale", container),
+					querySeries("container_cpu_usage_seconds_total", "_x10 30+30x20", queryIdentity(container, map[string]string{"id": "replacement"})),
+				},
+				PromQLExprTest: []queryExpectation{
+					queryExpected(expression, "5m"),
+					queryExpected(expression, "10m", querySample{"{}", test.expected}),
+				},
+			}, queryTest{
+				Name: fmt.Sprintf("Defensive malformed Pod UID mappings reject CPU: %s/%d/%s", test.dashboard, test.panel, test.ref),
+				InputSeries: []queryInputSeries{
+					querySeries("dsx_workload_pod_info", "1+0x30", pod),
+					querySeries("dsx_workload_pod_info", "1+0x10 stale", queryIdentity(pod, map[string]string{"pod_name": "other", "workload_name": "other", "workload_uid": "workload-2"})),
+					querySeries("container_cpu_usage_seconds_total", "0+30x30", container),
+				},
+				PromQLExprTest: []queryExpectation{
+					queryExpected(expression, "5m"),
+					queryExpected(expression, "6m", querySample{"{}", test.expected}),
+				},
+			})
+			for _, cpu := range []string{"total", "cpu00"} {
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: fmt.Sprintf("A first-sample peer does not hide an available CPU rate: %s/%d/%s/%s", test.dashboard, test.panel, test.ref, cpu),
+					InputSeries: []queryInputSeries{
+						querySeries("dsx_workload_pod_info", "1+0x30", pod),
+						querySeries("container_cpu_usage_seconds_total", "0+30x20", queryIdentity(container, map[string]string{"cpu": cpu, "instance": "ready"})),
+						querySeries("container_cpu_usage_seconds_total", "_x10 300", queryIdentity(container, map[string]string{"cpu": cpu, "instance": "new"})),
+					},
+					PromQLExprTest: []queryExpectation{queryExpected(expression, "5m", querySample{"{}", test.expected})},
+				})
 			}
 
 			firstCore, secondCore := 0.2, 0.4

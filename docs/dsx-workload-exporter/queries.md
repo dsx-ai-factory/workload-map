@@ -54,10 +54,17 @@ GPU utilization is percent; framebuffer usage is MiB (multiply by `1048576` for
 bytes). CPU is cumulative seconds: `rate()` gives cores. cAdvisor working set is
 bytes. Occupied memory is not activity. A CPU-only frontend can have no GPU series.
 
-On every input, `namespace` must identify the workload namespace. External `pod`
-and DSX `pod_name` must identify the measured Pod, not the exporter Pod. If scrape
-label collisions produce `exported_namespace` or `exported_pod`, normalize them
-before using these examples. Keep exporter target labels until deduplication.
+On Pod attribution, DCGM and cAdvisor inputs, `namespace` identifies the measured
+Pod's namespace. Status and creation metrics use the root workload's namespace,
+which is empty for cluster-scoped roots. A root can own Pods in several namespaces.
+Join root evidence to Pod-derived measurements by `workload_uid`, not namespace.
+The resource examples below keep Pod namespaces as separate groups; omit namespace
+from the final aggregation to combine them for a workload.
+
+External `pod` and DSX `pod_name` must identify the measured Pod, not the exporter
+Pod. If scrape label collisions produce `exported_namespace` or `exported_pod`,
+normalize them before using these examples. Keep exporter target labels until
+deduplication.
 
 The CPU query copies the external `pod` value into `pod_name` with
 [`label_replace`](https://prometheus.io/docs/prometheus/latest/querying/functions/#label_replace).
@@ -193,6 +200,8 @@ replicas and workload failures observed in the window.
 
 Reservation Pods may hold GPUs at low activity by design. Exclude them from tenant
 idleness decisions through the [selection settings](configuration.md#selection).
+Excluding a reservation Pod hides its measurements. It does not attribute them to
+the Pods that consume its GPUs. A direct Pod UID join cannot infer that relationship.
 Filtering Pods also limits how much of the workload the query observes.
 
 ```promql
@@ -206,13 +215,13 @@ Filtering Pods also limits how much of the workload the query observes.
       dsx:pod_attribution:unique{observation_valid="true",component!="<unknown>",component_instance!="<unknown>"}
   ) < 5
 )
-and on (namespace, workload_uid)
-  (min by (namespace, workload_uid) (
+and on (workload_uid)
+  (min by (workload_uid) (
     dsx_workload_status{phase="Running",observation_valid="true"}
   ) == 1)
-unless on (namespace, workload_uid)
+unless on (workload_uid)
   dsx_workload_status{observation_valid="false"}
-unless on (namespace, workload_uid)
+unless on (workload_uid)
   (min_over_time(dsx_exporter_observation_valid{scope="workload"}[5m]) == 0)
 ```
 
@@ -235,5 +244,7 @@ can make the whole workload appear idle. Before acting, check:
 
 MIG may require a supported profiling metric such as
 `DCGM_FI_PROF_GR_ENGINE_ACTIVE` (0 to 1), with a correspondingly adjusted threshold.
-DRA may need a claim-to-Pod mapping. The query above does not establish idleness
-for every GPU-sharing mode.
+For native DRA, use DCGM exporter 4.8.4 or later with DRA and Pod UID mapping
+enabled. Follow the [DRA setup](../../dsx-workload-exporter/examples/grafana/setup.md#gpu-measurements-from-dcgm)
+for the required socket and ResourceSlice permissions. The query above does not
+establish idleness for every GPU-sharing mode.

@@ -14,11 +14,13 @@ if ! kind get clusters | grep -qx "$CLUSTER_NAME"; then
 else
   kind export kubeconfig --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG"
 fi
-GO_VERSION="$(awk '/^go /{print $2; exit}' "$ROOT/dsx-workload-exporter/go.mod")"
-docker build --build-arg "GO_VERSION=$GO_VERSION" -f "$ROOT/dsx-workload-exporter/Dockerfile" -t dsx-workload-exporter:e2e "$ROOT"
+arch="$(docker version --format '{{.Server.Arch}}')"
+platform="linux/$arch"
+GOARCH="$arch" make -C "$ROOT" exporter-image \
+  CONTAINER_TOOL=docker EXPORTER_IMAGE_REPOSITORY=dsx-workload-exporter IMAGE_TAG=e2e \
+  BUILD_ARGS="--platform $platform"
 kind load docker-image dsx-workload-exporter:e2e --name "$CLUSTER_NAME"
 # Export one platform: Docker's containerd store can retain an incomplete index.
-platform="linux/$(docker version --format '{{.Server.Arch}}')"
 docker image inspect --platform "$platform" busybox:1.37.0 >/dev/null 2>&1 ||
   docker pull --platform "$platform" busybox:1.37.0
 docker image save --platform "$platform" busybox:1.37.0 -o "$ARTIFACTS/busybox.tar"
@@ -28,18 +30,8 @@ for operator in jobset lws; do
   bash "$ROOT/hack/e2e/operators/$operator/install.sh"
 done
 for shard in a b; do
-  installed=false
-  if helm status "exporter-e2e-$shard" -n "exporter-e2e-$shard" >/dev/null 2>&1; then
-    installed=true
-  fi
-  helm upgrade --install "exporter-e2e-$shard" "$ROOT/charts/karta" \
-    --namespace "exporter-e2e-$shard" --create-namespace \
-    -f "$ROOT/hack/e2e/dsx-workload-exporter/values.yaml" \
-    --set "exporter.namespaceSelector.matchLabels.exporter-e2e-shard=$shard" \
-    --timeout 3m
-  # Restart before waiting so old unready Pods cannot block the rebuilt image.
-  if "$installed"; then
-    kubectl -n "exporter-e2e-$shard" rollout restart deployment/dsx-workload-exporter
-  fi
-  kubectl -n "exporter-e2e-$shard" rollout status deployment/dsx-workload-exporter --timeout=180s
+  bash "$ROOT/hack/e2e/dsx-workload-exporter/install.sh" \
+    "exporter-e2e-$shard" "exporter-e2e-$shard" \
+    "$ROOT/hack/e2e/dsx-workload-exporter/values.yaml" \
+    --set "exporter.namespaceSelector.matchLabels.exporter-e2e-shard=$shard"
 done

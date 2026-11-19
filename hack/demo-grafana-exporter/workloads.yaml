@@ -1,0 +1,185 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-active
+  namespace: dashboard-lab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gpu-active
+  template:
+    metadata:
+      labels:
+        app: gpu-active
+      annotations:
+        run.ai/simulated-gpu-utilization: '80'
+        gpu-fraction: '0.25'
+    spec:
+      containers:
+      - name: main
+        image: busybox:1.37.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - sleep 2147483647
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+            nvidia.com/gpu: '1'
+          limits:
+            cpu: 100m
+            memory: 64Mi
+            nvidia.com/gpu: '1'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-only
+  namespace: dashboard-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cpu-only
+  template:
+    metadata:
+      labels:
+        app: cpu-only
+    spec:
+      containers:
+      - name: main
+        image: busybox:1.37.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - sleep 2147483647
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zero-pods
+  namespace: dashboard-lab
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: zero-pods
+  template:
+    metadata:
+      labels:
+        app: zero-pods
+    spec:
+      containers:
+      - name: main
+        image: busybox:1.37.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - sleep 2147483647
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gpu-quiet
+  namespace: dashboard-lab
+  annotations:
+    run.ai/simulated-gpu-utilization: '2'
+    gpu-fraction: '0.125'
+spec:
+  containers:
+  - name: main
+    image: busybox:1.37.0
+    imagePullPolicy: IfNotPresent
+    command:
+    - sh
+    - -c
+    - sleep 2147483647
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+        nvidia.com/gpu: '1'
+      limits:
+        cpu: 100m
+        memory: 64Mi
+        nvidia.com/gpu: '1'
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: completed
+  namespace: dashboard-lab
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: completed
+    spec:
+      containers:
+      - name: main
+        image: busybox:1.37.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - echo dashboard-test-completed; exit 0
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: failed
+  namespace: dashboard-lab
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: failed
+    spec:
+      containers:
+      - name: main
+        image: busybox:1.37.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - echo dashboard-test-failed; exit 1
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      restartPolicy: Never

@@ -140,7 +140,11 @@ produce a total. Memory is working-set bytes. Both sources join Pod names to
 DSX attribution and retain the documented
 [Pod-name reuse and rate-window limits](../../../docs/dsx-workload-exporter/queries.md#2-cpu-and-memory-by-component-instance-and-group).
 
-GPU queries require device-level readings. Keep DCGM's optional
+GPU queries require device-level readings. Agreement is checked across all
+nonempty workload namespaces in the selected cluster and DCGM job. Namespace
+and component selections filter the displayed attribution.
+
+Keep DCGM's optional
 `--kubernetes-virtual-gpus` mode disabled (`KUBERNETES_VIRTUAL_GPUS=false`, the
 default). That mode derives per-Pod utilization and framebuffer values, which
 need different aggregation. See the [DCGM implementation](https://github.com/NVIDIA/dcgm-exporter/blob/fafd151148052628061a80450b4ee037a5fa0c3c/internal/pkg/transformation/kubernetes.go#L486-L500).

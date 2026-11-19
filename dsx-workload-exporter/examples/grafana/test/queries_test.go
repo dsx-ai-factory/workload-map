@@ -431,6 +431,83 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					})
 				}
 			}
+			for _, device := range []struct {
+				name, activity, value string
+				labels                map[string]string
+			}{{"full GPU", "DCGM_FI_DEV_GPU_UTIL", "80", nil}, {"MIG instance", "DCGM_FI_PROF_GR_ENGINE_ACTIVE", "0.8", map[string]string{"GPU_I_ID": "7", "GPU_CI_ID": "0"}}} {
+				for _, namespace := range []string{"workloads", "$__all"} {
+					variables["namespace"], variables["activity_view"] = []string{namespace}, []string{"5"}
+					for _, peer := range []struct {
+						name     string
+						labels   map[string]string
+						conflict bool
+					}{
+						{"same device", nil, true},
+						{"different device", map[string]string{"UUID": "GPU-2"}, false},
+						{"different cluster", map[string]string{"cluster": "other"}, false},
+						{"empty workload namespace", map[string]string{namespaceLabel: ""}, false},
+						{"different MIG entity", map[string]string{"GPU_I_ID": "8"}, false},
+					} {
+						if device.name == "full GPU" && peer.name == "different MIG entity" {
+							continue
+						}
+						input := []queryInputSeries{
+							attribution,
+							querySeries("dsx_workload_pod_info", "1+0x30", queryIdentity(pod, map[string]string{"namespace": "peer-workloads", "pod_uid": "pod-2", "pod_name": "peer", "workload_name": "other", "workload_uid": "workload-2"})),
+							querySeries(device.activity, device.value+"+0x30", queryIdentity(gpu, device.labels)),
+							querySeries("DCGM_FI_DEV_FB_USED", "64+0x30", queryIdentity(gpu, device.labels)),
+							querySeries(device.activity, "_ 0 "+device.value+" stale", queryIdentity(gpu, device.labels, map[string]string{namespaceLabel: "peer-workloads", "pod_uid": "pod-2"}, peer.labels)),
+							querySeries("DCGM_FI_DEV_FB_USED", "_ 32 64 stale", queryIdentity(gpu, device.labels, map[string]string{namespaceLabel: "peer-workloads", "pod_uid": "pod-2"}, peer.labels)),
+						}
+						times := []string{"30s"}
+						if peer.conflict {
+							times = []string{"0s", "30s", "1m", "1m30s"}
+						}
+						var expectations []queryExpectation
+						for _, at := range times {
+							state, timeline, unknown := "active", 1.0, 0.0
+							active := []querySample{{"{}", 1}}
+							accepted := !peer.conflict || at != "30s"
+							if !accepted {
+								state, timeline, unknown, active = "unknown", 4, 1, nil
+							}
+							expectations = append(expectations,
+								stateExpectation(query("overview", 306, "A", namespaceLabel), at, state),
+								queryExpected(query("overview", 308, "A", namespaceLabel), at, querySample{queryLabels(queryIdentity(workload, map[string]string{"uid_short": "workload"})), timeline}),
+								queryExpected(query("overview", 304, "A", namespaceLabel), at, active...),
+								queryExpected(query("overview", 310, "A", namespaceLabel), at, querySample{"{}", unknown}),
+							)
+							for _, target := range []struct {
+								dashboard string
+								panel     int
+								ref       string
+								value     float64
+							}{
+								{"overview", 16, "A", 80}, {"structure", 9, "A", 80}, {"structure", 4, "gpu", 80},
+								{"overview", 11, "A", 64 * 1048576}, {"overview", 17, "A", 64 * 1048576}, {"overview", 25, "A", 64 * 1048576},
+								{"structure", 10, "A", 64 * 1048576 / 1e9}, {"structure", 4, "framebuffer", 64 * 1048576},
+							} {
+								var samples []querySample
+								if accepted {
+									samples = []querySample{{queryLabels(workload), target.value}}
+									if target.panel == 4 {
+										samples = []querySample{
+											{queryLabels(map[string]string{"cluster": "test", "id": "workload|workloads|workload-1"}), target.value},
+											{queryLabels(map[string]string{"cluster": "test", "id": "pod|workloads|pod-1"}), target.value},
+										}
+									}
+								}
+								expectations = append(expectations, queryExpected(query(target.dashboard, target.panel, target.ref, namespaceLabel), at, samples...))
+							}
+						}
+						fixture.Tests = append(fixture.Tests, queryTest{
+							Name:        "Device agreement crosses workload namespaces: " + device.name + "/" + namespace + "/" + peer.name + "/" + namespaceLabel,
+							InputSeries: input, PromQLExprTest: expectations,
+						})
+					}
+				}
+			}
+			variables["namespace"] = []string{"workloads"}
 			variables["activity_view"] = []string{"4"}
 			variables["workload"] = []string{"$__all"}
 			isolatedState := "(" + query("overview", 306, "A", namespaceLabel) + `) and on (workload_uid) label_replace(vector(1), "workload_uid", "workload-1", "", "")`

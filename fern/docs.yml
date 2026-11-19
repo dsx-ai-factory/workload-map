@@ -75,9 +75,6 @@ navigation:
       - page: Use the Headlamp Plugin
         path: ../docs/observability/use-the-headlamp-plugin.mdx
         slug: use-the-headlamp-plugin
-      - page: Monitor Workloads with the DSX Workload Exporter
-        path: ../docs/observability/monitor-workloads.mdx
-        slug: monitor-workloads
   - section: Building on Workload Map
     slug: building-on-workload-map
     contents:

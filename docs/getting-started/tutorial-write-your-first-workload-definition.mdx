@@ -55,7 +55,7 @@ spec:
 
 The `name` field is a free-form identifier for the component. It must be unique within the definition. The `kind` field is the full group, version, and kind of the workload. Always provide all three. The only exception is the core `Pod` kind, which has an empty group.
 
-For a definition that needs an explicit opt-in, set `spec.experimental: true`. The definition stays available in the SDK and the catalog. The CLI, the Headlamp plugin, and the exporter exclude it until their experimental setting is on, even if it is installed in the cluster. If you omit the field or set it to `false`, the definition behaves normally. Before you install an experimental definition, update the `Karta` CRD to a version that includes `spec.experimental`. The Helm chart updates the CRD during upgrades by default. If you manage the CRD separately, apply the updated [`run.ai_kartas.yaml`](https://github.com/dsx-ai-factory/workload-map/blob/main/charts/karta/crds/run.ai_kartas.yaml) first.
+For a definition that needs an explicit opt-in, set `spec.experimental: true`. The definition stays available in the SDK and the catalog. The CLI and the Headlamp plugin exclude it until their experimental setting is on, even if it is installed in the cluster. If you omit the field or set it to `false`, the definition behaves normally. Before you install an experimental definition, update the `Karta` CRD to a version that includes `spec.experimental`. The Helm chart updates the CRD during upgrades by default. If you manage the CRD separately, apply the updated [`run.ai_kartas.yaml`](https://github.com/dsx-ai-factory/workload-map/blob/main/charts/karta/crds/run.ai_kartas.yaml) first.
 
 ### Step 2: Map the Status
 

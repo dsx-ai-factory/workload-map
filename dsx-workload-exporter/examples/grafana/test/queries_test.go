@@ -565,6 +565,58 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					queryExpected(maximumQuery("overview", 16, "A", namespaceLabel), "30s", querySample{"{}", 80}),
 				},
 			})
+			for _, measurement := range []struct {
+				name, values, state        string
+				gpu, active, low, timeline float64
+			}{
+				{"active", "80+0x30", "active", 80, 1, 0, 1},
+				{"quiet", "2+0x30", "low_activity", 2, 0, 1, 2},
+			} {
+				// Empty workload UIDs model malformed downstream identities, not native exporter output.
+				expectations := []queryExpectation{
+					stateExpectation(stateQuery, "3m", "unknown"),
+					stateExpectation(stateQuery, "6m30s", measurement.state),
+					queryExpected(query("overview", 310, "A", namespaceLabel), "3m", querySample{"{}", 1}),
+					queryExpected(query("overview", 310, "A", namespaceLabel), "6m30s", querySample{"{}", 0}),
+					queryExpected(query("overview", 308, "A", namespaceLabel), "3m", querySample{queryLabels(queryIdentity(workload, map[string]string{"uid_short": "workload"})), 4}),
+					queryExpected(query("overview", 308, "A", namespaceLabel), "6m30s", querySample{queryLabels(queryIdentity(workload, map[string]string{"uid_short": "workload"})), measurement.timeline}),
+				}
+				for _, target := range []struct {
+					dashboard string
+					panel     int
+					ref       string
+					value     float64
+				}{
+					{"overview", 801, "A", 1}, {"overview", 302, "A", 1}, {"overview", 303, "A", 1},
+					{"overview", 304, "A", measurement.active}, {"overview", 305, "A", measurement.low},
+					{"overview", 306, "B", measurement.gpu / 100}, {"overview", 306, "C", 1},
+					{"overview", 307, "A", measurement.gpu / 100}, {"overview", 16, "A", measurement.gpu},
+					{"structure", 4, "gpu", measurement.gpu},
+				} {
+					expression := maximumQuery(target.dashboard, target.panel, target.ref, namespaceLabel)
+					expectations = append(expectations,
+						queryExpected(expression, "3m"),
+						queryExpected(expression, "6m30s", querySample{"{}", target.value}),
+					)
+				}
+				if measurement.name == "quiet" {
+					quietWindow := maximumQuery("overview", 306, "D", namespaceLabel) + " >= 0"
+					expectations = append(expectations,
+						stateExpectation(stateQuery, "3m30s", "warming"),
+						queryExpected(quietWindow, "3m"),
+						queryExpected(quietWindow, "6m30s", querySample{"{}", 180}),
+					)
+				}
+				fixture.Tests = append(fixture.Tests, queryTest{
+					Name: "Defensive activity checks reject a conflicting empty workload UID: " + measurement.name + "/" + namespaceLabel,
+					InputSeries: []queryInputSeries{
+						attribution,
+						querySeries("dsx_workload_pod_info", "1+0x6 stale", queryIdentity(pod, map[string]string{"workload_uid": ""})),
+						querySeries("DCGM_FI_DEV_GPU_UTIL", measurement.values, gpu),
+					},
+					PromQLExprTest: expectations,
+				})
+			}
 			variables["namespace"] = []string{"$__all"}
 			fixture.Tests = append(fixture.Tests, queryTest{
 				Name: "Only same-namespace MIG evidence suppresses a full GPU: " + namespaceLabel,

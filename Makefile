@@ -513,8 +513,8 @@ test-exporter-dashboards: ## Check portable Grafana dashboard imports
 	cd dsx-workload-exporter && go test -count=1 -race ./examples/grafana/test
 
 .PHONY: test-exporter-dashboard-queries
-test-exporter-dashboard-queries: ## Evaluate Grafana queries with promtool (Docker or PROMTOOL=/path/to/promtool)
-	cd dsx-workload-exporter && go test -count=1 -tags=promql ./examples/grafana/test -ginkgo.label-filter=promql
+test-exporter-dashboard-queries: promtool ## Evaluate Grafana queries with the pinned promtool
+	cd dsx-workload-exporter && PROMTOOL="$(PROMTOOL)" go test -count=1 -tags=promql ./examples/grafana/test -ginkgo.label-filter=promql
 
 .PHONY: test-exporter
 test-exporter: test-exporter-unit test-exporter-integration test-exporter-dashboards ## Run the exporter unit and envtest suites

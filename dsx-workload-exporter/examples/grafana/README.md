@@ -56,6 +56,13 @@ clusters are not combined. Blank Cluster selects unlabeled metrics, not every
 cluster. If a source uses another cluster-label name, normalize it in the
 collector before using these dashboards.
 
+Workloads are identified by cluster and workload UID. Namespace selection matches
+the root object's namespace or an attributed Pod's namespace. A cluster-scoped
+root with Pods in `team-a` and `team-b` stays one workload. Selecting `team-a`
+keeps its root status and age, but shows only that namespace's Pods and resource
+measurements. All namespaces combines both Pod sets. Workload links preserve
+the selected namespace scope. Pod detail tables retain each Pod's namespace.
+
 [Metric Samples](metric-samples.json) is an optional troubleshooting dashboard
 for the four raw DSX metrics. It also needs no recording rules. Use a datasource
 scoped to one cluster when inspecting it.
@@ -296,10 +303,11 @@ make test-exporter-dashboard-queries
 ```
 
 Both suites use Go and Ginkgo. The second target enables the `promql` build tag
-and uses pinned Prometheus 3.14.0 in Docker. To use an installed
+and downloads the pinned Prometheus `promtool` binary. To use an installed
 `promtool`, set `PROMTOOL=/absolute/path/to/promtool`. It evaluates the shipped
 queries against synthetic series for stale samples, label collisions, missing
-GPUs, parent/MIG overlap, identity conflicts and the seven-point quiet boundary.
+GPUs, parent/MIG overlap, identity conflicts, cluster-scoped roots spanning
+namespaces and the seven-point quiet boundary.
 The import suite runs in `make check`. CI runs the query suite only when the
 dashboard examples, tests, exporter module dependencies or test/build configuration
 change. The query fixtures do not require a cluster.

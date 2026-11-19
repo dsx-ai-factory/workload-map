@@ -185,6 +185,7 @@ var _ = Describe("Dashboard portability", func() {
 						Expect(knownUIDs).To(HaveKey(match[1]), "unknown dashboard in link %q", url)
 						Expect(url).To(ContainSubstring("${datasource:queryparam}"), url)
 						Expect(url).To(ContainSubstring("${cluster:queryparam}"), url)
+						Expect(url).To(ContainSubstring("${namespace:queryparam}"), url)
 					}
 				})
 			})

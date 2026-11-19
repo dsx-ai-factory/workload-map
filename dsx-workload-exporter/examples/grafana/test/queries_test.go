@@ -349,6 +349,88 @@ var _ = Describe("Dashboard query results", Label("promql"), func() {
 					},
 				})
 			}
+			for _, entity := range []struct {
+				name   string
+				labels map[string]string
+			}{{"full GPU", nil}, {"MIG instance", map[string]string{"GPU_I_ID": "7", "GPU_CI_ID": "0"}}} {
+				selectedPod := queryIdentity(pod, map[string]string{"component": "trainer", "component_instance": "replica", "replica_group_id": "group-a"})
+				for _, selection := range []struct {
+					name       string
+					peer       map[string]string
+					components bool
+				}{
+					{"workload selection", map[string]string{"workload_name": "other", "workload_uid": "workload-2"}, false},
+					{"component selection", map[string]string{"component": "evaluator"}, true},
+					{"instance selection", map[string]string{"component_instance": "other"}, true},
+					{"invalid mapping", map[string]string{"observation_valid": "false"}, false},
+				} {
+					variables["component"], variables["component_instance"] = []string{"trainer"}, []string{"replica"}
+					for _, target := range []struct {
+						dashboard string
+						panel     int
+						divisor   float64
+					}{{"overview", 11, 1}, {"overview", 17, 1}, {"overview", 25, 1}, {"structure", 10, 1e9}} {
+						if selection.components && (target.dashboard != "overview" || target.panel != 25) {
+							continue
+						}
+						expression := query(target.dashboard, target.panel, "A", namespaceLabel)
+						labels := queryIdentity(workload)
+						if target.panel == 25 {
+							labels["component"], labels["component_instance"] = "trainer", "replica"
+						}
+						expected := querySample{queryLabels(labels), 64 * 1048576 / target.divisor}
+						fixture.Tests = append(fixture.Tests, queryTest{
+							Name: fmt.Sprintf("Framebuffer agreement precedes %s: %s/%d/%s/%s", selection.name, target.dashboard, target.panel, entity.name, namespaceLabel),
+							InputSeries: []queryInputSeries{
+								querySeries("dsx_workload_pod_info", "1+0x30", selectedPod),
+								querySeries("dsx_workload_pod_info", "1+0x30", queryIdentity(selectedPod, selection.peer, map[string]string{"pod_uid": "pod-2", "pod_name": "peer"})),
+								querySeries("DCGM_FI_DEV_FB_USED", "64+0x30", queryIdentity(gpu, entity.labels)),
+								querySeries("DCGM_FI_DEV_FB_USED", "_ 32 64 stale", queryIdentity(gpu, entity.labels, map[string]string{"pod_uid": "pod-2"})),
+							},
+							PromQLExprTest: []queryExpectation{
+								queryExpected(expression, "0s", expected),
+								queryExpected(expression, "30s"),
+								queryExpected(expression, "1m", expected),
+								queryExpected(expression, "1m30s", expected),
+							},
+						})
+					}
+				}
+				variables["component"], variables["component_instance"] = []string{"$__all"}, []string{"$__all"}
+				for _, missing := range []string{"component", "component_instance", "replica_group_id"} {
+					peer := map[string]string{"pod_uid": "pod-2", "pod_name": "peer", missing: ""}
+					if missing == "component" {
+						peer["component_instance"] = ""
+					}
+					if missing != "replica_group_id" {
+						peer["replica_group_id"] = ""
+					}
+					var single, shared []querySample
+					for _, id := range []string{
+						"workload|workloads|workload-1", "component|workloads|workload-1|trainer", "instance|workloads|workload-1|trainer|replica",
+						"group|workloads|workload-1|trainer|replica|group-a", "pod|workloads|pod-1",
+					} {
+						single = append(single, querySample{queryLabels(map[string]string{"cluster": "test", "id": id}), 64 * 1048576})
+					}
+					shared = append(slices.Clone(single), querySample{queryLabels(map[string]string{"cluster": "test", "id": "pod|workloads|pod-2"}), 64 * 1048576})
+					expression := query("structure", 4, "framebuffer", namespaceLabel)
+					fixture.Tests = append(fixture.Tests, queryTest{
+						Name: "Framebuffer agreement precedes graph metadata filtering: " + missing + "/" + entity.name + "/" + namespaceLabel,
+						InputSeries: []queryInputSeries{
+							querySeries("dsx_workload_pod_info", "1+0x30", selectedPod),
+							querySeries("dsx_workload_pod_info", "1+0x30", queryIdentity(selectedPod, peer)),
+							querySeries("DCGM_FI_DEV_FB_USED", "64+0x30", queryIdentity(gpu, entity.labels)),
+							querySeries("DCGM_FI_DEV_FB_USED", "_ 32 64 stale", queryIdentity(gpu, entity.labels, map[string]string{"pod_uid": "pod-2"})),
+						},
+						PromQLExprTest: []queryExpectation{
+							queryExpected(expression, "0s", single...),
+							queryExpected(expression, "30s"),
+							queryExpected(expression, "1m", shared...),
+							queryExpected(expression, "1m30s", single...),
+						},
+					})
+				}
+			}
 			variables["activity_view"] = []string{"4"}
 			variables["workload"] = []string{"$__all"}
 			isolatedState := "(" + query("overview", 306, "A", namespaceLabel) + `) and on (workload_uid) label_replace(vector(1), "workload_uid", "workload-1", "", "")`

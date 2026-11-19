@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A bare Pod is its own workload root.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: solo-{{ .Replica }}
+  labels:
+    loadtest.karta/root: "true"
+spec:
+  nodeSelector:
+    type: kwok
+  tolerations:
+    - key: kwok.x-k8s.io/node
+      operator: Exists
+      effect: NoSchedule
+  containers:
+    - name: app
+      image: {{ .image }}

@@ -120,6 +120,53 @@ Add the following under the `rootComponent`, below `statusDefinition`:
 
 The `// 1` default keeps the path null-safe. The `parallelism` field is optional and defaults to 1 when it is not set.
 
+Your complete `job.yaml` now looks like the following. It is a valid definition as it is. The scheduling instructions in the optional step at the end are not required.
+
+```yaml
+apiVersion: run.ai/v1alpha1
+kind: Karta
+metadata:
+  name: batch-v1-job
+spec:
+  structureDefinition:
+    rootComponent:
+      name: job
+      kind:
+        group: batch
+        version: v1
+        kind: Job
+      statusDefinition:
+        conditionsDefinition:
+          path: .status.conditions
+          typeFieldName: type
+          statusFieldName: status
+          reasonFieldName: reason
+          messageFieldName: message
+        statusMappings:
+          initializing:
+            - byExpression:
+                expression: (.status.active // 0) > 0 and (.status.ready // 0) == 0
+                expectedResult: "true"
+          running:
+            - byExpression:
+                expression: (.status.active // 0) > 0 and (.status.ready // 0) > 0
+                expectedResult: "true"
+          completed:
+            - byConditions:
+                - type: Complete
+                  status: "True"
+          failed:
+            - byConditions:
+                - type: Failed
+                  status: "True"
+      specDefinition:
+        podTemplateSpecPath: .spec.template
+      scaleDefinition:
+        replicasPath: .spec.parallelism // 1
+```
+
+This minimal file does not map suspended Jobs. A suspended Job resolves to `Undefined` only when no other rule matches. While its pods are still active, it can still match `running` or `initializing`. The shipped definition in `docs/catalog/batch-job-v1.yaml` adds a `suspended` mapping and suspend and resume actions.
+
 ### Step 4: Validate the Definition and See It Work
 
 1. Validate the file:

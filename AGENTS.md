@@ -67,6 +67,10 @@ For vulnerability handling and disclosure, `SECURITY.md` is authoritative.
 - `charts/` Helm chart (CRDs auto-generated)
 - `docs/` Pre-built Karta definitions and guides
 
+## Documentation
+
+Before you edit, create, or review a page under `docs/`, read [docs/AGENTS.md](docs/AGENTS.md).
+
 ## Build, Test, Lint
 
 One `Makefile` at the repository root is the only one in the repo; there is no per-component Makefile. Use it to build, test, lint, and generate code. `make help` lists everything.

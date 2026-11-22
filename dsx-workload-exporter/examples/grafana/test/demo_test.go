@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/config"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,6 +19,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/yaml"
+
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/config"
 )
 
 var _ = Describe("Shared demo installers", func() {

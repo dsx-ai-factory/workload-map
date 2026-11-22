@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# Publishes the Fern documentation site.
+#
+# - On a version tag (vX.Y.Z), it publishes the docs as they are at that tag.
+# - From the Actions tab, it publishes any branch or tag that you name. Use this
+#   for the first publish, or to re-publish between releases.
+#
+# The site has one version, so each publish replaces what is live.
+#
+# Required configuration:
+# - Organization secret FERN_TOKEN (the Fern token for the nvidia Fern org)
+
+name: Publish Fern Docs
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or tag to publish (for example main or v0.4.0)"
+        required: true
+        type: string
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fern-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish docs
+    # Never run from a fork of this repository.
+    if: github.repository == 'dsx-ai-factory/workload-map'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 'lts/*'
+
+      # The version comes from the committed config. It is validated as semver
+      # first, because `npm install <pkg>@<spec>` also accepts URL specs.
+      - name: Install Fern CLI
+        run: |
+          set -euo pipefail
+          VERSION=$(jq -r .version fern/fern.config.json)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::fern/fern.config.json .version '$VERSION' is not a valid semver"
+            exit 1
+          fi
+          npm install -g --ignore-scripts "fern-api@${VERSION}"
+
+      - name: Publish docs
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          PUBLISHED_REF: ${{ inputs.ref || github.ref_name }}
+        working-directory: ./fern
+        run: |
+          set -euo pipefail
+          OUTPUT=$(fern generate --docs 2>&1) || { echo "$OUTPUT"; exit 1; }
+          echo "$OUTPUT"
+          URL=$(echo "$OUTPUT" | grep -oE 'Published docs to https?://[^[:space:]()]+' | head -1 | sed 's/^Published docs to //') || true
+          {
+            echo "### Published docs from \`${PUBLISHED_REF}\`"
+            if [ -n "$URL" ]; then echo "[$URL]($URL)"; fi
+          } >> "$GITHUB_STEP_SUMMARY"

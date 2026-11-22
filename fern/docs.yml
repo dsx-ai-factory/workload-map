@@ -8,6 +8,7 @@
 instances:
   - url: nvidia-workload-map.docs.buildwithfern.com/workload-map
     custom-domain: docs.nvidia.com/workload-map
+    multi-source: true
 
 title: NVIDIA Workload Map Documentation
 

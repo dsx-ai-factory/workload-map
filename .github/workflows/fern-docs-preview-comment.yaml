@@ -1,0 +1,175 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# Workflow 2 of 2 for Fern docs previews.
+#
+# Runs after "Preview Fern Docs: Build" completes. It downloads the artifact,
+# builds a preview with the Fern token, and posts or updates one comment on the
+# PR. It never checks out the PR branch, which keeps the token away from
+# untrusted code paths in a checkout step.
+#
+# Required configuration:
+# - Organization secret FERN_TOKEN (the Fern token for the nvidia Fern org)
+
+name: "Preview Fern Docs: Comment"
+
+on:
+  workflow_run:
+    workflows: ["Preview Fern Docs: Build"]
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  actions: read
+
+jobs:
+  artifact-present:
+    name: Check for the preview artifact
+    # The build workflow can succeed with its job skipped (fork PR); then there is no artifact.
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - name: Check for the fern-preview artifact
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          n=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" \
+            --jq '.artifacts | map(select(.name == "fern-preview")) | length')
+          if [ "${n}" -gt 0 ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No fern-preview artifact (for example a fork PR); skipping the preview."
+          fi
+
+  preview:
+    name: Build preview and comment
+    needs: artifact-present
+    if: needs.artifact-present.outputs.exists == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download Fern sources and metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: fern-preview
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # The artifact comes from the PR, so its values are checked before use.
+      - name: Read PR metadata
+        id: metadata
+        run: |
+          set -euo pipefail
+          PR_NUMBER=$(head -n1 preview-metadata/pr_number)
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "::error::pr_number must be numeric"; exit 1; }
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "head_ref=$(head -n1 preview-metadata/head_ref)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 'lts/*'
+
+      # `npm install <pkg>@<spec>` also accepts URL specs, so the version is
+      # validated as semver first.
+      - name: Install Fern CLI
+        run: |
+          set -euo pipefail
+          VERSION=$(jq -r .version fern/fern.config.json)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::fern/fern.config.json .version '$VERSION' is not a valid semver"
+            exit 1
+          fi
+          npm install -g --ignore-scripts "fern-api@${VERSION}"
+
+      - name: Generate preview URL
+        id: generate-docs
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          HEAD_REF: ${{ steps.metadata.outputs.head_ref }}
+        working-directory: ./fern
+        run: |
+          set -euo pipefail
+          # The preview id becomes part of the hostname, so unsupported characters are replaced.
+          PREVIEW_ID=$(echo "${HEAD_REF:-preview}" | sed 's/[^a-zA-Z0-9._-]/-/g; s/-\{2,\}/-/g; s/^-//; s/-$//')
+          PREVIEW_ID="${PREVIEW_ID:-preview}"
+
+          # Fern can print a URL and still fail, so capture the output before checking the exit status.
+          set +e
+          OUTPUT=$(fern generate --docs --preview --force --id "$PREVIEW_ID" 2>&1)
+          FERN_EXIT=$?
+          set -e
+          echo "$OUTPUT"
+
+          if [ "$FERN_EXIT" -ne 0 ]; then
+            echo "::error::Fern preview generation failed (exit ${FERN_EXIT}). See the Fern output above."
+            exit "$FERN_EXIT"
+          fi
+
+          URL=$(echo "$OUTPUT" | grep -oE 'Published docs to https?://[^[:space:]()]+' | head -1 | sed 's/^Published docs to //') || true
+          if [ -z "$URL" ]; then
+            echo "::error::Fern exited successfully without a preview URL. See the Fern output above."
+            exit 1
+          fi
+          echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Build page links for changed Markdown files
+        id: page-links
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          PREVIEW_URL: ${{ steps.generate-docs.outputs.preview_url }}
+        run: |
+          CHANGED_FILES=""
+          if [ -f preview-metadata/changed_md_files ]; then
+            CHANGED_FILES=$(cat preview-metadata/changed_md_files)
+          fi
+
+          if [ -z "$CHANGED_FILES" ] || [ -z "$PREVIEW_URL" ]; then
+            echo "page_links=" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          BASE_URL=$(echo "$PREVIEW_URL" | grep -oE 'https?://[^/]+')
+          FILES_PARAM=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//' \
+            | python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().strip(), safe=',/'))")
+          RESPONSE=$(curl -sf -H "FERN_TOKEN: $FERN_TOKEN" "${PREVIEW_URL}/api/fern-docs/get-slug-for-file?files=${FILES_PARAM}" 2>/dev/null) || {
+            echo "page_links=" >> "$GITHUB_OUTPUT"; exit 0
+          }
+
+          PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$BASE_URL" \
+            '.mappings[] | select(.slug != null) | "- [\(.slug)](\($url)/\(.slug))"')
+
+          if [ -n "$PAGE_LINKS" ]; then
+            { echo "page_links<<EOF"; echo "$PAGE_LINKS"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+          else
+            echo "page_links=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post or update the PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.metadata.outputs.pr_number }}
+          PREVIEW_URL: ${{ steps.generate-docs.outputs.preview_url }}
+          PAGE_LINKS: ${{ steps.page-links.outputs.page_links }}
+        run: |
+          set -euo pipefail
+          MARKER="<!-- preview-docs -->"
+          BODY="**Preview your docs:** <${PREVIEW_URL}>"
+          if [ -n "${PAGE_LINKS}" ]; then
+            BODY="${BODY}"$'\n\n'"Pages changed in this PR:"$'\n'"${PAGE_LINKS}"
+          fi
+          BODY="${BODY}"$'\n\n'"${MARKER}"
+
+          COMMENT_ID=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | contains(\"${MARKER}\")) | .id" | head -1)
+
+          if [ -n "$COMMENT_ID" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" -X PATCH -f body="$BODY"
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$BODY"
+          fi

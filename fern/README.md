@@ -12,7 +12,7 @@ The site uses the Fern NVIDIA global theme, which requires a Fern account with a
 Install the Fern CLI at the version in `fern.config.json`, sign in, and start the preview from this directory:
 
 ```bash
-npm install -g fern-api@5.167.0
+npm install -g fern-api@5.168.0
 fern login
 fern docs dev
 ```
@@ -22,3 +22,5 @@ fern docs dev
 ```bash
 fern check
 ```
+
+The `Fern Docs CI` workflow runs `fern check` on pull requests that change `docs/` or `fern/`.

@@ -117,7 +117,7 @@ Pick the path that matches what you want to do:
 | [Install the CLI](#install-the-cli) | List definitions and inspect workloads with `kli` | Homebrew, or a release archive. Inspecting live workloads also needs a cluster and `kubectl` context |
 | [Install the CRD](#install-the-crd) | Register Karta definitions in a cluster | A cluster and `kubectl` context |
 | [Use the Go library](#use-the-go-library) | Call Karta from your own controller or tool | Go 1.27.3 or later |
-| [Write your own definition](docs/Authoring%20Your%20First%20Karta.md) | Describe a workload type, starting with a batch Job, and validate it | `kli`, or Go 1.27.3 or later |
+| [Write your own definition](docs/getting-started/tutorial-write-your-first-workload-definition.mdx) | Describe a workload type, starting with a batch Job, and validate it | `kli`, or Go 1.27.3 or later |
 
 ### Install the CLI
 
@@ -134,11 +134,9 @@ repositories named `homebrew-<name>`. Installing by full name also makes
 Homebrew trust this one cask, which it requires for any tap it does not
 maintain. `brew upgrade kli` installs later releases.
 
-Each release also publishes prebuilt `kli` archives for Linux and macOS on
-amd64 and arm64, with a `checksums.txt` manifest, on the
-[GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
-To install without Homebrew, download the archive for your platform, check it
-against `checksums.txt`, and put the `kli` executable on your `PATH`.
+To install without Homebrew, download the archive for your platform from the
+[GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases)
+and extract it. Then move `kli` to a directory on your `PATH`.
 
 Run `kli --version` to print the release version. `go install` is not a
 supported way to install the CLI.
@@ -164,7 +162,7 @@ warning that it could not read definitions from the cluster and shows the
 built-in ones only. This is expected. `kli get` and `kli describe` inspect live
 workloads and need a cluster.
 
-See the [CLI Guide](docs/CLI%20Guide.md) for shell completion and for installing
+See the [Inspect Workloads with the CLI](docs/observability/inspect-workloads-with-the-cli.mdx) for shell completion and for installing
 from a clone with make.
 
 ### Install the CRD
@@ -188,7 +186,7 @@ The library lives in the `karta/sdk/` module. Releases up to v0.2.x published it
 ### Define a Karta
 
 For a step-by-step tutorial that writes and validates a definition for a batch
-Job, see [Authoring Your First Karta](docs/Authoring%20Your%20First%20Karta.md).
+Job, see [Tutorial - Write Your First Workload Definition](docs/getting-started/tutorial-write-your-first-workload-definition.mdx).
 
 Here's a Karta for a JobSet - a distributed training workload with master and worker groups:
 
@@ -310,6 +308,7 @@ Karta supports any workload type. The following are pre-built and tested Karta d
 | PodCliqueSet | Grove |
 | Sandbox | Kubernetes Agent Sandbox |
 | Rollout | Argo Rollouts |
+| CloneSet | OpenKruise |
 | Volcano Job | Volcano |
 | [Workload](docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | Kueue (v1beta2, experimental; requires opt-in) |
 
@@ -342,10 +341,10 @@ See [ADOPTERS.md](ADOPTERS.md) for the full list of adopters. If you use Karta, 
 
 - [Roadmap](ROADMAP.md) - Where Karta is headed, in Now / Next / Later horizons
 - [Changelog](CHANGELOG.md) - Notable changes per release
-- [CLI Guide](docs/CLI%20Guide.md) - Installing `kli`, shell completion, and the install make targets
-- [Technical Guide](docs/Technical%20Guide.md) - Full Karta spec, path syntax (jq), validation rules
-- [Webhook Certificates](docs/Webhook%20Certificates.md) - Webhook cert modes (auto self-signed or manual) and how to wire cert-manager
-- [FIPS 140-3](docs/FIPS.md) - Running the operator with Go's FIPS 140-3 crypto module
+- [Inspect Workloads with the CLI](docs/observability/inspect-workloads-with-the-cli.mdx) - Installing `kli`, shell completion, and the install make targets
+- [Workload Definition Spec](docs/reference/workload-definition-spec.mdx) - Full Karta spec, path syntax (jq), validation rules
+- [Configure Webhook Certificates](docs/configuration/karta-operator/configure-webhook-certificates.mdx) - Webhook cert modes (auto self-signed or manual) and how to wire cert-manager
+- [Run in FIPS Mode](docs/configuration/karta-operator/run-in-fips-mode.mdx) - Running the operator with Go's FIPS 140-3 crypto module
 - [Dependency Updates](docs/Dependency%20Updates.md) - How Renovate keeps dependencies current and how to test a configuration change
 - [Karta definitions](docs/catalog/) - Real-world Karta definitions for common workload types
 - [Runnable examples](docs/examples/) - Offline quickstart and an installable controller-runtime example

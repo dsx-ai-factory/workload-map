@@ -12,9 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/config"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/yaml"
 )
@@ -22,6 +25,29 @@ import (
 var _ = Describe("Shared demo installers", func() {
 	const exporter = "hack/e2e/dsx-workload-exporter/install.sh"
 	const fakeGPU = "hack/e2e/infra/fake-gpu-operator/install.sh"
+
+	It("renders the demo exporter with discovery limited to its namespace", func() {
+		helm, err := exec.LookPath("helm")
+		if err != nil {
+			Skip("helm is needed for chart rendering")
+		}
+		root, err := filepath.Abs("../../../..")
+		Expect(err).NotTo(HaveOccurred())
+		out, err := exec.Command(helm, "template", "dsx", filepath.Join(root, "charts/karta"),
+			"--namespace", "dashboard-lab", "-f", filepath.Join(root, "hack/demo-grafana-exporter/exporter-values.yaml"),
+			"--show-only", "templates/exporter-configmap.yaml").CombinedOutput()
+		Expect(err).NotTo(HaveOccurred(), string(out))
+		var cm corev1.ConfigMap
+		Expect(yaml.Unmarshal(out, &cm)).To(Succeed())
+		var cfg config.Config
+		Expect(yaml.Unmarshal([]byte(cm.Data["config.yaml"]), &cfg)).To(Succeed())
+		Expect(cfg.Validate()).To(Succeed())
+		selector, err := metav1.LabelSelectorAsSelector(cfg.Selection.NamespaceSelector)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(selector.Matches(labels.Set{"kubernetes.io/metadata.name": "dashboard-lab"})).To(BeTrue())
+		Expect(selector.Matches(labels.Set{"kubernetes.io/metadata.name": "other-workloads"})).To(BeFalse())
+		Expect(cfg.KartaDefinitionSource.Cluster.Enabled).To(BeFalse())
+	})
 
 	DescribeTable("installs the exporter and restarts existing releases before waiting", func(installed bool) {
 		events, err := runDemoInstaller(exporter, []string{

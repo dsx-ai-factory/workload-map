@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# A CloneSet whose container exits immediately and whose readiness probe always fails, so no replica
+# ever counts ready. CloneSet has no progressDeadlineSeconds, so it stays Initializing indefinitely
+# rather than surfacing a Degraded or Failed state. The FailedScale and FailedUpdate conditions are
+# set once and never cleared, so the Karta definition deliberately leaves Degraded unmapped.
+apiVersion: apps.kruise.io/v1alpha1
+kind: CloneSet
+metadata:
+  name: karta-e2e-cloneset-stuck
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: karta-e2e-cloneset-stuck}
+  template:
+    metadata:
+      labels: {app: karta-e2e-cloneset-stuck}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: worker
+        image: busybox:1.36
+        command: ["sh", "-c", "exit 1"]
+        readinessProbe:
+          exec:
+            command: ["false"]
+        resources:
+          requests: {cpu: 20m, memory: 32Mi}
+          limits: {cpu: 20m, memory: 32Mi}

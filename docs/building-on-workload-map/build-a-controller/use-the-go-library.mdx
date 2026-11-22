@@ -1,0 +1,141 @@
+---
+title: Use the Go Library
+sidebar-title: Use the Go Library
+description: Learn how to use the Workload Map Go library to read the status, scale, and pods of any workload type, and to change its pod templates.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+The `karta/sdk` Go library gives your code one API for every workload type that has a definition. This guide shows the calls that a controller uses. The code in the examples comes from the [example controller](tutorial-build-a-controller-on-kind.mdx) and the [Go quickstart](../../getting-started/quickstarts/quickstart-go-library.mdx). For the concepts behind them, refer to [How a Controller Uses Workload Map](how-a-controller-uses-workload-map.mdx).
+
+For the complete API, refer to the [Go library reference](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk).
+
+## Prerequisites
+
+- Go 1.27.3 or later. For more information, refer to [Prerequisites](../../getting-started/prerequisites.mdx#go-library).
+- The library added to your Go module. For more information, refer to [Installation](../../getting-started/installation.mdx#install-the-go-library).
+
+## Get a Definition
+
+A definition is a `Karta` object. The library provides two ways to get one:
+
+- From the built-in catalog, by the group, version, and kind of the workload type:
+
+  ```go
+  karta, err := catalog.Get(gvk)
+  ```
+
+- From the cluster, by listing the `Karta` resources and selecting the one whose root component matches the group, version, and kind of the workload. The example controller does this in `kartaForGVK`, so that it never hard-codes a definition name. A definition in the cluster lets you change how a workload type is read without rebuilding your controller.
+
+## Create a Component Factory
+
+The component factory is the entry point for every read and write. Create it from a definition and a workload object:
+
+```go
+factory := resource.NewComponentFactoryFromObject(karta, obj)
+```
+
+The `obj` value is the workload as an `unstructured.Unstructured` object. The factory returns the components of the workload:
+
+| Method | Returns |
+| --- | --- |
+| `GetRootComponent()` | The root component. |
+| `GetChildComponents()` | All child components. |
+| `GetChildComponentsOf(parentName)` | The direct children of one component. |
+| `GetComponent(name)` | One component, by the name in the definition. |
+
+The example controller collects the root and all children, so that it does not assume that the pods are on the root:
+
+```go
+children, err := factory.GetChildComponents()
+root, err := factory.GetRootComponent()
+components := append(children, root)
+```
+
+## Read Status, Scale, and Pods
+
+Every component provides the same read methods. Use `HasPodDefinition()` first, because a component without pods has no pod template to read.
+
+```go
+status, err := root.GetStatus(ctx)
+scales, err := comp.GetScale(ctx)
+podTemplateSpecs, err := comp.GetPodTemplateSpec(ctx)
+```
+
+| Method | Returns |
+| --- | --- |
+| `GetStatus(ctx)` | A `Status` with the raw phase, the conditions, and `MatchedStatuses`, which lists every normalized status that matches. A definition defines the status on the root component. |
+| `GetScale(ctx)` | A `Scale` for each instance, with `Replicas`, `MinReplicas`, and `MaxReplicas`. |
+| `GetPodTemplateSpec(ctx)` | The pod template of each instance. |
+| `GetPodSpec(ctx)` | The pod spec of each instance, for a component that defines a pod spec. |
+| `GetPodMetadata(ctx)` | The pod metadata of each instance. |
+| `GetFragmentedPodSpec(ctx)` | The pod fields of each instance, for a component whose pod fields are scattered across the spec. |
+
+The methods that return a map use the instance ID as the key. A component without an `instanceIdPath` has one instance, and its ID is an empty string. For more information, refer to [Define a Workload Type](../define-a-workload-type.mdx).
+
+Status mappings are not mutually exclusive, so `MatchedStatuses` can hold more than one value, such as `Running` and `Degraded`. The example controller reports the highest-priority one. In order, they are `Failed`, `Completed`, `Running`, `Initializing`, `Suspended`, `Suspending`, and `Degraded`.
+
+## Change the Pods
+
+To change the pods of a component, read them, change the values, and write them back with the matching update method. The update methods take the same map of instance IDs. The library writes each value to the correct place in the workload, wherever the definition says it is.
+
+This example adds a label to every pod template of a component:
+
+```go
+podTemplateSpecs, err := comp.GetPodTemplateSpec(ctx)
+updates := make(map[string]corev1.PodTemplateSpec, len(podTemplateSpecs))
+for id, pts := range podTemplateSpecs {
+    if pts.Labels == nil {
+        pts.Labels = map[string]string{}
+    }
+    pts.Labels["app.kubernetes.io/managed-by"] = "karta"
+    updates[id] = pts
+}
+err = comp.UpdatePodTemplateSpec(ctx, updates)
+```
+
+The update methods are `UpdatePodTemplateSpec`, `UpdatePodSpec`, `UpdatePodMetadata`, and `UpdateFragmentedPodSpec`.
+
+The update methods change the object that the factory holds, not the object in the cluster. To get the changed workload, call `GetResource()`. It returns the object with the updates of all components applied:
+
+```go
+mutated, err := factory.GetResource()
+obj = mutated.(*unstructured.Unstructured)
+```
+
+Then write the object to the cluster with your Kubernetes client. The example controller writes the pod template changes and its annotations with one update.
+
+<Note title="Pod templates can be immutable">
+Whether a workload accepts a change to its pod templates depends on the workload type. A LeaderWorkerSet accepts it and starts a rolling update. A plain Job does not accept it after the Job starts, and a JobSet accepts it while it is suspended.
+</Note>
+
+## Suspend and Resume a Workload
+
+When a definition declares a `suspendDefinition`, the component can suspend and resume the workload. Check `HasSuspendDefinition()` first:
+
+```go
+if comp.HasSuspendDefinition() {
+    err = comp.Suspend(ctx)
+}
+```
+
+`Suspend` and `Resume` apply the path and value assignments of the definition to the object that the factory holds. As with the update methods, you then call `GetResource()` and write the result to the cluster.
+
+## Build a Workload Tree
+
+To get the whole hierarchy in one call, build a workload tree from the factory:
+
+```go
+wt, err := tree.Build(ctx, factory)
+```
+
+The tree holds the normalized status in `wt.Status` and the components in `wt.Children`. Every component has at least one instance node, even a component with a single instance. A consumer can therefore walk the tree in the same way for every workload type. For more information, refer to [Core Concepts](../../about/core-concepts.mdx).
+
+`tree.Build` validates the definition first, and it returns an error for a definition that is not valid.
+
+## Next Steps
+
+- To run a controller that uses these calls, follow the [tutorial](tutorial-build-a-controller-on-kind.mdx).
+- To run the offline example, follow the [Go library quickstart](../../getting-started/quickstarts/quickstart-go-library.mdx).
+- To make a running controller manage another workload type, refer to [Watch Another Workload Type](watch-another-workload-type.mdx).

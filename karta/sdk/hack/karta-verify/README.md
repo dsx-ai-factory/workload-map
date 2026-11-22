@@ -75,7 +75,7 @@ like success.
 Exit codes: 0 success, 1 load or validation failure, 2 prediction mismatch,
 3 warnings under `--strict`. Note that `go run` reports a non-zero program exit
 as `exit status N` on stderr and itself exits 1. To branch on the exact code,
-build first: `go build -o verify . && ./verify ...`.
+build first: `go build -o verify ./hack/karta-verify && ./verify ...`.
 
 ## Warnings
 
@@ -94,8 +94,8 @@ Run against a definition and a manifest already in the repository:
 
 ```bash
 go run ./hack/karta-verify \
-  --karta ../docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml \
-  --workload ../docs/examples/quickstart/lws.yaml
+  --karta ../../docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml \
+  --workload ../../docs/examples/quickstart/lws.yaml
 ```
 
 The manifest declares `replicas: 3` and `size: 4`. The `group` component reports

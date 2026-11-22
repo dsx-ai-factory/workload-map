@@ -10,10 +10,11 @@ exporter:
   image:
     repository: local/dsx-workload-exporter
     pullPolicy: Never
-  namespaceSelector:
-    matchLabels:
-      kubernetes.io/metadata.name: dashboard-lab
-    matchExpressions: []
+  selection:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: dashboard-lab
+      matchExpressions: []
   kartaDefinitionSource:
     cluster:
       enabled: false

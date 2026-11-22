@@ -33,5 +33,5 @@ for shard in a b; do
   bash "$ROOT/hack/e2e/dsx-workload-exporter/install.sh" \
     "exporter-e2e-$shard" "exporter-e2e-$shard" \
     "$ROOT/hack/e2e/dsx-workload-exporter/values.yaml" \
-    --set "exporter.namespaceSelector.matchLabels.exporter-e2e-shard=$shard"
+    --set "exporter.selection.namespaceSelector.matchLabels.exporter-e2e-shard=$shard"
 done

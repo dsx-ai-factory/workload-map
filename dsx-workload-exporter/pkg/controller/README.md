@@ -25,7 +25,7 @@ objects into the cache and enqueue keys independently of the sources worker.
 Before expanding selected kinds across namespaces, the sources worker checks API
 discovery. An absent API is skipped unless its type was selected with
 `kartaDefinitionSource.catalog.include`, `kartaDefinitionSource.cluster.include`
-or `requiredKinds`. Skipped types are retried with the existing queue backoff.
+or `selection.requiredWatchKinds`. Skipped types are retried with the existing queue backoff.
 Discovery is refreshed at most once every 45 seconds so newly installed APIs can
 start watches. A missing API response from an existing watch schedules another
 refresh. Absence requires successful discovery of all API resources and no
@@ -56,8 +56,8 @@ also queues that root UID.
 A discovered workload remains published while its root exists and stays in scope,
 even after its last Pod or Karta disappears. Karta removal drops status mapping;
 generic workload metrics remain. Watches also discover roots without Pods or a
-Karta in kinds already being observed, including `requiredKinds`. Types with no
-watch still need a selected Karta, `requiredKinds`, or discovery through an owner
+Karta in kinds already being observed, including `selection.requiredWatchKinds`. Types with no
+watch still need a selected Karta, `selection.requiredWatchKinds`, or discovery through an owner
 chain. Namespace and Karta infrastructure objects are not workload inputs.
 
 Worker counts are configurable. Repeated identical keys are combined. One key

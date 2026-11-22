@@ -138,17 +138,18 @@ falls back to the captured annotation when the platform key is absent:
 
 ```yaml
 exporter:
-  labelRules:
-    - name: submitted_by
-      metrics: [dsx_workload_pod_info, dsx_workload_status]
-      sources: [workload]
-      expression: |
-        !has(object.metadata.annotations) ? "" :
-          ("example.com/workload-owner" in object.metadata.annotations)
-            ? object.metadata.annotations["example.com/workload-owner"]
-            : ("karta.run.ai/submitted-by" in object.metadata.annotations
-                ? object.metadata.annotations["karta.run.ai/submitted-by"]
-                : "")
+  metrics:
+    labelRules:
+      - name: submitted_by
+        metrics: [dsx_workload_pod_info, dsx_workload_status]
+        sources: [workload]
+        expression: |
+          !has(object.metadata.annotations) ? "" :
+            ("example.com/workload-owner" in object.metadata.annotations)
+              ? object.metadata.annotations["example.com/workload-owner"]
+              : ("karta.run.ai/submitted-by" in object.metadata.annotations
+                  ? object.metadata.annotations["karta.run.ai/submitted-by"]
+                  : "")
 ```
 
 For a root with `example.com/workload-owner: alice`, the evaluator returns

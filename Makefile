@@ -532,13 +532,13 @@ exporter-version-smoke: build-exporter ## Verify the exporter reports the stampe
 promtool-check: promtool ## Validate and unit-test example Prometheus rules with promtool
 	@set -eu; \
 	found=0; \
-	for f in dsx-workload-exporter/examples/*/*rules*.yaml; do \
+	for f in dsx-workload-exporter/examples/*/*rules*.yaml docs/tutorials/kyverno-exporter/manifests/prometheus-rules.yaml; do \
 		[ -e "$$f" ] || continue; \
 		found=$$((found + 1)); \
 		$(PROMTOOL) check rules --lint-fatal "$$f"; \
 	done; \
 	[ "$$found" -gt 0 ] || { echo "no Prometheus rule files matched dsx-workload-exporter/examples/*/*rules*.yaml" >&2; exit 1; }; \
-	for t in dsx-workload-exporter/examples/*/tests/*.test.yaml; do \
+	for t in dsx-workload-exporter/examples/*/tests/*.test.yaml docs/tutorials/kyverno-exporter/tests/rules_test.yaml; do \
 		[ -e "$$t" ] || continue; \
 		echo "Testing $$t"; \
 		$(PROMTOOL) test rules "$$t"; \

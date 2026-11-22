@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tutorial-workload-mutation
+  namespace: ai-lab
+rules:
+  - apiGroups: [kubeflow.org]
+    resources: [pytorchjobs]
+    verbs: [get, list, watch, patch, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tutorial-workload-mutation
+  namespace: ai-lab
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tutorial-workload-mutation
+subjects:
+  - kind: ServiceAccount
+    name: kyverno-background-controller
+    namespace: kyverno
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tutorial-workload-cleanup
+  namespace: ai-lab
+rules:
+  - apiGroups: [kubeflow.org]
+    resources: [pytorchjobs]
+    verbs: [get, list, watch, delete]
+  - apiGroups: [argoproj.io]
+    resources: [rollouts]
+    verbs: [get, list, watch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tutorial-workload-cleanup
+  namespace: ai-lab
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tutorial-workload-cleanup
+subjects:
+  - kind: ServiceAccount
+    name: kyverno-cleanup-controller
+    namespace: kyverno
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tutorial-cleanup-workload-list
+rules:
+  - apiGroups: [kubeflow.org]
+    resources: [pytorchjobs]
+    verbs: [list]
+  - apiGroups: [argoproj.io]
+    resources: [rollouts]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tutorial-cleanup-workload-list
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tutorial-cleanup-workload-list
+subjects:
+  - kind: ServiceAccount
+    name: kyverno-cleanup-controller
+    namespace: kyverno
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tutorial-report-training-read
+rules:
+  - apiGroups: [kubeflow.org]
+    resources: [pytorchjobs]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tutorial-report-training-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tutorial-report-training-read
+subjects:
+  - kind: ServiceAccount
+    name: kyverno-reports-controller
+    namespace: kyverno

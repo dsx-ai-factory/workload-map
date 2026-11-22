@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+backgroundController:
+  extraEnvVars:
+    - name: BACKGROUND_SCAN_INTERVAL
+      value: 30s
+  resources:
+    limits:
+      memory: 256Mi
+cleanupController:
+  resources:
+    limits:
+      memory: 256Mi
+reportsController:
+  resources:
+    limits:
+      memory: 256Mi
+test:
+  image:
+    tag: v1.19.1

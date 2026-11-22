@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: tutorial-suspend-idle-training
+spec:
+  matchConstraints:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: ai-lab}
+    objectSelector:
+      matchLabels: {tutorial.karta.run.ai/action: suspend}
+    resourceRules:
+      - apiGroups: [kubeflow.org]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pytorchjobs]
+  evaluation:
+    admission: {enabled: false}
+    mutateExisting: {enabled: true}
+  targetMatchConditions:
+    - name: still-opted-in-and-running
+      expression: >-
+        object.metadata.namespace == 'ai-lab' &&
+        has(object.metadata.labels) && 'tutorial.karta.run.ai/action' in object.metadata.labels &&
+        object.metadata.labels['tutorial.karta.run.ai/action'] == 'suspend' &&
+        has(object.spec.runPolicy) && !object.spec.runPolicy.?suspend.orValue(false) &&
+        object.status.?conditions.orValue([]).exists(c, c.type == 'Running' && c.status == 'True')
+    - name: one-master-one-container-one-gpu
+      expression: >-
+        size(object.spec.pytorchReplicaSpecs) == 1 && 'Master' in object.spec.pytorchReplicaSpecs &&
+        object.spec.pytorchReplicaSpecs.Master.?replicas.orValue(1) == 1 && !has(object.spec.elasticPolicy) &&
+        size(object.spec.pytorchReplicaSpecs.Master.template.spec.containers) == 1 &&
+        size(object.spec.pytorchReplicaSpecs.Master.template.spec.?initContainers.orValue([])) == 0 &&
+        string(object.spec.pytorchReplicaSpecs.Master.template.spec.containers[0].resources.limits['nvidia.com/gpu']) == '1'
+    - name: two-minutes-of-low-gpu-use-for-this-object
+      expression: >-
+        http.Get('http://prometheus.monitoring.svc:9090/api/v1/query?query=tutorial:gpu_idle:eligible%20and%20(time()-timestamp(tutorial:gpu_idle:eligible)%3C15)').data.result.exists(r,
+          r.metric.workload_uid == object.metadata.uid && r.metric.namespace == object.metadata.namespace)
+  mutations:
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: "[JSONPatch{op: 'add', path: '/spec/runPolicy/suspend', value: true}]"
+---
+apiVersion: policies.kyverno.io/v1
+kind: DeletingPolicy
+metadata:
+  name: tutorial-delete-unhealthy
+spec:
+  matchConstraints:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: ai-lab}
+    objectSelector:
+      matchLabels: {tutorial.karta.run.ai/action: delete}
+    resourceRules:
+      - apiGroups: [kubeflow.org]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pytorchjobs]
+      - apiGroups: [argoproj.io]
+        apiVersions: [v1alpha1]
+        operations: [CREATE, UPDATE]
+        resources: [rollouts]
+  schedule: "*/1 * * * *"
+  deletionPropagationPolicy: Background
+  conditions:
+    - name: still-failed-or-degraded
+      expression: >-
+        (object.kind == 'PyTorchJob' && object.status.?conditions.orValue([]).exists(c, c.type == 'Failed' && c.status == 'True')) ||
+        (object.kind == 'Rollout' && object.status.?phase.orValue('') == 'Degraded' &&
+          string(object.status.observedGeneration) == string(object.metadata.generation))
+    - name: two-minutes-in-that-phase-for-this-object
+      expression: >-
+        http.Get('http://prometheus.monitoring.svc:9090/api/v1/query?query=tutorial:unhealthy:eligible%20and%20(time()-timestamp(tutorial:unhealthy:eligible)%3C15)').data.result.exists(r,
+          r.metric.workload_uid == object.metadata.uid && r.metric.namespace == object.metadata.namespace && r.metric.workload_kind == object.kind)

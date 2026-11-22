@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -425,6 +426,9 @@ var _ = Describe("chart exporter metrics Service", func() {
 })
 
 var _ = Describe("chart exporter GOMEMLIMIT", func() {
+	const invalidQuantity = "must be auto, a memory quantity such as 512Mi or 1Gi, or empty"
+	const outsideRange = "must be between 1Mi and 1024Gi"
+
 	for _, tc := range []struct {
 		name    string
 		args    []string
@@ -445,21 +449,26 @@ var _ = Describe("chart exporter GOMEMLIMIT", func() {
 		{name: "auto with a zero request and limit", args: []string{"--set-string", "exporter.resources.requests.memory=0",
 			"--set-string", "exporter.resources.limits.memory=0"}},
 		{name: "auto with a numeric zero limit", args: []string{"--set-json", "exporter.resources.limits.memory=0"}},
-		// An explicit value is a number of GiB, rendered as whole MiB.
-		{name: "an explicit GiB number", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=3.5"}, want: "3584MiB"},
-		{name: "an explicit GiB string", args: []string{"--set", "exporter.tuning.goMemoryLimit=3.5"}, want: "3584MiB"},
-		{name: "an explicit whole GiB", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=1"}, want: "1024MiB"},
-		{name: "an explicit zero", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=0"},
-			failure: `exporter.tuning.goMemoryLimit 0 must be a number of GiB from 0.001 to 1024`},
-		{name: "an explicit value above 1024 GiB", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=2000"},
-			failure: `exporter.tuning.goMemoryLimit 2000 must be a number of GiB from 0.001 to 1024`},
-		{name: "an explicit negative value", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=-1"},
-			failure: `exporter.tuning.goMemoryLimit "-1" must be auto, a number of GiB such as 3.5, or empty`},
-		{name: "an explicit Go byte count", args: []string{"--set", "exporter.tuning.goMemoryLimit=3600MiB"},
-			failure: `exporter.tuning.goMemoryLimit "3600MiB" must be auto, a number of GiB such as 3.5, or empty`},
-		{name: "an explicit boolean", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=true"},
-			failure: `exporter.tuning.goMemoryLimit "true" must be auto, a number of GiB such as 3.5, or empty`},
+		{name: "500M", args: []string{"--set", "exporter.tuning.goMemoryLimit=500M"}, want: "500000000"},
+		{name: "0.5G", args: []string{"--set", "exporter.tuning.goMemoryLimit=0.5G"}, want: "500000000"},
+		{name: "512Mi", args: []string{"--set", "exporter.tuning.goMemoryLimit=512Mi"}, want: "536870912"},
+		{name: "0.5Gi", args: []string{"--set", "exporter.tuning.goMemoryLimit=0.5Gi"}, want: "536870912"},
+		{name: "3.5Gi", args: []string{"--set", "exporter.tuning.goMemoryLimit=3.5Gi"}, want: "3758096384"},
+		{name: "fractional bytes round up", args: []string{"--set", "exporter.tuning.goMemoryLimit=0.001Gi"}, want: "1073742"},
+		{name: "fixed limit without a container limit", args: []string{"--set-json", "exporter.resources.limits=null", "--set", "exporter.tuning.goMemoryLimit=512Mi"}, want: "536870912"},
+		{name: "too many decimal places", args: []string{"--set", "exporter.tuning.goMemoryLimit=1024.0001Gi"}, failure: invalidQuantity},
+		{name: "oversized mantissa", args: []string{"--set", "exporter.tuning.goMemoryLimit=" + strings.Repeat("9", 400) + "Gi"}, failure: outsideRange},
+		{name: "the minimum", args: []string{"--set", "exporter.tuning.goMemoryLimit=1Mi"}, want: "1048576"},
+		{name: "the maximum", args: []string{"--set", "exporter.tuning.goMemoryLimit=1024Gi"}, want: "1099511627776"},
+		{name: "below the minimum", args: []string{"--set", "exporter.tuning.goMemoryLimit=1M"}, failure: outsideRange},
+		{name: "above the maximum", args: []string{"--set", "exporter.tuning.goMemoryLimit=1025Gi"}, failure: outsideRange},
+		{name: "a unitless number", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=3.5"}, failure: invalidQuantity},
+		{name: "a unitless string", args: []string{"--set-string", "exporter.tuning.goMemoryLimit=512"}, failure: invalidQuantity},
+		{name: "an unsupported Kubernetes unit", args: []string{"--set", "exporter.tuning.goMemoryLimit=1Ti"}, failure: invalidQuantity},
+		{name: "a Go unit", args: []string{"--set", "exporter.tuning.goMemoryLimit=512MiB"}, failure: invalidQuantity},
+		{name: "a boolean", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=true"}, failure: invalidQuantity},
 		{name: "an empty value", args: []string{"--set", "exporter.tuning.goMemoryLimit="}},
+		{name: "a null value", args: []string{"--set-json", "exporter.tuning.goMemoryLimit=null"}},
 		{name: "an unreadable limit", args: []string{"--set", "exporter.resources.limits.memory=4Gx"},
 			failure: `cannot read exporter.resources.limits.memory "4Gx"`},
 		{name: "a limit too large for Go", args: []string{"--set-string", "exporter.resources.limits.memory=4e99"},
@@ -487,7 +496,7 @@ var _ = Describe("chart exporter GOMEMLIMIT", func() {
 							Containers []struct {
 								Env []struct {
 									Name  string `yaml:"name"`
-									Value string `yaml:"value"`
+									Value any    `yaml:"value"`
 								} `yaml:"env"`
 							} `yaml:"containers"`
 						} `yaml:"spec"`
@@ -496,13 +505,17 @@ var _ = Describe("chart exporter GOMEMLIMIT", func() {
 			}
 			Expect(yaml.Unmarshal(out, &deployment)).To(Succeed())
 			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
-			got := ""
+			var values []any
 			for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 				if env.Name == "GOMEMLIMIT" {
-					got = env.Value
+					values = append(values, env.Value)
 				}
 			}
-			Expect(got).To(Equal(tc.want))
+			if tc.want == "" {
+				Expect(values).To(BeEmpty())
+			} else {
+				Expect(values).To(Equal([]any{tc.want}))
+			}
 		})
 	}
 })

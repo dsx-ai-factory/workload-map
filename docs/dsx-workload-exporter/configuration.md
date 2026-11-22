@@ -292,8 +292,8 @@ Some platforms create bare Pods and a separate workload object that refers back
 to them. For example, Pod `worker-0` has UID `pod-123` and label
 `platform.example.com/workload-name=train-a`. Workload `train-a` is in the same
 namespace and has an owner reference naming Pod `worker-0` with UID `pod-123`.
-Neither object has a controller owner. The Pod also has
-`app.kubernetes.io/managed-by=example-platform`.
+Neither object has a controller owner. Both carry the labels
+`environment=production` and `app.kubernetes.io/managed-by=example-platform`.
 
 Association is disabled by default. The target type must already exist and have
 a selected Karta definition. It must pass resource and object selection. The
@@ -417,6 +417,11 @@ you need. For Deployment attribution this includes Deployments and ReplicaSets;
 for JobSet it includes JobSets and Jobs. Pod, Namespace and enabled cluster-Karta
 reads are separate built-in rules. RBAC rules use no API version field.
 
+Match the workload rules to the kinds selected by `kartaDefinitionSource` and
+`selection.requiredWatchKinds`. For example, the default catalog selects Jobs.
+Grant access to `batch/jobs` or narrow the definition selection to the kinds
+the exporter should watch.
+
 The chart creates a direct ClusterRoleBinding to the exporter's ServiceAccount.
 It does not configure ClusterRole aggregation. Namespace selectors restrict
 observation, not authorization. Adding a narrow RoleBinding does not remove the
@@ -460,7 +465,7 @@ replace a deprecated version selected by a cluster definition.
 | `workers.pods`, `workers.workloads` | `0`, `0` | Overrides Pod or workload worker counts. Zero inherits `workers.default`. |
 | `apiClient.qps`, `apiClient.burst` | `20`, `40` | Sets the shared Kubernetes API request rate and burst. |
 | `apiClient.requestTimeout` | `30s` | Bounds resource discovery and each LIST page. |
-| `goMemoryLimit` | `auto` | Sets the container's `GOMEMLIMIT`. Accepts `auto`, a number in GiB from 0.001 to 1024, or an empty string to leave it unset. |
+| `goMemoryLimit` | `auto` | Sets the Go runtime's soft memory limit. An empty string or `null` leaves `GOMEMLIMIT` unset. |
 | `pprof.enabled`, `pprof.port` | `false`, `6060` | Serves Go pprof at `127.0.0.1:<port>` in the Pod. Use `kubectl port-forward` to connect. |
 
 The worker counts apply independently to each queue. API requests share one
@@ -470,6 +475,10 @@ With `goMemoryLimit: auto`, Helm sets the Go soft memory limit to 90% of
 `resources.limits.memory`. The chart accepts Kubernetes memory quantities that
 fit in 64-bit bytes. An absent or zero container limit leaves `GOMEMLIMIT`
 unset. The remaining 10% allows for memory outside the Go runtime.
+
+For a fixed limit, specify `M` or `G` for decimal units, or `Mi` or `Gi` for
+binary units. Use up to three decimal places. Helm rounds fractional bytes up.
+The allowed range is `1Mi` through `1024Gi`, inclusive. For example, `goMemoryLimit: 512Mi` sets `GOMEMLIMIT` to `536870912` bytes.
 
 Near the soft limit, Go spends more CPU on garbage collection, up to about half
 the available CPU time. A live working set can exceed the soft limit and

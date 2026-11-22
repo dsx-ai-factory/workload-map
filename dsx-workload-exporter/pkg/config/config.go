@@ -296,7 +296,7 @@ func (cfg Config) Validate() error {
 		return fmt.Errorf("metrics.labelEvaluationLimits: %w", labelevaluator.ErrNegativeLimit)
 	}
 	if err := labelresolver.ValidateConfig(cfg.Metrics.Config); err != nil {
-		return fmt.Errorf("metrics.labelRules: %w", err)
+		return fmt.Errorf("metrics.%w", err)
 	}
 	for _, field := range []struct {
 		path     string
@@ -343,7 +343,10 @@ func (cfg Config) Validate() error {
 		}
 	}
 	timeout, err := time.ParseDuration(cfg.Tuning.APIClient.RequestTimeout)
-	if err != nil || timeout <= 0 {
+	if err != nil {
+		return fmt.Errorf("tuning.apiClient.requestTimeout: %w", err)
+	}
+	if timeout <= 0 {
 		return errors.New("tuning.apiClient.requestTimeout must be a positive duration")
 	}
 	if cfg.Tuning.APIClient.QPS <= 0 || math.IsNaN(float64(cfg.Tuning.APIClient.QPS)) || math.IsInf(float64(cfg.Tuning.APIClient.QPS), 0) {

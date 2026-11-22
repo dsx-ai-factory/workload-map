@@ -226,7 +226,7 @@ var _ = ginkgo.Describe("chart runtime configuration", func() {
     catalog: {enabled: true, include: [batch-job-v1], exclude: []}
     cluster: {enabled: false, include: [team-job], exclude: [other-job]}
 `
-		rendered := renderExporterChart(t, values, "--set", "exporter.tuning.goMemoryLimit=1", "--set", "exporter.tuning.pprof.enabled=true")
+		rendered := renderExporterChart(t, values, "--set", "exporter.tuning.goMemoryLimit=1Gi", "--set", "exporter.tuning.pprof.enabled=true")
 		content := exporterConfigFile(t, rendered)
 		var expected struct{ Exporter map[string]any }
 		var actual map[string]any
@@ -241,7 +241,6 @@ var _ = ginkgo.Describe("chart runtime configuration", func() {
 		t := ginkgo.GinkgoT()
 		values := `exporter:
   selection:
-    namespaceSelector: {matchLabels: {team: platform}}
     excludeRootResources: []
   metrics:
     excludeStatuses: []
@@ -249,7 +248,7 @@ var _ = ginkgo.Describe("chart runtime configuration", func() {
   tuning:
     workers: {default: 7, pods: 0}
 `
-		content := exporterConfigFile(t, renderExporterChart(t, values))
+		content := exporterConfigFile(t, renderExporterChart(t, values, "--set", "exporter.selection.namespaceSelector.matchLabels.team=platform"))
 		cfg, err := loadConfig(content, nil)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(cfg.Selection.NamespaceSelector).To(Equal(&metav1.LabelSelector{
@@ -268,20 +267,41 @@ var _ = ginkgo.Describe("chart runtime configuration", func() {
 		Expect(cfg.Tuning.APIClient.RequestTimeout).To(Equal("30s"))
 	})
 
-	ginkgo.DescribeTable("rejects invalid runtime settings from Helm values",
-		func(override string) {
+	ginkgo.DescribeTable("rejects unknown exporter keys during Helm rendering",
+		func(key, value string) {
+			t := ginkgo.GinkgoT()
+			out, err := runExporterChart(t, "", "--set", "exporter.selection.namespaceSelector.matchLabels.team=platform",
+				"--set-json", "exporter."+key+"="+value)
+			Expect(err).To(HaveOccurred())
+			Expect(string(out)).To(ContainSubstring(key))
+			Expect(string(out)).To(ContainSubstring("not allowed"))
+		},
+		ginkgo.Entry("namespace selector outside selection", "namespaceSelector", `{"matchLabels":{"team":"training"}}`),
+		ginkgo.Entry("object selectors outside selection", "objectSelectors", `[{"selector":{"matchLabels":{"team":"training"}}}]`),
+		ginkgo.Entry("misspelled group", "selectoin", "{}"),
+	)
+
+	ginkgo.DescribeTable("rejects invalid group shapes during Helm rendering",
+		func(override, message string) {
 			t := ginkgo.GinkgoT()
 			out, err := runExporterChart(t, "", "--set-json", override)
-			if err == nil {
-				_, err = loadConfig(exporterConfigFile(t, out), nil)
-			}
-			Expect(err).To(HaveOccurred(), override)
+			Expect(err).To(HaveOccurred())
+			Expect(string(out)).To(ContainSubstring(message))
 		},
-		ginkgo.Entry("unknown selection key", "exporter.selection.namespaceSelecter={}"),
-		ginkgo.Entry("misplaced worker setting", "exporter.metrics.workers={}"),
-		ginkgo.Entry("unknown API client setting", "exporter.tuning.apiClient.qsp=12"),
-		ginkgo.Entry("worker count in place of a group", "exporter.tuning.workers=3"),
-		ginkgo.Entry("list in place of a group", "exporter.tuning.apiClient=[]"),
-		ginkgo.Entry("null selection", "exporter.selection=null"),
+		ginkgo.Entry("worker count in place of a group", "exporter.tuning.workers=3", "exporter.tuning.workers must be a map"),
+		ginkgo.Entry("list in place of a group", "exporter.tuning.apiClient=[]", "exporter.tuning.apiClient must be a map"),
+		ginkgo.Entry("null selection", "exporter.selection=null", "exporter.selection must be a map"),
+	)
+
+	ginkgo.DescribeTable("rejects unknown fields when loading the rendered config",
+		func(override, field string) {
+			t := ginkgo.GinkgoT()
+			out := renderExporterChart(t, "", "--set-json", override)
+			_, err := loadConfig(exporterConfigFile(t, out), nil)
+			Expect(err).To(MatchError(ContainSubstring(`unknown field "` + field + `"`)))
+		},
+		ginkgo.Entry("unknown selection key", "exporter.selection.namespaceSelecter={}", "namespaceSelecter"),
+		ginkgo.Entry("misplaced worker setting", "exporter.metrics.workers={}", "workers"),
+		ginkgo.Entry("unknown API client setting", "exporter.tuning.apiClient.qsp=12", "qsp"),
 	)
 })

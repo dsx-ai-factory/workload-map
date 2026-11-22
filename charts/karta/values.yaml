@@ -95,8 +95,19 @@ exporter:
     scrapeTimeout: ""
 
   rbac:
-    # LIST/WATCH all resource types, including custom owners and Secrets.
-    # Replace with explicit API groups and resources to limit access.
+    # The default grants list/watch on all resources, including Secrets.
+    # To choose resources for your cluster, run:
+    #   kubectl api-resources --verbs=list,watch
+    # Use NAME under resources. For apiGroups, use apps for apps/v1 or "" for v1.
+    # Include each watched workload and every controller owner up to its root.
+    # For a Pod owned by a ReplicaSet owned by a Deployment, Pods are already granted:
+    #   - apiGroups: ["apps"]
+    #     resources: ["deployments", "replicasets"]
+    # Also grant access to kinds selected by kartaDefinitionSource and
+    # selection.requiredWatchKinds. The default catalog includes batch/jobs.
+    # Inspect the live chain in your namespace (default in this example):
+    #   kubectl get pods,rs,deploy -n default -o yaml
+    # Follow the metadata.ownerReferences entry with controller: true at each step.
     workloadRules:
       - apiGroups: ["*"]
         resources: ["*"]
@@ -137,8 +148,10 @@ exporter:
       requestTimeout: 30s
       qps: 20
       burst: 40
-    # GOMEMLIMIT: auto uses 90% of the container memory limit. A number is GiB.
-    # An empty value, or auto with no memory limit, leaves GOMEMLIMIT unset.
+    # auto sets GOMEMLIMIT to 90% of the container memory limit.
+    # Fixed limits accept M, G, Mi or Gi, such as 500M, 512Mi or 3.5Gi.
+    # Use up to three decimal places, from 1Mi through 1024Gi.
+    # Empty, null, or auto without a positive container limit leaves GOMEMLIMIT unset.
     goMemoryLimit: auto
     # Serve Go profiles on localhost for kubectl port-forward.
     pprof:

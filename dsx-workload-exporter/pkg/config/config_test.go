@@ -5,6 +5,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"os"
@@ -272,6 +273,24 @@ var _ = Describe("config path and empty override", func() {
 })
 
 var _ = Describe("config rejects invalid input", func() {
+	It("identifies the invalid label rule by its grouped path", func() {
+		_, err := loadConfig(`metrics: {labelRules: [{name: bad-name}]}`, nil)
+		Expect(err).To(MatchError(`metrics.labelRules[0]: invalid label name "bad-name"`))
+	})
+
+	It("distinguishes malformed and nonpositive API timeouts", func() {
+		cfg := DefaultConfig()
+		cfg.Tuning.APIClient.RequestTimeout = "30"
+		err := cfg.Validate()
+		Expect(err).To(MatchError(`tuning.apiClient.requestTimeout: time: missing unit in duration "30"`))
+		Expect(errors.Unwrap(err)).To(MatchError(`time: missing unit in duration "30"`))
+
+		for _, timeout := range []string{"0s", "-1s"} {
+			cfg.Tuning.APIClient.RequestTimeout = timeout
+			Expect(cfg.Validate()).To(MatchError("tuning.apiClient.requestTimeout must be a positive duration"))
+		}
+	})
+
 	It("rejects invalid files, flags and environment values", func() {
 		for _, contents := range []string{
 			"metrics: {labelEvaluationLimits: {costLimit: lots}}",

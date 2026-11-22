@@ -41,7 +41,7 @@ training. Choose workloads that can safely restart, and retain outputs before de
 Use a disposable Kubernetes cluster and an `ai-lab` namespace. Install:
 
 - First, [Kubeflow Training Operator v1.9.0](https://github.com/kubeflow/trainer/tree/v1.9.0/manifests/overlays/standalone) and [Argo Rollouts](https://argo-rollouts.readthedocs.io/en/stable/installation/). Both are required by the exporter values below.
-- [DSX workload exporter](../../dsx-workload-exporter/installation.md). Prometheus is deployed below.
+- [Build the DSX workload exporter image](../../../dsx-workload-exporter/README.md#development) from this checkout and [install it with the chart from the same checkout](../../dsx-workload-exporter/installation.md). Prometheus is deployed below.
 - [Kyverno](https://kyverno.io/docs/installation/installation/), tested with 1.19.1 (chart 3.9.1).
 - The GPU example requires one dedicated NVIDIA GPU, drivers, device access and [DCGM Exporter](https://docs.nvidia.com/datacenter/dcgm/latest/installation/install-dcgm-exporter.html). Enable Kubernetes mapping and `DCGM_EXPORTER_KUBERNETES_ENABLE_POD_UID=true`.
 

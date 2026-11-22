@@ -103,10 +103,10 @@ func ValidatePodWorkloadAssociation(config *PodWorkloadAssociation) error {
 		return err
 	}
 	if errors := validation.IsQualifiedName(config.Target.NameFromLabel); len(errors) > 0 {
-		return fmt.Errorf("podWorkloadAssociation.target.nameFromLabel: %s", strings.Join(errors, ", "))
+		return fmt.Errorf("metrics.podWorkloadAssociation.target.nameFromLabel: %s", strings.Join(errors, ", "))
 	}
 	if _, err := selector(config.PodSelector); err != nil {
-		return fmt.Errorf("podWorkloadAssociation.podSelector: %w", err)
+		return fmt.Errorf("metrics.podWorkloadAssociation.podSelector: %w", err)
 	}
 	return nil
 }
@@ -122,5 +122,5 @@ func parseAssociationTarget(value string) (schema.GroupVersionKind, error) {
 			}
 		}
 	}
-	return schema.GroupVersionKind{}, fmt.Errorf("podWorkloadAssociation.target must name a workload as group/version/Kind or version/Kind: %q", value)
+	return schema.GroupVersionKind{}, fmt.Errorf("metrics.podWorkloadAssociation.target must name a workload as group/version/Kind or version/Kind: %q", value)
 }

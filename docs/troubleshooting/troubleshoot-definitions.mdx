@@ -1,0 +1,68 @@
+---
+title: Troubleshoot Definitions
+sidebar-title: Troubleshoot Definitions
+description: Find the cause and the fix for the validation errors that you can get when you write a Workload Map definition, and for the mistakes that pass validation but behave wrongly.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+This page lists the errors that can occur when you write a definition, with the cause and the fix for each. The errors fall into the following groups:
+
+- Structure validation errors, which the validator reports. They are on this page.
+- jq path errors, which occur when a path fails to parse, compile, or run. For more information, refer to [Troubleshoot jq Paths](troubleshoot-jq-paths.mdx).
+- Accessor errors, which occur at runtime when code reads a definition that is missing a part, or when a pod cannot be matched to an instance. For more information, refer to [Troubleshoot the Go Library](troubleshoot-the-go-library.mdx).
+- Silent mistakes, which pass validation but produce wrong behavior. They are at the end of this page.
+
+If you are new to writing definitions, start with the [tutorial](../getting-started/tutorial-write-your-first-workload-definition.mdx). For the full field reference, refer to the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
+
+## Structure Validation Errors
+
+The validator runs over the whole definition. The Karta Operator runs the same validator, so these errors also appear in the `Validated` condition of a definition. To run the validator yourself, use `kli validate`.
+
+The validator can report several errors at once. It joins them, so fix each component that the output names. One mistake can also cause more than one error. The following output shows two errors that come from one empty `name`:
+
+```text
+INVALID: my-workload.yaml
+  component name is empty
+  pod-group member component 'master' is not defined (should be a root or child component)
+error: 2 finding(s) in my-workload.yaml
+```
+
+| Error message | Cause | Fix |
+| --- | --- | --- |
+| `root component must have full kind (group, version, kind)` | The root component is missing one of group, version, or kind. | Provide all three under `kind`. Only the core `Pod` kind may omit the group. |
+| `root component must have status definition` | The root component has no `statusDefinition`. | Add a `statusDefinition` to the root. It is required so that consumers can read the normalized status. |
+| `root component cannot have owner ref` | An `ownerRef` is set on the root component. | Remove `ownerRef` from the root. Only child components have owners. |
+| `child component '<name>' has no owner ref` | A child component is missing `ownerRef`, or it is empty. | Set `ownerRef` to the `name` of the parent component. |
+| `child component '<name>' has owner ref to non-existing component '<owner>'` | `ownerRef` points at a name that is not defined in this definition. | Correct the `ownerRef` to match the `name` of an existing component. Watch for typos and renamed components. |
+| `component name <name> is not unique` | Two components share the same `name`. | Give every component a unique `name`. |
+| `component name is empty` | A component has no `name`. | Add a non-empty `name`. |
+| `component '<name>' has multiple pod spec definitions` | A `specDefinition` sets more than one of `podTemplateSpecPath`, `podSpecPath`, or `fragmentedPodSpecDefinition`. | Keep exactly one. The three patterns are mutually exclusive for each component. |
+| `component '<name>' has instance id path but no pod component instance selector` | `instanceIdPath` is set, but the `podSelector` of the component has no `componentInstanceSelector`. | Add a `componentInstanceSelector` so that pods can be matched to instances. If the component does not have several instances, remove `instanceIdPath`. |
+| `component '<name>' has pod component instance selector but no instance id path` | A `componentInstanceSelector` is set, but the component has no `instanceIdPath`. | Add an `instanceIdPath` that points at where the instance names are, or remove the instance selector. |
+| `ownership cycle detected involving component <name>` | The components form a loop through their `ownerRef` chain instead of reaching the root. | Break the cycle. The owner chain of every child must end at the root component. |
+| `pod-group member component '<name>' is not defined (should be a root or child component)` | A `gangScheduling` pod-group member names a component that does not exist. | Make each `componentName` match a root or child component that you defined. |
+| `karta is nil` | The validator received no definition to validate. | Make sure that the definition was parsed and loaded before validation. This usually indicates an empty or unreadable file. |
+
+<Note title="What the validator does not check">
+The pod-group check applies to the older `gangScheduling.podGroups` format. The validator does not check that the `componentName` of each subgroup in the `podGroup` format names an existing component, so check it yourself. The `kli validate` command does not return the `karta is nil` error. For an empty file, it reports the missing fields of the root component instead.
+</Note>
+
+## Silent Mistakes
+
+The following mistakes pass validation but lead to a wrong status, missing pods, or no effect. Check them first when a definition validates but behaves incorrectly.
+
+- **Using `ownerName` instead of `ownerRef`.** The API field is `ownerRef`. A child that you write with `ownerName` decodes with no owner set. The validator rejects it with `child component '<name>' has no owner ref`, but validation runs only where `KartaValidator` is invoked. A code path that skips validation sees a silently unowned child. Use `ownerRef`, and run the validator when you load definitions.
+- **Expecting a `referencedComponents` field.** The structure has only `rootComponent`, `childComponents`, and `additionalChildKinds`. There is no `referencedComponents` field. Model owned resources as child components, and list other managed kinds under `additionalChildKinds`.
+- **Using status conditions that do not match the real API of the workload.** The definition validates, but the status never resolves, because the controller never sets those condition types. Verify the condition types and the field names against the CRD source or the documentation of the workload.
+- **Evaluating paths against the wrong resource.** Paths in `specDefinition`, `scaleDefinition`, and `statusDefinition` run against the workload object. Paths in `podSelector` and `optimizationInstructions` run against pod manifests. A selector that points at a field on the workload object instead of the pod matches nothing.
+- **Listing the kind of a defined component under `additionalChildKinds`.** The `additionalChildKinds` field is only for managed kinds that are not already a child component. Duplicating a defined kind is redundant. The validator does not check for it.
+- **Misspelling a field name.** The validator does not reject unknown field names. A misspelled field passes validation and is ignored. Check the spelling of each field.
+
+## Still Stuck
+
+- Run through the validation checklist in [Step 4 of the tutorial](../getting-started/tutorial-write-your-first-workload-definition.mdx#step-4-validate-the-definition-and-see-it-work).
+- Compare your definition against the closest one in the [Catalog of Definitions](../reference/catalog-of-definitions.mdx).
+- Check the definition against a real workload with `karta-verify`. Validation does not show whether a jq path resolves against a real object. For more information, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx#check-the-definition-against-a-real-workload).
+- Run the offline example in the [Go library quickstart](../getting-started/quickstarts/quickstart-go-library.mdx) to see what the uniform API reads back.

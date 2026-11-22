@@ -23,24 +23,24 @@ type ObjectSelector struct {
 
 func compileObjectSelectors(rules []ObjectSelector) (map[schema.GroupVersionKind]labels.Selector, error) {
 	result := make(map[schema.GroupVersionKind]labels.Selector, len(rules))
-	for _, rule := range rules {
+	for i, rule := range rules {
 		var gvk schema.GroupVersionKind
 		if rule.APIVersion != "" || rule.Kind != "" {
 			gv, err := schema.ParseGroupVersion(rule.APIVersion)
 			if err != nil || len(validation.IsDNS1035Label(gv.Version)) != 0 || len(validation.IsCIdentifier(rule.Kind)) != 0 || (gv.Group != "" && len(validation.IsDNS1123Subdomain(gv.Group)) != 0) {
-				return nil, fmt.Errorf("objectSelectors requires both a valid apiVersion and kind, or neither: %q %q", rule.APIVersion, rule.Kind)
+				return nil, fmt.Errorf("selection.rootSelectors[%d] requires both a valid apiVersion and kind, or neither: %q %q", i, rule.APIVersion, rule.Kind)
 			}
 			gvk = gv.WithKind(rule.Kind)
 		}
 		if _, exists := result[gvk]; exists {
 			if gvk.Empty() {
-				return nil, fmt.Errorf("duplicate global objectSelectors entry")
+				return nil, fmt.Errorf("selection.rootSelectors[%d]: duplicate global selector", i)
 			}
-			return nil, fmt.Errorf("duplicate objectSelectors kind: %s", gvk)
+			return nil, fmt.Errorf("selection.rootSelectors[%d]: duplicate kind %s", i, gvk)
 		}
 		selected, err := selector(rule.Selector)
 		if err != nil {
-			return nil, fmt.Errorf("objectSelectors %s: %w", gvk, err)
+			return nil, fmt.Errorf("selection.rootSelectors[%d]: %w", i, err)
 		}
 		result[gvk] = selected
 	}

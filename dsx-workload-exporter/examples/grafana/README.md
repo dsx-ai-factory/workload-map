@@ -74,6 +74,8 @@ queries. [alerting-rules.yaml](alerting-rules.yaml) is an optional example alert
 for an observation failure lasting five minutes. Neither file is needed by the
 two main dashboards. Both use native Prometheus rule syntax; for Prometheus
 Operator, put their `groups` under a selected `PrometheusRule`'s `spec.groups`.
+For GPUs shared through a KAI Scheduler reservation Pod, see
+[kai/README.md](kai/README.md).
 
 If provisioning through Kubernetes, use one ConfigMap per dashboard. The pair
 exceeds the 1 MiB ConfigMap limit. Use server-side apply for these large JSON

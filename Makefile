@@ -531,18 +531,21 @@ exporter-version-smoke: build-exporter ## Verify the exporter reports the stampe
 .PHONY: promtool-check
 promtool-check: promtool ## Validate and unit-test example Prometheus rules with promtool
 	@set -eu; \
-	found=0; \
-	for f in dsx-workload-exporter/examples/*/*rules*.yaml; do \
+	rules=0; \
+	for f in dsx-workload-exporter/examples/*/*rules*.yaml dsx-workload-exporter/examples/*/*/*rules*.yaml; do \
 		[ -e "$$f" ] || continue; \
-		found=$$((found + 1)); \
+		rules=$$((rules + 1)); \
 		$(PROMTOOL) check rules --lint-fatal "$$f"; \
 	done; \
-	[ "$$found" -gt 0 ] || { echo "no Prometheus rule files matched dsx-workload-exporter/examples/*/*rules*.yaml" >&2; exit 1; }; \
-	for t in dsx-workload-exporter/examples/*/tests/*.test.yaml; do \
+	[ "$$rules" -gt 0 ] || { echo "no Prometheus rule files matched under dsx-workload-exporter/examples" >&2; exit 1; }; \
+	tests=0; \
+	for t in dsx-workload-exporter/examples/*/tests/*.test.yaml dsx-workload-exporter/examples/*/*/tests/*.test.yaml; do \
 		[ -e "$$t" ] || continue; \
+		tests=$$((tests + 1)); \
 		echo "Testing $$t"; \
 		$(PROMTOOL) test rules "$$t"; \
-	done
+	done; \
+	[ "$$tests" -gt 0 ] || { echo "no Prometheus rule test files matched under dsx-workload-exporter/examples" >&2; exit 1; }
 
 .PHONY: check-exporter
 check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter promtool-check test-exporter exporter-version-smoke ## Full exporter presubmit

@@ -48,6 +48,7 @@ GO_LICENCE_DETECTOR_VERSION ?= v0.11.1
 ENVTEST_VERSION             ?= release-0.23
 # renovate: datasource=go depName=github.com/goreleaser/goreleaser/v2
 GORELEASER_VERSION          ?= v2.20.3
+PROMTOOL_VERSION            ?= v3.5.0
 # Kubernetes control-plane (apiserver, etcd, kubectl) version envtest downloads.
 ENVTEST_K8S_VERSION         ?= 1.31.0
 # Control-plane version for the chart's admission policy tests; MutatingAdmissionPolicy v1 needs 1.36+.
@@ -62,6 +63,7 @@ GOLANGCI_LINT       ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GO_LICENCE_DETECTOR ?= $(LOCALBIN)/go-licence-detector-$(GO_LICENCE_DETECTOR_VERSION)
 ENVTEST             ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GORELEASER          ?= $(LOCALBIN)/goreleaser-$(GORELEASER_VERSION)
+PROMTOOL            ?= $(LOCALBIN)/promtool-v$(patsubst v%,%,$(PROMTOOL_VERSION))
 
 GOLANGCI_LINT_FLAGS ?= $(if $(VERBOSE),-v)
 
@@ -475,12 +477,14 @@ fmt-check-exporter: ## Check exporter formatting without modifying files
 vet-exporter: ## go vet the exporter and its envtest modules
 	cd dsx-workload-exporter && go vet ./...
 	cd dsx-workload-exporter && go vet -tags e2e ./test/e2e/...
+	cd dsx-workload-exporter && go vet -tags=promql ./examples/grafana/test
 	cd $(EXPORTER_ENVTEST_DIR) && go vet ./...
 
 .PHONY: lint-exporter
 lint-exporter: golangci-lint ## Lint the exporter and its envtest modules
 	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml --build-tags=e2e ./test/e2e/...
+	cd dsx-workload-exporter && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml --build-tags=promql ./examples/grafana/test
 	cd $(EXPORTER_ENVTEST_DIR) && $(GOLANGCI_LINT) run $(GOLANGCI_LINT_FLAGS) -c $(PROJECT_DIR)/.golangci.yml
 
 .PHONY: modules-check-exporter
@@ -501,8 +505,16 @@ test-exporter-integration: envtest ## Run the exporter envtest suite (downloads 
 exporter-generate-mocks: ## Regenerate exporter interface mocks with pinned Mockery
 	cd dsx-workload-exporter && go run github.com/vektra/mockery/v3@v3.8.1 --config .mockery.yaml
 
+.PHONY: test-exporter-dashboards
+test-exporter-dashboards: ## Check portable Grafana dashboard imports
+	cd dsx-workload-exporter && go test -count=1 -race ./examples/grafana/test
+
+.PHONY: test-exporter-dashboard-queries
+test-exporter-dashboard-queries: promtool ## Evaluate Grafana queries with the pinned promtool
+	cd dsx-workload-exporter && PROMTOOL="$(PROMTOOL)" go test -count=1 -tags=promql ./examples/grafana/test -ginkgo.label-filter=promql
+
 .PHONY: test-exporter
-test-exporter: test-exporter-unit test-exporter-integration ## Run the exporter unit and envtest suites
+test-exporter: test-exporter-unit test-exporter-integration test-exporter-dashboards ## Run the exporter unit and envtest suites
 
 .PHONY: build-exporter
 build-exporter: $(LOCALBIN) ## Build the dsx-workload-exporter binary for the host OS/arch
@@ -516,8 +528,24 @@ exporter-version-smoke: build-exporter ## Verify the exporter reports the stampe
 	[ "$$out" = "$(VERSION)" ] || { \
 		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
 
+.PHONY: promtool-check
+promtool-check: promtool ## Validate and unit-test example Prometheus rules with promtool
+	@set -eu; \
+	found=0; \
+	for f in dsx-workload-exporter/examples/*/*rules*.yaml; do \
+		[ -e "$$f" ] || continue; \
+		found=$$((found + 1)); \
+		$(PROMTOOL) check rules --lint-fatal "$$f"; \
+	done; \
+	[ "$$found" -gt 0 ] || { echo "no Prometheus rule files matched dsx-workload-exporter/examples/*/*rules*.yaml" >&2; exit 1; }; \
+	for t in dsx-workload-exporter/examples/*/tests/*.test.yaml; do \
+		[ -e "$$t" ] || continue; \
+		echo "Testing $$t"; \
+		$(PROMTOOL) test rules "$$t"; \
+	done
+
 .PHONY: check-exporter
-check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter test-exporter exporter-version-smoke ## Full exporter presubmit
+check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter promtool-check test-exporter exporter-version-smoke ## Full exporter presubmit
 
 EXPORTER_GO_VERSION := $(shell awk '/^go /{print $$2; exit}' dsx-workload-exporter/go.mod)
 EXPORTER_IMAGE_REPOSITORY ?= $(IMAGE_REGISTRY)/dsx-workload-exporter
@@ -842,7 +870,7 @@ E2E_SHELL := hack/e2e/up.sh hack/e2e/down.sh hack/e2e/check-updates.sh \
 
 .PHONY: lint-shell
 lint-shell: ## shellcheck the e2e and commit attribution scripts (-x follows sourced files)
-	shellcheck -x $(E2E_SHELL) hack/commit-attribution/*.sh
+	shellcheck -x $(E2E_SHELL) hack/commit-attribution/*.sh hack/demo-grafana-exporter/*.sh
 
 ##@ Tools
 
@@ -891,6 +919,44 @@ $(GORELEASER): | $(LOCALBIN)
 	echo "Downloading goreleaser@$(GORELEASER_VERSION)"; \
 	GOTOOLCHAIN=auto GOBIN=$(LOCALBIN) go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION); \
 	mv $(LOCALBIN)/goreleaser $@
+
+.PHONY: promtool
+promtool: $(PROMTOOL) ## Download the pinned promtool binary locally
+$(PROMTOOL): | $(LOCALBIN)
+	@set -eu; \
+	ver="$(patsubst v%,%,$(PROMTOOL_VERSION))"; \
+	os="$$(uname -s | tr '[:upper:]' '[:lower:]')"; \
+	case "$$(uname -m)" in \
+		x86_64|amd64) arch=amd64 ;; \
+		aarch64|arm64) arch=arm64 ;; \
+		*) echo "unsupported architecture: $$(uname -m)" >&2; exit 1 ;; \
+	esac; \
+	case "$$os" in \
+		linux|darwin) ;; \
+		*) echo "unsupported platform: $${os}/$${arch}" >&2; exit 1 ;; \
+	esac; \
+	echo "Downloading promtool@v$$ver ($${os}/$${arch})"; \
+	tmpdir=$$(mktemp -d); \
+	trap 'rm -rf "$$tmpdir"; rm -f "$@.tmp.$$$$"' EXIT; \
+	archive="prometheus-$${ver}.$${os}-$${arch}.tar.gz"; \
+	url="https://github.com/prometheus/prometheus/releases/download/v$${ver}"; \
+	curl -sSfL --proto '=https' --proto-redir '=https' --tlsv1.2 \
+		"$$url/$$archive" -o "$$tmpdir/prometheus.tar.gz"; \
+	curl -sSfL --proto '=https' --proto-redir '=https' --tlsv1.2 \
+		"$$url/sha256sums.txt" -o "$$tmpdir/sha256sums.txt"; \
+	sha=$$(awk -v archive="$$archive" \
+		'$$2 == archive {sha = $$1; n++} END {if (n != 1) exit 1; print sha}' \
+		"$$tmpdir/sha256sums.txt") || { echo "missing or duplicate checksum for $$archive" >&2; exit 1; }; \
+	if command -v sha256sum >/dev/null 2>&1; then \
+		printf '%s  %s\n' "$$sha" "$$tmpdir/prometheus.tar.gz" | sha256sum -c - >/dev/null; \
+	elif command -v shasum >/dev/null 2>&1; then \
+		printf '%s  %s\n' "$$sha" "$$tmpdir/prometheus.tar.gz" | shasum -a 256 -c - >/dev/null; \
+	else \
+		echo "neither sha256sum nor shasum found" >&2; exit 1; \
+	fi; \
+	tar -xzf "$$tmpdir/prometheus.tar.gz" -C "$$tmpdir" "prometheus-$${ver}.$${os}-$${arch}/promtool"; \
+	install -m 0755 "$$tmpdir/prometheus-$${ver}.$${os}-$${arch}/promtool" "$@.tmp.$$$$"; \
+	mv -f "$@.tmp.$$$$" "$@"
 
 ##@ Help
 

@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+--- a/internal/common/topology/types.go
++++ b/internal/common/topology/types.go
+@@ -42,6 +42,7 @@
+ type ContainerDetails struct {
+ 	Namespace string `yaml:"namespace"`
+ 	Pod       string `yaml:"pod"`
++	PodUID    string `yaml:"podUid,omitempty"`
+ 	Container string `yaml:"container"`
+ }
+ 
+--- a/internal/status-updater/handlers/pod/dedicated_gpu_pod_handler.go
++++ b/internal/status-updater/handlers/pod/dedicated_gpu_pod_handler.go
+@@ -18,8 +18,8 @@
+ 	// This can happen when the status updater is restarted.
+ 	// (If that will affect performance, we should construct a helper map of allocated pods)
+ 	if isAlreadyAllocated(pod, nodeTopology) {
+-		log.Printf("Pod %s is already allocated, skipping...\n", pod.Name)
+-		return nil
++		log.Printf("Pod %s is already allocated, refreshing...\n", pod.Name)
++		return p.handleDedicatedGpuPodUpdate(pod, nodeTopology)
+ 	}
+ 
+ 	requestedGpus := pod.Spec.Containers[0].Resources.Limits.Name(constants.GpuResourceName, "")
+@@ -40,6 +40,7 @@
+ 			log.Printf("GPU %s is free, allocating...\n", gpu.ID)
+ 			gpu.Status.AllocatedBy.Namespace = pod.Namespace
+ 			gpu.Status.AllocatedBy.Pod = pod.Name
++			gpu.Status.AllocatedBy.PodUID = string(pod.UID)
+ 			gpu.Status.AllocatedBy.Container = pod.Spec.Containers[0].Name
+ 
+ 			if !util.IsGpuReservationPod(pod) {
+@@ -70,6 +71,7 @@
+ 			gpu.Status.AllocatedBy.Pod == pod.Name &&
+ 			gpu.Status.AllocatedBy.Container == pod.Spec.Containers[0].Name
+ 		if isGpuOccupiedByPod {
++			gpu.Status.AllocatedBy.PodUID = string(pod.UID)
+ 			if !util.IsGpuReservationPod(pod) {
+ 				gpu.Status.PodGpuUsageStatus[pod.UID] =
+ 					calculateUsage(p.dynamicClient, pod, nodeTopology.GpuMemory)
+--- a/internal/status-exporter/export/metrics/metrics.go
++++ b/internal/status-exporter/export/metrics/metrics.go
+@@ -9,13 +9,13 @@
+ 	gpuUtilization = promauto.NewGaugeVec(prometheus.GaugeOpts{
+ 		Name: "DCGM_FI_DEV_GPU_UTIL",
+ 		Help: "GPU Utilization",
+-	}, []string{"gpu", "UUID", "device", "modelName", "Hostname", "container", "namespace", "pod"})
++	}, []string{"gpu", "UUID", "device", "modelName", "Hostname", "container", "namespace", "pod", "pod_uid"})
+ 	gpuFbUsed = promauto.NewGaugeVec(prometheus.GaugeOpts{
+ 		Name: "DCGM_FI_DEV_FB_USED",
+ 		Help: "GPU Framebuffer Used",
+-	}, []string{"gpu", "UUID", "device", "modelName", "Hostname", "container", "namespace", "pod"})
++	}, []string{"gpu", "UUID", "device", "modelName", "Hostname", "container", "namespace", "pod", "pod_uid"})
+ 	gpuFbFree = promauto.NewGaugeVec(prometheus.GaugeOpts{
+ 		Name: "DCGM_FI_DEV_FB_FREE",
+ 		Help: "GPU Framebuffer Free",
+-	}, []string{"gpu", "UUID", "device", "modelName", "Hostname", "container", "namespace", "pod"})
++	}, []string{"gpu", "UUID", "device", "modelName", "Hostname", "container", "namespace", "pod", "pod_uid"})
+ )
+--- a/internal/status-exporter/export/metrics/metrics_labels_builder.go
++++ b/internal/status-exporter/export/metrics/metrics_labels_builder.go
+@@ -17,6 +17,7 @@
+ 		"Hostname":  generateFakeHostname(nodeName),
+ 		"namespace": gpu.Status.AllocatedBy.Namespace,
+ 		"pod":       gpu.Status.AllocatedBy.Pod,
++		"pod_uid":   gpu.Status.AllocatedBy.PodUID,
+ 		"container": gpu.Status.AllocatedBy.Container,
+ 	}
+ }
+--- /dev/null
++++ b/internal/status-exporter/export/metrics/pod_uid_test.go
+@@ -0,0 +1,61 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright (c) 2026 NVIDIA Corporation
++
++package metrics
++
++import (
++	"github.com/prometheus/client_golang/prometheus"
++	dto "github.com/prometheus/client_model/go"
++	"github.com/run-ai/fake-gpu-operator/internal/common/constants"
++	"github.com/run-ai/fake-gpu-operator/internal/common/topology"
++	"github.com/spf13/viper"
++	"k8s.io/apimachinery/pkg/types"
++	"testing"
++)
++
++func TestExportsAllocatedPodUID(t *testing.T) {
++	viper.Set(constants.EnvNodeName, "test-node")
++	defer viper.Reset()
++	topo := &topology.NodeTopology{GpuMemory: 16000, GpuProduct: "Test-GPU", Gpus: []topology.GpuDetails{{ID: "GPU-1", Status: topology.GpuStatus{
++		AllocatedBy:       topology.ContainerDetails{Namespace: "test", Pod: "gpu-pod", PodUID: "actual-pod-uid", Container: "worker"},
++		PodGpuUsageStatus: topology.PodGpuUsageStatusMap{types.UID("consumer-uid"): {Utilization: topology.Range{Min: 80, Max: 80}, FbUsed: 4000}},
++	}}}}
++	exporter := &MetricsExporter{}
++	if err := exporter.export(topo); err != nil {
++		t.Fatal(err)
++	}
++	labels := prometheus.Labels{"gpu": "0", "UUID": "GPU-1", "device": "nvidia0", "modelName": "Test-GPU", "Hostname": generateFakeHostname("test-node"), "namespace": "test", "pod": "gpu-pod", "pod_uid": "actual-pod-uid", "container": "worker"}
++	for _, tc := range []struct {
++		name  string
++		gauge *prometheus.GaugeVec
++		want  float64
++	}{{"util", gpuUtilization, 80}, {"used", gpuFbUsed, 4000}, {"free", gpuFbFree, 12000}} {
++		metric := &dto.Metric{}
++		if err := tc.gauge.With(labels).Write(metric); err != nil {
++			t.Fatal(err)
++		}
++		if got := metric.GetGauge().GetValue(); got != tc.want {
++			t.Errorf("%s = %v, want %v", tc.name, got, tc.want)
++		}
++	}
++	topo.Gpus[0].Status.AllocatedBy.PodUID = ""
++	if err := exporter.export(topo); err != nil {
++		t.Fatal(err)
++	}
++	families, err := prometheus.DefaultGatherer.Gather()
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, family := range families {
++		if family.GetName() != "DCGM_FI_DEV_GPU_UTIL" {
++			continue
++		}
++		for _, metric := range family.Metric {
++			for _, label := range metric.Label {
++				if label.GetName() == "pod_uid" && label.GetValue() != "" {
++					t.Fatalf("unknown allocated UID was invented: %q", label.GetValue())
++				}
++			}
++		}
++	}
++}
+--- /dev/null
++++ b/internal/status-updater/handlers/pod/pod_uid_test.go
+@@ -0,0 +1,30 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright (c) 2026 NVIDIA Corporation
++
++package pod
++
++import (
++	. "github.com/onsi/ginkgo/v2"
++	. "github.com/onsi/gomega"
++	"github.com/run-ai/fake-gpu-operator/internal/common/topology"
++	corev1 "k8s.io/api/core/v1"
++	"k8s.io/apimachinery/pkg/api/resource"
++	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
++)
++
++var _ = Describe("Allocated Pod UID", func() {
++	It("retains physical Pod identity on allocation and annotation updates", func() {
++		pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "gpu-pod", UID: "physical-pod-uid", Annotations: map[string]string{"run.ai/simulated-gpu-utilization": "80"}}, Spec: corev1.PodSpec{NodeName: "worker", Containers: []corev1.Container{{Name: "main", Resources: corev1.ResourceRequirements{Limits: corev1.ResourceList{"nvidia.com/gpu": resource.MustParse("1")}}}}}, Status: corev1.PodStatus{Phase: corev1.PodRunning}}
++		topo := &topology.NodeTopology{GpuMemory: 16000, Gpus: []topology.GpuDetails{{ID: "GPU-1", Status: topology.GpuStatus{PodGpuUsageStatus: topology.PodGpuUsageStatusMap{}}}}}
++		handler := &PodHandler{}
++		Expect(handler.handleDedicatedGpuPodAddition(pod, topo)).To(Succeed())
++		Expect(topo.Gpus[0].Status.AllocatedBy.PodUID).To(Equal(string(pod.UID)))
++		topo.Gpus[0].Status.AllocatedBy.PodUID = ""
++		Expect(handler.handleDedicatedGpuPodAddition(pod, topo)).To(Succeed())
++		Expect(topo.Gpus[0].Status.AllocatedBy.PodUID).To(Equal(string(pod.UID)))
++		pod.Annotations["run.ai/simulated-gpu-utilization"] = "2"
++		Expect(handler.handleDedicatedGpuPodUpdate(pod, topo)).To(Succeed())
++		Expect(topo.Gpus[0].Status.AllocatedBy.PodUID).To(Equal(string(pod.UID)))
++		Expect(topo.Gpus[0].Status.PodGpuUsageStatus[pod.UID].Utilization.Min).To(Equal(2))
++	})
++})

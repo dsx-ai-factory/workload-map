@@ -28,6 +28,9 @@ hack/e2e/
     verify.sh           standalone: smoke-tests it via run_smoke
     smoke.yaml          the throwaway Karta the smoke test applies
     test.sh             runs the operator e2e against the current cluster
+  dsx-workload-exporter/
+    up.sh               build the exporter and provision its sharded e2e cluster
+    install.sh          install or upgrade one exporter release, then wait for rollout
   operators/            the upstream workload operators it exercises
     _common.sh          shared helpers + GitHub Actions logging, sourced by every script
     <name>/
@@ -90,6 +93,13 @@ The infrastructure smoke checks prove certificate issuance, a pod starting with
 a simulated GPU, and a pod scheduled by KAI. They use `run_smoke` to clean up
 throwaway resources after success or failure. `make test-e2e-updates` exercises
 planning, install/verify ordering, and failure propagation offline.
+
+The Grafana demo reuses the exporter and fake GPU installers. The exporter
+installer accepts `<release> <namespace> <values-file> [helm args...]`. It restarts
+an existing Deployment before waiting, so a rebuilt local image replaces old Pods.
+The fake GPU installer accepts additional Helm arguments and `FAKE_GPU_NAMESPACE`
+(default `gpu-operator`). Its default DRA setting is enabled; the demo overrides
+it through Helm. Both installers use the caller's kubeconfig.
 
 ## Shared helpers (`operators/_common.sh`)
 

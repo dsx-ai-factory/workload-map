@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+statusUpdater:
+  image:
+    repository: local/fake-gpu-status-updater
+    pullPolicy: Never
+statusExporter:
+  image:
+    repository: local/fake-gpu-status-exporter
+    pullPolicy: Never
+topology:
+  nodePools:
+    default:
+      gpuCount: 8
+      gpuMemory: 16384
+      gpuProduct: Tesla-V100

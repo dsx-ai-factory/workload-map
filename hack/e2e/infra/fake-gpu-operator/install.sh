@@ -8,6 +8,7 @@ set -euo pipefail
 MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${MODULE_DIR}/../../operators/_common.sh"
+FAKE_GPU_NAMESPACE="${FAKE_GPU_NAMESPACE:-gpu-operator}"
 
 main() {
   echo "==> fake-gpu-operator ${FAKE_GPU_VERSION}"
@@ -15,8 +16,8 @@ main() {
   kubectl label nodes -l '!node-role.kubernetes.io/control-plane' \
     run.ai/simulated-gpu-node-pool=default --overwrite
   helm upgrade -i fake-gpu-operator oci://ghcr.io/run-ai/fake-gpu-operator/fake-gpu-operator \
-    -n gpu-operator --create-namespace --version "${FAKE_GPU_VERSION}" \
-    --set computeDomainDraPlugin.enabled=true --wait --timeout 3m >/dev/null
+    -n "${FAKE_GPU_NAMESPACE}" --create-namespace --version "${FAKE_GPU_VERSION}" \
+    --set computeDomainDraPlugin.enabled=true --wait --timeout 3m "$@" >/dev/null
 }
 
 main "$@"

@@ -5,7 +5,6 @@ package config
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"io"
 	"os/exec"
@@ -14,9 +13,11 @@ import (
 	"testing"
 
 	"github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
@@ -27,7 +28,7 @@ type chartTest interface {
 	Fatalf(string, ...any)
 }
 
-func renderExporterChart(t chartTest, values string, extra ...string) []byte {
+func runExporterChart(t chartTest, values string, extra ...string) ([]byte, error) {
 	t.Helper()
 	helm, err := exec.LookPath("helm")
 	if err != nil {
@@ -36,7 +37,12 @@ func renderExporterChart(t chartTest, values string, extra ...string) []byte {
 	args := []string{"template", "install", filepath.Join("..", "..", "..", "charts", "karta"), "--set", "exporter.enabled=true", "-f", "-"}
 	cmd := exec.Command(helm, append(args, extra...)...)
 	cmd.Stdin = strings.NewReader(values)
-	out, err := cmd.CombinedOutput()
+	return cmd.CombinedOutput()
+}
+
+func renderExporterChart(t chartTest, values string, extra ...string) []byte {
+	t.Helper()
+	out, err := runExporterChart(t, values, extra...)
 	if err != nil {
 		t.Fatalf("helm template: %v\n%s", err, out)
 	}
@@ -62,6 +68,21 @@ func chartDocuments(t chartTest, out []byte) [][]byte {
 		}
 		docs = append(docs, raw)
 	}
+}
+
+func exporterConfigFile(t chartTest, manifests []byte) string {
+	t.Helper()
+	for _, raw := range chartDocuments(t, manifests) {
+		var cm corev1.ConfigMap
+		if err := sigsyaml.Unmarshal(raw, &cm); err != nil {
+			t.Fatal(err)
+		}
+		if cm.Kind == "ConfigMap" && cm.Name == "dsx-workload-exporter" {
+			return cm.Data["config.yaml"]
+		}
+	}
+	t.Fatal("exporter config not found")
+	return ""
 }
 
 func TestExporterInstallationValues(t *testing.T) {
@@ -180,76 +201,107 @@ func TestExporterDisabledIsolation(t *testing.T) {
 }
 
 var _ = ginkgo.Describe("chart runtime configuration", func() {
-	ginkgo.It("loads overridden runtime settings", func() {
+	ginkgo.It("mounts selection, metric, worker, and API client settings as supplied", func() {
 		t := ginkgo.GinkgoT()
 		values := `exporter:
-  namespaceSelector: {matchExpressions: [], matchLabels: {observe: "true"}}
-  objectSelectors: [{selector: {matchLabels: {team: platform}}}]
-  podSelector: {matchLabels: {scrape: "true"}}
-  resourceRules: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]
-  excludeResourceRules: [{apiGroups: [apps], apiVersions: [v1], resources: [deployments]}]
-  ignoredOwnerKinds: [apps/v1/ReplicaSet]
-  requiredKinds: [batch/v1/Job]
-  workers: 7
-  leafWorkers: 3
-  rootWorkers: 2
-  requestTimeout: 15s
-  apiQPS: 12
-  apiBurst: 24
+  selection:
+    namespaceSelector: {matchExpressions: [], matchLabels: {observe: "true"}}
+    rootSelectors: [{selector: {matchLabels: {team: platform}}}]
+    podSelector: {matchLabels: {scrape: "true"}}
+    includeRootResources: [{apiGroups: [batch], apiVersions: [v1], resources: [jobs]}]
+    excludeRootResources: [{apiGroups: [apps], apiVersions: [v1], resources: [deployments]}]
+    ignoredOwnerKinds: [apps/v1/ReplicaSet]
+    requiredWatchKinds: [batch/v1/Job]
+  metrics:
+    workloadSelector: {matchLabels: {report: "true"}}
+    podWorkloadAssociation: {target: {apiVersion: batch/v1, kind: Job, nameFromLabel: job-name}}
+    excludeStatuses: [Running]
+    labelRules: [{name: team, sources: [pod], metrics: [dsx_workload_pod_info], expression: object.metadata.name}]
+    labelEvaluationLimits: {costLimit: 500, maxExpressionBytes: 512, maxResultBytes: 32}
+  tuning:
+    workers: {default: 7, pods: 3, workloads: 2}
+    apiClient: {requestTimeout: 15s, qps: 12, burst: 24}
   kartaDefinitionSource:
+    enableExperimental: true
     catalog: {enabled: true, include: [batch-job-v1], exclude: []}
     cluster: {enabled: false, include: [team-job], exclude: [other-job]}
 `
-		out := renderExporterChart(t, values)
-		for _, raw := range chartDocuments(t, out) {
-			var cm corev1.ConfigMap
-			if err := sigsyaml.Unmarshal(raw, &cm); err != nil {
-				t.Fatal(err)
-			}
-			if cm.Kind != "ConfigMap" || cm.Name != "dsx-workload-exporter" {
-				continue
-			}
-			cfg, err := loadConfig(cm.Data["config.yaml"], nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var input struct {
-				Exporter map[string]any `yaml:"exporter"`
-			}
-			if err := yaml.Unmarshal([]byte(values), &input); err != nil {
-				t.Fatal(err)
-			}
-			actualJSON, err := json.Marshal(cfg)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var actual map[string]any
-			if err := json.Unmarshal(actualJSON, &actual); err != nil {
-				t.Fatal(err)
-			}
-			for key, expected := range input.Exporter {
-				want, err := json.Marshal(expected)
-				if err != nil {
-					t.Fatal(err)
-				}
-				got, err := json.Marshal(actual[key])
-				if err != nil {
-					t.Fatal(err)
-				}
-				// Empty fields may be omitted by the runtime's JSON tags.
-				if key == "kartaDefinitionSource" || key == "namespaceSelector" {
-					continue
-				}
-				if !bytes.Equal(got, want) {
-					t.Errorf("%s: got %s, want %s", key, got, want)
-				}
-			}
-			if cfg.NamespaceSelector.MatchLabels["observe"] != "true" || !cfg.KartaDefinitionSource.Catalog.Enabled || cfg.KartaDefinitionSource.Cluster.Enabled || len(cfg.KartaDefinitionSource.Catalog.Include) != 1 || len(cfg.KartaDefinitionSource.Cluster.Exclude) != 1 {
-				t.Fatal("definition source or namespace selector not propagated")
-			}
-			return
-		}
-		t.Fatal("exporter config not found")
-
+		rendered := renderExporterChart(t, values, "--set", "exporter.tuning.goMemoryLimit=1Gi", "--set", "exporter.tuning.pprof.enabled=true")
+		content := exporterConfigFile(t, rendered)
+		var expected struct{ Exporter map[string]any }
+		var actual map[string]any
+		Expect(yaml.Unmarshal([]byte(values), &expected)).To(Succeed())
+		Expect(yaml.Unmarshal([]byte(content), &actual)).To(Succeed())
+		Expect(actual).To(Equal(expected.Exporter))
+		_, err := loadConfig(content, nil)
+		Expect(err).NotTo(HaveOccurred())
 	})
+
+	ginkgo.It("preserves chart defaults and explicit empty lists and zero values", func() {
+		t := ginkgo.GinkgoT()
+		values := `exporter:
+  selection:
+    excludeRootResources: []
+  metrics:
+    excludeStatuses: []
+    labelEvaluationLimits: {maxResultBytes: 0}
+  tuning:
+    workers: {default: 7, pods: 0}
+`
+		content := exporterConfigFile(t, renderExporterChart(t, values, "--set", "exporter.selection.namespaceSelector.matchLabels.team=platform"))
+		cfg, err := loadConfig(content, nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Selection.NamespaceSelector).To(Equal(&metav1.LabelSelector{
+			MatchLabels: map[string]string{"team": "platform"},
+			MatchExpressions: []metav1.LabelSelectorRequirement{{
+				Key: "kubernetes.io/metadata.name", Operator: metav1.LabelSelectorOpNotIn,
+				Values: []string{"kube-system", "kube-public", "kube-node-lease"},
+			}},
+		}))
+		Expect(cfg.Selection.ExcludeRootResources).To(BeEmpty())
+		Expect(cfg.Metrics.ExcludeStatuses).To(BeEmpty())
+		Expect(cfg.Metrics.Limits.MaxResultBytes).To(BeZero())
+		Expect(cfg.Metrics.Limits.CostLimit).To(Equal(defaultLabelEvaluationLimits.CostLimit))
+		Expect(cfg.Tuning.Workers.Default).To(Equal(7))
+		Expect(cfg.Tuning.Workers.Pods).To(BeZero())
+		Expect(cfg.Tuning.APIClient.RequestTimeout).To(Equal("30s"))
+	})
+
+	ginkgo.DescribeTable("rejects unknown exporter keys during Helm rendering",
+		func(key, value string) {
+			t := ginkgo.GinkgoT()
+			out, err := runExporterChart(t, "", "--set", "exporter.selection.namespaceSelector.matchLabels.team=platform",
+				"--set-json", "exporter."+key+"="+value)
+			Expect(err).To(HaveOccurred())
+			Expect(string(out)).To(ContainSubstring(key))
+			Expect(string(out)).To(ContainSubstring("not allowed"))
+		},
+		ginkgo.Entry("namespace selector outside selection", "namespaceSelector", `{"matchLabels":{"team":"training"}}`),
+		ginkgo.Entry("object selectors outside selection", "objectSelectors", `[{"selector":{"matchLabels":{"team":"training"}}}]`),
+		ginkgo.Entry("misspelled group", "selectoin", "{}"),
+	)
+
+	ginkgo.DescribeTable("rejects invalid group shapes during Helm rendering",
+		func(override, message string) {
+			t := ginkgo.GinkgoT()
+			out, err := runExporterChart(t, "", "--set-json", override)
+			Expect(err).To(HaveOccurred())
+			Expect(string(out)).To(ContainSubstring(message))
+		},
+		ginkgo.Entry("worker count in place of a group", "exporter.tuning.workers=3", "exporter.tuning.workers must be a map"),
+		ginkgo.Entry("list in place of a group", "exporter.tuning.apiClient=[]", "exporter.tuning.apiClient must be a map"),
+		ginkgo.Entry("null selection", "exporter.selection=null", "exporter.selection must be a map"),
+	)
+
+	ginkgo.DescribeTable("rejects unknown fields when loading the rendered config",
+		func(override, field string) {
+			t := ginkgo.GinkgoT()
+			out := renderExporterChart(t, "", "--set-json", override)
+			_, err := loadConfig(exporterConfigFile(t, out), nil)
+			Expect(err).To(MatchError(ContainSubstring(`unknown field "` + field + `"`)))
+		},
+		ginkgo.Entry("unknown selection key", "exporter.selection.namespaceSelecter={}", "namespaceSelecter"),
+		ginkgo.Entry("misplaced worker setting", "exporter.metrics.workers={}", "workers"),
+		ginkgo.Entry("unknown API client setting", "exporter.tuning.apiClient.qsp=12", "qsp"),
+	)
 })

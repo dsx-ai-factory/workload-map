@@ -1,0 +1,36 @@
+---
+tags: ["rename","suspend-resume","breaking-change"]
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+## Workload Map v0.1
+
+Workload Map v0.1 completes the project rename to `karta`, removes the library dependency on `sigs.k8s.io/controller-runtime`, and adds native suspend and resume support to the CRD.
+
+<Warning title="Breaking change from version 0.1">
+
+The project rename changed the CRD kind, the API group, the Go package path, and the Helm chart name. Existing CRDs must be re-applied under the new group, version, and kind.
+
+</Warning>
+
+### Breaking Changes
+
+- The CRD kind `ResourceInterface` is now `Karta`, and the API group `optimization.nvidia.com/v1alpha1` is now `run.ai/v1alpha1`.
+- The Go package path is now `github.com/dsx-ai-factory/workload-map/pkg/api/runai/v1alpha1`.
+- The Helm chart is named `karta`.
+
+For the cluster and Go migration steps, refer to the v0.1.0 entry in the [CHANGELOG](https://github.com/dsx-ai-factory/workload-map/blob/main/CHANGELOG.md).
+
+### New Features
+
+- **Suspend and resume:** A new `SuspendDefinition` field on the CRD, and new resource statuses `Suspended`, `Suspending`, and `Resuming`.
+- **No controller-runtime dependency:** Consumers that need only the CRD types or the resource helpers no longer inherit `sigs.k8s.io/controller-runtime`.
+- **Helm chart in GHCR:** The chart is published to GHCR on every release.
+
+### Compatibility
+
+- Kubernetes: Tested against v1.30 through v1.34, with `k8s.io/api` v0.35.1.
+- Go: 1.25.9 or later.
+- Helm: 3.14 or later.

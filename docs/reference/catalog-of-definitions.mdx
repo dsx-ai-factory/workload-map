@@ -1,0 +1,77 @@
+---
+title: Catalog of Definitions
+sidebar-title: Catalog of Definitions
+description: Look up the pre-built Workload Map definitions that ship in the catalog, with the workload type, the API version, and the components of each.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+The catalog contains the pre-built, tested definitions that ship with Workload Map. The Go library and `kli` include the catalog, so they can read these workload types even when the cluster has no definition for them. This page explains how the catalog works and lists its definitions.
+
+## How the Catalog Works
+
+- The definitions are Go code in `pkg/catalog`. The repository generates them into YAML files in the `docs/catalog/` directory.
+- The name of a definition follows the group, version, and kind of the workload, such as `leaderworkerset-x-k8s-io-leaderworkerset-v1`. The file has the same name with the `.yaml` extension.
+- A definition in the cluster overrides the catalog definition for the same group, version, and kind. `kli` lists such a definition once, with the origin `cluster`.
+- A definition marked `spec.experimental: true` is excluded by default. For more information, refer to [Inspect Workloads with the CLI](../observability/inspect-workloads-with-the-cli.mdx#include-experimental-definitions).
+
+To list the definitions in the catalog, run the following command:
+
+```bash
+kli definitions
+```
+
+To print one definition, give its name. The YAML output applies and validates as it is:
+
+```bash
+kli definitions kubeflow-org-pytorchjob-v1 -o yaml
+```
+
+To write your own definition, start from the catalog definition that is closest to your workload type. For more information, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx).
+
+## Definitions in the Catalog
+
+Each name in the following table links to the definition file in the repository. The components are the components of the definition, from the root component down.
+
+| Workload type | API version | Project | Definition | Components |
+| --- | --- | --- | --- | --- |
+| Deployment | `apps/v1` | Kubernetes | [`apps-deployment-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/apps-deployment-v1.yaml) | `deployment`, `replicaset` |
+| StatefulSet | `apps/v1` | Kubernetes | [`apps-statefulset-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/apps-statefulset-v1.yaml) | `statefulset` |
+| Job | `batch/v1` | Kubernetes | [`batch-job-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/batch-job-v1.yaml) | `job` |
+| CronJob | `batch/v1` | Kubernetes | [`batch-cronjob-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/batch-cronjob-v1.yaml) | `cronjob`, `job` |
+| Pod | `v1` | Kubernetes | [`core-pod-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/core-pod-v1.yaml) | `pod` |
+| JobSet | `jobset.x-k8s.io/v1alpha2` | Kubernetes | [`jobset-x-k8s-io-jobset-v1alpha2`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml) | `jobset`, `replicatedjob` |
+| LeaderWorkerSet | `leaderworkerset.x-k8s.io/v1` | Kubernetes | [`leaderworkerset-x-k8s-io-leaderworkerset-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml) | `leaderworkerset`, `group`, `leader`, `worker` |
+| Sandbox | `agents.x-k8s.io/v1beta1` | Kubernetes Agent Sandbox | [`agents-x-k8s-io-sandbox-v1beta1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/agents-x-k8s-io-sandbox-v1beta1.yaml) | `sandbox`, `agent`, `companion` |
+| PyTorchJob | `kubeflow.org/v1` | Kubeflow | [`kubeflow-org-pytorchjob-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kubeflow-org-pytorchjob-v1.yaml) | `pytorchjob`, `master`, `worker` |
+| MPIJob | `kubeflow.org/v2beta1` | Kubeflow | [`kubeflow-org-mpijob-v2beta1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kubeflow-org-mpijob-v2beta1.yaml) | `mpijob`, `launcher`, `worker` |
+| RayCluster | `ray.io/v1` | Ray | [`ray-io-raycluster-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/ray-io-raycluster-v1.yaml) | `raycluster`, `head`, `worker` |
+| RayJob | `ray.io/v1` | Ray | [`ray-io-rayjob-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/ray-io-rayjob-v1.yaml) | `rayjob`, `head`, `worker` |
+| RayService | `ray.io/v1` | Ray | [`ray-io-rayservice-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/ray-io-rayservice-v1.yaml) | `rayservice`, `head`, `worker` |
+| InferenceService | `serving.kserve.io/v1beta1` | KServe | [`serving-kserve-io-inferenceservice-v1beta1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml) | `inferenceservice`, `predictor`, `transformer` |
+| LLMInferenceService | `serving.kserve.io/v1alpha1` | KServe | [`serving-kserve-io-llminferenceservice-v1alpha1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/serving-kserve-io-llminferenceservice-v1alpha1.yaml) | `llminferenceservice`, `main`, `prefill`, `worker`, `leader`, `prefill-leader`, `prefill-worker`, `router-scheduler` |
+| LLMInferenceService | `serving.kserve.io/v1alpha2` | KServe | [`serving-kserve-io-llminferenceservice-v1alpha2`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/serving-kserve-io-llminferenceservice-v1alpha2.yaml) | `llminferenceservice`, `main`, `prefill`, `worker`, `leader`, `prefill-leader`, `prefill-worker`, `router-scheduler` |
+| Knative Service | `serving.knative.dev/v1` | Knative | [`serving-knative-dev-service-v1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/serving-knative-dev-service-v1.yaml) | `knativeservice`, `revision` |
+| NIMService | `apps.nvidia.com/v1alpha1` | NVIDIA | [`apps-nvidia-com-nimservice-v1alpha1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/apps-nvidia-com-nimservice-v1alpha1.yaml) | `nimservice` |
+| NIMCache | `apps.nvidia.com/v1alpha1` | NVIDIA | [`apps-nvidia-com-nimcache-v1alpha1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/apps-nvidia-com-nimcache-v1alpha1.yaml) | `nimcache` |
+| DynamoGraphDeployment | `nvidia.com/v1alpha1` | NVIDIA Dynamo | [`nvidia-com-dynamographdeployment-v1alpha1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/nvidia-com-dynamographdeployment-v1alpha1.yaml) | `dynamographdeployment`, `service` |
+| DynamoGraphDeployment | `nvidia.com/v1beta1` | NVIDIA Dynamo | [`nvidia-com-dynamographdeployment-v1beta1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/nvidia-com-dynamographdeployment-v1beta1.yaml) | `dynamographdeployment`, `component` |
+| PodCliqueSet | `grove.io/v1alpha1` | Grove | [`grove-io-podcliqueset-v1alpha1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/grove-io-podcliqueset-v1alpha1.yaml) | `podcliqueset`, `clique`, `scalinggroup` |
+| Milvus | `milvus.io/v1beta1` | Milvus | [`milvus-io-milvus-v1beta1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/milvus-io-milvus-v1beta1.yaml) | `milvus`, and a component for each Milvus service, such as `standalone`, `proxy`, `datanode`, and `querynode`. For the full list, refer to the definition. |
+| Volcano Job | `batch.volcano.sh/v1alpha1` | Volcano | [`batch-volcano-sh-job-v1alpha1`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/batch-volcano-sh-job-v1alpha1.yaml) | `vcjob`, `task` |
+
+## Experimental Definitions
+
+The following definition is experimental. It is excluded from `kli` and the Headlamp plugin until you enable experimental definitions in each tool.
+
+| Workload type | API version | Project | Definition | Components |
+| --- | --- | --- | --- | --- |
+| Workload | `kueue.x-k8s.io/v1beta2` | Kueue | [`kueue-x-k8s-io-workload-v1beta2`](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | `workload` |
+
+To include it in `kli`, use the `--catalog-experimental-definitions` option. For the Headlamp plugin, refer to [Include Experimental Definitions](../observability/inspect-workloads-in-headlamp.mdx#include-experimental-definitions).
+
+## Next Steps
+
+- To write a definition for a workload type that is not in the catalog, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx).
+- To look up the fields of a definition, refer to the [Workload Definition Spec](workload-definition-spec.mdx).

@@ -1,0 +1,29 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0\nCopyright (c) 2026 NVIDIA Corporation",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "exporter": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {},
+        "selection": {},
+        "kartaDefinitionSource": {},
+        "metrics": {},
+        "metricsPort": {},
+        "serviceMonitor": {},
+        "rbac": {},
+        "image": {},
+        "resources": {},
+        "nodeSelector": {},
+        "tolerations": {},
+        "affinity": {},
+        "podLabels": {},
+        "podAnnotations": {},
+        "service": {},
+        "tuning": {}
+      }
+    }
+  }
+}

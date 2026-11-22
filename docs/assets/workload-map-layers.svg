@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright (c) 2026 NVIDIA Corporation -->
+<svg viewBox="0 0 960 470" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Where Workload Map fits</title>
+  <desc>Three layers. Your platform, such as a scheduler, controller, dashboard, or CLI, sits on top. It reads workloads through the Workload Map component API, which extracts pods, updates specs, and reads status. Below the API, one definition for each workload type, such as JobSet, RayCluster, PyTorchJob, or your own CRD, supplies the structure.</desc>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8c959f"/>
+    </marker>
+  </defs>
+  <g>
+    <rect x="0" y="0" width="960" height="470" rx="12" fill="#f6f8fa"/>
+    <rect x="0.5" y="0.5" width="959" height="469" rx="12" fill="none" stroke="#d0d7de"/>
+    <rect x="30" y="28" width="900" height="110" rx="12" fill="#ffffff" fill-opacity="0.55" stroke="#d0d7de"/>
+    <text x="48" y="52" font-size="11.5" font-weight="700" letter-spacing="0.8" fill="#57606a">YOUR PLATFORM</text>
+    <rect x="60" y="62" width="840" height="60" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+    <text x="480.0" y="97.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2328">Scheduler, controller, dashboard, CLI, and so on</text>
+    <path d="M 480 138 L 480 168" stroke="#8c959f" stroke-width="1.5" marker-end="url(#arr)"/>
+    <rect x="30" y="168" width="900" height="110" rx="12" fill="#ffffff" fill-opacity="0.55" stroke="#d0d7de"/>
+    <text x="48" y="192" font-size="11.5" font-weight="700" letter-spacing="0.8" fill="#57606a">WORKLOAD MAP</text>
+    <rect x="60" y="202" width="840" height="60" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+    <text x="480.0" y="227.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2328">Component API</text>
+    <text x="480.0" y="247.0" text-anchor="middle" font-size="12.5" fill="#57606a">Extract pods, update specs, read status</text>
+    <path d="M 480 278 L 480 308" stroke="#8c959f" stroke-width="1.5" marker-end="url(#arr)"/>
+    <rect x="30" y="308" width="900" height="132" rx="12" fill="#ffffff" fill-opacity="0.55" stroke="#d0d7de"/>
+    <text x="48" y="332" font-size="11.5" font-weight="700" letter-spacing="0.8" fill="#57606a">DEFINITIONS, ONE FOR EACH WORKLOAD TYPE</text>
+    <rect x="60" y="342" width="156" height="80" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+    <text x="138.0" y="377.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2328">JobSet</text>
+    <text x="138.0" y="397.0" text-anchor="middle" font-size="12.5" fill="#57606a">Definition</text>
+    <rect x="288" y="342" width="156" height="80" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+    <text x="366.0" y="377.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2328">RayCluster</text>
+    <text x="366.0" y="397.0" text-anchor="middle" font-size="12.5" fill="#57606a">Definition</text>
+    <rect x="516" y="342" width="156" height="80" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+    <text x="594.0" y="377.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2328">PyTorchJob</text>
+    <text x="594.0" y="397.0" text-anchor="middle" font-size="12.5" fill="#57606a">Definition</text>
+    <rect x="744" y="342" width="156" height="80" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-dasharray="6 4"/>
+    <text x="822.0" y="377.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2328">Your CRD</text>
+    <text x="822.0" y="397.0" text-anchor="middle" font-size="12.5" fill="#57606a">Definition</text>
+  </g>
+</svg>

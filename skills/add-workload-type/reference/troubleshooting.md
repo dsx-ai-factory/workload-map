@@ -7,7 +7,7 @@ Match the error text to a row and apply the fix. Messages come from the
 validator (`karta/sdk/pkg/api/runai/v1alpha1/validation.go`), the jq validator
 (`karta/sdk/pkg/jq/validation.go`), the Go accessor API at runtime, a
 `karta/sdk/hack/karta-verify` run against a CR, or the e2e scripts and recorder. The
-prose version is `docs/Troubleshooting.md`.
+prose version is `docs/troubleshooting/troubleshoot-definitions.mdx`.
 
 ## Structure validation errors
 

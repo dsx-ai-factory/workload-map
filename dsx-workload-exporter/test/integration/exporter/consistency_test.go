@@ -54,11 +54,11 @@ var _ = Describe("Metric consistency", func() {
 		Expect(api.Create(ctx, standalone)).To(Succeed())
 
 		cfg := config.DefaultConfig()
-		cfg.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
+		cfg.Selection.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
 		cfg.KartaDefinitionSource.Catalog.Enabled = false
 		cfg.KartaDefinitionSource.Cluster.Enabled = false
-		cfg.RequiredKinds = []schema.GroupVersionKind{deployGVK}
-		cfg.RequestTimeout = "1s"
+		cfg.Selection.RequiredWatchKinds = []schema.GroupVersionKind{deployGVK}
+		cfg.Tuning.APIClient.RequestTimeout = "1s"
 		components, err := bootstrap.New(cfg, kubeConfig)
 		Expect(err).NotTo(HaveOccurred())
 		application, err := app.New(components)

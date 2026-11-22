@@ -1,0 +1,526 @@
+---
+title: Workload Definition Spec
+sidebar-title: Workload Definition Spec
+description: Look up every field of a Workload Map definition, the Karta resource, with its type, whether it is required, and what it does.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+This page describes every field of a Workload Map definition: its type, whether it is required, and what it does. A definition is a `Karta` resource in the `run.ai/v1alpha1` API. To write a definition, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx).
+
+## The Karta Resource
+
+A `Karta` resource is cluster-scoped. Its plural name is `kartas`, and its short name is `krt`. The following command lists the definitions in a cluster. The columns show the kind of the root component, its name, and the age of the definition:
+
+```bash
+kubectl get krt
+```
+
+A definition has the standard `apiVersion`, `kind`, and `metadata` fields, a `spec`, and a `status`. The Karta Operator writes the `status`. For more information, refer to [Definition Status](#definition-status).
+
+```yaml
+apiVersion: run.ai/v1alpha1
+kind: Karta
+metadata:
+  name: batch-v1-job
+spec:
+  structureDefinition:
+    rootComponent:
+      name: job
+      kind:
+        group: batch
+        version: v1
+        kind: Job
+```
+
+## Paths
+
+Every path in a definition is a [jq](https://jqlang.org/) expression. jq provides path navigation and queries, and it is widely used in the Kubernetes ecosystem. Follow these rules for paths:
+
+- Use a jq expression of the matching type for every property.
+- Write absolute paths from the root of the resource.
+- Provide default values where a field can be absent, for example `.status.active // 0`. This keeps the expression null-safe.
+- Know which object a path is evaluated against. Paths in `specDefinition`, `scaleDefinition`, and `statusDefinition` are evaluated against the workload object. Paths in `podSelector` and in `optimizationInstructions` are evaluated against the manifest of a pod.
+
+## spec
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `experimental` | boolean | No | Marks definitions that consumers must explicitly enable. |
+| `optimizationInstructions` | object | No | Contains the optimization instructions for the workload. |
+| `structureDefinition` | object | Yes | Defines the compute hierarchy and component relationships. |
+
+## structureDefinition
+
+The `structureDefinition` field describes the hierarchy of the workload as a root component and its child components.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `additionalChildKinds` | array of objects | No | Lists Kubernetes kinds that are created/managed by this workload but are not explicitly modeled as components (for example, Deployments and Services). The list is required for RBAC purposes. |
+| `childComponents` | array of objects | No | Defines the child components in the hierarchy. |
+| `rootComponent` | object | Yes | Defines the top-level component of the workload hierarchy. |
+
+### additionalChildKinds
+
+List the kinds of objects that the workload creates or manages and that no component names. The list is required for RBAC purposes. Do not list a kind that a component already declares.
+
+```yaml
+additionalChildKinds:
+  - group: apps
+    version: v1
+    kind: Deployment
+  - group: leaderworkerset.x-k8s.io
+    version: v1
+    kind: LeaderWorkerSet
+```
+
+Each entry has the fields of a group, version, and kind:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `group` | string | Yes | The API group of the resource. |
+| `kind` | string | Yes | The API kind of the resource. |
+| `version` | string | Yes | The API version of the resource. |
+
+## Components
+
+The root component is the top-level resource of the workload. Every definition must have one. A child component is a resource that the root component owns.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `instanceIdPath` | string | No | The JQ path to the instance id, for components that hold multiple pod definitions (in an array or a map). |
+| `kind` | object | No | Specifies the Kubernetes GroupVersionKind for this component. |
+| `name` | string | Yes | The unique identifier for this component within the Karta. |
+| `ownerRef` | string | No | References the parent component in the hierarchy by name (not set for the root component). |
+| `podSelector` | object | No | Defines how to identify pods belonging to this component. |
+| `scaleDefinition` | object | No | Defines how to extract scaling information from this component. |
+| `specDefinition` | object | No | Defines how to extract pod specifications from this component. |
+| `statusDefinition` | object | No | Defines how to interpret the status of this component. Set it only on the root component. |
+| `suspendDefinition` | object | No | Defines the path/value assignments used to suspend and resume this component. Should only be populated for components where the underlying framework provides native, first-class support for suspension primitives. (for example, `spec.suspend` for a `batch/v1` Job). |
+
+The following rules apply:
+
+- The root component must use the full group, version, and kind, and it must have a `statusDefinition`.
+- A child component must have an `ownerRef` that names its parent component.
+- A child component usually has a `specDefinition`.
+- All paths are absolute from the root of the resource.
+
+The `kind` field of a component has the following fields. The core `Pod` kind has an empty group:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `group` | string | Yes | The API group of the resource. |
+| `kind` | string | Yes | The API kind of the resource. |
+| `version` | string | Yes | The API version of the resource. |
+
+The following example shows a root component and a child component:
+
+```yaml
+rootComponent:
+  name: "pytorchjob"
+  kind:
+    group: "kubeflow.org"
+    version: "v1"
+    kind: "PyTorchJob"
+  statusDefinition:
+    statusMappings:
+      running:
+      - byConditions:
+        - type: "Running"
+          status: "True"
+childComponents:
+- name: "worker"
+  ownerRef: "pytorchjob"
+  kind:
+    group: "apps"
+    version: "v1"
+    kind: "StatefulSet"
+  specDefinition:
+    podTemplateSpecPath: ".spec.pytorchReplicaSpecs.Worker.template"
+```
+
+## specDefinition
+
+The `specDefinition` field tells Workload Map where a component stores its pods. The patterns are mutually exclusive. Use exactly one for each component:
+
+| Pattern | Use case | Example path |
+| --- | --- | --- |
+| `podTemplateSpecPath` | The resource embeds a full pod template. | `.spec.pytorchReplicaSpecs.Master.template` |
+| `podSpecPath` and `metadataPath` | The resource embeds a pod spec, an object metadata, or both. | `.spec.jobTemplate.spec` and `.spec.jobTemplate.metadata` |
+| `fragmentedPodSpecDefinition` | The pod fields are scattered across the resource. | See the following table. |
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fragmentedPodSpecDefinition` | object | No | Defines how to extract individual pod spec fields when they are scattered across different paths in the component. |
+| `metadataPath` | string | No | The JQ path to the component metadata. Use it only with PodSpecPath, when the pod spec and the metadata are separate. |
+| `podSpecPath` | string | No | The JQ path to a complete PodSpec object. |
+| `podTemplateSpecPath` | string | No | The JQ path to a complete PodTemplateSpec object. |
+
+### fragmentedPodSpecDefinition
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `annotationsPath` | string | No | The JQ path to pod annotations. |
+| `containerPath` | string | No | The JQ path to the specification of a single container. Use it when the component has only one container. |
+| `containersPath` | string | No | The JQ path to the specifications of the containers. |
+| `imagePath` | string | No | The JQ path to the container image. |
+| `labelsPath` | string | No | The JQ path to pod labels. |
+| `nodeAffinityPath` | string | No | The JQ path to node affinity rules. |
+| `podAffinityPath` | string | No | The JQ path to pod affinity rules. |
+| `priorityClassNamePath` | string | No | The JQ path to the priority class name. |
+| `resourceClaimsPath` | string | No | The JQ path to DRA resource claims. |
+| `resourcesPath` | string | No | The JQ path to resource requirements. |
+| `schedulerNamePath` | string | No | The JQ path to the scheduler name. |
+
+For example:
+
+```yaml
+specDefinition:
+  fragmentedPodSpecDefinition:
+    labelsPath: ".spec.labels"
+    annotationsPath: ".spec.annotations"
+    resourcesPath: ".spec.resources"
+    schedulerNamePath: ".spec.schedulerName"
+```
+
+## scaleDefinition
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `maxReplicasPath` | string | No | The JQ path to the maximum replica count. |
+| `minReplicasPath` | string | No | The JQ path to the minimum replica count. |
+| `replicasPath` | string | No | The JQ path to the current replica count. |
+
+## Component Instances
+
+The `specDefinition` of a component can point to several instances of pod specs, in an array or a map. To tell the instances apart, set an `instanceIdPath`. It is the location in the spec where the name of each instance is. For an array of specs:
+
+```yaml
+instanceIdPath: ".spec.jobs[].name"
+```
+
+For a map of specs, extract the keys of the map as the instance IDs:
+
+```yaml
+instanceIdPath: ".spec.jobs | to_entries[] | .key"
+```
+
+## podSelector
+
+The `podSelector` field defines how to identify the pods of a component, or of an instance of a component. A component can define both a type selector and an instance selector. All selectors of each kind must be mutually exclusive within themselves. Paths in pod selectors refer to paths in the manifest of the pod.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `componentInstanceSelector` | object | No | Splits a single ComponentDefinition into multiple component instances, each identified by a unique value extracted from the pod. Use this when instances of the same component type represent fundamentally different roles or services (for example, Dynamo "service" definition produces separate "Frontend", "PrefillWorker", "DecodeWorker" instances). This is distinct from ReplicaSelector: ComponentInstanceSelector creates instances with potentially different specs/behavior, while ReplicaSelector creates replicas of an identical sub-structure. |
+| `componentTypeSelector` | object | No | Determines whether a pod belongs to this component type by matching a pod label or annotation value via a JQ path. This is the primary mechanism for pod-to-component membership. For example, LWS "leader" uses worker-index="0" to identify leader pods, and LWS "worker" checks for the existence of the leader-name annotation. |
+| `replicaSelector` | object | No | Identifies which replica index or group the pod belongs to. Use this to distinguish between multiple replicas of the same component / component instance sub-structure (for example, LWS Group 0 vs Group 1, where each group has identical leader/worker descendants). Descendant components automatically inherit the replica context from their ancestor (parent), so ReplicaSelector should only be defined at the level where replicas are created, not repeated in descendants. |
+
+### componentTypeSelector
+
+A key and a value selector that associates a pod with the component. If you omit `value`, the selector checks only that the key exists.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `keyPath` | string | Yes | The JQ path to the identifying key/label on the pod. The JQ path is evaluated against individual pod objects, not the root resource spec. |
+| `value` | string | No | The expected value for the key (optional). If it is not set, only the existence of the key is checked. |
+
+```yaml
+podSelector:
+  componentTypeSelector:
+    keyPath: '.metadata.labels["training.kubeflow.org/replica-type"]'
+    value: "master"
+```
+
+### componentInstanceSelector
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `idPath` | string | Yes | The JQ path to the component instance identifier on the pod. The JQ path is evaluated against individual pod objects, not the root resource spec. |
+
+```yaml
+podSelector:
+  componentInstanceSelector:
+    idPath: '.metadata.labels["jobset.sigs.k8s.io/replicatedjob-name"]'
+```
+
+### replicaSelector
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `keyPath` | string | Yes | The JQ path to the replica identifier on the pod. The evaluated result should be the replica index or group identifier (for example, "0", "1"). |
+
+## statusDefinition
+
+The `statusDefinition` field maps the conditions or phases of the workload to the common statuses of Workload Map. Base it on the actual conditions or phases that the workload type uses. It is required on the root component.
+
+- For each common status, you can provide a rule that uses conditions, a phase, or an expression. If you provide both a phase and conditions, both must match.
+- If you use a rule by conditions, you must first provide a `conditionsDefinition`. If you use a rule by phase, you must first provide a `phaseDefinition`.
+- You can provide several separate rules for each status. The rules are ORed together.
+- All conditions in a `byConditions` rule must match.
+- A workload can match more than one status at the same time. When no rule matches, the status is `Undefined`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `conditionsDefinition` | object | No | Defines how to extract Kubernetes-style conditions. |
+| `phaseDefinition` | object | No | Defines how to extract a simple phase/state string. |
+| `statusMappings` | object | Yes | Defines how to map extracted status to ResourceStatus values. |
+
+### conditionsDefinition
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `messageFieldName` | string | No | The field name for the condition text message. |
+| `path` | string | Yes | The JQ path to the conditions array. |
+| `reasonFieldName` | string | No | The field name for the condition reason. |
+| `statusFieldName` | string | No | The field name for the condition status. |
+| `typeFieldName` | string | No | The field name for the condition type. |
+
+### phaseDefinition
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `path` | string | Yes | The JQ path to the phase/state field. |
+
+### statusMappings
+
+Each field is a list of matchers for one status. The statuses are `initializing`, `running`, `completed`, `failed`, `degraded`, `suspended`, `suspending`, and `resuming`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `completed` | array of objects | No | Defines matchers for the Completed status. Multiple matchers are ORed together. |
+| `degraded` | array of objects | No | Defines matchers for the Degraded status. Multiple matchers are ORed together. |
+| `failed` | array of objects | No | Defines matchers for the Failed status. Multiple matchers are ORed together. |
+| `initializing` | array of objects | No | Defines matchers for the Initializing status. Multiple matchers are ORed together. |
+| `resuming` | array of objects | No | Defines matchers for the Resuming status. Multiple matchers are ORed together. |
+| `running` | array of objects | No | Defines matchers for the Running status. Multiple matchers are ORed together. |
+| `suspended` | array of objects | No | Defines matchers for the Suspended status. Multiple matchers are ORed together. |
+| `suspending` | array of objects | No | Defines matchers for the Suspending status. Multiple matchers are ORed together. |
+
+Each matcher has the following fields:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `byConditions` | array of objects | No | Matches against specific condition combinations (ANDed together). At least one of status or reason must be used. |
+| `byExpression` | object | No | A JQ expression that matches against the object for status matching. |
+| `byPhase` | string | No | Matches against a specific phase value. |
+
+#### byConditions
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `reason` | string | No | The expected condition reason. |
+| `status` | string | No | The expected condition status. |
+| `type` | string | Yes | The condition type to match. |
+
+#### byExpression
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `expectedResult` | string | Yes | The expected result value in string format from the expression evaluation. |
+| `expression` | string | Yes | The JQ expression to evaluate. |
+
+The following example maps a workload that reports its state in conditions:
+
+```yaml
+statusDefinition:
+  conditionsDefinition:
+    path: ".status.conditions"
+    typeFieldName: "type"
+    statusFieldName: "status"
+  statusMappings:
+    initializing:
+    - byConditions:
+      - type: "Created"
+        status: "True"
+      - type: "Running"
+        status: "False"
+    running:
+    - byConditions:
+      - type: "Running"
+        status: "True"
+      - type: "Succeeded"
+        status: "False"
+      - type: "Failed"
+        status: "False"
+    completed:
+    - byConditions:
+      - type: "Succeeded"
+        status: "True"
+    failed:
+    - byConditions:
+      - type: "Failed"
+        status: "True"
+```
+
+## suspendDefinition
+
+Set a `suspendDefinition` only for a component where the framework supports suspension natively. For example, a Job has `.spec.suspend`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `resumeActions` | array of objects | Yes | An ordered list of path/value assignments applied on resume. Actions are applied in sequence; later actions may overwrite earlier ones. |
+| `suspendActions` | array of objects | Yes | An ordered list of path/value assignments applied on suspend. Actions are applied in sequence; later actions may overwrite earlier ones. |
+
+Each action has the following fields:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `path` | string | Yes | A JQ expression that selects the target field (for example, ".spec.suspend"). Only read/navigation expressions are permitted; assignment operators are not. |
+| `value` | string | Yes | The JSON-encoded value to assign at the path (for example, "true", "0", `"paused"`, "null"). |
+
+## optimizationInstructions
+
+The `optimizationInstructions` field is for schedulers. Paths in the instructions refer to paths in the manifest of the pod. The supported instruction is `gangScheduling`, which tells the scheduler how to group the pods of the workload.
+
+<Warning title="Experimental">
+This part of the API is experimental and may change.
+</Warning>
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `podGroup` | object | No | Defines the grouping, subgroup, and topology behavior. |
+| `podGroups` | array of objects | No | Defines the alpha grouping format. This is deprecated and will be removed in a future release. Deprecated: Please use gangScheduling.podGroup instead. |
+
+### podGroup
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | The unique identifier for this pod group. |
+| `subGroups` | array of objects | No | Defines which Karta components should become subGroups. |
+| `topology` | object | No | Defines the topology constraint for all workload pods. |
+
+#### subGroups
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `componentName` | string | Yes | References a component defined in the Karta structure. |
+| `topology` | object | No | Defines the topology constraint for this component's pods. |
+
+#### topology
+
+The `topology` field has the same fields at the pod group level and at the subgroup level:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `preferredTopologyLevel` | string | Yes | The preferred locality level. |
+| `requiredTopologyLevel` | string | Yes | The maximal level that all matching pods must fit within. |
+| `topologyName` | string | Yes | The topology resource used by the constraint. |
+
+```yaml
+optimizationInstructions:
+  gangScheduling:
+    podGroup:
+      name: job
+      subGroups:
+        - componentName: job
+```
+
+### podGroups
+
+The `podGroups` list is the older format. It is deprecated in favor of `podGroup`, and it will be removed in a future release. The two formats are not equivalent. A subgroup has only `componentName` and `topology`, so the `groupByKeyPaths` and `filters` of a member have no direct counterpart.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `members` | array of objects | Yes | Defines which components belong to this pod group. |
+| `name` | string | Yes | The unique identifier for this pod group. |
+
+#### members
+
+Each member of a pod group has the following fields. Each member can provide a list of distinct keys to group the pods by, and a list of filters that decide which pods to include.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `componentName` | string | Yes | References a component defined in the Karta structure. |
+| `filters` | array of string | No | JQ filter expressions to select specific components (expressions are ANDed). Example: '(.spec.containers[0].resources.limits["nvidia.com/gpu"] // 0) > 0' JQ filters are evaluated against individual pod objects, not the root resource spec. |
+| `groupByKeyPaths` | array of string | No | JQ paths to values used for grouping (for example, the owner name or the replica key). If empty, grouping is done via owner reference traversal. Every path must return a single, non-empty value - otherwise grouping fails. JQ paths are evaluated against individual pod objects, not the root resource spec. |
+
+The following examples use the older format.
+
+**Different hierarchy.** The following two definitions are equivalent, if `master` and `worker` have the same value for the label:
+
+```yaml
+optimizationInstructions:
+  gangScheduling:
+    podGroups:
+    - name: "job"
+      members:
+      - componentName: "master"
+        groupByKeyPaths:
+        - '.metadata.labels["training.kubeflow.org/job-name"]'
+      - componentName: "worker"
+        groupByKeyPaths:
+        - '.metadata.labels["training.kubeflow.org/job-name"]'
+```
+
+```yaml
+optimizationInstructions:
+  gangScheduling:
+    podGroups:
+    - name: "job"
+      members:
+      - componentName: "job"
+        groupByKeyPaths:
+        - '.metadata.labels["training.kubeflow.org/job-name"]'
+```
+
+**Default values.** When several groups are possible, use a default value to cover the case where there is a single group. The pattern is `<prefix>-{name}-{index}`:
+
+```yaml
+optimizationInstructions:
+  gangScheduling:
+    podGroups:
+    - name: "group"
+      members:
+      - componentName: "group"
+        groupByKeyPaths:
+        - '.metadata.labels["leaderworkerset.sigs.k8s.io/name"]'
+        - '.metadata.labels["leaderworkerset.sigs.k8s.io/group-index"] // "0"'
+```
+
+**Filters.** When the components are not named components, because an array or a map of specs is in the same component, use filters to form separate pod groups. In the following example, a CRD defines several jobs, all under the `job` component. A jq query as a filter finds the pods that use NVIDIA GPUs, and queries with hard-coded values are the grouping keys:
+
+```yaml
+optimizationInstructions:
+  gangScheduling:
+    podGroups:
+    - name: "gpu-jobs"
+      members:
+      - componentName: "job"
+        filters:
+        - 'any(.spec.jobs[].spec.containers[]; (.resources.limits["nvidia.com/gpu"] // 0) > 0)'
+        groupByKeyPaths:
+        - 'gpu'
+    - name: "no-gpu-jobs"
+      members:
+      - componentName: "job"
+        filters:
+        - 'any(.spec.jobs[].spec.containers[]; (.resources.limits["nvidia.com/gpu"] // 0) == 0)'
+        groupByKeyPaths:
+        - 'no-gpu'
+```
+
+## Definition Status
+
+The Karta Operator writes the `status` of a definition. It has a `conditions` list with the following conditions:
+
+| Condition | It is `True` when |
+| --- | --- |
+| `Validated` | The definition passes validation. |
+| `CRDExists` | The cluster has the CRD for the root component of the definition, and the CRD serves the version that the definition names. |
+| `Ready` | Both `Validated` and `CRDExists` are `True`. |
+
+The Karta Operator also stamps the labels `karta.run.ai/group`, `karta.run.ai/version`, and `karta.run.ai/kind` on every definition that has a root component kind. They hold the group, version, and kind of the root component. A webhook rejects an edit that changes or removes these labels.
+
+## Best Practices
+
+- Use the full group, version, and kind for every kind.
+- Use absolute paths only in spec definitions.
+- Do not list a component that is defined explicitly in `additionalChildKinds`.
+- Make the pod selectors mutually exclusive in a workload with several components.
+- Write null-safe jq expressions, for example with `// 0` defaults.
+- Target the actual components in optimization instructions, not only the root CRD.
+
+## Examples
+
+For complete definitions, refer to the [Catalog of Definitions](catalog-of-definitions.mdx).

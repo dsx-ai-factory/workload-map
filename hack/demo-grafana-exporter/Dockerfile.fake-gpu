@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+FROM scratch AS status-updater
+COPY LICENSE /LICENSE
+COPY --chmod=0555 bin/status-updater /bin/status-updater
+ENTRYPOINT ["/bin/status-updater"]
+
+FROM scratch AS status-exporter
+COPY LICENSE /LICENSE
+COPY --chmod=0555 bin/status-exporter /bin/status-exporter
+COPY --chmod=0555 bin/status-exporter-kwok /usr/local/bin/status-exporter-kwok
+ENTRYPOINT ["/bin/status-exporter"]

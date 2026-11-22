@@ -59,7 +59,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
-	_, err = labelresolver.New(cfg.Config, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
+	_, err = labelresolver.New(cfg.Metrics.Config, labelresolver.Dependencies{Compiler: labelevaluator.NewCompiler()})
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
@@ -95,7 +95,7 @@ func run() error {
 	}
 	if ctx.Err() == nil {
 		slog.Info("DSX workload exporter starting",
-			"version", version.String(), "address", *address, "labelRules", len(cfg.Rules),
+			"version", version.String(), "address", *address, "labelRules", len(cfg.Metrics.Rules),
 			"catalogDefinitions", cfg.KartaDefinitionSource.Catalog.Enabled, "clusterDefinitions", cfg.KartaDefinitionSource.Cluster.Enabled)
 	}
 	err = application.Serve(ctx, *address)

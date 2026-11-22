@@ -9,7 +9,7 @@
 #   docker build \
 #     --build-arg GO_VERSION=$(awk '/^go /{print $2}' operator/go.mod) \
 #     -f operator/Dockerfile -t karta-operator:latest .
-ARG GO_VERSION=1.27.3
+ARG GO_VERSION=1.27.4
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
 
 ARG TARGETOS
@@ -20,7 +20,7 @@ ARG GO_LDFLAGS=""
 WORKDIR /src
 COPY . .
 WORKDIR /src/operator
-# See docs/FIPS.md for FIPS 140-3 support.
+# See docs/configuration/karta-operator/run-in-fips-mode.mdx for FIPS 140-3 support.
 RUN CGO_ENABLED=0 GO111MODULE=on GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOFIPS140=v1.0.0 \
 	go build -trimpath \
 	-ldflags "${GO_LDFLAGS}" \

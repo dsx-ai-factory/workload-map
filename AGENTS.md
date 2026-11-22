@@ -12,6 +12,7 @@ If you are an AI coding agent (Cursor, Codex, Claude Code, Aider, Continue, Copi
 Always do:
 - Run `make check` before pushing.
 - Sign off commits with `-s` (DCO).
+- Cryptographically sign commits with `-S` using a configured GPG or SSH key.
 - Add SPDX + copyright header to new source and Markdown files.
 - Use Conventional Commits: `feat(scope):`, `fix(scope):`, `refactor(scope):`. Match an existing scope from `git log` when possible.
 - Reference an open GitHub issue in the PR.
@@ -43,7 +44,7 @@ Boundaries for anything touching credentials or security-relevant configuration:
 - Use placeholder values in examples and fixtures. Never paste command output that may embed real cluster endpoints, node names, or internal hostnames.
 - Code that needs a secret reads it from an environment variable or a mounted Kubernetes Secret. Document the variable name, never a value.
 - Do not add new scripts or workflow steps that download and execute unpinned remote code. Pin the exact version, and verify it against the project's published checksums where upstream provides them. The golangci-lint installer the Makefiles invoke is pinned to `GOLANGCI_LINT_VERSION` and follows upstream's recommended install path; hardening it further is welcome as a separate change.
-- Do not weaken webhook TLS or RBAC defaults in the Helm chart to simplify local development. Use the documented certificate modes instead (`docs/Webhook Certificates.md`).
+- Do not weaken webhook TLS or RBAC defaults in the Helm chart to simplify local development. Use the documented certificate modes instead (`docs/configuration/karta-operator/configure-webhook-certificates.mdx`).
 - A secret committed by mistake is not fixed by a follow-up commit. History must be rewritten and the credential rotated. Report it per `SECURITY.md`.
 
 Good and bad examples:
@@ -106,6 +107,11 @@ recipe, so a workspace would change what you build locally but not what CI build
 ## Commits and Pull Requests
 
 Commit messages follow Conventional Commits v1.0.0 with a DCO sign-off (`git commit -s`, real name required). The format, allowed types, and scope conventions are documented in `CONTRIBUTING.md` under Commit Messages; that section is the single source of truth. Do not restate the format here.
+
+Each commit also requires a cryptographic signature, which proves that the signing key signed the commit.
+Use `git commit -s -S` to include both the DCO sign-off and the signature.
+Follow [Commit signing](CONTRIBUTING.md#commit-signing) for key setup and GitHub verification guidance.
+Only rewrite commits or force-push when the contributor explicitly requests it.
 
 Use the PR template at `.github/PULL_REQUEST_TEMPLATE.md`. Required: link to an open issue, run `make check`, add or update tests (or explain why none).
 

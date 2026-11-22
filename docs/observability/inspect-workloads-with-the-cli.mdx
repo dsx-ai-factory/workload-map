@@ -1,0 +1,238 @@
+---
+title: Inspect Workloads with the CLI
+sidebar-title: Inspect Workloads with the CLI
+description: Learn how to use the Workload Map kli CLI to list workloads, describe their structure, preview a manifest, and work with definitions.
+---
+
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
+
+The `kli` CLI shows which workloads run in a cluster and how each one is structured. It reads every workload through a definition, so the same commands work for any workload type that a definition covers. The CLI is read-only. It does not change workloads in the cluster.
+
+| Command | What it does |
+| --- | --- |
+| `kli get` | Lists the workloads of one type, or of every type, with a normalized phase. |
+| `kli describe` | Shows one workload as a tree of components with its pods, phase, and requested resources. |
+| `kli definitions` | Lists the definitions that `kli` understands, and exports them. |
+| `kli validate` | Checks a definition file before you apply it. |
+
+## Prerequisites
+
+- `kli` installed. For more information, refer to [Installation](../getting-started/installation.mdx#install-the-kli-cli).
+- For `kli get` and for `kli describe` on a live workload, a kubeconfig with read access to the workloads that you want to see.
+
+The `kli definitions` and `kli validate` commands, and `kli describe -f`, do not need a cluster. Without a reachable cluster, they use the built-in catalog only.
+
+<Note title="Options in newer builds">
+The `--catalog-experimental-definitions` option, the `--no-headers` option, and `-o wide` for `kli definitions` are available in CLI builds after v0.3.0.
+</Note>
+
+## Connect to a Cluster
+
+`kli` reads your kubeconfig the same way that `kubectl` does. It accepts the same connection flags, including `--kubeconfig`, `--context`, and `-n` or `--namespace`. For example, to list the JobSets in a namespace of another context, run the following command:
+
+```bash
+kli get jobsets --context <context> -n <namespace>
+```
+
+If the Karta Operator is not installed, the commands print the warning `the kartas.run.ai CRD is not installed; showing built-in definitions only`. It means that the cluster has no custom definitions, and you can ignore it.
+
+## List Workloads
+
+To list the workloads of one type, run `kli get` with the type. The type match is lenient. It is not case-sensitive, and it accepts the singular, the plural, and the `kubectl` short names.
+
+```bash
+kli get jobset
+```
+
+```text
+NAME          NAMESPACE   PHASE     AGE
+my-training   default     Running   26s
+```
+
+The phase comes from the workload spec, so the output lists no pods. To list one workload, add its name, as in `kli get jobset my-training` or `kli get jobset/my-training`.
+
+The following options narrow or extend the list:
+
+| Option | What it does | Example |
+| --- | --- | --- |
+| `--all-types` | Lists the top-level workloads of every type that a definition covers, with a `TYPE` column. | `kli get --all-types --phase Running` |
+| `--phase` | Keeps only the workloads in a phase. Repeat the option for more than one phase. | `kli get jobset --phase Degraded --phase Failed` |
+| `-l`, `--selector` | Keeps only the workloads that match a label selector on the workload. | `kli get jobset -l team=nlp` |
+| `-o wide` | Adds an `ORIGIN` column that shows where the definition came from, the catalog or the cluster. | `kli get jobset -o wide` |
+| `--no-headers` | Omits the header row of the table. It has no effect on JSON or YAML output. | `kli get jobset --no-headers` |
+
+The phase is one of `Undefined`, `Initializing`, `Running`, `Completed`, `Failed`, `Degraded`, `Suspending`, `Suspended`, and `Resuming`.
+
+## Describe a Workload
+
+To see the structure of one workload, run `kli describe` with its type and name:
+
+```bash
+kli describe jobset/my-training
+```
+
+The two-token form `kli describe jobset my-training` works as well. The output shows the following:
+
+- The component tree, with each pod placed under the component whose role it plays.
+- The normalized phase.
+- The resources that each component requests, and their total.
+
+For a complete output, refer to the [CLI quickstart](../getting-started/quickstarts/quickstart-cli.mdx).
+
+A large workload can have many pods and components. To keep the output short, set a limit. When you set a limit, the output shows the unhealthy pods and components first:
+
+| Option | What it does |
+| --- | --- |
+| `--pod-limit <n>` | Shows at most `n` pod rows for each component. |
+| `--component-limit <n>` | Shows at most `n` components under each parent. |
+
+Both options apply to the table output only.
+
+## Preview a Manifest Before You Submit It
+
+To see how a workload would look before you submit it, run `kli describe` with `-f` and a manifest. Use `-` to read the manifest from standard input. The command needs no cluster, and it does not accept a type or a name.
+
+```bash
+kli describe -f jobset.yaml
+```
+
+The following output is for the JobSet manifest in the [CLI quickstart](../getting-started/quickstarts/quickstart-cli.mdx):
+
+```text
+JobSet/my-training   namespace: <none>   definition: jobset-x-k8s-io-jobset-v1alpha2 (catalog)
+(file mode: no live status)
+
+`-- replicatedjob   replicas: 3
+    |-- leader      replicas: 1
+    `-- workers     replicas: 2
+
+Resources:
+COMPONENT   REPLICAS   GPU   CPU    MEMORY
+leader      1          0     100m   64Mi
+workers     2          0     400m   256Mi
+TOTAL       3          0     500m   320Mi
+```
+
+The structure and the desired scale are real. The pods and the live status are absent, because the workload does not exist yet.
+
+`kli` finds the definition for the manifest in the built-in catalog and in the cluster, if it can reach one. It does not read a definition from a local file. To preview a manifest with a definition that you wrote, apply the definition to the cluster first. For more information, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx).
+
+## List and Export Definitions
+
+To list every definition that `kli` understands, run the following command. The list merges the built-in catalog with the definitions in the cluster. A definition in the cluster overrides a catalog definition for the same type, and it is listed once, with the origin `cluster`.
+
+```bash
+kli definitions
+```
+
+The following options narrow the list or change what it shows:
+
+| Option | What it does | Example |
+| --- | --- | --- |
+| `NAME` | Shows one definition, by the name in the list. | `kli definitions kubeflow-org-pytorchjob-v1` |
+| `--group`, `--kind`, `--version` | Show the definitions that cover one workload type. `--kind` needs `--group`, and `--version` needs `--kind`. | `kli definitions --group jobset.x-k8s.io --kind JobSet` |
+| `--component-limit <n>` | Lists at most `n` child components for each definition. The default is 3. Use `0` to list all of them. | `kli definitions --component-limit 0` |
+| `-o wide` | Adds an `APIVERSION` column. | `kli definitions -o wide` |
+| `-o yaml` or `-o json` | Prints the definitions themselves, under an `items` key. | `kli definitions -o yaml` |
+| `--no-headers` | Omits the header row of the table. It has no effect on JSON or YAML output. | `kli definitions --no-headers` |
+
+When you name a definition, the YAML and JSON output contains that definition alone, so you can apply it or validate it as it is. For example, the following command validates a catalog definition:
+
+```bash
+kli definitions kubeflow-org-pytorchjob-v1 -o yaml | kli validate -
+```
+
+To validate a definition that you wrote, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx#validate-the-definition).
+
+## Include Experimental Definitions
+
+A definition with `spec.experimental: true` is excluded by default. The exclusion applies to the definitions in the built-in catalog and to the definitions in the cluster. It covers listings, workload resolution, `kli describe -f`, `kli get --all-types`, and shell completion. The Kueue Workload definition is an example.
+
+To include experimental definitions, use the `--catalog-experimental-definitions` option:
+
+```bash
+kli definitions --catalog-experimental-definitions
+kli get workload --catalog-experimental-definitions
+```
+
+To save the preference, set the `KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS=true` environment variable, or add `catalog-experimental-definitions: true` to the config file. An explicit option takes precedence over the environment variable, the environment variable takes precedence over the config file, and the config file takes precedence over the default. To turn off a saved opt-in for one command, use `--catalog-experimental-definitions=false`.
+
+Naming an experimental definition or workload type still requires the opt-in. An excluded definition in the cluster does not override a stable definition in the catalog.
+
+## Choose an Output Format
+
+The `-o` or `--output` option sets the output format. Each command accepts the formats in the following table:
+
+| Command | Formats |
+| --- | --- |
+| `kli get` | `table`, `wide`, `json`, `yaml` |
+| `kli describe` | `table`, `json`, `yaml` |
+| `kli definitions` | `table`, `wide`, `json`, `yaml` |
+
+Use `json` or `yaml` when a script or another tool reads the output.
+
+To change the default format, set `output` in a config file, or set the `KARTA_OUTPUT` environment variable:
+
+```yaml
+output: json
+```
+
+`kli` reads the config file from the first of the following locations that applies:
+
+1. The path in the `--config` option.
+2. The path in the `KARTA_CONFIG` environment variable.
+3. `$HOME/.karta/config.yaml`. This file is optional.
+
+The config file accepts the `output` key and the `catalog-experimental-definitions` key. If the file has any other key, `kli` stops with an error. The `-o` option overrides `KARTA_OUTPUT`, and `KARTA_OUTPUT` overrides the config file. A command that does not support the configured format uses the table format instead.
+
+## Use kli in Scripts
+
+When a command fails, `kli` prints a message that starts with `error:` and exits with a code that identifies the kind of failure:
+
+| Exit code | Meaning |
+| --- | --- |
+| `1` | A general failure, such as an unreachable cluster or an authentication failure. |
+| `2` | An invalid flag value or argument. |
+| `3` | No workload of the requested type has the requested name. |
+| `4` | No definition covers the requested type. |
+
+The `kli validate` command uses its own exit codes. For more information, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx#validate-the-definition).
+
+## Set Up Shell Completion
+
+Completion fills in commands, workload types, workload names, definition names, and namespaces when you press Tab. Load the completion script from your shell rc file:
+
+```bash
+# ~/.zshrc (after compinit)
+eval "$(kli completion zsh)"
+
+# ~/.bashrc, or ~/.bash_profile on macOS (needs the bash-completion package)
+eval "$(kli completion bash)"
+```
+
+To list the other shells and the setup details, run `kli completion --help`.
+
+## Install from a Clone
+
+In a clone of the repository, the following `make` targets build `kli`, install it, and add its completion to your bash or zsh rc file:
+
+| Target | What it does |
+| --- | --- |
+| `make install-cli` | Builds `kli`, copies it to `/usr/local/bin`, and loads its completion. |
+| `make uninstall-cli` | Removes `kli` from `/usr/local/bin` and its completion. |
+| `make install-cli-local` | Does the same as `install-cli` with `$HOME/.local/bin`, which needs no root. |
+| `make uninstall-cli-local` | Does the same as `uninstall-cli` with `$HOME/.local/bin`. |
+| `make install-cli-completion` | Builds `kli` into the `./bin/` directory of the repository and loads only its completion. |
+| `make install-cli-completion-local` | Does the same as `install-cli-completion`, and prefers the `kli` in `$HOME/.local/bin`. |
+| `make uninstall-cli-completion` | Removes the completion. |
+
+To install to another directory, set `BINDIR` or `PREFIX`, for example `make install-cli BINDIR=/opt/tools/bin`.
+
+The rc file entry loads completion from the installed `kli` when it exists. Otherwise, it falls back to `./bin/kli` in the repository. If you installed `kli` with `make install-cli-local`, use `make install-cli-completion-local`, so that the entry checks `$HOME/.local/bin`.
+
+## Next Steps
+
+- To write your own definition, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx).
+- For every command, option, and exit code, refer to the [CLI Command Reference](../reference/cli-command-reference.mdx).
+- To fix an error that `kli validate` reports, refer to [Troubleshoot Definitions](../troubleshooting/troubleshoot-definitions.mdx).

@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+operator:
+  enabled: false
+crdUpgrader:
+  enabled: false
+exporter:
+  enabled: true
+  # Leave CPU capacity for both workload operators on the four-CPU CI runner.
+  resources:
+    requests:
+      cpu: 100m
+  image:
+    repository: dsx-workload-exporter
+    tag: e2e
+    pullPolicy: Never
+  namespaceSelector:
+    matchExpressions: []
+  kartaDefinitionSource:
+    catalog:
+      enabled: true
+      include:
+        - core-pod-v1
+        - batch-job-v1
+        - jobset-x-k8s-io-jobset-v1alpha2
+        - leaderworkerset-x-k8s-io-leaderworkerset-v1
+  requiredKinds:
+    - v1/Pod
+    - apps/v1/Deployment
+    - batch/v1/Job
+    - jobset.x-k8s.io/v1alpha2/JobSet
+    - leaderworkerset.x-k8s.io/v1/LeaderWorkerSet
+  rbac:
+    workloadRules:
+      - apiGroups: [""]
+        resources: [pods]
+      - apiGroups: [apps]
+        resources: [deployments, replicasets, statefulsets]
+      - apiGroups: [batch]
+        resources: [jobs]
+      - apiGroups: [jobset.x-k8s.io]
+        resources: [jobsets]
+      - apiGroups: [leaderworkerset.x-k8s.io]
+        resources: [leaderworkersets]
+  labelRules:
+    - name: team
+      metrics: [dsx_workload_pod_info, dsx_workload_status]
+      sources: [workload]
+      expression: 'has(object.metadata.labels) && "team" in object.metadata.labels ? object.metadata.labels["team"] : ""'
+    - name: pod_team
+      metrics: [dsx_workload_pod_info]
+      sources: [pod]
+      expression: 'has(object.metadata.labels) && "team" in object.metadata.labels ? object.metadata.labels["team"] : ""'
+    - name: root_replicas
+      metrics: [dsx_workload_status]
+      sources: [workload]
+      expression: 'has(object.spec.replicas) ? string(object.spec.replicas) : ""'

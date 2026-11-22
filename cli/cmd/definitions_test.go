@@ -183,7 +183,7 @@ var _ = Describe("kli definitions", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			header := strings.Fields(strings.SplitN(stdout, "\n", 2)[0])
-			Expect(header).To(Equal([]string{"NAME", "KIND", "ORIGIN", "COMPONENTS"}))
+			Expect(header).To(Equal([]string{"NAME", "KIND", "ORIGIN", "STATUS", "COMPONENTS"}))
 		})
 
 		It("sorts rows by name ascending", func() {
@@ -220,16 +220,30 @@ var _ = Describe("kli definitions", func() {
 			Expect(decodeKartas(yamlOut)).To(Equal(decodeKartas(jsonOut)))
 		})
 
-		It("rejects wide, which the root enum accepts for other commands", func() {
-			_, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide"})
-			Expect(exitStatus(err)).To(Equal(ExitUsage))
-			// The flag lists what this command renders, so wide never parses here.
-			Expect(err.Error()).To(ContainSubstring("must be one of table, json, yaml"))
+		It("adds API versions to wide table output", func() {
+			stdout, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide"})
+			Expect(err).NotTo(HaveOccurred())
+
+			header := strings.Fields(strings.SplitN(stdout, "\n", 2)[0])
+			Expect(header).To(Equal([]string{"NAME", "KIND", "APIVERSION", "ORIGIN", "STATUS", "COMPONENTS"}))
+			Expect(stdout).To(ContainSubstring("apps/v1"))
+
+			var coreRow []string
+			for _, line := range strings.Split(stdout, "\n") {
+				fields := strings.Fields(line)
+				if len(fields) > 0 && fields[0] == "core-pod-v1" {
+					coreRow = fields
+					break
+				}
+			}
+			Expect(coreRow).To(HaveLen(6))
+			Expect(coreRow[2]).To(Equal("v1"))
+			Expect(coreRow[4]).To(Equal(string(definitions.StatusActive)))
 		})
 
 		It("rejects an unsupported format before reading the cluster", func() {
 			getter := &countingGetter{RESTClientGetter: noClusterGetter()}
-			_, _, err := runDefinitions(getter, []string{"-o", "wide"})
+			_, _, err := runDefinitions(getter, []string{"-o", "unsupported"})
 			Expect(exitStatus(err)).To(Equal(ExitUsage))
 			// A format the command cannot render must cost no round trip.
 			Expect(getter.calls).To(BeZero())
@@ -240,7 +254,8 @@ var _ = Describe("kli definitions", func() {
 var _ = Describe("kli definitions against a cluster", func() {
 	// Only a spec driving a real cluster read shows the cluster half of the merge
 	// reaching the output. Serving a GVK the catalog already covers pins both
-	// halves: the cluster row appears and the catalog row it overrides is gone.
+	// halves: the cluster row is active and the catalog row it overrides is
+	// inactive.
 	var server *httptest.Server
 
 	BeforeEach(func() {
@@ -248,15 +263,15 @@ var _ = Describe("kli definitions against a cluster", func() {
 		DeferCleanup(server.Close)
 	})
 
-	// Only the table carries ORIGIN; the definitions do not record their source.
+	// Only the table carries ORIGIN and STATUS; the definitions record neither.
 	rowsFrom := func(table string) map[string]definitionRow {
 		GinkgoHelper()
 		lines := strings.Split(strings.TrimSpace(table), "\n")
 		byName := make(map[string]definitionRow, len(lines))
 		for _, line := range lines[1:] {
 			columns := strings.Fields(line)
-			Expect(len(columns)).To(BeNumerically(">=", 3))
-			byName[columns[0]] = definitionRow{Name: columns[0], Kind: columns[1], Origin: columns[2]}
+			Expect(len(columns)).To(BeNumerically(">=", 4))
+			byName[columns[0]] = definitionRow{Name: columns[0], Kind: columns[1], Origin: columns[2], Status: columns[3]}
 		}
 		return byName
 	}
@@ -269,20 +284,75 @@ var _ = Describe("kli definitions against a cluster", func() {
 		Expect(rows).To(HaveKey("cluster-pytorch"))
 		Expect(rows["cluster-pytorch"].Origin).To(Equal(string(definitions.OriginCluster)))
 		Expect(rows["cluster-pytorch"].Kind).To(Equal("PyTorchJob"))
+		Expect(rows["cluster-pytorch"].Status).To(Equal(string(definitions.StatusActive)))
 	})
 
-	It("drops the catalog definition the cluster one overrides", func() {
+	Describe("with --catalog-only", func() {
+		It("lists the catalog definition instead of the cluster override, without contacting the cluster", func() {
+			getter := &countingGetter{RESTClientGetter: clusterGetter(server)}
+			stdout, stderr, err := runDefinitions(getter, []string{"--" + flagCatalogOnly})
+			Expect(err).NotTo(HaveOccurred())
+
+			rows := rowsFrom(stdout)
+			Expect(rows).NotTo(HaveKey("cluster-pytorch"))
+			Expect(rows).To(HaveKey(pytorchDefinition))
+			for _, row := range rows {
+				Expect(row.Origin).To(Equal(string(definitions.OriginCatalog)))
+			}
+			Expect(stderr).To(BeEmpty())
+			Expect(getter.calls).To(BeZero())
+		})
+
+		It("still narrows with the type filters", func() {
+			getter := &countingGetter{RESTClientGetter: clusterGetter(server)}
+			stdout, _, err := runDefinitions(getter,
+				[]string{"--" + flagCatalogOnly, "--group", "kubeflow.org", "--kind", "PyTorchJob"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tableNames(stdout)).To(Equal([]string{pytorchDefinition}))
+			Expect(getter.calls).To(BeZero())
+		})
+
+		It("still emits json, with the catalog definitions only", func() {
+			getter := &countingGetter{RESTClientGetter: clusterGetter(server)}
+			stdout, _, err := runDefinitions(getter, []string{"--" + flagCatalogOnly, "-o", "json"})
+			Expect(err).NotTo(HaveOccurred())
+
+			names := make([]string, 0)
+			for _, karta := range decodeKartas(stdout) {
+				names = append(names, karta.Name)
+			}
+			Expect(names).To(ContainElement(pytorchDefinition))
+			Expect(names).NotTo(ContainElement("cluster-pytorch"))
+			Expect(getter.calls).To(BeZero())
+		})
+
+		It("addresses a catalog definition by name", func() {
+			getter := &countingGetter{RESTClientGetter: clusterGetter(server)}
+			stdout, _, err := runDefinitions(getter, []string{"--" + flagCatalogOnly, pytorchDefinition})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tableNames(stdout)).To(Equal([]string{pytorchDefinition}))
+			Expect(getter.calls).To(BeZero())
+		})
+	})
+
+	It("keeps the catalog definition the cluster one overrides, as inactive", func() {
 		stdout, _, err := runDefinitions(clusterGetter(server), nil)
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(rowsFrom(stdout)).NotTo(HaveKey(pytorchDefinition))
+		rows := rowsFrom(stdout)
+		Expect(rows).To(HaveKey(pytorchDefinition))
+		Expect(rows[pytorchDefinition].Origin).To(Equal(string(definitions.OriginCatalog)))
+		Expect(rows[pytorchDefinition].Status).To(Equal(string(definitions.StatusInactive)))
 	})
 
-	It("narrows to the cluster definition", func() {
+	It("narrows to both definitions of the type, marking the cluster one active", func() {
 		stdout, _, err := runDefinitions(clusterGetter(server), []string{"--group", "kubeflow.org", "--kind", "PyTorchJob"})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(tableNames(stdout)).To(Equal([]string{"cluster-pytorch"}))
-		Expect(stdout).To(ContainSubstring(string(definitions.OriginCluster)))
+		Expect(tableNames(stdout)).To(Equal([]string{"cluster-pytorch", pytorchDefinition}))
+
+		rows := rowsFrom(stdout)
+		Expect(rows["cluster-pytorch"].Status).To(Equal(string(definitions.StatusActive)))
+		Expect(rows[pytorchDefinition].Status).To(Equal(string(definitions.StatusInactive)))
 	})
 
 	It("still lists the catalog definitions the cluster says nothing about", func() {
@@ -292,6 +362,78 @@ var _ = Describe("kli definitions against a cluster", func() {
 		rows := rowsFrom(stdout)
 		Expect(rows).To(HaveKey(jobsetDefinition))
 		Expect(rows[jobsetDefinition].Origin).To(Equal(string(definitions.OriginCatalog)))
+	})
+
+	// Applying the export must never install a second claimant for a workload
+	// type, so json and yaml keep to what a lookup can select.
+	DescribeTable("leaves the overridden catalog definition out of json and yaml",
+		func(format string) {
+			stdout, _, err := runDefinitions(clusterGetter(server), []string{"-o", format})
+			Expect(err).NotTo(HaveOccurred())
+
+			names := make([]string, 0)
+			for _, karta := range decodeKartas(stdout) {
+				names = append(names, karta.Name)
+			}
+			Expect(names).To(ContainElement("cluster-pytorch"))
+			Expect(names).To(ContainElement(jobsetDefinition))
+			Expect(names).NotTo(ContainElement(pytorchDefinition))
+		},
+		Entry("json", "json"),
+		Entry("yaml", "yaml"),
+	)
+
+	It("narrows json to the cluster definition while the table shows both", func() {
+		stdout, _, err := runDefinitions(clusterGetter(server),
+			[]string{"--group", "kubeflow.org", "--kind", "PyTorchJob", "-o", "json"})
+		Expect(err).NotTo(HaveOccurred())
+
+		kartas := decodeKartas(stdout)
+		Expect(kartas).To(HaveLen(1))
+		Expect(kartas[0].Name).To(Equal("cluster-pytorch"))
+	})
+
+	It("addresses the overridden catalog definition by the name the table shows", func() {
+		stdout, _, err := runDefinitions(clusterGetter(server), []string{pytorchDefinition})
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(tableNames(stdout)).To(Equal([]string{pytorchDefinition}))
+		Expect(rowsFrom(stdout)[pytorchDefinition].Status).To(Equal(string(definitions.StatusInactive)))
+
+		yamlOut, _, err := runDefinitions(clusterGetter(server), []string{pytorchDefinition, "-o", "yaml"})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(decodeKarta(yamlOut).Name).To(Equal(pytorchDefinition))
+	})
+})
+
+var _ = Describe("kli definitions when the cluster refuses the read", func() {
+	It("warns on stderr and lists the catalog definitions as active", func() {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(metav1.Status{
+				TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Status"},
+				Status:   metav1.StatusFailure,
+				Reason:   metav1.StatusReasonForbidden,
+				Code:     http.StatusForbidden,
+				Message:  "kartas.run.ai is forbidden",
+			})
+		}))
+		DeferCleanup(server.Close)
+
+		stdout, stderr, err := runDefinitions(clusterGetter(server), nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stderr).To(ContainSubstring("warning"))
+		Expect(stdout).NotTo(ContainSubstring("warning"))
+
+		for _, line := range strings.Split(strings.TrimSpace(stdout), "\n")[1:] {
+			fields := strings.Fields(line)
+			if fields[0] == pytorchDefinition {
+				Expect(fields[2:4]).To(Equal([]string{"catalog", "active"}))
+				return
+			}
+		}
+		Fail("the catalog definition is missing from the table")
 	})
 })
 
@@ -307,11 +449,18 @@ var _ = Describe("a definition that names no workload type", func() {
 
 	It("appears in the table with a placeholder kind", func() {
 		var stdout, stderr bytes.Buffer
-		rows := definitionRows(definitions.New(nil, []*v1alpha1.Karta{rootless("broken-karta")}).List())
-		Expect(renderDefinitions(&stdout, &stderr, rows, 0)).To(Succeed())
+		rows := definitionRows(definitions.New(nil, []*v1alpha1.Karta{rootless("broken-karta")}).ListAll())
+		Expect(renderDefinitions(&stdout, &stderr, rows, 0, false, false)).To(Succeed())
 
 		Expect(tableNames(stdout.String())).To(Equal([]string{"broken-karta"}))
 		Expect(stdout.String()).To(ContainSubstring("<none>"))
+
+		var wideOut bytes.Buffer
+		Expect(renderDefinitions(&wideOut, &stderr, rows, 0, true, false)).To(Succeed())
+		wideRows := strings.Split(strings.TrimSpace(wideOut.String()), "\n")
+		Expect(strings.Fields(wideRows[0])).To(Equal([]string{"NAME", "KIND", "APIVERSION", "ORIGIN", "STATUS", "COMPONENTS"}))
+		// No workload type can select it, so it is never active.
+		Expect(strings.Fields(wideRows[1])).To(Equal([]string{"broken-karta", "<none>", "<none>", "cluster", "inactive", "mystery"}))
 	})
 
 	It("never leaks the table placeholder into a machine format", func() {
@@ -326,31 +475,57 @@ var _ = Describe("a definition that names no workload type", func() {
 })
 
 var _ = Describe("definitionRows over a merged resolver", func() {
-	It("lists a cluster override of a catalog GVK once, as cluster", func() {
+	It("lists a cluster override of a catalog GVK next to the catalog one it hides", func() {
 		resolver := definitions.New(
 			[]*v1alpha1.Karta{newTestKarta("catalog-pytorch", pytorchGVK, "pytorchjob", []string{"master", "worker"})},
 			[]*v1alpha1.Karta{newTestKarta("cluster-pytorch", pytorchGVK, "pytorchjob", []string{"runner"})},
 		)
 
-		Expect(definitionRows(resolver.List())).To(Equal([]definitionRow{{
-			Name:       "cluster-pytorch",
-			Kind:       "PyTorchJob",
-			Origin:     string(definitions.OriginCluster),
-			Components: []string{"pytorchjob", "runner"},
-		}}))
+		Expect(definitionRows(resolver.ListAll())).To(Equal([]definitionRow{
+			{
+				Name:       "catalog-pytorch",
+				Kind:       "PyTorchJob",
+				APIVersion: "kubeflow.org/v1",
+				Origin:     string(definitions.OriginCatalog),
+				Status:     string(definitions.StatusInactive),
+				Components: []string{"pytorchjob", "master", "worker"},
+			},
+			{
+				Name:       "cluster-pytorch",
+				Kind:       "PyTorchJob",
+				APIVersion: "kubeflow.org/v1",
+				Origin:     string(definitions.OriginCluster),
+				Status:     string(definitions.StatusActive),
+				Components: []string{"pytorchjob", "runner"},
+			},
+		}))
 	})
 
-	It("lists every cluster definition claiming one GVK", func() {
+	It("marks every cluster definition claiming one GVK ambiguous", func() {
 		resolver := definitions.New(nil, []*v1alpha1.Karta{
 			newTestKarta("zulu-job", jobGVK, "job", nil),
 			newTestKarta("alpha-job", jobGVK, "job", nil),
 		})
 
-		rows := definitionRows(resolver.List())
+		rows := definitionRows(resolver.ListAll())
 		Expect(rows).To(HaveLen(2))
 		Expect([]string{rows[0].Name, rows[1].Name}).To(Equal([]string{"alpha-job", "zulu-job"}))
-		Expect(rows[0].Origin).To(Equal(string(definitions.OriginCluster)))
-		Expect(rows[1].Origin).To(Equal(string(definitions.OriginCluster)))
+		for _, row := range rows {
+			Expect(row.Origin).To(Equal(string(definitions.OriginCluster)))
+			Expect(row.Status).To(Equal(string(definitions.StatusAmbiguous)))
+		}
+	})
+
+	It("orders a cluster definition after the catalog one it overrides under the same name", func() {
+		resolver := definitions.New(
+			[]*v1alpha1.Karta{newTestKarta("apps-deployment-v1", deploymentGVK, "deployment", nil)},
+			[]*v1alpha1.Karta{newTestKarta("apps-deployment-v1", deploymentGVK, "deployment", nil)},
+		)
+
+		rows := definitionRows(resolver.ListAll())
+		Expect(rows).To(HaveLen(2))
+		Expect([]string{rows[0].Origin, rows[0].Status}).To(Equal([]string{"catalog", "inactive"}))
+		Expect([]string{rows[1].Origin, rows[1].Status}).To(Equal([]string{"cluster", "active"}))
 	})
 
 	It("sorts by name even though the resolver lists by GVK", func() {
@@ -363,15 +538,64 @@ var _ = Describe("definitionRows over a merged resolver", func() {
 
 		Expect(resolver.List()[0].Karta.Name).To(Equal("zulu"))
 
-		rows := definitionRows(resolver.List())
+		rows := definitionRows(resolver.ListAll())
 		Expect([]string{rows[0].Name, rows[1].Name}).To(Equal([]string{"alpha", "zulu"}))
+	})
+})
+
+var _ = Describe("rendering definitions without headers", func() {
+	It("writes only the data rows, in the same order", func() {
+		rows := []definitionRow{
+			{Name: "alpha", Kind: "Deployment", Origin: "catalog", Status: "active", Components: []string{"deployment"}},
+			{Name: "zulu", Kind: "JobSet", Origin: "cluster", Status: "active", Components: []string{"jobset"}},
+		}
+		var withHeaders, noHeaders, stderr bytes.Buffer
+		Expect(renderDefinitions(&withHeaders, &stderr, rows, 0, false, false)).To(Succeed())
+		Expect(renderDefinitions(&noHeaders, &stderr, rows, 0, false, true)).To(Succeed())
+
+		lines := strings.Split(strings.TrimRight(withHeaders.String(), "\n"), "\n")
+		Expect(strings.Fields(lines[0])).To(Equal([]string{"NAME", "KIND", "ORIGIN", "STATUS", "COMPONENTS"}))
+		Expect(noHeaders.String()).To(Equal(strings.Join(lines[1:], "\n") + "\n"))
+		Expect(stderr.Len()).To(BeZero())
+	})
+
+	It("keeps the empty note on stderr", func() {
+		var stdout, stderr bytes.Buffer
+		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0, false, true)).To(Succeed())
+		Expect(stdout.String()).To(BeEmpty())
+		Expect(stderr.String()).To(ContainSubstring("No Karta definitions found."))
+	})
+})
+
+var _ = Describe("kli definitions --no-headers", func() {
+	It("drops only the header row, keeping the data rows in order", func() {
+		withHeaders, _, err := runDefinitions(noClusterGetter(), nil)
+		Expect(err).NotTo(HaveOccurred())
+		out, stderr, err := runDefinitions(noClusterGetter(), []string{"--no-headers"})
+		Expect(err).NotTo(HaveOccurred())
+
+		lines := strings.Split(strings.TrimRight(withHeaders, "\n"), "\n")
+		Expect(strings.Fields(lines[0])[0]).To(Equal("NAME"))
+		Expect(tableCells(out)).To(Equal(tableCells(strings.Join(lines[1:], "\n"))))
+		Expect(stderr).NotTo(ContainSubstring("NAME"))
+	})
+
+	It("drops the wide header too", func() {
+		withHeaders, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide"})
+		Expect(err).NotTo(HaveOccurred())
+		out, _, err := runDefinitions(noClusterGetter(), []string{"-o", "wide", "--no-headers"})
+		Expect(err).NotTo(HaveOccurred())
+
+		lines := strings.Split(strings.TrimRight(withHeaders, "\n"), "\n")
+		Expect(strings.Fields(lines[0])).To(ContainElement("APIVERSION"))
+		Expect(tableCells(out)).To(Equal(tableCells(strings.Join(lines[1:], "\n"))))
 	})
 })
 
 var _ = Describe("rendering an empty definition list", func() {
 	It("notes the empty table on stderr and writes nothing to stdout", func() {
 		var stdout, stderr bytes.Buffer
-		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0)).To(Succeed())
+		Expect(renderDefinitions(&stdout, &stderr, definitionRows(nil), 0, false, false)).To(Succeed())
 		Expect(stdout.String()).To(BeEmpty())
 		Expect(stderr.String()).To(ContainSubstring("No Karta definitions found."))
 	})

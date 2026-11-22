@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+{{- if and .Values.exporter .Values.exporter.enabled }}
+{{- $monitor := .Values.exporter.serviceMonitor | default dict }}
+{{- if $monitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "karta.exporter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- $labels := include "karta.exporter.labels" . | fromYaml }}
+    {{- mergeOverwrite (deepCopy ($monitor.additionalLabels | default dict)) $labels | toYaml | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karta.exporter.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: metrics
+      path: /metrics
+      # The exporter's namespace label names the workload's namespace. Without this,
+      # Prometheus renames it to exported_namespace and sets the exporter's own.
+      honorLabels: true
+      {{- with $monitor.interval }}
+      interval: {{ . | quote }}
+      {{- end }}
+      {{- with $monitor.scrapeTimeout }}
+      scrapeTimeout: {{ . | quote }}
+      {{- end }}
+{{- end }}
+{{- end }}

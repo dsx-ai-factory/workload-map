@@ -90,3 +90,129 @@ install) and crd-upgrader-job.yaml reads fipsMode independently of that flag.
 {{- end -}}
 {{- $fipsMode -}}
 {{- end -}}
+
+{{- define "karta.exporter.fullname" -}}
+{{- if .Values.fullnameOverride -}}
+{{ printf "%s-dsx-workload-exporter" (.Values.fullnameOverride | trunc 41 | trimSuffix "-") }}
+{{- else -}}
+dsx-workload-exporter
+{{- end -}}
+{{- end -}}
+
+{{/* Exporter labels use a distinct name to avoid matching operator selectors. */}}
+{{- define "karta.exporter.selectorLabels" -}}
+app.kubernetes.io/name: dsx-workload-exporter
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+
+{{/* Cluster-scoped objects carry the namespace, so exporter releases in different namespaces do not collide. */}}
+{{- define "karta.exporter.clusterScopedName" -}}
+{{ printf "%s-%s" (include "karta.exporter.fullname" .) .Release.Namespace }}
+{{- end -}}
+
+{{/*
+GOMEMLIMIT for the exporter container. auto: 90% of resources.limits.memory in bytes,
+so the Go GC works harder as the container nears its memory limit; the rest covers
+memory outside the Go runtime. A number is GiB and renders as whole MiB. Empty, or
+auto without a memory limit or with a zero one, renders nothing.
+*/}}
+{{- define "karta.exporter.goMemLimit" -}}
+{{- $setting := .Values.exporter.goMemLimit -}}
+{{- $value := "" -}}
+{{- if not (kindIs "invalid" $setting) -}}
+{{- $value = toString $setting -}}
+{{- end -}}
+{{- if regexMatch "^([0-9]+(\\.[0-9]*)?|\\.[0-9]+)$" $value -}}
+{{- /* Bounded, so Go can always read the rendered MiB count. */ -}}
+{{- $gib := float64 $value -}}
+{{- $mib := floor (mulf $gib 1024) -}}
+{{- if or (lt $mib 1.0) (gt $gib 1024.0) -}}
+{{- fail (printf "exporter.goMemLimit %v must be a number of GiB from 0.001 to 1024" $setting) -}}
+{{- end -}}
+{{- printf "%.0fMiB" $mib -}}
+{{- else if and $value (ne $value "auto") -}}
+{{- fail (printf "exporter.goMemLimit %q must be auto, a number of GiB such as 3.5, or empty" $value) -}}
+{{- else if eq $value "auto" -}}
+{{- $raw := dig "resources" "limits" "memory" "" .Values.exporter -}}
+{{- $bytes := 0.0 -}}
+{{- if or (kindIs "float64" $raw) (kindIs "int64" $raw) (kindIs "int" $raw) -}}
+{{- $bytes = float64 $raw -}}
+{{- else if $raw -}}
+{{- $limit := toString $raw -}}
+{{- /* A Kubernetes quantity: a signed decimal number, then an SI suffix or a decimal exponent. */ -}}
+{{- $number := regexFind "^[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)" $limit -}}
+{{- $suffix := trimPrefix $number $limit -}}
+{{- $units := dict "" 1 "n" 1e-9 "u" 1e-6 "m" 0.001 "k" 1e3 "M" 1e6 "G" 1e9 "T" 1e12 "P" 1e15 "E" 1e18 "Ki" 1024 "Mi" 1048576 "Gi" 1073741824 "Ti" 1099511627776 "Pi" 1125899906842624 "Ei" 1152921504606846976 -}}
+{{- $multiplier := 0.0 -}}
+{{- if and $number (hasKey $units $suffix) -}}
+{{- $multiplier = float64 (get $units $suffix) -}}
+{{- else if and $number (regexMatch "^[eE][+-]?0*[0-9]{1,2}$" $suffix) -}}
+{{- /* Leading zeros are valid; at most two significant digits keep atoi in range. The
+size check below bounds the value, not the exponent. */ -}}
+{{- $exponent := atoi (trimPrefix "+" (substr 1 (len $suffix) $suffix)) -}}
+{{- $multiplier = 1.0 -}}
+{{- range until (int (max $exponent (sub 0 $exponent))) -}}
+{{- if ge $exponent 0 -}}
+{{- $multiplier = mulf $multiplier 10 -}}
+{{- else -}}
+{{- $multiplier = divf $multiplier 10 -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if not $multiplier -}}
+{{- fail (printf "exporter.goMemLimit=auto cannot read exporter.resources.limits.memory %q; set exporter.goMemLimit to a number of GiB such as 3.5" $limit) -}}
+{{- end -}}
+{{- $bytes = mulf (float64 $number) $multiplier -}}
+{{- end -}}
+{{- /* bytes x 9 / 10, not x 0.9: 4e9 x 0.9 is not exact in floating point. */ -}}
+{{- $goMemLimit := floor (divf (mulf $bytes 9) 10) -}}
+{{- /* Go reads GOMEMLIMIT as a 64-bit byte count and fails at start beyond it. */ -}}
+{{- if ge $goMemLimit 9.2e18 -}}
+{{- fail (printf "exporter.goMemLimit=auto: exporter.resources.limits.memory %v is too large for a Go memory limit; set exporter.goMemLimit to a number of GiB such as 3.5" $raw) -}}
+{{- end -}}
+{{- /* A zero limit means unlimited; GOMEMLIMIT=0 would be a zero-byte Go limit. */ -}}
+{{- if ge $goMemLimit 1.0 -}}
+{{- printf "%.0f" $goMemLimit -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "karta.exporter.labels" -}}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{ include "karta.exporter.selectorLabels" . }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
+{{/*
+Renders submitter capture resourceRules from group/version/resource entries,
+adding the CREATE operation and Namespaced scope, which users never set.
+Takes a dict: rules (nonempty list), field (value path for errors).
+*/}}
+{{- define "karta.submitter.resourceRules" -}}
+{{- if not .rules }}
+{{- fail (printf "%s must list at least one resource" .field) }}
+{{- end }}
+{{- range $i, $rule := .rules }}
+{{- range $key, $_ := $rule }}
+{{- if not (has $key (list "apiGroups" "apiVersions" "resources")) }}
+{{- fail (printf "%s[%d]: unsupported key %q; set only apiGroups, apiVersions and resources (the chart sets operations and scope)" $.field $i $key) }}
+{{- end }}
+{{- end }}
+{{- range $key := list "apiGroups" "apiVersions" "resources" }}
+{{- if not (index $rule $key) }}
+{{- fail (printf "%s[%d].%s must be a nonempty list" $.field $i $key) }}
+{{- end }}
+{{- end }}
+{{- range $rule.resources }}
+{{- if contains "/" . }}
+{{- fail (printf "%s[%d]: subresource %q is not supported; list the main resource" $.field $i .) }}
+{{- end }}
+{{- end }}
+- apiGroups: {{ toJson $rule.apiGroups }}
+  apiVersions: {{ toJson $rule.apiVersions }}
+  resources: {{ toJson $rule.resources }}
+  operations: ["CREATE"]
+  scope: Namespaced
+{{- end }}
+{{- end -}}

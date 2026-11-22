@@ -67,6 +67,43 @@ var _ = Describe("RenderWorkloads", func() {
 			[]string{"preprocess", "ml-team", "JobSet", "Completed", "<unknown>", "catalog"}),
 	)
 
+	DescribeTable("omits only the header row with NoHeaders",
+		func(opts Options, row []string) {
+			var out, errOut bytes.Buffer
+			opts.NoHeaders = true
+			Expect(RenderWorkloads(&out, &errOut, views, opts)).To(Succeed())
+
+			Expect(cells(out.String())).To(Equal([][]string{row}))
+			Expect(errOut.Len()).To(BeZero())
+		},
+		Entry("the default columns",
+			Options{Output: OutputTable},
+			[]string{"preprocess", "ml-team", "Completed", "<unknown>"}),
+		Entry("wide",
+			Options{Output: OutputWide},
+			[]string{"preprocess", "ml-team", "Completed", "<unknown>", "catalog"}),
+		Entry("a listing across types",
+			Options{Output: OutputWide, TypeOf: func(v workload.View) string { return v.Kind }},
+			[]string{"preprocess", "ml-team", "JobSet", "Completed", "<unknown>", "catalog"}),
+	)
+
+	It("leaves json unchanged with NoHeaders", func() {
+		var plain, noHeaders, errOut bytes.Buffer
+		Expect(RenderWorkloads(&plain, &errOut, views, Options{Output: OutputJSON})).To(Succeed())
+		Expect(RenderWorkloads(&noHeaders, &errOut, views, Options{Output: OutputJSON, NoHeaders: true})).To(Succeed())
+
+		Expect(noHeaders.String()).To(Equal(plain.String()))
+	})
+
+	It("still reports an empty result on stderr with NoHeaders", func() {
+		var out, errOut bytes.Buffer
+		Expect(RenderWorkloads(&out, &errOut, nil,
+			Options{Output: OutputTable, Namespace: "ml-team", NoHeaders: true})).To(Succeed())
+
+		Expect(out.Len()).To(BeZero())
+		Expect(errOut.String()).To(ContainSubstring("No workloads found in namespace ml-team."))
+	})
+
 	// A view resolved outside a live read carries no timestamp, which must not
 	// saturate to the age of the zero time.
 	It("reports an unset timestamp as unknown", func() {

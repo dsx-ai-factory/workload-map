@@ -25,6 +25,10 @@ type Karta struct {
 }
 
 type KartaSpec struct {
+	// Experimental marks definitions that consumers must explicitly enable.
+	// +kubebuilder:validation:Optional
+	Experimental bool `json:"experimental,omitempty"`
+
 	// StructureDefinition defines the compute hierarchy and component relationships
 	// +kubebuilder:validation:Required
 	StructureDefinition StructureDefinition `json:"structureDefinition"`

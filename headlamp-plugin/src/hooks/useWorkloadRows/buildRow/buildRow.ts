@@ -6,14 +6,13 @@ import { Karta, Workload } from '../../../lib/karta/karta.types';
 import { WorkloadRow } from '../workloadRow.types';
 
 function componentsCount(karta: Karta): number {
-  return 1 + (karta.spec.structureDefinition.childComponents?.length ?? 0);
+  return 1 + (karta.spec?.structureDefinition?.childComponents?.length ?? 0);
 }
 
 // Projects one workload and its definition into a row. Metadata only: this
 // runs on every poll, so the WASM status call is left to KindFetcher.
 export function buildWorkloadRow(definition: Definition, workload: Workload, cluster: string): WorkloadRow {
   const karta = definition.karta;
-  const kind = karta.spec.structureDefinition.rootComponent.kind;
   const namespace = workload.metadata.namespace ?? '';
   const name = workload.metadata.name;
 
@@ -25,7 +24,7 @@ export function buildWorkloadRow(definition: Definition, workload: Workload, clu
     namespace,
     cluster,
     kind: workload.kind,
-    apiGroup: kind?.group ?? '',
+    apiGroup: definition.rootKind.group,
     creationTimestamp: workload.metadata.creationTimestamp ?? '',
     phases: [],
     componentsCount: componentsCount(karta),

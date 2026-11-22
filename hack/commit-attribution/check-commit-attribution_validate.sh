@@ -4,6 +4,7 @@
 
 set -euo pipefail
 checker="$(cd "$(dirname "$0")" && pwd)/check-commit-attribution.sh"
+fetcher="$(dirname "$checker")/fetch-commit-base.sh"
 fixture=$(mktemp -d)
 trap 'rm -r "$fixture"' EXIT
 # Fixture commits must not depend on the caller's Git identity or hooks.
@@ -21,15 +22,21 @@ commit() {
 }
 
 checks=0
-expect() {
+expect_command() {
   local expected=$1 actual=0
   shift
-  output=$(bash "$checker" "$@" 2>&1) || actual=$?
+  output=$("$@" 2>&1) || actual=$?
   if [[ $actual -ne $expected ]]; then
     printf 'Expected exit %s, got %s:\n%s\n' "$expected" "$actual" "$output" >&2
     exit 1
   fi
   checks=$((checks + 1))
+}
+
+expect() {
+  local expected=$1
+  shift
+  expect_command "$expected" bash "$checker" "$@"
 }
 
 ai=$'Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>'
@@ -103,4 +110,52 @@ bad=$(commit "fix: bad commit beyond first 100"$'\n\n'"$ai")
 commit "fix: clean final commit" > /dev/null
 expect 1 "$before" HEAD
 [[ $output == *"${bad:0:12}"* ]]
+
+# Clone only advertised history after a force-push, leaving the old tip absent.
+git init --bare -q --initial-branch=main "$fixture/remote.git"
+git init -q --initial-branch=main "$fixture/writer"
+cd "$fixture/writer"
+git remote add origin "$fixture/remote.git"
+shared=$(commit "test: shared history"$'\n\n'"$ai")
+old=$(commit 'test: previous branch tip')
+git push -q origin HEAD:main
+git reset --hard -q "$shared"
+bad=$(commit "test: rewritten attribution"$'\n\n'"$ai")
+commit 'test: clean rewritten tip' >/dev/null
+git push -q --force origin HEAD:main
+git clone -q --no-local "$fixture/remote.git" "$fixture/bad-checkout"
+cd "$fixture/bad-checkout"
+if git cat-file -e "$old^{commit}" 2>/dev/null; then
+  echo 'Expected the old tip to be absent from the fresh clone.' >&2
+  exit 1
+fi
+expect_command 0 bash "$fetcher" "$old"
+git cat-file -e "$old^{commit}"
+expect 1 "$old" HEAD
+[[ $output == *"${bad:0:12}"* && $output != *"${shared:0:12}"* ]]
+
+cd "$fixture/writer"
+git reset --hard -q "$shared"
+commit 'test: clean rewritten commit' >/dev/null
+commit 'test: clean final rewritten commit' >/dev/null
+git push -q --force origin HEAD:main
+git clone -q --no-local "$fixture/remote.git" "$fixture/clean-checkout"
+cd "$fixture/clean-checkout"
+if git cat-file -e "$old^{commit}" 2>/dev/null; then
+  echo 'Expected the old tip to be absent from the fresh clone.' >&2
+  exit 1
+fi
+expect_command 0 bash "$fetcher" "$old"
+expect 0 "$old" HEAD
+[[ $output == *'2 commit(s)'* ]]
+
+# Skips must work without contacting origin; a missing commit must fail closed.
+git remote set-url origin "$fixture/unavailable.git"
+expect_command 0 bash "$fetcher" "$old"
+expect_command 0 bash "$fetcher" "$zero"
+git remote set-url origin "$fixture/remote.git"
+expect_command 128 bash "$fetcher" 1111111111111111111111111111111111111111
+expect_command 2 bash "$fetcher" malformed
+expect_command 2 bash "$fetcher"
+expect_command 2 bash "$fetcher" "$old" "$old"
 echo "$checks commit attribution checks passed."

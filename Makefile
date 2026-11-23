@@ -532,17 +532,20 @@ exporter-version-smoke: build-exporter ## Verify the exporter reports the stampe
 promtool-check: promtool ## Validate and unit-test example Prometheus rules with promtool
 	@set -eu; \
 	found=0; \
-	for f in dsx-workload-exporter/examples/*/*rules*.yaml docs/tutorials/kyverno-exporter/manifests/prometheus-rules.yaml; do \
+	for f in dsx-workload-exporter/examples/*/*rules*.yaml; do \
 		[ -e "$$f" ] || continue; \
 		found=$$((found + 1)); \
 		$(PROMTOOL) check rules --lint-fatal "$$f"; \
 	done; \
 	[ "$$found" -gt 0 ] || { echo "no Prometheus rule files matched dsx-workload-exporter/examples/*/*rules*.yaml" >&2; exit 1; }; \
-	for t in dsx-workload-exporter/examples/*/tests/*.test.yaml docs/tutorials/kyverno-exporter/tests/rules_test.yaml; do \
+	for t in dsx-workload-exporter/examples/*/tests/*.test.yaml; do \
 		[ -e "$$t" ] || continue; \
 		echo "Testing $$t"; \
 		$(PROMTOOL) test rules "$$t"; \
 	done
+	python3 hack/check-tutorial-rules.py --promtool "$(PROMTOOL)" \
+		--article docs/tutorials/act-on-workload-change/act-on-workload-changes.md \
+		--tests docs/tutorials/act-on-workload-change/tests/rules_test.yaml
 
 .PHONY: check-exporter
 check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter promtool-check test-exporter exporter-version-smoke ## Full exporter presubmit

@@ -413,7 +413,7 @@ The follow-up has three costs. External Go code that imports `pkg/tree` breaks, 
 | 4 | Delivery | One PR with four commits, or four PRs | Four PRs. The `jq` move and the `select` fix can merge first |
 | 5 | Pairing instances with templates | Keep positional pairing with the documented ordering rule. Or derive IDs and template paths from one shared instance traversal, which needs a new definition field | Positional pairing with the ordering rule and the duplicate check now. A shared traversal gets its own issue, because it changes the CRD |
 | 6 | Shared writable paths | Support them and accept that a write changes every component on the path. Or require component isolation: snapshot the other affected components and compare them before commit | To decide. Isolation costs one extra read per component on each call |
-| 7 | `resource.NewAccessor` after the `jq` move | Unexport it in PR 1, and migrate the black-box test to the `karta` package. Or keep it exported, so only callers inside the SDK module can build a runner | To decide. If #330 removes jq, the runner type goes away, and the `NewAccessor` break is part of the CEL change |
+| 7 | `resource.NewAccessor` after the `jq` move | Unexport it in PR 1, and move the black-box test into package `resource`, which already imports `test/types` in its tests. The `karta` package arrives only in PR 3. Or keep it exported, so only callers inside the SDK module can build a runner | To decide. If #330 removes jq, the runner type goes away, and the `NewAccessor` break is part of the CEL change |
 
 ### Follow-ups
 

@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	clienttesting "k8s.io/client-go/testing"
@@ -101,27 +100,29 @@ func TestWatchErrorEventMarksSourceUnhealthy(t *testing.T) {
 	fake.Stop()
 }
 
-func TestRecoveredNamespacedSourceRequeuesOnlyItsNamespace(t *testing.T) {
-	r := newRootLifetimeRuntime(t, Config{})
-	inA := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "a", true)
-	rootLifetimeWatch(t, r, lifetimeDeploymentGVK, "b", true)
-	for _, root := range []discovery.ObjectRef{
-		{GVK: lifetimeDeploymentGVK, Namespace: "a", Name: "root", UID: "root-a"},
-		{GVK: lifetimeDeploymentGVK, Namespace: "b", Name: "root", UID: "root-b"},
+func TestRecoveredSourceQueuesNothing(t *testing.T) {
+	for name, namespace := range map[string]string{
+		"namespaced source":   "a",
+		"cluster-wide source": "",
 	} {
-		r.state.roots[root.UID] = &rootState{ref: root}
-	}
+		t.Run(name, func(t *testing.T) {
+			r := newRootLifetimeRuntime(t, Config{})
+			w := rootLifetimeWatch(t, r, lifetimeDeploymentGVK, namespace, true)
+			for _, root := range []discovery.ObjectRef{
+				{GVK: lifetimeDeploymentGVK, Namespace: "a", Name: "root", UID: "root-a"},
+				{GVK: lifetimeDeploymentGVK, Namespace: "b", Name: "root", UID: "root-b"},
+			} {
+				r.state.roots[root.UID] = &rootState{ref: root}
+			}
 
-	r.state.setWatchHealth(inA, errors.New("watch unavailable"))
-	r.state.setWatchHealth(inA, nil)
+			r.state.setWatchHealth(w, errors.New("watch unavailable"))
+			r.state.setWatchHealth(w, nil)
 
-	var queued []types.UID
-	for r.state.workloadQueue.Len() > 0 {
-		key, _ := r.state.workloadQueue.Get()
-		queued = append(queued, key.RootUID)
-		r.state.workloadQueue.Done(key)
+			require.NoError(t, r.state.sources[w.key].err, "the recovered source must report healthy")
+			require.Zero(t, r.state.workloadQueue.Len(), "a recovery must not requeue workloads")
+			require.Zero(t, r.state.podQueue.Len(), "a recovery must not rescan Pods")
+		})
 	}
-	require.Equal(t, []types.UID{"root-a"}, queued)
 }
 
 func TestAlreadyClosedWatchIsAFailedStart(t *testing.T) {

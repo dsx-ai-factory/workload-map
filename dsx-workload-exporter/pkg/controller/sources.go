@@ -269,7 +269,6 @@ func (r *controllerState) updateWatchHealth(w *resourceWatch, err error) {
 	if !r.isTrackedWatch(w) {
 		return
 	}
-	recovered := w.err != nil && err == nil
 	w.err = err
 	if r.watches[w.key] == w {
 		r.sources[w.key] = cacheSource{gvk: w.gvk, hasFullObject: w.full, synced: w.ready, err: err}
@@ -277,15 +276,8 @@ func (r *controllerState) updateWatchHealth(w *resourceWatch, err error) {
 	if r.replacements[w.key] == nil || r.replacements[w.key] == w {
 		r.deps.Publications.SetSourceHealth(w.key, store.SourceHealth{GVK: w.gvk, Synced: w.ready, Error: failureReason(err)})
 	}
-	if recovered {
-		r.enqueueScopeRefresh(w.key.Namespace)
-		// A namespaced source feeds only the roots in its namespace; a cluster-wide one feeds all.
-		for uid, root := range r.roots {
-			if w.key.Namespace == "" || root.ref.Namespace == w.key.Namespace {
-				r.workloadQueue.Add(workloadJobKey{RootUID: uid})
-			}
-		}
-	}
+	// A recovery queues no work. Saved results check source health when they are read,
+	// failed jobs retry through their workqueue, and a relist refreshes its scope in Replace.
 	if w.gvk == namespaceGVK {
 		r.watchSyncQueue.Add("sources")
 	} else if apierrors.IsNotFound(err) {

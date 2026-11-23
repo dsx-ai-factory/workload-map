@@ -26,6 +26,11 @@ tests:
     exp_samples:
     - labels: '{}'
       value: 1
+  - expr: tutorial:gpu_idle:eligible
+    eval_time: 120s
+    exp_samples:
+    - labels: 'tutorial:gpu_idle:eligible{namespace="ai-lab",workload_uid="w1",pod_uid="p1",UUID="GPU-a"}'
+      value: 1
 - name: busy sample starts a new idle window
   interval: 5s
   input_series:
@@ -326,6 +331,11 @@ tests:
     exp_samples:
     - labels: '{}'
       value: 1
+  - expr: tutorial:unhealthy:eligible
+    eval_time: 120s
+    exp_samples:
+    - labels: 'tutorial:unhealthy:eligible{namespace="ai-lab",workload_uid="w1",workload_group="batch",workload_kind="Job",phase="Failed"}'
+      value: 1
 - name: Failed Deployment qualifies after two minutes
   interval: 5s
   input_series:
@@ -341,6 +351,11 @@ tests:
     eval_time: 120s
     exp_samples:
     - labels: '{}'
+      value: 1
+  - expr: tutorial:unhealthy:eligible
+    eval_time: 120s
+    exp_samples:
+    - labels: 'tutorial:unhealthy:eligible{namespace="ai-lab",workload_uid="w1",workload_group="apps",workload_kind="Deployment",phase="Failed"}'
       value: 1
 - name: workload age is not phase duration
   interval: 5s

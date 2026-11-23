@@ -53,6 +53,10 @@ valid observations for the same workload UID. A UID identifies one object's life
 The GPU rule also matches the Pod UID. Missing data does not count as zero.
 Actions are limited to opted-in workloads in `ai-lab`.
 
+The DCGM Service used below must have exactly one exporter endpoint for the demo
+GPU node. For multiple nodes, scrape each exporter Pod separately with Kubernetes
+discovery instead of one shared Service target.
+
 <details>
 <summary>Prepare the demo</summary>
 
@@ -235,6 +239,8 @@ data:
           - targets: [dsx-workload-exporter.karta-system.svc:8080]
       - job_name: dcgm
         honor_labels: true
+        # This Service must have exactly one exporter endpoint for the demo GPU node.
+        # For multiple nodes, discover and scrape each exporter Pod separately.
         static_configs:
           - targets: [dcgm-exporter.gpu-operator.svc:9400]
 ---
@@ -658,5 +664,8 @@ The GPU capacity and DCGM readings were simulated; physical GPU attribution
 and cAdvisor-driven actions were not tested. The [22 rule tests](tests/rules_test.yaml)
 cover timing, missing or invalid measurements, and object replacement.
 
-Metrics and mutations are separate operations. A workload can change between them.
-These examples are intended for a disposable lab.
+[Kyverno 1.19.1](https://github.com/kyverno/kyverno/blob/v1.19.1/pkg/controllers/deleting/controller.go#L154)
+checks an object, then deletes it by name without a UID precondition.
+A same-name replacement created between those operations can be deleted.
+Matching metric UIDs does not make deletion atomic. These examples are intended
+for a disposable lab.

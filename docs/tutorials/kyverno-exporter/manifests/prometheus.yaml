@@ -19,6 +19,8 @@ data:
           - targets: [dsx-workload-exporter.karta-system.svc:8080]
       - job_name: dcgm
         honor_labels: true
+        # This Service must have exactly one exporter endpoint for the demo GPU node.
+        # For multiple nodes, discover and scrape each exporter Pod separately.
         static_configs:
           - targets: [dcgm-exporter.gpu-operator.svc:9400]
 ---

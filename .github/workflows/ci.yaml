@@ -42,7 +42,7 @@ jobs:
           make commit-attribution-check
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: 'karta/sdk/go.mod'
           cache: true
@@ -55,9 +55,9 @@ jobs:
             hack/release/go.sum
 
       - name: Install helm
-        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
         with:
-          version: v4.3.1
+          version: v4.3.2
 
       - name: Cache bin tools
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -67,6 +67,7 @@ jobs:
             bin/go-licence-detector-*
             bin/golangci-lint-*
             bin/goreleaser-*
+            bin/promtool-*
             bin/setup-envtest-*
             bin/k8s
           key: ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-${{ hashFiles('karta/sdk/go.mod') }}
@@ -81,6 +82,19 @@ jobs:
         run: |
           build_version="0.0.0-main-${GITHUB_SHA:0:7}"
           make check VERSION="$build_version"
+
+      - name: Select dashboard changes
+        id: dashboard-changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if ! git cat-file -e "$BASE^{commit}" 2>/dev/null ||
+             ! git diff --quiet "$BASE" HEAD -- dsx-workload-exporter/examples/grafana dsx-workload-exporter/go.mod dsx-workload-exporter/go.sum Makefile .golangci.yml .github/workflows/ci.yaml; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Test exporter dashboard queries
+        if: steps.dashboard-changes.outputs.run == 'true'
+        run: make test-exporter-dashboard-queries
 
       - name: Lint helm chart
         run: make helm-lint
@@ -113,7 +127,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: 'karta/sdk/go.mod'
           cache: true
@@ -169,7 +183,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: 'karta/sdk/go.mod'
 
@@ -204,7 +218,7 @@ jobs:
           fi
       - name: Set up Go
         if: steps.changes.outputs.run == 'true'
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: dsx-workload-exporter/go.mod
           cache-dependency-path: |
@@ -212,9 +226,9 @@ jobs:
             karta/sdk/go.sum
       - name: Install Helm
         if: steps.changes.outputs.run == 'true'
-        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
         with:
-          version: v4.3.1
+          version: v4.3.2
       - name: Read pinned tool versions
         if: steps.changes.outputs.run == 'true'
         run: |
@@ -223,7 +237,7 @@ jobs:
           echo "KUBECTL_VERSION=$KUBECTL_VERSION" >> "$GITHUB_ENV"
       - name: Install Kind and kubectl
         if: steps.changes.outputs.run == 'true'
-        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
         with:
           install_only: true
           version: ${{ env.KIND_VERSION }}

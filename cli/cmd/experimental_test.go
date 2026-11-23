@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,8 +56,27 @@ func TestDefinitionsExperimentalOptIn(t *testing.T) {
 					t.Errorf("%s, enabled=%t: unexpected visibility for %s", format, enabled, name)
 				}
 			}
-			if strings.Contains(out, kartas.Jobset().Name) == enabled {
-				t.Errorf("%s, enabled=%t: stable catalog fallback has wrong visibility", format, enabled)
+			fallback := kartas.Jobset().Name
+			if format != "table" {
+				if strings.Contains(out, fallback) == enabled {
+					t.Errorf("%s, enabled=%t: stable catalog fallback has wrong visibility", format, enabled)
+				}
+				continue
+			}
+			// The table keeps the catalog definition the cluster one overrides,
+			// marked inactive, so only its status tells the two cases apart.
+			want := "active"
+			if enabled {
+				want = "inactive"
+			}
+			var status string
+			for _, line := range strings.Split(out, "\n") {
+				if fields := strings.Fields(line); len(fields) > 3 && fields[0] == fallback {
+					status = fields[3]
+				}
+			}
+			if status != want {
+				t.Errorf("table, enabled=%t: stable catalog fallback is %q, want %q", enabled, status, want)
 			}
 		}
 	}
@@ -161,5 +181,39 @@ func TestExperimentalCompletionPreferences(t *testing.T) {
 				t.Errorf("workload visibility=%t, completions %v", tc.want, got)
 			}
 		})
+	}
+}
+
+// The root command wires --catalog-only together with the persistent
+// experimental opt-in, and neither reaches the configured cluster.
+func TestDefinitionsCatalogOnlyThroughRootCommand(t *testing.T) {
+	isolateConfig(t)
+	t.Setenv("KARTA_CATALOG_EXPERIMENTAL_DEFINITIONS", "")
+	t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "absent"))
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		http.Error(w, "unexpected request", http.StatusInternalServerError)
+	}))
+	t.Cleanup(server.Close)
+
+	for _, enabled := range []bool{false, true} {
+		args := []string{"--server", server.URL, "--catalog-only"}
+		if enabled {
+			args = append(args, "--catalog-experimental-definitions")
+		}
+		out, errOut, code := runCmd(t, "definitions", args...)
+		if code != 0 || errOut != "" {
+			t.Fatalf("enabled=%t: exit %d, stderr %s", enabled, code, errOut)
+		}
+		if strings.Contains(out, kartas.KueueWorkload().Name) != enabled {
+			t.Errorf("enabled=%t: unexpected visibility for %s in\n%s", enabled, kartas.KueueWorkload().Name, out)
+		}
+		if !strings.Contains(out, kartas.Jobset().Name) {
+			t.Errorf("enabled=%t: expected %s in\n%s", enabled, kartas.Jobset().Name, out)
+		}
+	}
+	if n := requests.Load(); n != 0 {
+		t.Errorf("expected no cluster requests with --catalog-only, got %d", n)
 	}
 }

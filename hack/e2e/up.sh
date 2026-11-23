@@ -36,7 +36,7 @@ export CLUSTER_NAME IMAGE REPO_ROOT KARTA_WEBHOOK_MODE
 # Workload operators selectable on the command line, in canonical install order:
 # a dependency always appears before its dependents (knative before kserve,
 # grove before dynamo).
-ALL_WORKLOADS=(lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue volcano)
+ALL_WORKLOADS=(lws jobset kuberay kubeflow knative kserve milvus grove dynamo nim agent-sandbox kueue argo-rollouts openkruise volcano)
 
 # deps_of <workload> prints the workload operators that must be installed first.
 deps_of() {
@@ -64,6 +64,8 @@ version_of() {
     nim) echo "${NIM_OPERATOR_VERSION}" ;;
     agent-sandbox) echo "${AGENT_SANDBOX_VERSION}" ;;
     kueue) echo "${KUEUE_VERSION}" ;;
+    argo-rollouts) echo "${ARGO_ROLLOUTS_VERSION}" ;;
+    openkruise) echo "${OPENKRUISE_VERSION}" ;;
     volcano) echo "${VOLCANO_VERSION}" ;;
     *) echo "?" ;;
   esac
@@ -106,7 +108,8 @@ setup_cluster() {
   docker build --build-arg "GO_VERSION=${GO_VERSION}" \
     -f "${REPO_ROOT}/operator/Dockerfile" -t "${IMAGE}" "${REPO_ROOT}"
 
-  if kind get clusters 2>/dev/null | grep -qx "${CLUSTER_NAME}"; then
+  # Read the whole pipe so an early grep exit cannot give the producer SIGPIPE.
+  if kind get clusters 2>/dev/null | grep -xF -- "${CLUSTER_NAME}" >/dev/null; then
     echo "==> reusing existing kind cluster (${CLUSTER_NAME})"
     # Re-export the kubeconfig: the cluster can outlive its context (a reset or
     # overwritten ~/.kube/config), and "kind create" is skipped on this path.
@@ -205,7 +208,7 @@ main() {
     selected=("${ALL_WORKLOADS[@]}")
   else
     for w in "${requested[@]}"; do
-      printf '%s\n' "${ALL_WORKLOADS[@]}" | grep -qxF "$w" ||
+      printf '%s\n' "${ALL_WORKLOADS[@]}" | grep -xF -- "$w" >/dev/null ||
         { echo "unknown workload: $w" >&2; usage; exit 2; }
     done
     selected=("${requested[@]}")
@@ -218,7 +221,7 @@ main() {
   local plan=()
   if [ "${#selected[@]}" -gt 0 ]; then
     for w in "${ALL_WORKLOADS[@]}"; do
-      if printf '%s\n' "${selected[@]}" | grep -qxF "$w"; then plan+=("$w"); fi
+      if printf '%s\n' "${selected[@]}" | grep -xF -- "$w" >/dev/null; then plan+=("$w"); fi
     done
   fi
 

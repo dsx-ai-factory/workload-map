@@ -58,6 +58,8 @@ var definitions = []func() *v1alpha1.Karta{
 	kartas.GrovePodCliqueSet,
 	kartas.Sandbox,
 	kartas.KueueWorkload,
+	kartas.Rollout,
+	kartas.CloneSet,
 	kartas.VcJob,
 }
 

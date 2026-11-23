@@ -58,7 +58,9 @@ func newValidateCommand() *cobra.Command {
 			}
 
 			var karta v1alpha1.Karta
-			if err := yaml.Unmarshal(data, &karta); err != nil {
+			// UnmarshalStrict rejects an unknown field (a misspelled key) and a
+			// duplicate mapping key, both of which plain Unmarshal drops silently.
+			if err := yaml.UnmarshalStrict(data, &karta); err != nil {
 				return usageError(cmd, fmt.Errorf("parse %s: %w", name, err))
 			}
 

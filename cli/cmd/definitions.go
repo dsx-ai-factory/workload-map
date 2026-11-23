@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"slices"
@@ -24,6 +25,8 @@ const (
 	flagGroup   = "group"
 	flagKind    = "kind"
 	flagVersion = "version"
+
+	flagCatalogOnly = "catalog-only"
 )
 
 const (
@@ -32,15 +35,18 @@ const (
 
 	definitionsLong = `List the Karta definitions the CLI understands, merging the built-in catalog
 with the Karta definitions installed in the cluster. A cluster definition overrides a
-catalog one describing the same workload type and is listed once, as cluster.
+catalog one describing the same workload type. The table lists both, and STATUS shows
+which one the CLI selects: active, inactive when it is overridden or names no workload
+type, or ambiguous when another definition from the same source covers the same type.
 Definitions are not namespaced, and without cluster access the command still lists the
 catalog definitions.
 
 Give a NAME to address one definition, or use --group, and optionally --kind and
 --version, to narrow the list to one workload type. The table is the human view; json
-and yaml carry the definitions themselves, under an items key. A NAME addresses one
-definition, so json and yaml emit it on its own instead, and the output applies and
-validates as it stands.`
+and yaml carry the definitions themselves, under an items key, and leave out the
+catalog definitions a cluster definition overrides. A NAME addresses one definition, so
+json and yaml emit it on its own instead, and the output applies and validates as it
+stands.`
 
 	definitionsExample = `  # Everything the CLI understands (catalog + cluster)
   kli definitions
@@ -50,6 +56,9 @@ validates as it stands.`
 
   # Which definition covers JobSet?
   kli definitions --group jobset.x-k8s.io --kind JobSet
+
+  # Only the built-in catalog, offline
+  kli definitions --catalog-only
 
   # List every component instead of the first three
   kli definitions --component-limit 0
@@ -66,6 +75,8 @@ const (
 	usageKind    = "Show the definitions covering this kind; needs --" + flagGroup
 	usageVersion = "Show the definitions covering this version; needs --" + flagKind
 
+	usageCatalogOnly = "List only the built-in catalog definitions, without loading a kubeconfig or contacting the cluster"
+
 	// defaultComponentLimit keeps a definition with many components to a row
 	// that fits on one line.
 	defaultComponentLimit = 3
@@ -81,6 +92,7 @@ type definitionRow struct {
 	Kind       string
 	APIVersion string
 	Origin     string
+	Status     string
 	Components []string
 }
 
@@ -100,6 +112,7 @@ var loadDefinitions = definitions.Load
 func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Command {
 	var group, kind, version string
 	var componentLimit int
+	var catalogOnly bool
 	var noHeaders bool
 	var (
 		output *Enum[generator.Output]
@@ -130,7 +143,15 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			resolver, warnings := loadDefinitionsForCommand(cmd, rcg)
+			var (
+				resolver *definitions.Resolver
+				warnings []definitions.Warning
+			)
+			if catalogOnly {
+				resolver = definitions.LoadCatalog(isExperimentalEnabled(cmd))
+			} else {
+				resolver, warnings = loadDefinitionsForCommand(cmd, rcg)
+			}
 			// Warnings go out last, after the table and before main reports any
 			// error, so a long table cannot scroll them out of view.
 			defer func() {
@@ -139,6 +160,10 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 				}
 			}()
 
+			// The table shows every entry, overridden catalog definitions included.
+			// json and yaml keep to the definitions a lookup can select, so applying
+			// the output never installs a second claimant for a workload type.
+			entries := resolver.ListAll()
 			matches := resolver.List()
 			switch {
 			case len(args) == 1:
@@ -149,6 +174,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 						args[0])
 				}
 				matches = []definitions.Definition{def}
+				entries = slices.DeleteFunc(entries, func(e definitions.Definition) bool { return e.Karta != def.Karta })
 
 			case filter.set:
 				if matches = filter.narrow(matches); len(matches) == 0 {
@@ -156,6 +182,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 						`no Karta definition covers %q. Run "kli definitions" to see what is available`,
 						filter.String())
 				}
+				entries = slices.DeleteFunc(entries, func(e definitions.Definition) bool { return !filter.covers(e) })
 			}
 
 			kartas := make([]*v1alpha1.Karta, 0, len(matches))
@@ -163,7 +190,7 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 				kartas = append(kartas, def.Karta)
 			}
 			table := func(out io.Writer) error {
-				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(matches), componentLimit, output.Get() == generator.OutputWide, noHeaders)
+				return renderDefinitions(out, cmd.ErrOrStderr(), definitionRows(entries), componentLimit, output.Get() == generator.OutputWide, noHeaders)
 			}
 			return generator.Render(cmd.OutOrStdout(), output.Get(), kartas, len(args) == 1, table)
 		},
@@ -174,7 +201,14 @@ func newDefinitionsCommand(rcg genericclioptions.RESTClientGetter) *cobra.Comman
 	cmd.Flags().StringVar(&kind, flagKind, "", usageKind)
 	cmd.Flags().StringVar(&version, flagVersion, "", usageVersion)
 	cmd.Flags().IntVar(&componentLimit, flagComponentLimit, defaultComponentLimit, usageDefinitionsComponentLimit)
+	cmd.Flags().BoolVar(&catalogOnly, flagCatalogOnly, false, usageCatalogOnly)
 	withNoHeaders(cmd.Flags(), &noHeaders)
+	for _, flag := range []string{flagGroup, flagKind, flagVersion} {
+		cobra.CheckErr(cmd.RegisterFlagCompletionFunc(flag,
+			func(cmd *cobra.Command, args []string, prefix string) ([]string, cobra.ShellCompDirective) {
+				return completeDefinitionFilter(cmd, args, flag, prefix), cobra.ShellCompDirectiveNoFileComp
+			}))
+	}
 
 	return cmd
 }
@@ -217,23 +251,28 @@ func definitionFilterFrom(cmd *cobra.Command, args []string, group, kind, versio
 func (f definitionFilter) narrow(defs []definitions.Definition) []definitions.Definition {
 	out := make([]definitions.Definition, 0, len(defs))
 	for _, def := range defs {
-		gvk := catalog.RootKey(def.Karta)
-		// Names no workload type, so no filter covers it.
-		if gvk.Version == "" || gvk.Kind == "" {
-			continue
+		if f.covers(def) {
+			out = append(out, def)
 		}
-		if gvk.Group != f.group {
-			continue
-		}
-		if f.kind != "" && !strings.EqualFold(gvk.Kind, f.kind) {
-			continue
-		}
-		if f.version != "" && gvk.Version != f.version {
-			continue
-		}
-		out = append(out, def)
 	}
 	return out
+}
+
+// covers reports whether def describes the workload type the filter addresses.
+func (f definitionFilter) covers(def definitions.Definition) bool {
+	gvk := catalog.RootKey(def.Karta)
+	switch {
+	case gvk.Version == "" || gvk.Kind == "":
+		// Names no workload type, so no filter covers it.
+		return false
+	case gvk.Group != f.group:
+		return false
+	case f.kind != "" && !strings.EqualFold(gvk.Kind, f.kind):
+		return false
+	case f.version != "" && gvk.Version != f.version:
+		return false
+	}
+	return true
 }
 
 // String renders the filter the way the CLI renders a GVK, trimmed to the
@@ -252,11 +291,11 @@ func (f definitionFilter) String() string {
 	}
 }
 
-// definitionRows projects definitions into rows sorted by name. Resolver.List
+// definitionRows projects entries into rows sorted by name. Resolver.ListAll
 // sorts by GVK, so display order is set here.
-func definitionRows(defs []definitions.Definition) []definitionRow {
-	rows := make([]definitionRow, 0, len(defs))
-	for _, def := range defs {
+func definitionRows(entries []definitions.Definition) []definitionRow {
+	rows := make([]definitionRow, 0, len(entries))
+	for _, def := range entries {
 		structure := def.Karta.Spec.StructureDefinition
 		components := make([]string, 0, len(structure.ChildComponents)+1)
 		components = append(components, structure.RootComponent.Name)
@@ -269,10 +308,15 @@ func definitionRows(defs []definitions.Definition) []definitionRow {
 			Kind:       gvk.Kind,
 			APIVersion: schema.GroupVersion{Group: gvk.Group, Version: gvk.Version}.String(),
 			Origin:     string(def.Origin),
+			Status:     string(def.Status),
 			Components: components,
 		})
 	}
-	slices.SortFunc(rows, func(a, b definitionRow) int { return strings.Compare(a.Name, b.Name) })
+	// A cluster definition can reuse the name of the catalog one it overrides,
+	// so origin breaks the tie and keeps the order stable.
+	slices.SortFunc(rows, func(a, b definitionRow) int {
+		return cmp.Or(strings.Compare(a.Name, b.Name), strings.Compare(a.Origin, b.Origin))
+	})
 	return rows
 }
 
@@ -288,9 +332,9 @@ func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLim
 	switch {
 	case noHeaders:
 	case wide:
-		fmt.Fprintln(w, "NAME\tKIND\tAPIVERSION\tORIGIN\tCOMPONENTS")
+		fmt.Fprintln(w, "NAME\tKIND\tAPIVERSION\tORIGIN\tSTATUS\tCOMPONENTS")
 	default:
-		fmt.Fprintln(w, "NAME\tKIND\tORIGIN\tCOMPONENTS")
+		fmt.Fprintln(w, "NAME\tKIND\tORIGIN\tSTATUS\tCOMPONENTS")
 	}
 	for _, row := range rows {
 		// Still listed, so its author can see the one they wrote.
@@ -303,11 +347,11 @@ func renderDefinitions(out, errOut io.Writer, rows []definitionRow, componentLim
 			if apiVersion == "" {
 				apiVersion = "<none>"
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-				row.Name, kind, apiVersion, row.Origin, componentsCell(row.Components, componentLimit))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+				row.Name, kind, apiVersion, row.Origin, row.Status, componentsCell(row.Components, componentLimit))
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-				row.Name, kind, row.Origin, componentsCell(row.Components, componentLimit))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				row.Name, kind, row.Origin, row.Status, componentsCell(row.Components, componentLimit))
 		}
 	}
 	if err := w.Flush(); err != nil {

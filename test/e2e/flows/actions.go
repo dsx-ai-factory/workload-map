@@ -55,3 +55,41 @@ func SuspendSandbox() *recorder.Action {
 func ResumeSandbox() *recorder.Action {
 	return &recorder.Action{Type: recorder.ActionResume, Patch: []byte(`{"spec":{"operatingMode":"Running"}}`)}
 }
+
+// SuspendPaused sets spec.paused so a running workload pauses (Argo Rollouts uses spec.paused
+// instead of spec.suspend).
+func SuspendPaused() *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionSuspend, Patch: []byte(`{"spec":{"paused":true}}`)}
+}
+
+// ResumePaused clears spec.paused so a paused workload resumes.
+func ResumePaused() *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionResume, Patch: []byte(`{"spec":{"paused":false}}`)}
+}
+
+// RolloutImage patches spec.template to trigger a rollout with a new container image. JSON
+// merge patch replaces the entire containers array, so containerJSON must be the complete
+// container object with only the image changed.
+func RolloutImage(containerJSON string) *recorder.Action {
+	return &recorder.Action{Type: recorder.ActionRollout, Patch: []byte(
+		fmt.Sprintf(`{"spec":{"template":{"spec":{"containers":[%s]}}}}`, containerJSON),
+	)}
+}
+
+// PartitionRollout sets spec.updateStrategy.partition and changes the image in one merge patch,
+// triggering a canary update where only (replicas - partition) pods roll to the new revision.
+func PartitionRollout(partition int, containerJSON string) *recorder.Action {
+	return &recorder.Action{
+		Type:  recorder.ActionRollout,
+		Patch: []byte(fmt.Sprintf(`{"spec":{"updateStrategy":{"partition":%d},"template":{"spec":{"containers":[%s]}}}}`, partition, containerJSON)),
+	}
+}
+
+// PauseRollout sets spec.updateStrategy.paused and changes the image in one merge patch.
+// The controller accepts the new revision but does not roll it out while paused.
+func PauseRollout(containerJSON string) *recorder.Action {
+	return &recorder.Action{
+		Type:  recorder.ActionRollout,
+		Patch: []byte(fmt.Sprintf(`{"spec":{"updateStrategy":{"paused":true},"template":{"spec":{"containers":[%s]}}}}`, containerJSON)),
+	}
+}

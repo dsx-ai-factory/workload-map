@@ -84,11 +84,11 @@ var _ = Describe("Controller publication lifecycle", func() {
 		p.Status.Phase = corev1.PodRunning
 		Expect(api.Status().Update(ctx, p)).To(Succeed())
 		cfg := config.DefaultConfig()
-		cfg.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
+		cfg.Selection.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
 		cfg.KartaDefinitionSource.Catalog.Enabled = false
 		cfg.KartaDefinitionSource.Cluster.Enabled = true
 		cfg.KartaDefinitionSource.Cluster.Include = []string{"integration-" + ns.Name}
-		cfg.Rules = []labelresolver.LabelRule{
+		cfg.Metrics.Rules = []labelresolver.LabelRule{
 			{Name: "team", Metrics: []string{labelresolver.MetricPodWorkloadInfo, labelresolver.MetricWorkloadStatus}, Sources: []labelresolver.Source{labelresolver.SourceWorkload}, Expression: `object.metadata.labels["example.com/team"]`},
 		}
 		components, err := bootstrap.New(cfg, kubeConfig)
@@ -192,10 +192,10 @@ var _ = Describe("Controller publication lifecycle", func() {
 		Expect(api.Create(ctx, ns)).To(Succeed())
 		listed := deployment(ctx, ns.Name, "listed")
 		cfg := config.DefaultConfig()
-		cfg.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
+		cfg.Selection.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
 		cfg.KartaDefinitionSource.Catalog.Enabled = false
 		cfg.KartaDefinitionSource.Cluster.Enabled = false
-		cfg.RequiredKinds = []schema.GroupVersionKind{deployGVK}
+		cfg.Selection.RequiredWatchKinds = []schema.GroupVersionKind{deployGVK}
 		components, err := bootstrap.New(cfg, kubeConfig)
 		Expect(err).NotTo(HaveOccurred())
 		runCtx, cancel := context.WithCancel(context.Background())
@@ -231,12 +231,12 @@ var _ = Describe("Controller publication lifecycle", func() {
 		rs := replicaSet(ctx, root, "middle")
 		p := pod(ctx, rs, "pod")
 		cfg := config.DefaultConfig()
-		cfg.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
+		cfg.Selection.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": ns.Name}}
 		cfg.KartaDefinitionSource.Catalog.Enabled = false
 		cfg.KartaDefinitionSource.Cluster.Enabled = true
 		cfg.KartaDefinitionSource.Cluster.Include = []string{"integration-" + ns.Name}
-		cfg.RequestTimeout = "1s"
-		cfg.Rules = []labelresolver.LabelRule{
+		cfg.Tuning.APIClient.RequestTimeout = "1s"
+		cfg.Metrics.Rules = []labelresolver.LabelRule{
 			{Name: "team", Metrics: []string{labelresolver.MetricPodWorkloadInfo, labelresolver.MetricWorkloadStatus}, Sources: []labelresolver.Source{labelresolver.SourceWorkload}, Expression: `object.metadata.labels["example.com/team"]`},
 			{Name: "pod_phase", Metrics: []string{labelresolver.MetricPodWorkloadInfo}, Sources: []labelresolver.Source{labelresolver.SourcePod}, Expression: `object.status.phase`},
 		}

@@ -38,11 +38,11 @@ var _ = Describe("startup rejects invalid expressions", func() {
 	for _, tc := range []struct{ name, expression, limits, want string }{
 		{"syntax", `object[`, "", "compiling label expression"},
 		{"non string", `1 + 1`, "", "must produce a string"},
-		{"expression limit", `object.kind`, "genericLabelEvaluationLimits:\n  maxExpressionBytes: 4\n", "exceeds the maximum length"},
+		{"expression limit", `object.kind`, "  labelEvaluationLimits:\n    maxExpressionBytes: 4\n", "exceeds the maximum length"},
 	} {
 		It(tc.name, func(specCtx SpecContext) {
 			path := filepath.Join(GinkgoT().TempDir(), "config.yaml")
-			contents := "labelRules:\n- name: team\n  metrics: [dsx_workload_status]\n  sources: [workload]\n  expression: '" + tc.expression + "'\n" + tc.limits
+			contents := "metrics:\n  labelRules:\n  - name: team\n    metrics: [dsx_workload_status]\n    sources: [workload]\n    expression: '" + tc.expression + "'\n" + tc.limits
 			Expect(os.WriteFile(path, []byte(contents), 0o600)).To(Succeed())
 			ctx, cancel := context.WithTimeout(specCtx, 5*time.Second)
 			defer cancel()
@@ -57,7 +57,7 @@ var _ = Describe("startup rejects invalid expressions", func() {
 })
 
 var _ = Describe("command help", func() {
-	It("documents only the three public generic evaluation limits", func(specCtx SpecContext) {
+	It("documents only the three public label evaluation limits", func(specCtx SpecContext) {
 		ctx, cancel := context.WithTimeout(specCtx, 5*time.Second)
 		defer cancel()
 		output, err := runExporterCommand(ctx, "--help")
@@ -65,8 +65,8 @@ var _ = Describe("command help", func() {
 		Expect(string(output)).To(ContainSubstring("metrics-bind-address"))
 		Expect(string(output)).To(ContainSubstring("pprof-bind-address"))
 		for _, name := range []string{
-			"generic-label-eval-cost-limit", "generic-label-eval-max-expression-bytes", "generic-label-eval-max-result-bytes",
-			"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_COST_LIMIT", "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_EXPRESSION_BYTES", "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_RESULT_BYTES",
+			"label-eval-cost-limit", "label-eval-max-expression-bytes", "label-eval-max-result-bytes",
+			"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_COST_LIMIT", "DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_EXPRESSION_BYTES", "DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_RESULT_BYTES",
 		} {
 			Expect(string(output)).To(ContainSubstring(name))
 		}

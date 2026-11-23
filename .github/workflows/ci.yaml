@@ -42,7 +42,7 @@ jobs:
           make commit-attribution-check
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: 'karta/sdk/go.mod'
           cache: true
@@ -67,6 +67,7 @@ jobs:
             bin/go-licence-detector-*
             bin/golangci-lint-*
             bin/goreleaser-*
+            bin/promtool-*
             bin/setup-envtest-*
             bin/k8s
           key: ${{ runner.os }}-tools-v1-${{ hashFiles('Makefile') }}-${{ hashFiles('karta/sdk/go.mod') }}
@@ -81,6 +82,19 @@ jobs:
         run: |
           build_version="0.0.0-main-${GITHUB_SHA:0:7}"
           make check VERSION="$build_version"
+
+      - name: Select dashboard changes
+        id: dashboard-changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if ! git cat-file -e "$BASE^{commit}" 2>/dev/null ||
+             ! git diff --quiet "$BASE" HEAD -- dsx-workload-exporter/examples/grafana dsx-workload-exporter/go.mod dsx-workload-exporter/go.sum Makefile .golangci.yml .github/workflows/ci.yaml; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Test exporter dashboard queries
+        if: steps.dashboard-changes.outputs.run == 'true'
+        run: make test-exporter-dashboard-queries
 
       - name: Lint helm chart
         run: make helm-lint
@@ -113,7 +127,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: 'karta/sdk/go.mod'
           cache: true
@@ -169,7 +183,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: 'karta/sdk/go.mod'
 
@@ -204,7 +218,7 @@ jobs:
           fi
       - name: Set up Go
         if: steps.changes.outputs.run == 'true'
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: dsx-workload-exporter/go.mod
           cache-dependency-path: |

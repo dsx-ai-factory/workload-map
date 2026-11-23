@@ -108,7 +108,8 @@ setup_cluster() {
   docker build --build-arg "GO_VERSION=${GO_VERSION}" \
     -f "${REPO_ROOT}/operator/Dockerfile" -t "${IMAGE}" "${REPO_ROOT}"
 
-  if kind get clusters 2>/dev/null | grep -qx "${CLUSTER_NAME}"; then
+  # Read the whole pipe so an early grep exit cannot give the producer SIGPIPE.
+  if kind get clusters 2>/dev/null | grep -xF -- "${CLUSTER_NAME}" >/dev/null; then
     echo "==> reusing existing kind cluster (${CLUSTER_NAME})"
     # Re-export the kubeconfig: the cluster can outlive its context (a reset or
     # overwritten ~/.kube/config), and "kind create" is skipped on this path.
@@ -207,7 +208,7 @@ main() {
     selected=("${ALL_WORKLOADS[@]}")
   else
     for w in "${requested[@]}"; do
-      printf '%s\n' "${ALL_WORKLOADS[@]}" | grep -qxF "$w" ||
+      printf '%s\n' "${ALL_WORKLOADS[@]}" | grep -xF -- "$w" >/dev/null ||
         { echo "unknown workload: $w" >&2; usage; exit 2; }
     done
     selected=("${requested[@]}")
@@ -220,7 +221,7 @@ main() {
   local plan=()
   if [ "${#selected[@]}" -gt 0 ]; then
     for w in "${ALL_WORKLOADS[@]}"; do
-      if printf '%s\n' "${selected[@]}" | grep -qxF "$w"; then plan+=("$w"); fi
+      if printf '%s\n' "${selected[@]}" | grep -xF -- "$w" >/dev/null; then plan+=("$w"); fi
     done
   fi
 

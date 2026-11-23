@@ -5,6 +5,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"os"
@@ -19,44 +20,40 @@ import (
 )
 
 var _ = Describe("config defaults and rules", func() {
-	It("rejects the removed singular object selector key", func() {
-		_, err := loadConfig("objectSelector: {matchLabels: {team: platform}}", nil)
-		Expect(err).To(MatchError(ContainSubstring(`unknown field "objectSelector"`)))
-	})
-
 	It("loads independent workload metric selection and an optional Pod association", func() {
 		defaults, err := loadConfig("", nil)
 		Expect(err).To(Succeed())
-		Expect(defaults.WorkloadMetricSelector).To(BeNil())
-		Expect(defaults.PodWorkloadAssociation).To(BeNil())
-		cfg, err := loadConfig(`workloadMetricSelector:
-  matchExpressions:
-  - key: example.org/group
-    operator: DoesNotExist
-podWorkloadAssociation:
-  podSelector:
-    matchLabels:
-      example.org/managed: "true"
-  target:
-    apiVersion: scheduling.example.org/v1
-    kind: Workload
-    nameFromLabel: example.org/group
+		Expect(defaults.Metrics.WorkloadSelector).To(BeNil())
+		Expect(defaults.Metrics.PodWorkloadAssociation).To(BeNil())
+		cfg, err := loadConfig(`metrics:
+  workloadSelector:
+    matchExpressions:
+    - key: example.org/group
+      operator: DoesNotExist
+  podWorkloadAssociation:
+    podSelector:
+      matchLabels:
+        example.org/managed: "true"
+    target:
+      apiVersion: scheduling.example.org/v1
+      kind: Workload
+      nameFromLabel: example.org/group
 `, nil)
 		Expect(err).To(Succeed())
-		Expect(cfg.WorkloadMetricSelector.MatchExpressions).To(HaveLen(1))
-		Expect(cfg.PodWorkloadAssociation.Target.APIVersion).To(Equal("scheduling.example.org/v1"))
-		Expect(cfg.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("example.org/group"))
-		Expect(cfg.PodWorkloadAssociation.PodSelector.MatchLabels).To(HaveKeyWithValue("example.org/managed", "true"))
+		Expect(cfg.Metrics.WorkloadSelector.MatchExpressions).To(HaveLen(1))
+		Expect(cfg.Metrics.PodWorkloadAssociation.Target.APIVersion).To(Equal("scheduling.example.org/v1"))
+		Expect(cfg.Metrics.PodWorkloadAssociation.Target.NameFromLabel).To(Equal("example.org/group"))
+		Expect(cfg.Metrics.PodWorkloadAssociation.PodSelector.MatchLabels).To(HaveKeyWithValue("example.org/managed", "true"))
 	})
 
 	for _, invalid := range []string{
-		`workloadMetricSelector: {matchExpressions: [{key: group, operator: Invalid}]}`,
-		`podWorkloadAssociation: {target: {apiVersion: "", kind: Workload, nameFromLabel: group}}`,
-		`podWorkloadAssociation: {target: {apiVersion: example.org/, kind: Workload, nameFromLabel: group}}`,
-		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: "*", nameFromLabel: group}}`,
-		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: ""}}`,
-		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: "bad key"}}`,
-		`podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: group}, podSelector: {matchExpressions: [{key: group, operator: Invalid}]}}`,
+		`metrics: {workloadSelector: {matchExpressions: [{key: group, operator: Invalid}]}}`,
+		`metrics: {podWorkloadAssociation: {target: {apiVersion: "", kind: Workload, nameFromLabel: group}}}`,
+		`metrics: {podWorkloadAssociation: {target: {apiVersion: example.org/, kind: Workload, nameFromLabel: group}}}`,
+		`metrics: {podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: "*", nameFromLabel: group}}}`,
+		`metrics: {podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: ""}}}`,
+		`metrics: {podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: "bad key"}}}`,
+		`metrics: {podWorkloadAssociation: {target: {apiVersion: example.org/v1, kind: Workload, nameFromLabel: group}, podSelector: {matchExpressions: [{key: group, operator: Invalid}]}}}`,
 	} {
 		It("rejects invalid association and metric selection configuration: "+invalid, func() {
 			var parsed map[string]any
@@ -66,8 +63,8 @@ podWorkloadAssociation:
 		})
 	}
 
-	It("preserves flat configuration keys when encoding embedded resolver settings", func() {
-		cfg, err := loadConfig("labelRules: []\ngenericLabelEvaluationLimits:\n  maxResultBytes: 32\n", nil)
+	It("encodes label settings under metrics in both JSON and YAML", func() {
+		cfg, err := loadConfig("metrics: {labelRules: [], labelEvaluationLimits: {maxResultBytes: 32}}", nil)
 		Expect(err).To(Succeed())
 		for _, format := range []struct {
 			encode func(any) ([]byte, error)
@@ -81,15 +78,15 @@ podWorkloadAssociation:
 			var keys map[string]any
 			Expect(format.decode(data, &keys)).To(Succeed())
 			Expect(keys).To(HaveKey("kartaDefinitionSource"))
-			Expect(keys).To(HaveKey("labelRules"))
-			Expect(keys).To(HaveKey("genericLabelEvaluationLimits"))
-			Expect(keys["genericLabelEvaluationLimits"]).To(HaveLen(3))
+			metrics := keys["metrics"]
+			Expect(metrics).To(HaveKey("labelRules"))
+			Expect(metrics).To(HaveKeyWithValue("labelEvaluationLimits", HaveLen(3)))
 			for _, name := range []string{"costLimit", "maxExpressionBytes", "maxResultBytes"} {
-				Expect(keys["genericLabelEvaluationLimits"]).To(HaveKey(name))
+				Expect(metrics).To(HaveKeyWithValue("labelEvaluationLimits", HaveKey(name)))
 			}
 			var decoded Config
 			Expect(format.decode(data, &decoded)).To(Succeed())
-			Expect(decoded.Config).To(Equal(cfg.Config))
+			Expect(decoded.Metrics).To(Equal(cfg.Metrics))
 			Expect(decoded.KartaDefinitionSource).To(Equal(cfg.KartaDefinitionSource))
 		}
 	})
@@ -97,29 +94,87 @@ podWorkloadAssociation:
 	It("loads label rules while retaining unspecified defaults", func() {
 		cfg, err := loadConfig("", nil)
 		Expect(err).To(Succeed())
-		Expect(cfg.Limits).To(Equal(defaultLabelEvaluationLimits))
-		Expect(cfg.Rules).To(BeEmpty())
-		for _, contents := range []string{"\n", "labelRules: []\n---\n"} {
+		Expect(cfg.Metrics.Limits).To(Equal(defaultLabelEvaluationLimits))
+		Expect(cfg.Metrics.Rules).To(BeEmpty())
+		for _, contents := range []string{"\n", "metrics: {labelRules: []}\n---\n"} {
 			cfg, err = loadConfig(contents, nil)
 			Expect(err).To(Succeed())
-			Expect(cfg.Limits).To(Equal(defaultLabelEvaluationLimits))
+			Expect(cfg.Metrics.Limits).To(Equal(defaultLabelEvaluationLimits))
 		}
-		cfg, err = loadConfig(`labelRules:
-- name: team
-  metrics: [dsx_workload_pod_info]
-  sources: [workload, pod]
-  expression: |
-    has(object.metadata.labels) ? object.metadata.labels["team"] : ""
-genericLabelEvaluationLimits:
-  maxResultBytes: 32
+		cfg, err = loadConfig(`metrics:
+  labelRules:
+  - name: team
+    metrics: [dsx_workload_pod_info]
+    sources: [workload, pod]
+    expression: |
+      has(object.metadata.labels) ? object.metadata.labels["team"] : ""
+  labelEvaluationLimits:
+    maxResultBytes: 32
 `, nil)
 		Expect(err).To(Succeed())
-		Expect(cfg.Rules).To(HaveLen(1))
-		Expect(cfg.Rules[0].Name).To(Equal("team"))
-		Expect(cfg.Rules[0].Expression).To(ContainSubstring("object.metadata.labels"))
-		Expect(cfg.Limits.MaxResultBytes).To(Equal(32))
-		Expect(cfg.Limits.CostLimit).To(Equal(defaultLabelEvaluationLimits.CostLimit))
-		Expect(cfg.Limits.MaxExpressionBytes).To(Equal(defaultLabelEvaluationLimits.MaxExpressionBytes))
+		Expect(cfg.Metrics.Rules).To(HaveLen(1))
+		Expect(cfg.Metrics.Rules[0].Name).To(Equal("team"))
+		Expect(cfg.Metrics.Rules[0].Expression).To(ContainSubstring("object.metadata.labels"))
+		Expect(cfg.Metrics.Limits.MaxResultBytes).To(Equal(32))
+		Expect(cfg.Metrics.Limits.CostLimit).To(Equal(defaultLabelEvaluationLimits.CostLimit))
+		Expect(cfg.Metrics.Limits.MaxExpressionBytes).To(Equal(defaultLabelEvaluationLimits.MaxExpressionBytes))
+	})
+})
+
+var _ = Describe("grouped configuration", func() {
+	It("loads namespace, root and Pod selection and additional watch kinds", func() {
+		cfg, err := loadConfig(`selection:
+  namespaceSelector: {matchLabels: {team: platform}}
+  rootSelectors: [{selector: {matchLabels: {tier: batch}}}]
+  podSelector: {matchLabels: {role: worker}}
+  includeRootResources: [{apiGroups: [apps], apiVersions: [v1], resources: [deployments]}]
+  excludeRootResources: [{apiGroups: [""], apiVersions: [v1], resources: [secrets]}]
+  ignoredOwnerKinds: [example.org/v1/Wrapper]
+  requiredWatchKinds: [apps/v1/Deployment]`, nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Selection.NamespaceSelector.MatchLabels).To(HaveKeyWithValue("team", "platform"))
+		Expect(cfg.Selection.RootSelectors).To(HaveLen(1))
+		Expect(cfg.Selection.RootSelectors[0].Selector.MatchLabels).To(HaveKeyWithValue("tier", "batch"))
+		Expect(cfg.Selection.PodSelector.MatchLabels).To(HaveKeyWithValue("role", "worker"))
+		Expect(cfg.Selection.IncludeRootResources).To(HaveLen(1))
+		Expect(cfg.Selection.IncludeRootResources[0].Resources).To(ConsistOf("deployments"))
+		Expect(cfg.Selection.ExcludeRootResources).To(HaveLen(1))
+		Expect(cfg.Selection.ExcludeRootResources[0].Resources).To(ConsistOf("secrets"))
+		Expect(cfg.Selection.IgnoredOwnerKinds).To(HaveLen(1))
+		Expect(cfg.Selection.IgnoredOwnerKinds[0].Kind).To(Equal("Wrapper"))
+		Expect(cfg.Selection.RequiredWatchKinds).To(HaveLen(1))
+		Expect(cfg.Selection.RequiredWatchKinds[0].Kind).To(Equal("Deployment"))
+	})
+
+	It("applies flags and environment variables after grouped values", func() {
+		cfg, err := loadConfig(`tuning: {workers: {default: 6, pods: 2, workloads: 3}, apiClient: {qps: 2.5, burst: 10, requestTimeout: 12s}}`, map[string]string{
+			"DSX_WORKLOAD_EXPORTER_API_QPS":          "5.5",
+			"DSX_WORKLOAD_EXPORTER_WORKERS":          "7",
+			"DSX_WORKLOAD_EXPORTER_POD_WORKERS":      "4",
+			"DSX_WORKLOAD_EXPORTER_WORKLOAD_WORKERS": "5",
+		}, "--workers=8", "--workload-workers=6")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Tuning.Workers.Default).To(Equal(8))
+		Expect(cfg.Tuning.Workers.Pods).To(Equal(4))
+		Expect(cfg.Tuning.Workers.Workloads).To(Equal(6))
+		Expect(cfg.Tuning.APIClient.RequestTimeout).To(Equal("12s"))
+		Expect(cfg.Tuning.APIClient.QPS).To(Equal(float32(5.5)))
+		Expect(cfg.Tuning.APIClient.Burst).To(Equal(10))
+	})
+
+	It("rejects unknown fields, wrong types and Helm-only tuning settings", func() {
+		for _, content := range []string{
+			"workers: 3", "selection: {typo: []}", "metrics: {workloadSelector: {label: {}}}",
+			"metrics: {labelRules: [{unknown: 1}]}",
+			"tuning: {workers: 3}", "tuning: {workers: {default: invalid}}",
+			"tuning: {apiClient: {rate: 2}}", "tuning: {pprof: {enabled: true}}",
+			"tuning: {goMemoryLimit: auto}", "tuning: {workers: {pods: -1}}",
+		} {
+			By(content, func() {
+				_, err := loadConfig(content, nil)
+				Expect(err).To(HaveOccurred())
+			})
+		}
 	})
 })
 
@@ -128,17 +183,17 @@ var _ = Describe("status exclusions", func() {
 		func(content string, want []v1alpha1.ResourceStatus) {
 			cfg, err := loadConfig(content, nil)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cfg.ExcludeStatuses).To(Equal(want))
+			Expect(cfg.Metrics.ExcludeStatuses).To(Equal(want))
 		},
 		Entry("default", "", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
-		Entry("unrelated setting", "workers: 2", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
-		Entry("all phases", "excludeStatuses: []", []v1alpha1.ResourceStatus{}),
-		Entry("custom exclusions replace defaults", "excludeStatuses: [Running]", []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}),
+		Entry("unrelated setting", "tuning: {workers: {default: 2}}", []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus}),
+		Entry("all phases", "metrics: {excludeStatuses: []}", []v1alpha1.ResourceStatus{}),
+		Entry("custom exclusions replace defaults", "metrics: {excludeStatuses: [Running]}", []v1alpha1.ResourceStatus{v1alpha1.RunningStatus}),
 	)
 
 	It("rejects unknown or incorrectly cased phase names", func() {
 		for _, value := range []string{"unknown", "running", ""} {
-			_, err := loadConfig("excludeStatuses: [\""+value+"\"]", nil)
+			_, err := loadConfig("metrics: {excludeStatuses: [\""+value+"\"]}", nil)
 			Expect(err).To(MatchError(ContainSubstring("unknown excluded status")))
 		}
 	})
@@ -157,41 +212,41 @@ var _ = Describe("config precedence", func() {
 		{
 			name: "environment",
 			env: map[string]string{
-				"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_COST_LIMIT":           "7",
-				"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_EXPRESSION_BYTES": "70",
-				"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_RESULT_BYTES":     "700",
+				"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_COST_LIMIT":           "7",
+				"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_EXPRESSION_BYTES": "70",
+				"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_RESULT_BYTES":     "700",
 			},
 			wantCost: 7, wantExpression: 70, wantResult: 700,
 		},
 		{
 			name: "flag",
 			env: map[string]string{
-				"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_COST_LIMIT":           "7",
-				"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_EXPRESSION_BYTES": "70",
-				"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_RESULT_BYTES":     "700",
+				"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_COST_LIMIT":           "7",
+				"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_EXPRESSION_BYTES": "70",
+				"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_RESULT_BYTES":     "700",
 			},
 			args: []string{
-				"--generic-label-eval-cost-limit", "9",
-				"--generic-label-eval-max-expression-bytes", "90",
-				"--generic-label-eval-max-result-bytes", "900",
+				"--label-eval-cost-limit", "9",
+				"--label-eval-max-expression-bytes", "90",
+				"--label-eval-max-result-bytes", "900",
 			},
 			wantCost: 9, wantExpression: 90, wantResult: 900,
 		},
 		{
 			name: "explicit zero",
 			args: []string{
-				"--generic-label-eval-cost-limit", "0",
-				"--generic-label-eval-max-expression-bytes", "0",
-				"--generic-label-eval-max-result-bytes", "0",
+				"--label-eval-cost-limit", "0",
+				"--label-eval-max-expression-bytes", "0",
+				"--label-eval-max-result-bytes", "0",
 			},
 		},
 	} {
 		It(tc.name, func() {
-			cfg, err := loadConfig("genericLabelEvaluationLimits:\n  costLimit: 5\n  maxExpressionBytes: 50\n  maxResultBytes: 500\n", tc.env, tc.args...)
+			cfg, err := loadConfig("metrics: {labelEvaluationLimits: {costLimit: 5, maxExpressionBytes: 50, maxResultBytes: 500}}", tc.env, tc.args...)
 			Expect(err).To(Succeed())
-			Expect(cfg.Limits.CostLimit).To(Equal(tc.wantCost))
-			Expect(cfg.Limits.MaxExpressionBytes).To(Equal(tc.wantExpression))
-			Expect(cfg.Limits.MaxResultBytes).To(Equal(tc.wantResult))
+			Expect(cfg.Metrics.Limits.CostLimit).To(Equal(tc.wantCost))
+			Expect(cfg.Metrics.Limits.MaxExpressionBytes).To(Equal(tc.wantExpression))
+			Expect(cfg.Metrics.Limits.MaxResultBytes).To(Equal(tc.wantResult))
 		})
 	}
 })
@@ -199,17 +254,17 @@ var _ = Describe("config precedence", func() {
 var _ = Describe("config path and empty override", func() {
 	It("lets explicit empty flags override environment values", func() {
 		path := filepath.Join(GinkgoT().TempDir(), "config.yaml")
-		Expect(os.WriteFile(path, []byte("genericLabelEvaluationLimits:\n  maxResultBytes: 32\n"), 0o600)).To(Succeed())
+		Expect(os.WriteFile(path, []byte("metrics: {labelEvaluationLimits: {maxResultBytes: 32}}"), 0o600)).To(Succeed())
 		cfg, err := loadConfig("", map[string]string{"DSX_WORKLOAD_EXPORTER_CONFIG": path})
 		Expect(err).To(Succeed())
-		Expect(cfg.Limits.MaxResultBytes).To(Equal(32))
+		Expect(cfg.Metrics.Limits.MaxResultBytes).To(Equal(32))
 		cfg, err = loadConfig("", map[string]string{"DSX_WORKLOAD_EXPORTER_CONFIG": path}, "--config=")
 		Expect(err).To(Succeed())
-		Expect(cfg.Limits).To(Equal(defaultLabelEvaluationLimits))
+		Expect(cfg.Metrics.Limits).To(Equal(defaultLabelEvaluationLimits))
 		for _, setting := range []struct{ flag, env string }{
-			{"--generic-label-eval-cost-limit", "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_COST_LIMIT"},
-			{"--generic-label-eval-max-expression-bytes", "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_EXPRESSION_BYTES"},
-			{"--generic-label-eval-max-result-bytes", "DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_RESULT_BYTES"},
+			{"--label-eval-cost-limit", "DSX_WORKLOAD_EXPORTER_LABEL_EVAL_COST_LIMIT"},
+			{"--label-eval-max-expression-bytes", "DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_EXPRESSION_BYTES"},
+			{"--label-eval-max-result-bytes", "DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_RESULT_BYTES"},
 		} {
 			_, err = loadConfig("", map[string]string{setting.env: "7"}, setting.flag+"=")
 			Expect(err).To(HaveOccurred())
@@ -218,16 +273,34 @@ var _ = Describe("config path and empty override", func() {
 })
 
 var _ = Describe("config rejects invalid input", func() {
+	It("identifies the invalid label rule by its grouped path", func() {
+		_, err := loadConfig(`metrics: {labelRules: [{name: bad-name}]}`, nil)
+		Expect(err).To(MatchError(`metrics.labelRules[0]: invalid label name "bad-name"`))
+	})
+
+	It("distinguishes malformed and nonpositive API timeouts", func() {
+		cfg := DefaultConfig()
+		cfg.Tuning.APIClient.RequestTimeout = "30"
+		err := cfg.Validate()
+		Expect(err).To(MatchError(`tuning.apiClient.requestTimeout: time: missing unit in duration "30"`))
+		Expect(errors.Unwrap(err)).To(MatchError(`time: missing unit in duration "30"`))
+
+		for _, timeout := range []string{"0s", "-1s"} {
+			cfg.Tuning.APIClient.RequestTimeout = timeout
+			Expect(cfg.Validate()).To(MatchError("tuning.apiClient.requestTimeout must be a positive duration"))
+		}
+	})
+
 	It("rejects invalid files, flags and environment values", func() {
 		for _, contents := range []string{
-			"genericLabelEvaluationLimits:\n  costLimit: lots",
-			"genericLabelEvaluationLimits:\n  maxResultBytes: -1", "genericLabelEvaluationLimits:\n  maxExpressionBytes: -1",
-			"genericLabelEvaluationLimits:\n  interruptCheckFrequency: 100",
-			"genericLabelEvaluationLimits:\n  maxValueBytes: 32",
-			"labelLimits:\n  costLimit: 5",
-			"labelRules: [", "labelRules: []\n---\nlabelRules: []", "labelRules: []\n---\n---\nlabelRules: []",
-			"labelRules: []\n---\nlabelRules: [", "unknown: true",
-			"labelRules:\n- name: team\n  metrics: [dsx_workload_status]\n  sources: [pod]\n  expression: object.kind",
+			"metrics: {labelEvaluationLimits: {costLimit: lots}}",
+			"metrics: {labelEvaluationLimits: {maxResultBytes: -1}}", "metrics: {labelEvaluationLimits: {maxExpressionBytes: -1}}",
+			"metrics: {labelEvaluationLimits: {interruptCheckFrequency: 100}}",
+			"metrics: {labelEvaluationLimits: {maxValueBytes: 32}}",
+			"metrics: {unknown: {costLimit: 5}}",
+			"metrics: {labelRules: [", "metrics: {labelRules: []}\n---\nmetrics: {labelRules: []}", "metrics: {labelRules: []}\n---\n---\nmetrics: {labelRules: []}",
+			"metrics: {labelRules: []}\n---\nmetrics: {labelRules: [", "unknown: true",
+			"metrics: {labelRules: [{name: team, metrics: [dsx_workload_status], sources: [pod], expression: object.kind}]}",
 		} {
 			By(contents, func() {
 				_, err := loadConfig(contents, nil)
@@ -236,9 +309,9 @@ var _ = Describe("config rejects invalid input", func() {
 		}
 		for _, args := range [][]string{
 			{"--unknown-option", "1"},
-			{"--config", "/does-not-exist/config.yaml"}, {"--generic-label-eval-cost-limit", "lots"},
-			{"--generic-label-eval-max-result-bytes", "-1"}, {"--generic-label-eval-max-expression-bytes", "-1"},
-			{"--generic-label-eval-interrupt-check-frequency", "100"},
+			{"--config", "/does-not-exist/config.yaml"}, {"--label-eval-cost-limit", "lots"},
+			{"--label-eval-max-result-bytes", "-1"}, {"--label-eval-max-expression-bytes", "-1"},
+			{"--label-eval-interrupt-check-frequency", "100"},
 			{"--label-cost-limit", "5"}, {"--label-max-expression-bytes", "50"},
 			{"--label-max-value-bytes", "32"}, {"--label-interrupt-check-frequency", "100"},
 		} {
@@ -246,9 +319,9 @@ var _ = Describe("config rejects invalid input", func() {
 			Expect(err).To(HaveOccurred())
 		}
 		for _, env := range []string{
-			"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_COST_LIMIT",
-			"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_EXPRESSION_BYTES",
-			"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_MAX_RESULT_BYTES",
+			"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_COST_LIMIT",
+			"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_EXPRESSION_BYTES",
+			"DSX_WORKLOAD_EXPORTER_LABEL_EVAL_MAX_RESULT_BYTES",
 		} {
 			for _, value := range []string{"lots", "-1", ""} {
 				_, err := loadConfig("", map[string]string{env: value})
@@ -262,20 +335,9 @@ var _ = Describe("config rejects invalid input", func() {
 		NewLoader(fs, func(string) (string, bool) { return "", false })
 		var names []string
 		fs.VisitAll(func(f *flag.Flag) { names = append(names, f.Name) })
-		Expect(names).To(ConsistOf("config", "generic-label-eval-cost-limit", "generic-label-eval-max-expression-bytes", "generic-label-eval-max-result-bytes", "api-qps", "api-burst", "workers", "leaf-workers", "root-workers", "request-timeout"))
+		Expect(names).To(ConsistOf("config", "label-eval-cost-limit", "label-eval-max-expression-bytes", "label-eval-max-result-bytes", "api-qps", "api-burst", "workers", "pod-workers", "workload-workers", "request-timeout"))
 	})
 
-	It("ignores removed environment settings", func() {
-		cfg, err := loadConfig("", map[string]string{
-			"DSX_WORKLOAD_EXPORTER_LABEL_COST_LIMIT":                             "1",
-			"DSX_WORKLOAD_EXPORTER_LABEL_MAX_EXPRESSION_BYTES":                   "1",
-			"DSX_WORKLOAD_EXPORTER_LABEL_MAX_VALUE_BYTES":                        "1",
-			"DSX_WORKLOAD_EXPORTER_LABEL_INTERRUPT_CHECK_FREQUENCY":              "0",
-			"DSX_WORKLOAD_EXPORTER_GENERIC_LABEL_EVAL_INTERRUPT_CHECK_FREQUENCY": "0",
-		})
-		Expect(err).To(Succeed())
-		Expect(cfg.Limits).To(Equal(defaultLabelEvaluationLimits))
-	})
 })
 
 var _ = Describe("Karta definition sources", func() {

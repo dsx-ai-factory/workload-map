@@ -298,7 +298,7 @@ The definition evaluates `instanceIdPath` and each pod path as separate jq expre
 - A definition must produce IDs and templates from the same traversal, in the same order. For example, `.spec.replicatedJobs[].name` pairs with `.spec.replicatedJobs[].template.spec.template`. `.spec.replicatedJobs | reverse | .[].name` does not.
 - Duplicate instance IDs fail with `ErrInstanceMismatch` before anything is written.
 - A different number of IDs and templates fails with `ErrInstanceMismatch`.
-- A reordered traversal with matching counts cannot be detected today, and the read-back does not catch it, because it reads through the same pairing. The godoc and the definition guide state the ordering rule. Open decision 5 covers a shared traversal that removes the assumption.
+- A reordered traversal with matching counts cannot be detected today, and the read-back does not catch it, because it reads through the same pairing. The godoc and the definition guide state the ordering rule. Open decision 4 covers a shared traversal that removes the assumption.
 
 Every call works on a copy of the object. On any error the object is unchanged. If the callback changes nothing, the call returns false and writes nothing.
 
@@ -311,29 +311,16 @@ The template that the callback leaves is the template written. The caller owns t
 
 ### Changes outside the new package
 
-- Move `pkg/jq` to `internal/jq`. This removes `jq` from the public API. `resource.NewAccessor` takes an `execution.Runner`, which external callers can no longer name after the move. Open decision 7 covers it.
+- Move `pkg/jq` to `internal/jq`. This removes `jq` from the public API. `resource.NewAccessor` takes an `execution.Runner`, which external callers can no longer name after the move. Open decision 6 covers it.
 - Fix `pkg/resource`: a single-instance component whose path uses `select(...)` and matches nothing is absent, not an error. Today every LLMInferenceService recording with workers fails with "instance ids count (1) does not match results count (0)". `tree.Build` on `main` fails the same way.
 - Update the root README, the quickstart and the controller-runtime example to use the new API. The root README shows `factory.GetObject()`, which does not exist.
-
-### Delivery
-
-Four PRs, in this order. Only the third adds real logic.
-
-| # | Change | Estimated size |
-|---|---|---|
-| 1 | `refactor(karta)`: move `pkg/jq` to `internal/jq` | 19 files, +10 / -10 |
-| 2 | `fix(resource)`: the `select` fix and a regression test | 2 files, +19 |
-| 3 | `feat(karta)`: the new package, unit tests, mock, and a replay test over all recordings | 10 files, about +2,160 |
-| 4 | `docs(examples)`: README and examples | 5 files, +196 / -255 |
-
-The new package has about 1,170 lines of code without tests. A prototype of all four changes exists on the branch `rogirun:feat/karta-front-door-proposal`.
 
 ## Compatibility and migration
 
 The change is additive, with one exception.
 
 - `pkg/jq` moves to `internal/jq`. An external Go import of `pkg/jq` stops compiling. No module in this repository imports it.
-- External code that calls `resource.NewAccessor` cannot build its `execution.Runner` argument after the move. Open decision 7 covers it. In this repository, `NewComponentFactoryFromObject` and the black-box test `test/blackbox/suspend_resume_test.go` call it.
+- External code that calls `resource.NewAccessor` cannot build its `execution.Runner` argument after the move. Open decision 6 covers it. In this repository, `NewComponentFactoryFromObject` and the black-box test `test/blackbox/suspend_resume_test.go` call it.
 - Apart from `NewAccessor`, `pkg/resource` and `pkg/tree` keep their API. `Status`, `Condition`, `Scale` and `PodFragments` in the new package are aliases of the `pkg/resource` types, so code that uses them keeps working.
 - The CLI, the operator, the exporter and karta-wasm need no changes.
 - The `select` fix changes behavior that users see: LLMInferenceService workloads with workers failed to read before, and now show in `kli`, the Headlamp plugin and the exporter.
@@ -359,9 +346,9 @@ A follow-up replaces `tree.WorkloadTree` with `Snapshot`. That one is a breaking
 | An empty string, nil or empty map means unset | A label or annotation with an empty value cannot be written | Known limitation, stated in the godoc |
 | A changed list whose entries have no names (tolerations, topology spread) is replaced whole | Fields that a CRD adds inside those entries, outside corev1, are lost | Known limitation, stated in the godoc. No catalog definition hits it today |
 | A definition maps a pod spec but no metadata (LLMInferenceService main) | A label change cannot be written | `ErrFieldNotRoutable`, and `Writable` shows it up front |
-| Two definition paths alias each other, or a CR stores a field in a lossy form | A write lands in the wrong place | Read-back detects a mismatch within the selected component's pod projection, returns `ErrVerificationFailed` and leaves the object unchanged. It does not detect every side effect on other components or on fields outside that projection (open decision 6) |
-| Two components map a field to one shared CR path, for example `.spec.sharedScheduler` | Changing one component also changes the other | Not detected today. Open decision 6 |
-| `instanceIdPath` and a pod path traverse instances in a different order | `OnInstances` changes the wrong instance | Duplicate IDs and count mismatches fail with `ErrInstanceMismatch`. A reordering with matching counts is not detected. The ordering rule is documented. Open decision 5 |
+| Two definition paths alias each other, or a CR stores a field in a lossy form | A write lands in the wrong place | Read-back detects a mismatch within the selected component's pod projection, returns `ErrVerificationFailed` and leaves the object unchanged. It does not detect every side effect on other components or on fields outside that projection (open decision 5) |
+| Two components map a field to one shared CR path, for example `.spec.sharedScheduler` | Changing one component also changes the other | Not detected today. Open decision 5 |
+| `instanceIdPath` and a pod path traverse instances in a different order | `OnInstances` changes the wrong instance | Duplicate IDs and count mismatches fail with `ErrInstanceMismatch`. A reordering with matching counts is not detected. The ordering rule is documented. Open decision 4 |
 
 ### Design A: UpdatePodTemplate with PodPatch
 
@@ -410,10 +397,9 @@ The follow-up has three costs. External Go code that imports `pkg/tree` breaks, 
 | 1 | Design | A: `UpdatePodTemplate` with `PodPatch`. B: `MutatePodTemplates` with a callback | B |
 | 2 | Deleting fields | Clearing a field in the callback deletes it in the CR, or null never deletes | Allow deletes. The caller owns the result, and the godoc and README say so |
 | 3 | List merge | Match entries by name in order, and replace any other changed list. Or always replace | Match by name, so an image change keeps CR-only fields in the container |
-| 4 | Delivery | One PR with four commits, or four PRs | Four PRs. The `jq` move and the `select` fix can merge first |
-| 5 | Pairing instances with templates | Keep positional pairing with the documented ordering rule. Or derive IDs and template paths from one shared instance traversal, which needs a new definition field | Positional pairing with the ordering rule and the duplicate check now. A shared traversal gets its own issue, because it changes the CRD |
-| 6 | Shared writable paths | Support them and accept that a write changes every component on the path. Or require component isolation: snapshot the other affected components and compare them before commit | To decide. Isolation costs one extra read per component on each call |
-| 7 | `resource.NewAccessor` after the `jq` move | Unexport it in PR 1, and move the black-box test into package `resource`, which already imports `test/types` in its tests. The `karta` package arrives only in PR 3. Or keep it exported, so only callers inside the SDK module can build a runner | To decide. If #330 removes jq, the runner type goes away, and the `NewAccessor` break is part of the CEL change |
+| 4 | Pairing instances with templates | Keep positional pairing with the documented ordering rule. Or derive IDs and template paths from one shared instance traversal, which needs a new definition field | Positional pairing with the ordering rule and the duplicate check now. A shared traversal gets its own issue, because it changes the CRD |
+| 5 | Shared writable paths | Support them and accept that a write changes every component on the path. Or require component isolation: snapshot the other affected components and compare them before commit | To decide. Isolation costs one extra read per component on each call |
+| 6 | `resource.NewAccessor` after the `jq` move | Unexport it with the `jq` move, and move the black-box test into package `resource`, which already imports `test/types` in its tests, so the test does not depend on the new `karta` package. Or keep it exported, so only callers inside the SDK module can build a runner | To decide. If #330 removes jq, the runner type goes away, and the `NewAccessor` break is part of the CEL change |
 
 ### Follow-ups
 

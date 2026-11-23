@@ -39,7 +39,10 @@ type reflectorStore struct {
 // shortWatch matches the reflector's VeryShortWatchError threshold.
 const shortWatch = time.Second
 
-var errShortWatch = errors.New("watch closed before delivering any event")
+var (
+	errShortWatch         = errors.New("watch closed before delivering any event")
+	errIncompleteSnapshot = errors.New("watch closed before its initial snapshot completed")
+)
 
 func (r *controllerState) syncWatches(ctx context.Context) error {
 	if r.config.NamespaceSelector != nil {
@@ -372,12 +375,13 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 		defer close(events)
 		defer stream.Stop()
 		received := false
+		snapshotPending := options.SendInitialEvents != nil && *options.SendInitialEvents
 		// A streaming list ends its snapshot with the initial-events-end bookmark, and
 		// the reflector times its short-watch check from there. Snapshot events are not
 		// live activity, so the clock restarts at that bookmark.
 		observe := func(event watch.Event) {
 			if isInitialEventsEnd(event) {
-				started, received = time.Now(), false
+				started, received, snapshotPending = time.Now(), false, false
 				return
 			}
 			received = true
@@ -396,11 +400,19 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 				return
 			case event, ok := <-stream.ResultChan():
 				if !ok {
+					if ctx.Err() != nil || monitored.Stopping() {
+						return
+					}
+					// The reflector discards a streaming list that ends before its bookmark and
+					// keeps the old cache, whatever the stream delivered or how long it lasted.
+					if snapshotPending {
+						r.setWatchHealth(w, errIncompleteSnapshot)
+						return
+					}
 					// The server ends watches routinely after minutes, and the reflector resumes or
 					// relists. An end within shortWatch without events is a failed connection, as in
 					// client-go's VeryShortWatchError.
-					isShort := !received && time.Since(started) < shortWatch
-					if isShort && ctx.Err() == nil && !monitored.Stopping() {
+					if !received && time.Since(started) < shortWatch {
 						r.setWatchHealth(w, errShortWatch)
 					}
 					return

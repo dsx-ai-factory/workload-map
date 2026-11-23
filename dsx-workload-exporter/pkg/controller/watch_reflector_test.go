@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -149,4 +151,96 @@ func TestReflectorDroppedWatchConnectionMarksSourceUnhealthy(t *testing.T) {
 		"a dropped watch connection must not leave a synced source healthy")
 	require.ErrorIs(t, watchErr(r, key), errShortWatch)
 	require.GreaterOrEqual(t, watches.Load(), int32(2))
+}
+
+func TestReflectorIncompleteStreamingListKeepsSourceUnhealthy(t *testing.T) {
+	for name, tc := range map[string]struct {
+		relist  func(fake *watch.FakeWatcher, existing, bookmark *unstructured.Unstructured)
+		healthy bool
+	}{
+		"relist delivers an object, then closes before its bookmark": {
+			relist: func(fake *watch.FakeWatcher, existing, _ *unstructured.Unstructured) {
+				fake.Add(existing.DeepCopy())
+				fake.Stop()
+			},
+		},
+		"relist stays empty past shortWatch, then closes before its bookmark": {
+			relist: func(fake *watch.FakeWatcher, _, _ *unstructured.Unstructured) {
+				time.Sleep(shortWatch + 200*time.Millisecond)
+				fake.Stop()
+			},
+		},
+		"relist completes with its bookmark": {
+			relist: func(fake *watch.FakeWatcher, existing, bookmark *unstructured.Unstructured) {
+				fake.Add(existing.DeepCopy())
+				fake.Action(watch.Bookmark, bookmark.DeepCopy())
+			},
+			healthy: true,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := newRootLifetimeRuntime(t, Config{})
+			r.state.reader.clients.Mapper.(*meta.DefaultRESTMapper).AddSpecific(lifetimeDeploymentGVK, reflectorDeployments, reflectorDeployments, meta.RESTScopeNamespace)
+			client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(kruntime.NewScheme(),
+				map[schema.GroupVersionResource]string{reflectorDeployments: "DeploymentList"})
+			existing := rootLifetimeObject(lifetimeDeploymentGVK, "ns", "existing", "existing")
+			bookmark := rootLifetimeObject(lifetimeDeploymentGVK, "", "", "")
+			bookmark.SetResourceVersion("10")
+			bookmark.SetAnnotations(map[string]string{metav1.InitialEventsAnnotationKey: "true"})
+			expired := apierrors.NewResourceExpired("too old resource version").ErrStatus
+			done := make(chan struct{})
+			t.Cleanup(func() { close(done) })
+			settled := make(chan struct{})
+			var calls atomic.Int32
+			client.PrependWatchReactor("*", func(clienttesting.Action) (bool, watch.Interface, error) {
+				fake := watch.NewFake()
+				switch calls.Add(1) {
+				case 1:
+					// A complete streaming list and one live event, then the cached
+					// resource version expires.
+					go func() {
+						fake.Add(existing.DeepCopy())
+						fake.Action(watch.Bookmark, bookmark.DeepCopy())
+						modified := existing.DeepCopy()
+						modified.SetResourceVersion("11")
+						fake.Modify(modified)
+						fake.Error(&expired)
+					}()
+				case 2:
+					go func() {
+						tc.relist(fake, existing, bookmark)
+						if tc.healthy {
+							close(settled)
+						}
+					}()
+				default:
+					// The reflector retries the discarded list; hold it so health stays
+					// as the incomplete list left it.
+					close(settled)
+					<-done
+				}
+				return true, fake, nil
+			})
+			r.state.reader.clients.Dynamic = client
+
+			key, err := r.state.ensureWatch(t.Context(), lifetimeDeploymentGVK, "", false)
+			require.NoError(t, err)
+			select {
+			case <-settled:
+			case <-time.After(15 * time.Second):
+				t.Fatal("the reflector did not finish the new streaming list")
+			}
+			if tc.healthy {
+				require.Eventually(t, func() bool { return watchErr(r, key) == nil }, 5*time.Second, 10*time.Millisecond,
+					"a complete snapshot must recover the source")
+				return
+			}
+			r.state.stateMu.RLock()
+			_, cached := r.state.objects[keyOf(refOf(existing))]
+			r.state.stateMu.RUnlock()
+			require.True(t, cached, "the old snapshot stays cached")
+			require.ErrorIs(t, watchErr(r, key), errIncompleteSnapshot,
+				"an incomplete snapshot must not report the old cached data as healthy")
+		})
+	}
 }

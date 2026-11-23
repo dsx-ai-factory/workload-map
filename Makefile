@@ -543,9 +543,6 @@ promtool-check: promtool ## Validate and unit-test example Prometheus rules with
 		echo "Testing $$t"; \
 		$(PROMTOOL) test rules "$$t"; \
 	done
-	python3 hack/check-tutorial-rules.py --promtool "$(PROMTOOL)" \
-		--article docs/tutorials/act-on-workload-change/act-on-workload-changes.md \
-		--tests docs/tutorials/act-on-workload-change/tests/rules_test.yaml
 
 .PHONY: check-exporter
 check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter promtool-check test-exporter exporter-version-smoke ## Full exporter presubmit

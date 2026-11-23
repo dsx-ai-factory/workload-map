@@ -661,8 +661,7 @@ Suspension, deletion, resume, object replacement, exporter-outage recovery and
 namespace permissions passed.
 
 The GPU capacity and DCGM readings were simulated; physical GPU attribution
-and cAdvisor-driven actions were not tested. The [22 rule tests](tests/rules_test.yaml)
-cover timing, missing or invalid measurements, and object replacement.
+and cAdvisor-driven actions were not tested.
 
 [Kyverno 1.19.1](https://github.com/kyverno/kyverno/blob/v1.19.1/pkg/controllers/deleting/controller.go#L154)
 checks an object, then deletes it by name without a UID precondition.

@@ -9,12 +9,12 @@ spec:
     namespaceSelector:
       matchLabels: {kubernetes.io/metadata.name: ai-lab}
     objectSelector:
-      matchLabels: {tutorial.karta.run.ai/action: suspend}
+      matchLabels: {tutorial.workloadmap.run.ai/action: suspend}
     resourceRules:
-      - apiGroups: [kubeflow.org]
+      - apiGroups: [batch]
         apiVersions: [v1]
         operations: [CREATE, UPDATE]
-        resources: [pytorchjobs]
+        resources: [jobs]
   evaluation:
     admission: {enabled: false}
     mutateExisting: {enabled: true}
@@ -22,17 +22,18 @@ spec:
     - name: still-opted-in-and-running
       expression: >-
         object.metadata.namespace == 'ai-lab' &&
-        has(object.metadata.labels) && 'tutorial.karta.run.ai/action' in object.metadata.labels &&
-        object.metadata.labels['tutorial.karta.run.ai/action'] == 'suspend' &&
-        has(object.spec.runPolicy) && !object.spec.runPolicy.?suspend.orValue(false) &&
-        object.status.?conditions.orValue([]).exists(c, c.type == 'Running' && c.status == 'True')
-    - name: one-master-one-container-one-gpu
+        has(object.metadata.labels) && 'tutorial.workloadmap.run.ai/action' in object.metadata.labels &&
+        object.metadata.labels['tutorial.workloadmap.run.ai/action'] == 'suspend' &&
+        !object.spec.?suspend.orValue(false) && !has(object.metadata.deletionTimestamp) &&
+        object.status.?active.orValue(0) > 0 && object.status.?ready.orValue(0) > 0 &&
+        !object.status.?conditions.orValue([]).exists(c,
+          c.type in ['Complete', 'SuccessCriteriaMet', 'Failed', 'FailureTarget'] && c.status == 'True')
+    - name: one-pod-one-container-one-gpu
       expression: >-
-        size(object.spec.pytorchReplicaSpecs) == 1 && 'Master' in object.spec.pytorchReplicaSpecs &&
-        object.spec.pytorchReplicaSpecs.Master.?replicas.orValue(1) == 1 && !has(object.spec.elasticPolicy) &&
-        size(object.spec.pytorchReplicaSpecs.Master.template.spec.containers) == 1 &&
-        size(object.spec.pytorchReplicaSpecs.Master.template.spec.?initContainers.orValue([])) == 0 &&
-        string(object.spec.pytorchReplicaSpecs.Master.template.spec.containers[0].resources.limits['nvidia.com/gpu']) == '1'
+        object.spec.?parallelism.orValue(1) == 1 && object.spec.?completions.orValue(1) == 1 &&
+        size(object.spec.template.spec.containers) == 1 &&
+        size(object.spec.template.spec.?initContainers.orValue([])) == 0 &&
+        string(object.spec.template.spec.containers[0].resources.limits['nvidia.com/gpu']) == '1'
     - name: two-minutes-of-low-gpu-use-for-this-object
       expression: >-
         http.Get('http://prometheus.monitoring.svc:9090/api/v1/query?query=tutorial:gpu_idle:eligible%20and%20(time()-timestamp(tutorial:gpu_idle:eligible)%3C15)').data.result.exists(r,
@@ -40,7 +41,7 @@ spec:
   mutations:
     - patchType: JSONPatch
       jsonPatch:
-        expression: "[JSONPatch{op: 'add', path: '/spec/runPolicy/suspend', value: true}]"
+        expression: "[JSONPatch{op: 'add', path: '/spec/suspend', value: true}]"
 ---
 apiVersion: policies.kyverno.io/v1
 kind: DeletingPolicy
@@ -51,12 +52,12 @@ spec:
     namespaceSelector:
       matchLabels: {kubernetes.io/metadata.name: ai-lab}
     objectSelector:
-      matchLabels: {tutorial.karta.run.ai/action: delete}
+      matchLabels: {tutorial.workloadmap.run.ai/action: delete}
     resourceRules:
-      - apiGroups: [kubeflow.org]
+      - apiGroups: [batch]
         apiVersions: [v1]
         operations: [CREATE, UPDATE]
-        resources: [pytorchjobs]
+        resources: [jobs]
       - apiGroups: [apps]
         apiVersions: [v1]
         operations: [CREATE, UPDATE]
@@ -66,7 +67,8 @@ spec:
   conditions:
     - name: still-failed
       expression: >-
-        (object.kind == 'PyTorchJob' && object.status.?conditions.orValue([]).exists(c, c.type == 'Failed' && c.status == 'True')) ||
+        (object.kind == 'Job' && object.status.?conditions.orValue([]).exists(c,
+          c.type in ['Failed', 'FailureTarget'] && c.status == 'True')) ||
         (object.kind == 'Deployment' && object.status.?conditions.orValue([]).exists(c,
           c.type == 'Progressing' && c.status == 'False' && c.reason == 'ProgressDeadlineExceeded') &&
           string(object.status.observedGeneration) == string(object.metadata.generation))

@@ -13,23 +13,23 @@ exporter:
       matchLabels: {kubernetes.io/metadata.name: ai-lab}
       matchExpressions: []
     includeRootResources:
-      - apiGroups: [kubeflow.org]
+      - apiGroups: [batch]
         apiVersions: [v1]
-        resources: [pytorchjobs]
+        resources: [jobs]
       - apiGroups: [apps]
         apiVersions: [v1]
         resources: [deployments]
-    requiredWatchKinds: [kubeflow.org/v1/PyTorchJob, apps/v1/Deployment]
+    requiredWatchKinds: [batch/v1/Job, apps/v1/Deployment]
   kartaDefinitionSource:
     catalog:
       enabled: true
-      include: [kubeflow-org-pytorchjob-v1, apps-deployment-v1]
+      include: [batch-job-v1, apps-deployment-v1]
     cluster:
       enabled: false
   rbac:
     workloadRules:
-      - apiGroups: [kubeflow.org]
-        resources: [pytorchjobs]
+      - apiGroups: [batch]
+        resources: [jobs]
       - apiGroups: [apps]
         resources: [deployments, replicasets]
   resources:

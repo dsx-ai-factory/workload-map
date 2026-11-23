@@ -9,7 +9,7 @@ groups:
       - record: tutorial:phase:observed
         expr: |
           max by (namespace, workload_uid, workload_kind, workload_group, phase) (
-            (dsx_workload_status{namespace="ai-lab",workload_group=~"kubeflow.org|apps",workload_kind=~"PyTorchJob|Deployment",phase=~"Running|Failed",observation_valid="true"} == 1)
+            (dsx_workload_status{namespace="ai-lab",workload_group=~"batch|apps",workload_kind=~"Job|Deployment",phase=~"Running|Failed",observation_valid="true"} == 1)
             and (time() - timestamp(dsx_workload_status) < 15)
             and on (namespace, workload_uid, phase) (count by (namespace, workload_uid, phase) (dsx_workload_status) == 1)
           )
@@ -29,13 +29,13 @@ groups:
               )
               * on (namespace, pod_uid) group_left (workload_uid)
               (
-                dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",component="master",observation_valid="true"}
+                dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",component="job",observation_valid="true"}
                 and (time() - timestamp(dsx_workload_pod_info) < 15)
                 and on (namespace, workload_uid) (count by (namespace, workload_uid) (dsx_workload_pod_info) == 1)
               )
             ) < bool 5
           )
-          and on (namespace, workload_uid) tutorial:phase:observed{phase="Running",workload_kind="PyTorchJob"}
+          and on (namespace, workload_uid) tutorial:phase:observed{phase="Running",workload_kind="Job"}
           and on () (up{job="dcgm"} == 1)
           and on () (time() - timestamp(up{job="dcgm"}) < 15)
       - record: tutorial:gpu_idle:eligible

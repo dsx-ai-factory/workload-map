@@ -1,54 +1,49 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
-apiVersion: kubeflow.org/v1
-kind: PyTorchJob
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: idle-training
   namespace: ai-lab
   labels:
-    tutorial.karta.run.ai/action: suspend
+    tutorial.workloadmap.run.ai/action: suspend
 spec:
-  runPolicy:
-    suspend: false
-    cleanPodPolicy: All
-  pytorchReplicaSpecs:
-    Master:
-      replicas: 1
+  suspend: false
+  parallelism: 1
+  completions: 1
+  backoffLimit: 0
+  template:
+    spec:
       restartPolicy: Never
-      template:
-        spec:
-          containers:
-            - name: pytorch
-              image: busybox:1.37.0
-              command: [sh, -c, "sleep 3600"]
-              resources:
-                requests: {cpu: 5m, memory: 8Mi}
-                limits: {nvidia.com/gpu: 1, cpu: 100m, memory: 32Mi}
+      containers:
+        - name: training
+          image: busybox:1.37.0
+          command: [sh, -c, "sleep 3600"]
+          resources:
+            requests: {cpu: 5m, memory: 8Mi}
+            limits: {nvidia.com/gpu: 1, cpu: 100m, memory: 32Mi}
 ---
-apiVersion: kubeflow.org/v1
-kind: PyTorchJob
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: failed-training
   namespace: ai-lab
   labels:
-    tutorial.karta.run.ai/action: delete
+    tutorial.workloadmap.run.ai/action: delete
 spec:
-  runPolicy:
-    cleanPodPolicy: None
-    backoffLimit: 0
-  pytorchReplicaSpecs:
-    Master:
-      replicas: 1
+  parallelism: 1
+  completions: 1
+  backoffLimit: 0
+  template:
+    spec:
       restartPolicy: Never
-      template:
-        spec:
-          containers:
-            - name: pytorch
-              image: busybox:1.37.0
-              command: [sh, -c, "exit 1"]
-              resources:
-                requests: {cpu: 5m, memory: 8Mi}
-                limits: {cpu: 100m, memory: 32Mi}
+      containers:
+        - name: training
+          image: busybox:1.37.0
+          command: [sh, -c, "exit 1"]
+          resources:
+            requests: {cpu: 5m, memory: 8Mi}
+            limits: {cpu: 100m, memory: 32Mi}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -56,7 +51,7 @@ metadata:
   name: failed-service
   namespace: ai-lab
   labels:
-    tutorial.karta.run.ai/action: delete
+    tutorial.workloadmap.run.ai/action: delete
 spec:
   replicas: 1
   progressDeadlineSeconds: 10

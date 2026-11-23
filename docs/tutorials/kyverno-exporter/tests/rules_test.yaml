@@ -11,9 +11,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
@@ -33,9 +33,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 90+0x12 1+0x60
@@ -58,9 +58,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x11 stale 1+0x60
@@ -83,9 +83,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="wrong-pod",UUID="GPU-a"}
     values: 1+0x70
@@ -100,9 +100,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
@@ -119,13 +119,13 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p2",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p2",component="job",observation_valid="true"}
     values: 1+0x70
   promql_expr_test:
   - expr: count(tutorial:gpu_idle:eligible)
@@ -138,9 +138,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 101+0x70
@@ -155,9 +155,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: -1+0x70
@@ -172,9 +172,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x11 0 1+0x60
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
@@ -194,9 +194,9 @@ tests:
     values: 1+0x11 0 1+0x60
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
@@ -216,13 +216,13 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x11 stale 1+0x60
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="false"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="false"}
     values: _x11 1 stale
   promql_expr_test:
   - expr: count(tutorial:gpu_idle:eligible)
@@ -240,13 +240,13 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x11 stale 1+0x60
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="false"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="false"}
     values: _x11 1 stale
   promql_expr_test:
   - expr: count(tutorial:gpu_idle:eligible)
@@ -264,9 +264,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
@@ -288,13 +288,13 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x11 stale
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x11 stale
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p2",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p2",component="job",observation_valid="true"}
     values: _x11 1+0x60
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p2",UUID="GPU-a"}
     values: _x11 1+0x60
@@ -310,12 +310,12 @@ tests:
     exp_samples:
     - labels: '{}'
       value: 1
-- name: Failed PyTorchJob qualifies after two minutes
+- name: Failed Job qualifies after two minutes
   interval: 5s
   input_series:
   - series: up{job="dsx-exporter"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Failed",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Failed",observation_valid="true"}
     values: 1+0x70
   promql_expr_test:
   - expr: count(tutorial:unhealthy:eligible)
@@ -347,7 +347,7 @@ tests:
   input_series:
   - series: up{job="dsx-exporter"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Failed",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Failed",observation_valid="true"}
     values: 0+0x11 1+0x60
   promql_expr_test:
   - expr: count(tutorial:unhealthy:eligible)
@@ -382,9 +382,9 @@ tests:
   input_series:
   - series: up{job="dsx-exporter"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Failed",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Failed",observation_valid="true"}
     values: 1+0x11 stale
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w2",phase="Failed",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w2",phase="Failed",observation_valid="true"}
     values: _x11 1+0x60
   promql_expr_test:
   - expr: count(tutorial:unhealthy:eligible)
@@ -402,13 +402,13 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true",instance="other"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true",instance="other"}
     values: 0+0x70
   promql_expr_test:
   - expr: count(tutorial:gpu_idle:eligible)
@@ -421,9 +421,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x11
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x70
@@ -438,9 +438,9 @@ tests:
     values: 1+0x70
   - series: up{job="dcgm"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Running",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",phase="Running",observation_valid="true"}
     values: 1+0x70
-  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",pod_uid="p1",component="master",observation_valid="true"}
+  - series: dsx_workload_pod_info{namespace="ai-lab",workload_group="batch",workload_kind="Job",workload_uid="w1",pod_uid="p1",component="job",observation_valid="true"}
     values: 1+0x70
   - series: DCGM_FI_DEV_GPU_UTIL{namespace="ai-lab",pod_uid="p1",UUID="GPU-a"}
     values: 1+0x11

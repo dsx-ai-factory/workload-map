@@ -6,8 +6,8 @@ metadata:
   name: tutorial-workload-mutation
   namespace: ai-lab
 rules:
-  - apiGroups: [kubeflow.org]
-    resources: [pytorchjobs]
+  - apiGroups: [batch]
+    resources: [jobs]
     verbs: [get, list, watch, patch, update]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -30,8 +30,8 @@ metadata:
   name: tutorial-workload-cleanup
   namespace: ai-lab
 rules:
-  - apiGroups: [kubeflow.org]
-    resources: [pytorchjobs]
+  - apiGroups: [batch]
+    resources: [jobs]
     verbs: [get, list, watch, delete]
   - apiGroups: [apps]
     resources: [deployments]
@@ -56,8 +56,8 @@ kind: ClusterRole
 metadata:
   name: tutorial-cleanup-workload-list
 rules:
-  - apiGroups: [kubeflow.org]
-    resources: [pytorchjobs]
+  - apiGroups: [batch]
+    resources: [jobs]
     verbs: [list]
   - apiGroups: [apps]
     resources: [deployments]
@@ -81,8 +81,8 @@ kind: ClusterRole
 metadata:
   name: tutorial-report-training-read
 rules:
-  - apiGroups: [kubeflow.org]
-    resources: [pytorchjobs]
+  - apiGroups: [batch]
+    resources: [jobs]
     verbs: [get, list, watch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

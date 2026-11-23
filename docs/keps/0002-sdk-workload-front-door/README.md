@@ -311,7 +311,7 @@ The template that the callback leaves is the template written. The caller owns t
 
 ### Changes outside the new package
 
-- Move `pkg/jq` to `internal/jq`. This removes `jq` from the public API. In the same change, unexport `resource.NewAccessor`. Its parameter is an `execution.Runner`, which external callers can no longer name after the move. Its only caller is `NewComponentFactoryFromObject` in the same package.
+- Move `pkg/jq` to `internal/jq`. This removes `jq` from the public API. `resource.NewAccessor` takes an `execution.Runner`, which external callers can no longer name after the move. Open decision 7 covers it.
 - Fix `pkg/resource`: a single-instance component whose path uses `select(...)` and matches nothing is absent, not an error. Today every LLMInferenceService recording with workers fails with "instance ids count (1) does not match results count (0)". `tree.Build` on `main` fails the same way.
 - Update the root README, the quickstart and the controller-runtime example to use the new API. The root README shows `factory.GetObject()`, which does not exist.
 
@@ -332,7 +332,8 @@ The new package has about 1,170 lines of code without tests. A prototype of all 
 
 The change is additive, with one exception.
 
-- `pkg/jq` moves to `internal/jq`. An external Go import of `pkg/jq` stops compiling. No module in this repository imports it. `resource.NewAccessor` becomes unexported in the same change, because its parameter type moves with `pkg/jq`. External code that calls it uses `resource.NewComponentFactoryFromObject` instead. No module in this repository calls it outside `pkg/resource`.
+- `pkg/jq` moves to `internal/jq`. An external Go import of `pkg/jq` stops compiling. No module in this repository imports it.
+- External code that calls `resource.NewAccessor` cannot build its `execution.Runner` argument after the move. Open decision 7 covers it. In this repository, `NewComponentFactoryFromObject` and the black-box test `test/blackbox/suspend_resume_test.go` call it.
 - Apart from `NewAccessor`, `pkg/resource` and `pkg/tree` keep their API. `Status`, `Condition`, `Scale` and `PodFragments` in the new package are aliases of the `pkg/resource` types, so code that uses them keeps working.
 - The CLI, the operator, the exporter and karta-wasm need no changes.
 - The `select` fix changes behavior that users see: LLMInferenceService workloads with workers failed to read before, and now show in `kli`, the Headlamp plugin and the exporter.
@@ -412,6 +413,7 @@ The follow-up has three costs. External Go code that imports `pkg/tree` breaks, 
 | 4 | Delivery | One PR with four commits, or four PRs | Four PRs. The `jq` move and the `select` fix can merge first |
 | 5 | Pairing instances with templates | Keep positional pairing with the documented ordering rule. Or derive IDs and template paths from one shared instance traversal, which needs a new definition field | Positional pairing with the ordering rule and the duplicate check now. A shared traversal gets its own issue, because it changes the CRD |
 | 6 | Shared writable paths | Support them and accept that a write changes every component on the path. Or require component isolation: snapshot the other affected components and compare them before commit | To decide. Isolation costs one extra read per component on each call |
+| 7 | `resource.NewAccessor` after the `jq` move | Unexport it in PR 1, and migrate the black-box test to the `karta` package. Or keep it exported, so only callers inside the SDK module can build a runner | To decide. If #330 removes jq, the runner type goes away, and the `NewAccessor` break is part of the CEL change |
 
 ### Follow-ups
 

@@ -1,29 +1,28 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- Copyright (c) 2026 NVIDIA Corporation -->
 
-# Act on workload changes with DSX and Kyverno
+# Act on workload changes with the Workload Map metrics exporter and Kyverno
 
-A training job holds a GPU while doing no work. Another workload has been failing
-for minutes. Releasing idle allocations gives other work room to run.
-Removing abandoned workloads avoids manual cleanup.
+The Workload Map metrics exporter (`dsx-workload-exporter`) maps Pods to workloads
+and reports their status. Prometheus uses that mapping to match GPU readings
+from DCGM Exporter to the Job holding the GPU.
 
-The DSX workload exporter is the eyes: it connects Pods and their metrics to the
-workload that owns them. Kyverno supplies the hands: it changes or deletes the
-selected Kubernetes object. Prometheus keeps the observation history.
+You'll apply two Kyverno policies. The first frees a GPU by suspending an opted-in
+Job when GPU use stays below 5% for two minutes. The second deletes an opted-in
+Job or Deployment that stays Failed for two minutes.
 
-![Workload metrics flow from DSX and DCGM through Prometheus to Kyverno policies and Kubernetes actions.](../../assets/workload-metrics-to-policy-patterns.png)
+![Prometheus collects workload and GPU metrics. Kyverno uses them to suspend an idle Job or delete a failed workload.](../../assets/workload-metrics-to-policy-patterns.png)
 
 ## The eyes: what can you see?
 
 | Condition | Inputs |
 | --- | --- |
-| Allocated GPUs stay below 5% use | DCGM utilization plus DSX Pod-to-workload identity. |
-| A workload requests 8 CPUs but uses less than 0.1 core | cAdvisor CPU usage, resource requests and DSX identity. |
-| Memory use stays far below the requested amount | cAdvisor working-set bytes, resource requests and DSX identity. |
-| A workload stays Failed, Degraded or Initializing too long | DSX normalized status, using that workload's catalog definition. |
-| Completed work exceeds its retention period | DSX status history. Creation age is not time in a phase. |
+| Allocated GPUs stay below 5% use | DCGM utilization and the Pod-to-workload mapping. |
+| A workload requests 8 CPUs but uses less than 0.1 core | cAdvisor CPU usage, resource requests and the Pod-to-workload mapping. |
+| Memory use stays far below the requested amount | cAdvisor working-set bytes, resource requests and the Pod-to-workload mapping. |
+| A workload stays Failed, Degraded or Initializing too long | Workload status normalized by the exporter using the workload's catalog definition. |
+| Completed work exceeds its retention period | Workload status history in Prometheus. Creation age is not time in a phase. |
 
-DSX supplies workload identity and status. DCGM and cAdvisor supply resource use.
 See the [metric joins](../../dsx-workload-exporter/queries.md).
 Low use alone does not prove the application is safe to stop; it may be waiting for I/O.
 
@@ -43,7 +42,7 @@ training. Choose workloads that can safely restart, and retain outputs before de
 Use a disposable Kubernetes cluster with Helm and kubectl. The examples use
 built-in Jobs and Deployments. You need:
 
-- [DSX workload map exporter](../../dsx-workload-exporter/installation.md), configured with the demo values below.
+- [Workload Map metrics exporter](../../dsx-workload-exporter/installation.md), configured with the demo values below.
 - [Kyverno](https://kyverno.io/docs/installation/installation/), tested with 1.19.1 (chart 3.9.1).
 - Prometheus for metric history. The preparation below deploys it.
 - For the GPU policy: one dedicated NVIDIA GPU, drivers, device access and [DCGM Exporter](https://docs.nvidia.com/datacenter/dcgm/latest/installation/install-dcgm-exporter.html). Enable Kubernetes mapping and `DCGM_EXPORTER_KUBERNETES_ENABLE_POD_UID=true`.
@@ -146,7 +145,7 @@ exporter's Helm command and `-f kyverno-demo-values.yaml` to Kyverno's. If alrea
 installed, apply these values through that installation's Helm upgrade command.
 The exporter observes Jobs and Deployments; Kyverno scans every 30 seconds.
 
-The examples assume DSX is in `karta-system` and Kyverno is in `kyverno`.
+The examples assume the workload exporter is in `karta-system` and Kyverno is in `kyverno`.
 Adjust the addresses and service account references below if yours differ.
 
 Load the recording rules into Prometheus's ConfigMap:
@@ -537,7 +536,7 @@ restore a checkpoint.
 ### 2. Delete work that stays Failed
 
 Create a Job that exits with an error and a Deployment whose readiness probe
-fails. DSX reports the Deployment as Failed after its progress deadline expires:
+fails. The workload exporter reports the Deployment as Failed after its progress deadline expires:
 
 ```sh
 kubectl apply -f - <<'EOF'

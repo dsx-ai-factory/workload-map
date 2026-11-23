@@ -33,8 +33,8 @@ rules:
   - apiGroups: [kubeflow.org]
     resources: [pytorchjobs]
     verbs: [get, list, watch, delete]
-  - apiGroups: [argoproj.io]
-    resources: [rollouts]
+  - apiGroups: [apps]
+    resources: [deployments]
     verbs: [get, list, watch, delete]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -59,8 +59,8 @@ rules:
   - apiGroups: [kubeflow.org]
     resources: [pytorchjobs]
     verbs: [list]
-  - apiGroups: [argoproj.io]
-    resources: [rollouts]
+  - apiGroups: [apps]
+    resources: [deployments]
     verbs: [list]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

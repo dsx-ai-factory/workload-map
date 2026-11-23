@@ -326,12 +326,12 @@ tests:
     exp_samples:
     - labels: '{}'
       value: 1
-- name: Degraded Rollout qualifies after two minutes
+- name: Failed Deployment qualifies after two minutes
   interval: 5s
   input_series:
   - series: up{job="dsx-exporter"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="argoproj.io",workload_kind="Rollout",workload_uid="w1",phase="Degraded",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="apps",workload_kind="Deployment",workload_uid="w1",phase="Failed",observation_valid="true"}
     values: 1+0x70
   promql_expr_test:
   - expr: count(tutorial:unhealthy:eligible)
@@ -361,12 +361,12 @@ tests:
     exp_samples:
     - labels: '{}'
       value: 1
-- name: phase recovery resets deletion window
+- name: Deployment recovery resets deletion window
   interval: 5s
   input_series:
   - series: up{job="dsx-exporter"}
     values: 1+0x70
-  - series: dsx_workload_status{namespace="ai-lab",workload_group="kubeflow.org",workload_kind="PyTorchJob",workload_uid="w1",phase="Failed",observation_valid="true"}
+  - series: dsx_workload_status{namespace="ai-lab",workload_group="apps",workload_kind="Deployment",workload_uid="w1",phase="Failed",observation_valid="true"}
     values: 1+0x11 0 1+0x60
   promql_expr_test:
   - expr: count(tutorial:unhealthy:eligible)

@@ -50,10 +50,10 @@ spec:
                 requests: {cpu: 5m, memory: 8Mi}
                 limits: {cpu: 100m, memory: 32Mi}
 ---
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: degraded-service
+  name: failed-service
   namespace: ai-lab
   labels:
     tutorial.karta.run.ai/action: delete
@@ -61,12 +61,10 @@ spec:
   replicas: 1
   progressDeadlineSeconds: 10
   selector:
-    matchLabels: {app: degraded-service}
-  strategy:
-    canary: {}
+    matchLabels: {app: failed-service}
   template:
     metadata:
-      labels: {app: degraded-service}
+      labels: {app: failed-service}
     spec:
       containers:
         - name: app

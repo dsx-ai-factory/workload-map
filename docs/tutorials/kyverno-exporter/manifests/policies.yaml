@@ -57,17 +57,18 @@ spec:
         apiVersions: [v1]
         operations: [CREATE, UPDATE]
         resources: [pytorchjobs]
-      - apiGroups: [argoproj.io]
-        apiVersions: [v1alpha1]
+      - apiGroups: [apps]
+        apiVersions: [v1]
         operations: [CREATE, UPDATE]
-        resources: [rollouts]
+        resources: [deployments]
   schedule: "*/1 * * * *"
   deletionPropagationPolicy: Background
   conditions:
-    - name: still-failed-or-degraded
+    - name: still-failed
       expression: >-
         (object.kind == 'PyTorchJob' && object.status.?conditions.orValue([]).exists(c, c.type == 'Failed' && c.status == 'True')) ||
-        (object.kind == 'Rollout' && object.status.?phase.orValue('') == 'Degraded' &&
+        (object.kind == 'Deployment' && object.status.?conditions.orValue([]).exists(c,
+          c.type == 'Progressing' && c.status == 'False' && c.reason == 'ProgressDeadlineExceeded') &&
           string(object.status.observedGeneration) == string(object.metadata.generation))
     - name: two-minutes-in-that-phase-for-this-object
       expression: >-

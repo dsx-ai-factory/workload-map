@@ -16,24 +16,22 @@ exporter:
       - apiGroups: [kubeflow.org]
         apiVersions: [v1]
         resources: [pytorchjobs]
-      - apiGroups: [argoproj.io]
-        apiVersions: [v1alpha1]
-        resources: [rollouts]
-    requiredWatchKinds: [kubeflow.org/v1/PyTorchJob, argoproj.io/v1alpha1/Rollout]
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        resources: [deployments]
+    requiredWatchKinds: [kubeflow.org/v1/PyTorchJob, apps/v1/Deployment]
   kartaDefinitionSource:
     catalog:
       enabled: true
-      include: [kubeflow-org-pytorchjob-v1, argoproj-io-rollout-v1alpha1]
+      include: [kubeflow-org-pytorchjob-v1, apps-deployment-v1]
     cluster:
       enabled: false
   rbac:
     workloadRules:
       - apiGroups: [kubeflow.org]
         resources: [pytorchjobs]
-      - apiGroups: [argoproj.io]
-        resources: [rollouts]
       - apiGroups: [apps]
-        resources: [replicasets]
+        resources: [deployments, replicasets]
   resources:
     requests: {cpu: 100m, memory: 128Mi}
     limits: {cpu: '1', memory: 512Mi}

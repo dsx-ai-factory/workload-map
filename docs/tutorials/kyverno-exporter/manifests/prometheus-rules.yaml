@@ -9,7 +9,7 @@ groups:
       - record: tutorial:phase:observed
         expr: |
           max by (namespace, workload_uid, workload_kind, workload_group, phase) (
-            (dsx_workload_status{namespace="ai-lab",workload_group=~"kubeflow.org|argoproj.io",workload_kind=~"PyTorchJob|Rollout",phase=~"Running|Failed|Degraded",observation_valid="true"} == 1)
+            (dsx_workload_status{namespace="ai-lab",workload_group=~"kubeflow.org|apps",workload_kind=~"PyTorchJob|Deployment",phase=~"Running|Failed",observation_valid="true"} == 1)
             and (time() - timestamp(dsx_workload_status) < 15)
             and on (namespace, workload_uid, phase) (count by (namespace, workload_uid, phase) (dsx_workload_status) == 1)
           )
@@ -47,8 +47,8 @@ groups:
           and (time() - 120 - timestamp(tutorial:gpu_idle:observed offset 2m) < 6)
       - record: tutorial:unhealthy:eligible
         expr: |
-          (min_over_time(tutorial:phase:observed{phase=~"Failed|Degraded"}[2m]) == 1)
-          and (count_over_time(tutorial:phase:observed{phase=~"Failed|Degraded"}[2m]) == 24)
-          and (tutorial:phase:observed{phase=~"Failed|Degraded"} == 1)
-          and (tutorial:phase:observed{phase=~"Failed|Degraded"} offset 2m == 1)
-          and (time() - 120 - timestamp(tutorial:phase:observed{phase=~"Failed|Degraded"} offset 2m) < 6)
+          (min_over_time(tutorial:phase:observed{phase="Failed"}[2m]) == 1)
+          and (count_over_time(tutorial:phase:observed{phase="Failed"}[2m]) == 24)
+          and (tutorial:phase:observed{phase="Failed"} == 1)
+          and (tutorial:phase:observed{phase="Failed"} offset 2m == 1)
+          and (time() - 120 - timestamp(tutorial:phase:observed{phase="Failed"} offset 2m) < 6)

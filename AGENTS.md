@@ -44,7 +44,7 @@ Boundaries for anything touching credentials or security-relevant configuration:
 - Use placeholder values in examples and fixtures. Never paste command output that may embed real cluster endpoints, node names, or internal hostnames.
 - Code that needs a secret reads it from an environment variable or a mounted Kubernetes Secret. Document the variable name, never a value.
 - Do not add new scripts or workflow steps that download and execute unpinned remote code. Pin the exact version, and verify it against the project's published checksums where upstream provides them. The golangci-lint installer the Makefiles invoke is pinned to `GOLANGCI_LINT_VERSION` and follows upstream's recommended install path; hardening it further is welcome as a separate change.
-- Do not weaken webhook TLS or RBAC defaults in the Helm chart to simplify local development. Use the documented certificate modes instead (`docs/configuration/karta-operator/configure-webhook-certificates.mdx`).
+- Do not weaken webhook TLS or RBAC defaults in the Helm chart to simplify local development. Use the documented certificate modes instead (`docs/configuration/karta-operator/configure-webhook-certificates.md`).
 - A secret committed by mistake is not fixed by a follow-up commit. History must be rewritten and the credential rotated. Report it per `SECURITY.md`.
 
 Good and bad examples:

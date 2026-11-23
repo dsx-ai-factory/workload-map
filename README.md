@@ -79,48 +79,7 @@ A LeaderWorkerSet resolved into a uniform tree: groups, roles, GPU counts, and s
 
 ### Try the offline quickstart
 
-See the uniform API read and mutate a JobSet and a LeaderWorkerSet. You need Go 1.27.3 or later and no cluster. Follow [Quickstart - Go Library](docs/getting-started/quickstarts/quickstart-go-library.mdx). The example code is in [`docs/examples/quickstart/`](docs/examples/quickstart/), and its README shows the full expected output.
-
-### Install the CLI
-
-Inspect workloads with `kli`. You need Homebrew or a release archive. Inspecting live workloads also needs a cluster and a `kubectl` context.
-
-```bash
-brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
-brew install dsx-ai-factory/kli/kli
-```
-
-Installing by full name makes Homebrew trust this one cask, which it requires for any tap it does not maintain. To install without Homebrew, download the archive for your platform from the [GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
-
-Then list the definitions the CLI ships with. This works without a cluster:
-
-```bash
-kli definitions
-```
-
-```text
-NAME                                            KIND                   ORIGIN   STATUS  COMPONENTS
-agents-x-k8s-io-sandbox-v1beta1                 Sandbox                catalog  active  sandbox, agent, companion
-apps-deployment-v1                              Deployment             catalog  active  deployment, replicaset
-apps-nvidia-com-nimcache-v1alpha1               NIMCache               catalog  active  nimcache
-apps-nvidia-com-nimservice-v1alpha1             NIMService             catalog  active  nimservice
-apps-statefulset-v1                             StatefulSet            catalog  active  statefulset
-...
-```
-
-Only the first rows are shown. Without a reachable cluster, `kli` may also print a warning that it could not read definitions from the cluster and shows the built-in ones only. This is expected. `kli get` and `kli describe` inspect live workloads and need a cluster.
-
-For all the options, refer to [Installation](docs/getting-started/installation.mdx#install-the-kli-cli). To start using the CLI, refer to [Quickstart - CLI](docs/getting-started/quickstarts/quickstart-cli.mdx) and [Inspect Workloads with the CLI](docs/observability/inspect-workloads-with-the-cli.mdx).
-
-### Install the CRD
-
-Register the `Karta` CRD in a cluster. You need a cluster and a `kubectl` context.
-
-```bash
-kubectl apply -f https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/charts/karta/crds/run.ai_kartas.yaml
-```
-
-To install the Karta Operator with Helm, refer to [Installation](docs/getting-started/installation.mdx#install-the-karta-operator).
+See the uniform API read and mutate a JobSet and a LeaderWorkerSet. You need Go 1.27.3 or later and no cluster. Follow [Quickstart - Go Library](docs/getting-started/quickstarts/quickstart-go-library.md). The example code is in [`docs/examples/quickstart/`](docs/examples/quickstart/), and its README shows the full expected output.
 
 ### Use the Go library
 
@@ -147,7 +106,20 @@ rootComponent, _ := factory.GetRootComponent()
 status, _ := rootComponent.GetStatus(ctx)
 ```
 
-For the module path change and the import paths, refer to [Installation](docs/getting-started/installation.mdx#install-the-go-library). To write code against the library, refer to [Use the Go Library](docs/building-on-workload-map/build-a-controller/use-the-go-library.mdx).
+For the module path change and the import paths, refer to [Installation](docs/getting-started/installation.md#install-the-go-library). To write code against the library, refer to [Use the Go Library](docs/building-on-workload-map/build-a-controller/use-the-go-library.md).
+
+### Install the CLI
+
+Inspect workloads with `kli`. You need Homebrew or a release archive. Inspecting live workloads also needs a cluster and a `kubectl` context.
+
+```bash
+brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
+brew install dsx-ai-factory/kli/kli
+```
+
+Installing by full name makes Homebrew trust this one cask, which it requires for any tap it does not maintain. To install without Homebrew, download the archive for your platform from the [GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
+
+For all the options, refer to [Installation](docs/getting-started/installation.md#install-the-kli-cli). To start using the CLI, refer to [Quickstart - CLI](docs/getting-started/quickstarts/quickstart-cli.md) and [Inspect Workloads with the CLI](docs/observability/inspect-workloads-with-the-cli.md).
 
 ### Write your own definition
 
@@ -180,15 +152,15 @@ spec:
       instanceIdPath: .spec.replicatedJobs[].name  # Instances: "master", "worker"
 ```
 
-The full JobSet definition is in [`docs/catalog/`](docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml). Follow [Tutorial - Write Your First Workload Definition](docs/getting-started/tutorial-write-your-first-workload-definition.mdx). For the full syntax, refer to the [Workload Definition Spec](docs/reference/workload-definition-spec.mdx).
+The full JobSet definition is in [`docs/catalog/`](docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml). Follow [Tutorial - Write Your First Workload Definition](docs/getting-started/tutorial-write-your-first-workload-definition.md). For the full syntax, refer to the [Workload Definition Spec](docs/reference/workload-definition-spec.md).
 
 ### Build a controller
 
-Watch live LeaderWorkerSet workloads, then inspect and mutate them through their definitions with no per-CRD code. Adding more workload types is a flag change, not a rebuild. You need `kind`, `kubectl`, and `docker`, and Go to build the image. Follow [Tutorial - Build a Controller on Kind](docs/building-on-workload-map/build-a-controller/tutorial-build-a-controller-on-kind.mdx). The controller code is in [`docs/examples/controller-runtime/`](docs/examples/controller-runtime/).
+Watch live LeaderWorkerSet workloads, then inspect and mutate them through their definitions with no per-CRD code. Adding more workload types is a flag change, not a rebuild. You need `kind`, `kubectl`, and `docker`, and Go to build the image. Follow [Tutorial - Build a Controller on Kind](docs/building-on-workload-map/build-a-controller/tutorial-build-a-controller-on-kind.md). The controller code is in [`docs/examples/controller-runtime/`](docs/examples/controller-runtime/).
 
 ## Pre-built Definitions
 
-Workload Map supports any workload type. The following are examples of the pre-built and tested definitions that ship with the project:
+Workload Map supports a wide range of workload types. The following are examples of the pre-built and tested definitions that ship with the project:
 
 | Workload Type | Framework |
 |---|---|
@@ -201,7 +173,7 @@ Workload Map supports any workload type. The following are examples of the pre-b
 | NIM Service | NVIDIA |
 | DynamoGraphDeployment | NVIDIA Dynamo |
 
-For the full list, refer to the [Catalog of Definitions](docs/reference/catalog-of-definitions.mdx). The definitions themselves are in the [`docs/catalog/`](docs/catalog/) folder. Run `kli definitions` to list the definitions the CLI ships with.
+For the full list, refer to the [Catalog of Definitions](docs/reference/catalog-of-definitions.md). The definitions themselves are in the [`docs/catalog/`](docs/catalog/) folder. Run `kli definitions` to list the definitions the CLI ships with.
 
 ### Complex example: NVIDIA Dynamo
 
@@ -214,28 +186,6 @@ Workload Map was created at [Run:ai](https://run.ai) (NVIDIA) to power workload 
 [KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler), a CNCF sandbox open-source Kubernetes scheduler for AI and GPU workloads, uses Workload Map as the generic fallback plugin in its pod grouper ([kai-scheduler/KAI-Scheduler#1527](https://github.com/kai-scheduler/KAI-Scheduler/issues/1527)). A Workload Map definition gives any CRD correct pod grouping and gang scheduling in KAI, with no scheduler plugin to write and no KAI release to wait for. The gang instructions in a definition declare a group's pods as one gang, which KAI admits all-or-nothing. Any scheduler with a gang primitive can translate the same instructions. Native in-tree plugins keep precedence; Workload Map handles the long tail.
 
 See [ADOPTERS.md](ADOPTERS.md) for the full list of adopters. If you use Workload Map, add yourself with a pull request.
-
-## Repository Map
-
-```text
-karta/sdk/              Go library: path evaluation, component API, status, pod updates
-cli/                    kli, the command-line tool
-operator/               Karta Operator: validating and mutating webhooks for Karta resources
-charts/karta/           Helm chart for the operator, including the Karta CRD
-headlamp-plugin/        Headlamp plugin for viewing workload trees
-karta-wasm/             WebAssembly build of the library, used by the Headlamp plugin
-dsx-workload-exporter/  Prometheus exporter for workload status and pod-to-workload mapping
-docs/                   Documentation site pages (.mdx)
-  catalog/              Pre-built workload definitions
-  examples/             Runnable examples: quickstart and controller-runtime
-  design/, keps/        Design documents and enhancement proposals
-fern/                   Docs site configuration
-skills/                 Agent skill for adding a workload type
-Casks/                  Homebrew cask for kli
-hack/, test/            Build, release, and end-to-end test tooling
-```
-
-For the full documentation, start at the [Workload Map docs](docs/index.mdx). The root of the repository also holds the [Changelog](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Community
 

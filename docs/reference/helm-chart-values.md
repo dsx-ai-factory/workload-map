@@ -1,0 +1,99 @@
+---
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+title: Helm Chart Values
+sidebar-title: Helm Chart Values
+description: Look up the values of the Workload Map Helm chart, with the default and the purpose of each value.
+---
+
+This page lists the values of the `karta` Helm chart, which installs the Karta Operator and the `Karta` CRD. To install the chart, refer to [Installation](../getting-started/installation.md). To override a value, use `--set key=value` or `-f my-values.yaml` with `helm upgrade --install`.
+
+## Global and Karta Operator
+
+| Value | Default | Description |
+| --- | --- | --- |
+| `global.fipsMode` | `"off"` | The Go FIPS 140-3 runtime mode: `off`, `on`, or `only`. For more information, refer to [Run in FIPS Mode](../configuration/karta-operator/run-in-fips-mode.md). |
+| `operator.enabled` | `true` | Set it to `false` to skip the Karta Operator workload. The webhook resources also depend on it. |
+| `fullnameOverride` | `""` | Overrides the names of the resources. You rarely need it. |
+| `replicaCount` | `1` | The number of Karta Operator replicas. Keep it at `1` unless `leaderElection.enabled` is `true`. Without leader election, multiple replicas would reconcile concurrently, and the chart fails to render if you set a value above `1` without leader election. |
+| `leaderElection.enabled` | `false` | When enabled, only the replica that holds the lease reconciles. This is an active and passive setup. The chart also creates a namespaced Role and RoleBinding for the lease object. |
+| `leaderElection.id` | `karta-operator.run.ai` | The name of the lease object. |
+| `logLevel` | `info` | The log level of the Karta Operator. |
+| `extraArgs` | `[]` | Extra flags that the chart appends after its default arguments. Use it to add flags without replacing the defaults. For the flags, refer to [Karta Operator Flags](karta-operator-flags.md). |
+
+## Image
+
+| Value | Default | Description |
+| --- | --- | --- |
+| `image.repository` | `ghcr.io/dsx-ai-factory/workload-map/karta-operator` | The Karta Operator image. |
+| `image.tag` | `""` | The image tag. When it is empty, the chart uses the application version of the chart, so the chart version and the image version stay in lockstep. |
+| `image.pullPolicy` | `IfNotPresent` | The pull policy of the Karta Operator image. |
+| `imagePullSecrets` | `[]` | The image pull secrets for a private registry. The CRD upgrader job also uses them. |
+
+## Pod Settings
+
+| Value | Default | Description |
+| --- | --- | --- |
+| `podAnnotations` | `{}` | The annotations of the Karta Operator pod, for example Prometheus scrape hints. |
+| `serviceAccount.create` | `true` | Set it to `false` to use a service account that you manage. Then set `serviceAccount.name`. |
+| `serviceAccount.name` | `""` | The name of the service account. The chart uses it only when `serviceAccount.create` is `false`. |
+| `ports.metrics` | `8080` | The port of the metrics endpoint. |
+| `ports.health` | `8081` | The port of the health endpoints. |
+| `podSecurityContext` | `runAsNonRoot: true`, `runAsUser: 65532`, `runAsGroup: 0`, and a `RuntimeDefault` seccomp profile | The security context of the pod. |
+| `securityContext` | `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, and `drop: [ALL]` capabilities | The security context of the Karta Operator container. |
+| `resources` | Requests of `50m` CPU and `64Mi` memory. Limits of `200m` CPU and `2Gi` memory. | The resource requests and limits of the Karta Operator container. |
+| `nodeSelector` | `{}` | The node selector of the pod. |
+| `tolerations` | `[]` | The tolerations of the pod. |
+| `affinity` | `{}` | The affinity rules of the pod. |
+
+## Webhook
+
+The webhook is the admission webhook that validates `Karta` definitions. For how the certificate modes work, refer to [Configure Webhook Certificates](../configuration/karta-operator/configure-webhook-certificates.md).
+
+| Value | Default | Description |
+| --- | --- | --- |
+| `webhook.enabled` | `true` | Enables the admission webhook and all its resources. |
+| `webhook.port` | `9443` | The port that the webhook server binds to. |
+| `webhook.cert.provisionMode` | `auto` | `auto`, where the Karta Operator self-signs and rotates the serving certificate, or `manual`, where you supply the certificate. |
+| `webhook.cert.caBundle` | `""` | Manual mode only. A static, base64-encoded CA bundle that the chart stamps on the webhook configurations. |
+| `webhook.cert.annotations` | `{}` | Manual mode only. Annotations for the webhook configurations. Use it to connect cert-manager, for example `cert-manager.io/inject-ca-from: <namespace>/<certificate-name>`. |
+
+## CRD Upgrader
+
+A job runs before each install and upgrade. It applies the CRD that the chart bundles with a server-side apply, so that `helm upgrade` rolls the schema forward. Helm itself never upgrades the `crds/` directory. For more information, refer to [Run in FIPS Mode](../configuration/karta-operator/run-in-fips-mode.md#how-the-crd-upgrader-job-behaves).
+
+| Value | Default | Description |
+| --- | --- | --- |
+| `crdUpgrader.enabled` | `true` | Turns the CRD upgrade job on or off. |
+| `crdUpgrader.image.repository` | `registry.k8s.io/kubectl` | The image that runs the job. |
+| `crdUpgrader.image.tag` | `v1.34.0` | The tag of the image. |
+| `crdUpgrader.image.pullPolicy` | `IfNotPresent` | The pull policy of the image. |
+| `crdUpgrader.backoffLimit` | `3` | The number of times that the job retries. |
+| `crdUpgrader.podSecurityContext` | `runAsNonRoot: true`, `runAsUser: 65532`, `runAsGroup: 0`, and a `RuntimeDefault` seccomp profile | The security context of the job pod. |
+| `crdUpgrader.securityContext` | `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, and `drop: [ALL]` capabilities | The security context of the job container. |
+| `crdUpgrader.resources` | Requests of `50m` CPU, `64Mi` memory, and `64Mi` ephemeral storage. Limits of `200m` CPU, `128Mi` memory, and `2Gi` ephemeral storage. | The resource requests and limits of the job. |
+
+## Admission Policies
+
+The native admission policies run in the API server. They do not need the Karta Operator, so `operator.enabled` does not affect them.
+
+### Submitter Capture
+
+The submitter policy records the authenticated caller that creates a workload in an annotation, on a best-effort basis. A `MutatingAdmissionPolicy` fills a missing annotation on `CREATE`, and it keeps an annotation that the request supplies. It skips objects that have a controller `ownerReference`, because a controller, not a submitter, created them. It never rejects a request. On a policy or CEL error, it admits the request unchanged.
+
+The policy requires `MutatingAdmissionPolicy` `v1` on Kubernetes 1.36 and later, or the `v1beta1` API enabled on Kubernetes 1.34 and 1.35.
+
+| Value | Default | Description |
+| --- | --- | --- |
+| `admissionPolicies.submitter.enabled` | `false` | Enables the submitter policy. |
+| `admissionPolicies.submitter.annotation` | `karta.run.ai/submitted-by` | The annotation key that receives the user name of the caller. |
+| `admissionPolicies.submitter.apiVersion` | `""` | The `MutatingAdmissionPolicy` API version: `v1` or `v1beta1`. When it is empty, the chart detects the version from the cluster. Set it when you render with `helm template` or a GitOps tool, because they cannot detect it. |
+| `admissionPolicies.submitter.resources` | `[]` | The workload types to capture, by API group, version, and plural resource name. The chart sets the operations and the scope. Required when `enabled` is `true`. For example, `apiGroups: ["batch"]`, `apiVersions: ["v1"]`, and `resources: ["jobs"]`. |
+| `admissionPolicies.submitter.excludeResources` | `[]` | The types to skip during capture, in the same form. Exclusions win. |
+| `admissionPolicies.submitter.namespaceSelector` | `matchLabels: {karta.run.ai/capture-submitter: "true"}` | Captures in the namespaces that match these labels. Helm merges maps with these defaults, so to match all namespaces, set `matchLabels: null` and not `{}`. |
+| `admissionPolicies.submitter.objectSelector` | `{}` | Captures the objects that match these labels. The value `{}` matches all objects. |
+| `admissionPolicies.submitter.matchConditions` | `[]` | Extra CEL conditions on the `CREATE` request. All must pass for the capture. An expression that fails to evaluate skips the capture. Names that start with `karta-` are reserved. |
+
+<Note title="Values in newer builds">
+The `admissionPolicies` values are available in chart versions after 0.3.0.
+</Note>

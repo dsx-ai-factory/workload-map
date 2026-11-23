@@ -59,19 +59,22 @@ To add a page to an existing section or group:
 
    ```yaml
    - page: Run in FIPS Mode
-     path: ../docs/configuration/karta-operator/run-in-fips-mode.mdx
+     path: ../docs/configuration/karta-operator/run-in-fips-mode.md
      slug: run-in-fips-mode
    ```
 
-To add a new group of pages, add a `- section:` entry with its own `contents:` list, and put your page inside it. For example, a group for Headlamp plugin settings goes inside Configuration, next to the Karta Operator group:
+To add a new group of pages, add a `- section:` entry with its own `contents:` list, and put your page inside it. For example, the Karta Operator group inside Configuration looks like this:
 
 ```yaml
-- section: Headlamp Plugin
-  slug: headlamp-plugin
+- section: Karta Operator
+  slug: karta-operator
   contents:
-    - page: Configure the Headlamp Plugin
-      path: ../docs/configuration/headlamp-plugin/configure-the-headlamp-plugin.mdx
-      slug: configure-the-headlamp-plugin
+    - page: Configure Webhook Certificates
+      path: ../docs/configuration/karta-operator/configure-webhook-certificates.md
+      slug: configure-webhook-certificates
+    - page: Run in FIPS Mode
+      path: ../docs/configuration/karta-operator/run-in-fips-mode.md
+      slug: run-in-fips-mode
 ```
 
 Add a row to "What Each Section Is For" only when you add a new top-level section, such as Overview or Reference. When you add a page, check whether "Where Docs Go" needs a row for the kind of change that it covers. Run `fern check` after any change to `fern/docs.yml`.
@@ -90,7 +93,7 @@ A page has five names. Each one has a different job, and only the slug sets the 
 
 Follow these conventions so that the names stay consistent:
 
-- Name the file after the page, in lowercase with hyphens, and use the same text as the slug. For example, the page "Run in FIPS Mode" is in `run-in-fips-mode.mdx` and has the slug `run-in-fips-mode`.
+- Name the file after the page, in lowercase with hyphens, and use the same text as the slug. For example, the page "Run in FIPS Mode" is in `run-in-fips-mode.md` and has the slug `run-in-fips-mode`.
 - Put the file in the folder that matches its section, for example `docs/configuration/` for Configuration. The exception is Overview, which uses `docs/about/`.
 - Set `slug:` on every page and every section in `fern/docs.yml`. Without it, Fern builds the slug from the label, not from the file name. For example, without a slug the page labeled "CLI" gets a URL that ends in `/cli`, not in `/quickstart-cli`, and a later rename of the label changes the URL.
 - When you rename a page, rename the title, sidebar title, navigation label, file, and slug together, as described in Navigation and Links. A changed slug changes the URL, and every link to the old URL breaks.
@@ -193,7 +196,7 @@ Apply these rules to pages, examples, headings, and release notes that you creat
 - Use the Oxford comma.
 - Do not use bold for emphasis, emojis, em-dashes, or non-ASCII characters.
 - Use `<Note>` and `<Warning>` for callouts. Do not use bold text or blockquotes for a callout, and do not add other components without a reason.
-- Start every new Markdown or MDX file with the SPDX and copyright header. In MDX, use `{/* ... */}` comments.
+- Start every new Markdown file with the SPDX and copyright header. In a page that Fern publishes, put the header as `#` comments at the top of the frontmatter, before `title:`. An HTML comment (`<!-- -->`) breaks the Fern build, and a `{/* */}` comment shows as text on GitHub.
 
 ## Navigation and Links
 
@@ -204,7 +207,7 @@ Apply these rules to pages, examples, headings, and release notes that you creat
 
 ## Release Notes
 
-Each release has an entry in `fern/changelog/`, in a file named with the release date, for example `2026-10-21.mdx`.
+Each release has an entry in `fern/changelog/`, in a file named with the release date, for example `2026-10-21.md`.
 
 - Start the file with `tags:` in the frontmatter.
 - Use one `##` heading, "Workload Map vX.Y", then `###` sections such as Breaking Changes, Deprecations, New Features, Bug Fixes, and Compatibility.
@@ -217,5 +220,5 @@ From the `fern/` directory, with the Fern CLI at the version in `fern/fern.confi
 
 | Command | When |
 |---|---|
-| `fern check` | After any change to `docs/` or `fern/`. CI runs it, and broken links fail it. |
+| `fern check` | After any change to `docs/` or `fern/`. CI runs it, and broken internal links fail it. |
 | `fern docs dev` | To preview the site locally. It validates nothing, so run `fern check` as well. |

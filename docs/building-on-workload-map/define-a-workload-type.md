@@ -1,0 +1,274 @@
+---
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+title: Define a Workload Type
+sidebar-title: Define a Workload Type
+description: Learn how to write a Workload Map definition for a Kubernetes workload type, validate it, and apply it to a cluster.
+---
+
+A `Karta` definition describes the structure of a workload type: its root resource, the child resources and pods that it owns, where each pod template is stored, how to read the replica count, and how its status maps to a normalized phase. The CLI, the Karta Operator, and schedulers read this description to handle any workload type through the same API.
+
+Write a definition when the catalog has none for your workload type, or when you need to change how the catalog reads one. In this guide, you copy a catalog definition, adapt it to your workload type, validate it, and apply it to a cluster. If you have never written a definition, start with the [tutorial](../getting-started/tutorial-write-your-first-workload-definition.md), which builds one from scratch for a Kubernetes Job. For every field that a definition supports, refer to the [Workload Definition Spec](../reference/workload-definition-spec.md).
+
+## Prerequisites
+
+- `kli` installed. For more information, refer to [Installation](../getting-started/installation.md#install-the-kli-cli).
+- A cluster with the CRD of your workload type installed, and a running workload of that type to use as a reference.
+- The Karta Operator installed in that cluster, to apply the definition and verify it. For more information, refer to [Installation](../getting-started/installation.md#install-the-karta-operator). Writing and validating a definition need no operator.
+
+## Gather the Workload Details
+
+Before you write the definition, collect the following from the API of your workload type:
+
+- The group, version, and kind of the workload.
+- The field that reports its state: a list of conditions, a single phase field, or other status fields.
+- The location of each pod template in the spec.
+- The child resources that the controller creates, and the pod labels that identify the role of each pod.
+
+To read these values, inspect a running workload and its pods:
+
+```bash
+kubectl get <resource> <name> -o yaml
+kubectl get pods --show-labels
+```
+
+## Check for an Existing Definition
+
+List the definitions that cover your group and kind:
+
+```bash
+kli definitions --group <group> --kind <kind>
+```
+
+If the output lists a definition, `kli` already reads this workload type. A definition that you apply to the cluster overrides the catalog definition for the same type, so you can still write your own to change how `kli` reads the type.
+
+## Copy a Catalog Definition
+
+Choose the catalog definition whose structure is closest to your workload type:
+
+| Structure of your workload type | Catalog definition |
+| --- | --- |
+| A single pod template in the spec | `batch-job-v1` |
+| Roles that are identified by a pod label, such as a master and workers | `kubeflow-org-pytorchjob-v1` |
+| An array of named, replicated specs | `jobset-x-k8s-io-jobset-v1alpha2` |
+
+Export the definition to a file. The following command exports the PyTorchJob definition:
+
+```bash
+kli definitions kubeflow-org-pytorchjob-v1 -o yaml > my-workload.yaml
+```
+
+In the file, set `metadata.name` to a name that is unique in the cluster. The next steps change the rest of the file.
+
+## Set the Root Component and Its Status
+
+The root component is the top-level resource of the workload. Set `rootComponent.kind` to the full group, version, and kind of your workload type. The root component requires a `statusDefinition`.
+
+Select the rule that matches the field in which the workload reports its state:
+
+| The workload reports its state in | Use | Example |
+| --- | --- | --- |
+| A list of conditions | `conditionsDefinition` and `byConditions` | [PyTorchJob](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kubeflow-org-pytorchjob-v1.yaml) |
+| A single phase or state field | `phaseDefinition` and `byPhase` | [NIMCache](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/apps-nvidia-com-nimcache-v1alpha1.yaml) |
+| Counts or other status fields | `byExpression` | [JobSet](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml) |
+
+Map a status only if the workload reports it, and use the condition types and fields that appear in the API of the workload. A condition type that the controller never sets passes validation but never matches. For the matching rules, refer to [Step 2 of the tutorial](../getting-started/tutorial-write-your-first-workload-definition.md#step-2-map-the-status).
+
+## Set the Pod Template and the Scale
+
+Set `specDefinition` to the location of the pod template. Use exactly one of the following patterns for each component:
+
+| Pattern | Use when |
+| --- | --- |
+| `podTemplateSpecPath` | The resource embeds a full pod template. |
+| `podSpecPath`, with an optional `metadataPath` | The resource embeds a bare pod spec. |
+| `fragmentedPodSpecDefinition` | The pod fields are scattered across the spec. |
+
+Set `scaleDefinition.replicasPath` to the location of the replica count.
+
+Every path is a jq expression. Paths in `specDefinition` and `scaleDefinition` are evaluated against the workload object. Give an optional field a default so that the expression stays null-safe, for example `.spec.parallelism // 1`.
+
+## Declare Child Components
+
+Declare a child component for each resource or group of pods that the workload owns and that you want to show as a separate component. A child component requires the following fields:
+
+| Field | Value |
+| --- | --- |
+| `name` | A name that is unique in the definition. |
+| `kind` | The full group, version, and kind of the child. |
+| `ownerRef` | The name of the parent component. |
+
+A child component usually also has a `specDefinition`, a `scaleDefinition`, and a `podSelector`.
+
+When the controller creates the pods directly, declare the child with the `Pod` kind, which has an empty group, and identify its pods with a `podSelector`. The PyTorchJob definition declares its worker role as follows:
+
+```yaml
+childComponents:
+  - name: worker
+    kind:
+      group: ""
+      version: v1
+      kind: Pod
+    ownerRef: pytorchjob
+    specDefinition:
+      podTemplateSpecPath: .spec.pytorchReplicaSpecs.Worker.template
+    scaleDefinition:
+      replicasPath: .spec.pytorchReplicaSpecs.Worker.replicas // 1
+    podSelector:
+      componentTypeSelector:
+        keyPath: .metadata.labels["training.kubeflow.org/replica-type"]
+        value: worker
+```
+
+Paths in a `podSelector` are evaluated against the manifest of a pod, not against the workload object. If you omit `value`, the selector matches any pod that has the key. The selectors of each kind must be mutually exclusive, so that no pod matches two components.
+
+## Distinguish Repeated Instances
+
+A component can read several pod definitions from one array or map in the spec. A JobSet, for example, lists its replicated jobs in `.spec.replicatedJobs`. Declare one component for the whole list, and set two fields to tell its instances apart:
+
+| Field | Evaluated against | Result |
+| --- | --- | --- |
+| `instanceIdPath` | The workload object | The name of each instance. |
+| `podSelector.componentInstanceSelector.idPath` | A pod manifest | The name of the instance that the pod belongs to. |
+
+The JobSet definition sets them as follows:
+
+```yaml
+childComponents:
+  - name: replicatedjob
+    kind:
+      group: batch
+      version: v1
+      kind: Job
+    ownerRef: jobset
+    specDefinition:
+      podTemplateSpecPath: .spec.replicatedJobs[].template.spec.template
+    scaleDefinition:
+      replicasPath: .spec.replicatedJobs[] | .replicas * .template.spec.parallelism
+    instanceIdPath: .spec.replicatedJobs[].name
+    podSelector:
+      componentInstanceSelector:
+        idPath: .metadata.labels["jobset.sigs.k8s.io/replicatedjob-name"]
+```
+
+When the spec holds a map, use its keys as the instance names, for example `.spec.jobs | to_entries[] | .key`. To separate identical groups of the same structure, such as the groups of a LeaderWorkerSet, add a `replicaSelector`. For more information, refer to [Core Concepts](../about/core-concepts.md).
+
+## Set Optional Fields
+
+Set the following fields only if they apply to your workload type:
+
+| Field | Purpose |
+| --- | --- |
+| `suspendDefinition` | Lists the path and value assignments that suspend and resume the workload. Use it only if the framework supports suspension natively, such as `.spec.suspend` on a Job. |
+| `additionalChildKinds` | Lists the kinds that the workload creates but that no component models. The list is required for RBAC purposes. Do not list a kind that a component already declares. |
+| `optimizationInstructions` | Tells a scheduler how to group the pods of the workload. Use the `gangScheduling.podGroup` format. The catalog definition `batch-job-v1` and some others still use the older `podGroups` list format, which is deprecated in favor of `podGroup`. |
+| `spec.experimental` | Set it to `true` for a definition that consumers must enable explicitly. The SDK and the catalog keep the definition available. The CLI and the Headlamp plugin exclude it until their experimental setting is on, even if the definition is installed in the cluster. If you omit the field or set it to `false`, the definition behaves normally. |
+
+## Validate the Definition
+
+Validate the file. The command needs no cluster:
+
+```bash
+kli validate my-workload.yaml
+```
+
+A valid definition prints a line like the following. The group, version, and kind are those of your workload type:
+
+```text
+OK: my-workload.yaml is a valid Karta definition (GVK: kubeflow.org/v1/PyTorchJob)
+```
+
+The command checks the schema, the required fields, and the syntax of the jq expressions. It does not check that the definition maps your workload type correctly. It also does not reject unknown field names. A misspelled field passes validation and is ignored, so check the spelling of each field. To read the definition from standard input, use `-` in place of the file name.
+
+The exit code reports the result:
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | The definition is valid. |
+| `1` | The definition is not valid. The output lists each finding. |
+| `2` | The file cannot be read as YAML. |
+
+## Check the Definition Against a Real Workload
+
+Validation does not show whether a jq path resolves against a real object, so a definition can pass validation and still extract nothing. The `karta-verify` tool runs the definition against a real custom resource, and it reports what it extracted. It needs no cluster. It is part of the `karta/sdk` module, so it needs a clone of the repository and Go. For more information, refer to [Prerequisites](../getting-started/prerequisites.md#go-library).
+
+From the `karta/sdk` directory of the clone, run the tool with the definition and the manifest of a workload:
+
+```bash
+go run ./hack/karta-verify \
+  --karta ../../docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml \
+  --workload ../../docs/examples/quickstart/lws.yaml
+```
+
+The output has a validation result and the values that the definition extracted from the manifest:
+
+```text
+=== Validation ===
+  ../../docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml is structurally valid
+
+=== Extracted from ../../docs/examples/quickstart/lws.yaml ===
+  status: Initializing
+  group                              replicas=4        min=<none> max=<none> podSpec=n/a       containers=<none>
+  group/leader                       replicas=3        min=<none> max=<none> podSpec=yes       containers=nginx2
+  group/worker                       replicas=9        min=<none> max=<none> podSpec=yes       containers=nginx
+```
+
+Without `--workload`, the tool runs the validation only. The tool has the following options:
+
+| Option | Purpose |
+| --- | --- |
+| `--karta` | The path to the definition. Required. |
+| `--workload` | The path to a real workload manifest. |
+| `--predict` | The path to a file of values that you wrote before the run. The tool compares the extraction with them. Requires `--workload`. |
+| `--dump` | Writes the observed extraction in the format of the predictions file. Requires `--workload`. |
+| `--strict` | Exits with a non-zero code when the run reports warnings. Requires `--workload`. |
+
+Every warning describes a valid but empty extraction, which the validation cannot detect:
+
+- The status is unresolved, so no rule in `statusDefinition` matched the object.
+- A component declares a `specDefinition` but extracted no pod spec, so the spec path missed.
+- A component extracted a pod spec with no containers.
+- A component produced no instances, so `instanceIdPath` matched nothing.
+
+The exit code is `0` for success, `1` for a load or validation failure, `2` for a prediction mismatch, and `3` for warnings under `--strict`. The `go run` command reports a non-zero exit of the tool as `exit status N` and exits with `1` itself. To branch on the exact code, build the tool first with `go build -o verify .`, and run `./verify` with the same options.
+
+For the predictions file format and more examples, refer to the [karta-verify README](https://github.com/dsx-ai-factory/workload-map/blob/main/karta/sdk/hack/karta-verify/README.md).
+
+## Apply the Definition and Verify It
+
+1. Apply the definition to the cluster:
+
+   ```bash
+   kubectl apply -f my-workload.yaml
+   ```
+
+2. Check that the Karta Operator accepted the definition:
+
+   ```bash
+   kubectl get karta <name> -o jsonpath='{range .status.conditions[*]}{.type}={.status} {end}'
+   ```
+
+   The output is `Validated=True CRDExists=True Ready=True`.
+
+3. Describe a running workload of your type:
+
+   ```bash
+   kli describe <resource>/<name>
+   ```
+
+   The first line of the output names the definition that `kli` used. For your definition, it shows the definition name and `(cluster)`. Check that the tree contains the components that you declared, and that each pod appears under the correct component.
+
+<Note title="Update the CRD before you apply an experimental definition">
+To apply a definition with `spec.experimental`, the `Karta` CRD must include that field. The Helm chart updates the CRD during upgrades by default. If you manage the CRD separately, apply the updated [`run.ai_kartas.yaml`](https://github.com/dsx-ai-factory/workload-map/blob/main/charts/karta/crds/run.ai_kartas.yaml) first.
+</Note>
+
+<Note title="One definition for each type">
+The Karta Operator rejects a second definition for the same group, version, and kind, and the kind of the root component cannot change. To change a definition, edit the file and apply it again.
+</Note>
+
+## Next Steps
+
+- To fix a validation error, refer to [Troubleshoot Definitions](../troubleshooting/troubleshoot-definitions.md).
+- To look up every field of a definition, refer to the [Workload Definition Spec](../reference/workload-definition-spec.md).
+- To find a definition to start from, refer to the [Catalog of Definitions](../reference/catalog-of-definitions.md).
+- To read a definition from your own code, refer to [How a Controller Uses Workload Map](build-a-controller/how-a-controller-uses-workload-map.md).

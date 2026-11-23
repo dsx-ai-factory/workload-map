@@ -49,7 +49,7 @@ jobs:
           mkdir -p preview-metadata
           printf '%s\n' "$PR_NUMBER" > preview-metadata/pr_number
           printf '%s\n' "$HEAD_REF" > preview-metadata/head_ref
-          git diff --name-only "origin/${BASE_REF}...HEAD" -- '*.md' '*.mdx' > preview-metadata/changed_md_files || true
+          git diff --name-only "origin/${BASE_REF}...HEAD" -- '*.md' '*.md' > preview-metadata/changed_md_files || true
 
       - name: Upload Fern docs inputs and metadata
         uses: actions/upload-artifact@v4

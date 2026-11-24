@@ -239,7 +239,8 @@ exporter:
       - name: node
         metrics: [dsx_workload_pod_info]
         sources: [pod]
-        expression: has(object.spec.nodeName) ? object.spec.nodeName : ""
+        expression: |
+          has(object.spec.nodeName) ? object.spec.nodeName : ""
 ```
 
 These examples expect `DCGM_FI_DEV_GPU_UTIL` in percent, from 0 to 100.

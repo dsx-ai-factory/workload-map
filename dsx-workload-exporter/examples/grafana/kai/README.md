@@ -87,7 +87,8 @@ exporter:
       - name: node
         metrics: [dsx_workload_pod_info]
         sources: [pod]
-        expression: has(object.spec.nodeName) ? object.spec.nodeName : ""
+        expression: |
+          has(object.spec.nodeName) ? object.spec.nodeName : ""
 ```
 
 Keep the reservation namespace (`kai-resource-reservation` by default) included
@@ -103,7 +104,8 @@ If terminated consumer Pods remain on the node, add an optional fourth rule so
       - name: pod_phase
         metrics: [dsx_workload_pod_info]
         sources: [pod]
-        expression: has(object.status) && has(object.status.phase) ? object.status.phase : ""
+        expression: |
+          has(object.status) && has(object.status.phase) ? object.status.phase : ""
 ```
 
 When using the standalone binary (`--config`), place `metrics.labelRules` at the

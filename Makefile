@@ -27,7 +27,7 @@ COMPONENTS := lib cli operator exporter karta-wasm release-helper operator-updat
 # Every Go module in the repo. The tidy target fans out over this rather than
 # COMPONENTS because an untidy manifest in a module that ships no
 # binary (the examples, the e2e fixtures) still breaks a downstream `go get`.
-GO_MODULES := karta/sdk cli karta-wasm operator dsx-workload-exporter dsx-workload-exporter/test/integration test/e2e hack/imagelock hack/operator-updates \
+GO_MODULES := karta/sdk cli karta-wasm operator dsx-workload-exporter dsx-workload-exporter/test/integration test/e2e hack/imagelock hack/operator-updates hack/release \
 	docs/examples/quickstart docs/examples/controller-runtime \
 	hack/e2e/operators/nim/image
 

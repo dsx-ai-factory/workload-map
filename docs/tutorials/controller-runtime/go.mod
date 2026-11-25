@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-module github.com/dsx-ai-factory/workload-map/docs/examples/controller-runtime
+module github.com/dsx-ai-factory/workload-map/docs/tutorials/controller-runtime
 
 go 1.27.4
 

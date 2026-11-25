@@ -1,7 +1,10 @@
-<!-- SPDX-License-Identifier: Apache-2.0 -->
-<!-- Copyright (c) 2026 NVIDIA Corporation -->
+---
+title: Act on Workload Changes with Kyverno
+description: Use Prometheus observations to suspend an idle GPU Job or delete a failed workload with Kyverno.
+---
 
-# Act on workload changes with the Workload Map metrics exporter and Kyverno
+{/* SPDX-License-Identifier: Apache-2.0 */}
+{/* Copyright (c) 2026 NVIDIA Corporation */}
 
 The Workload Map metrics exporter (`dsx-workload-exporter`) maps Pods to workloads
 and reports their status. Prometheus uses that mapping to match GPU readings
@@ -11,7 +14,7 @@ You'll apply two Kyverno policies. The first frees a GPU by suspending an opted-
 Job when GPU use stays below 5% for two minutes. The second deletes an opted-in
 Job or Deployment that stays Failed for two minutes.
 
-![Prometheus collects workload and GPU metrics. Kyverno uses them to suspend an idle Job or delete a failed workload.](../../assets/workload-metrics-to-policy-patterns.png)
+![Prometheus collects workload and GPU metrics. Kyverno uses them to suspend an idle Job or delete a failed workload.](./flow.png)
 
 ## The eyes: what can you see?
 
@@ -23,7 +26,7 @@ Job or Deployment that stays Failed for two minutes.
 | A workload stays Failed, Degraded or Initializing too long | Workload status normalized by the exporter using the workload's catalog definition. |
 | Completed work exceeds its retention period | Workload status history in Prometheus. Creation age is not time in a phase. |
 
-See the [metric joins](../../dsx-workload-exporter/queries.md).
+See the [metric joins](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/queries.md).
 Low use alone does not prove the application is safe to stop; it may be waiting for I/O.
 
 ## The hands: how can you respond?
@@ -43,7 +46,7 @@ safely restart, and retain outputs before deletion.
 Use a disposable Kubernetes cluster with Helm and kubectl. The examples use
 built-in Jobs and Deployments. You need:
 
-- [Workload Map metrics exporter](../../dsx-workload-exporter/installation.md), configured with the demo values below.
+- [Workload Map metrics exporter](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/installation.md), configured with the demo values below.
 - [Kyverno](https://kyverno.io/docs/installation/installation/), tested with 1.19.1 (chart 3.9.1).
 - Prometheus for metric history. The preparation below deploys it.
 - For the GPU policy: one dedicated NVIDIA GPU, drivers, device access and [DCGM Exporter](https://docs.nvidia.com/datacenter/dcgm/latest/installation/install-dcgm-exporter.html). Enable Kubernetes mapping and `DCGM_EXPORTER_KUBERNETES_ENABLE_POD_UID=true`.
@@ -52,8 +55,7 @@ The DCGM Service used below must have exactly one exporter endpoint for the demo
 GPU node. For multiple nodes, scrape each exporter Pod separately with Kubernetes
 discovery instead of one shared Service target.
 
-<details>
-<summary>Prepare the demo</summary>
+<Accordion title="Prepare the demo">
 
 Run this preparation once, from an empty directory. Create the namespaces:
 
@@ -422,7 +424,7 @@ kubectl -n monitoring rollout status deployment/prometheus --timeout=3m
 Both policies query `http://prometheus.monitoring.svc:9090`. Change both policy
 URLs below if using a different Prometheus service.
 
-</details>
+</Accordion>
 
 Prometheus scrapes every 15 seconds. The rules evaluate one interval behind so
 scrapes can finish. Both policies require two minutes of fresh, valid observations

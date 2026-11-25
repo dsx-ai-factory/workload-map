@@ -1,6 +1,6 @@
 ---
-title: Tutorial - Write Your First Workload Definition
-sidebar-title: Tutorial - Write Your First Workload Definition
+title: Write Your First Workload Definition
+sidebar-title: Write Your First Workload Definition
 description: Learn how to write a Workload Map definition from scratch for a Kubernetes Job, and see the cluster use it.
 ---
 
@@ -9,12 +9,14 @@ description: Learn how to write a Workload Map definition from scratch for a Kub
 
 In this tutorial, you write a `Karta` definition from scratch for a Kubernetes `batch/v1` Job. By the end, you have a complete, valid definition, and you understand the building blocks well enough to describe any other workload type.
 
-A Job is the simplest useful example. It has one component, one pod template, and a status that it reports through conditions. The [catalog](../reference/catalog-of-definitions.mdx) has definitions for more complex workloads, such as JobSet, PyTorchJob, RayCluster, and KServe. When you write your own definition, start from the catalog definition that is closest to your workload. For every field that a definition supports, refer to the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
+A Job is the simplest useful example. It has one component, one pod template, and a status that it reports through conditions. The [catalog](../../reference/catalog-of-definitions.mdx) has definitions for more complex workloads, such as JobSet, PyTorchJob, RayCluster, and KServe. When you write your own definition, start from the catalog definition that is closest to your workload. For every field that a definition supports, refer to the [Workload Definition Spec](../../reference/workload-definition-spec.mdx).
+
+![The Job definition maps a Kubernetes Job to its workload status, Pod template, and replica count.](./flow.png)
 
 ## Prerequisites
 
-- `kli` installed. For more information, refer to [Installation](installation.mdx#install-the-kli-cli).
-- A Kubernetes cluster with the Karta Operator installed, to see the definition work in Step 4. For more information, refer to [Installation](installation.mdx#install-the-karta-operator). Steps 1 to 3 and the validation in Step 4 need no cluster.
+- `kli` installed. For more information, refer to [Installation](../../getting-started/installation.mdx#install-the-kli-cli).
+- A Kubernetes cluster with the Karta Operator installed, to see the definition work in Step 4. For more information, refer to [Installation](../../getting-started/installation.mdx#install-the-karta-operator). Steps 1 to 3 and the validation in Step 4 need no cluster.
 
 ## Related Concepts
 
@@ -23,7 +25,7 @@ Before you start, make sure that you are familiar with the following:
 - Kubernetes custom resources and YAML.
 - [jq](https://jqlang.org/) path syntax. Every path in a definition is a jq expression.
 - The workload that you describe. You need to know its group, version, and kind, the conditions or phases that it reports in `.status`, and where it stores its pod template.
-- The components of a definition. For more information, refer to [Core Concepts](../about/core-concepts.mdx).
+- The components of a definition. For more information, refer to [Core Concepts](../../about/core-concepts.mdx).
 
 A definition describes a workload as a tree of components:
 
@@ -181,9 +183,9 @@ This minimal file does not map suspended Jobs. A suspended Job resolves to `Unde
    OK: job.yaml is a valid Karta definition (GVK: batch/v1/Job)
    ```
 
-   Without `kli`, run the `karta-verify` tool from the `karta/sdk` directory of a clone: `go run ./hack/karta-verify --karta /path/to/job.yaml`. For more information, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx#check-the-definition-against-a-real-workload).
+   Without `kli`, run the `karta-verify` tool from the `karta/sdk` directory of a clone: `go run ./hack/karta-verify --karta /path/to/job.yaml`. For more information, refer to [Define a Workload Type](../../building-on-workload-map/define-a-workload-type.mdx#check-the-definition-against-a-real-workload).
 
-   If a check fails, the error message names the component and the problem. For each message and its fix, refer to the [Troubleshooting](../troubleshooting/troubleshoot-definitions.mdx) page. Before you use a definition, confirm the following:
+   If a check fails, the error message names the component and the problem. For each message and its fix, refer to the [Troubleshooting](../../troubleshooting/troubleshoot-definitions.mdx) page. Before you use a definition, confirm the following:
 
    - All kinds use a full group, version, and kind.
    - The root component has a `statusDefinition`.
@@ -268,6 +270,6 @@ Every `componentName` must match a component that you defined. The older `podGro
 
 - Add child components for workloads that own other resources. Each child needs an `ownerRef`. For examples, refer to the [KServe InferenceService](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml) and [PyTorchJob](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kubeflow-org-pytorchjob-v1.yaml) definitions.
 - Handle workloads with repeated roles or instances, such as the replicated jobs of a JobSet, with `instanceIdPath` and a matching component instance selector. For an example, refer to the [JobSet](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml) definition.
-- Read a definition from a controller with the Go component API. Follow the [Go Library quickstart](quickstarts/quickstart-go-library.mdx) or the [controller-runtime example](../building-on-workload-map/build-a-controller/tutorial-build-a-controller-on-kind.mdx).
-- To write a definition for your own workload type, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx).
-- Read the full field reference in the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
+- Read a definition from a controller with the Go component API. Follow the [Go Library quickstart](../quickstart/index.mdx) or the [controller-runtime example](../controller-runtime/index.mdx).
+- To write a definition for your own workload type, refer to [Define a Workload Type](../../building-on-workload-map/define-a-workload-type.mdx).
+- Read the full field reference in the [Workload Definition Spec](../../reference/workload-definition-spec.mdx).

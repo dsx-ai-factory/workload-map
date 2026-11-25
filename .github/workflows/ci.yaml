@@ -89,7 +89,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           if ! git cat-file -e "$BASE^{commit}" 2>/dev/null ||
-             ! git diff --quiet "$BASE" HEAD -- dsx-workload-exporter/examples/grafana dsx-workload-exporter/go.mod dsx-workload-exporter/go.sum Makefile .golangci.yml .github/workflows/ci.yaml; then
+             ! git diff --quiet "$BASE" HEAD -- docs/tutorials/grafana dsx-workload-exporter/test/grafana dsx-workload-exporter/go.mod dsx-workload-exporter/go.sum Makefile .golangci.yml .github/workflows/ci.yaml; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Test exporter dashboard queries

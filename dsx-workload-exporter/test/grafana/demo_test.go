@@ -32,7 +32,7 @@ var _ = Describe("Shared demo installers", func() {
 		if err != nil {
 			Skip("helm is needed for chart rendering")
 		}
-		root, err := filepath.Abs("../../../..")
+		root, err := filepath.Abs("../../..")
 		Expect(err).NotTo(HaveOccurred())
 		out, err := exec.Command(helm, "template", "dsx", filepath.Join(root, "charts/karta"),
 			"--namespace", "dashboard-lab", "-f", filepath.Join(root, "hack/demo-grafana-exporter/exporter-values.yaml"),
@@ -76,7 +76,7 @@ var _ = Describe("Shared demo installers", func() {
 		if err != nil {
 			Skip("helm is needed for chart rendering")
 		}
-		root, err := filepath.Abs("../../../..")
+		root, err := filepath.Abs("../../..")
 		Expect(err).NotTo(HaveOccurred())
 		valuesPath := filepath.Join(GinkgoT().TempDir(), "exporter values.yaml")
 		values := "exporter:\n  enabled: true\noperator:\n  enabled: true\n"
@@ -181,7 +181,7 @@ var _ = Describe("Shared demo installers", func() {
 })
 
 func runDemoInstaller(script string, args []string, env ...string) ([]string, error) {
-	root, err := filepath.Abs("../../../..")
+	root, err := filepath.Abs("../../..")
 	Expect(err).NotTo(HaveOccurred())
 	dir := GinkgoT().TempDir()
 	logPath := filepath.Join(dir, "commands")

@@ -9,7 +9,7 @@ description: Learn how a controller uses the Workload Map Go library to read and
 
 A controller is a program that watches objects in a Kubernetes cluster and reacts when they change. When a controller manages more than one workload type, it must know where each type stores its pods, its replica count, and its status. Workload Map moves that knowledge out of the controller code and into definitions, so the same code works for every workload type that has a definition.
 
-This page explains the problem, what the Go library gives a controller, and how a reconcile loop that uses it is structured. To build a controller, follow the [tutorial](tutorial-build-a-controller-on-kind.mdx).
+This page explains the problem, what the Go library gives a controller, and how a reconcile loop that uses it is structured. To build a controller, follow the [tutorial](../../tutorials/controller-runtime/index.mdx).
 
 ## The Problem
 
@@ -83,6 +83,6 @@ There is no `switch` on the workload kind anywhere in the loop. The example cont
 
 ## Choose What to Read Next
 
-- To run the example controller on a local cluster, follow the [tutorial](tutorial-build-a-controller-on-kind.mdx).
+- To run the example controller on a local cluster, follow the [tutorial](../../tutorials/controller-runtime/index.mdx).
 - To write your own code against the library, refer to [Use the Go Library](use-the-go-library.mdx).
-- To make a running controller manage another workload type, refer to [Watch Another Workload Type](watch-another-workload-type.mdx).
+- To make a running controller manage another workload type, refer to [Watch Another Workload Type](../../tutorials/controller-runtime/index.mdx#watch-another-workload-type).

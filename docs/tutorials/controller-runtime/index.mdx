@@ -98,7 +98,7 @@ kubectl get pods -l app.kubernetes.io/managed-by=karta
 kubectl describe leaderworkerset karta-demo-lws | sed -n '/Events:/,$p'
 ```
 
-When the group is ready, the annotations are as follows. The `replicas` value sums the group, the leader component, and the worker component. The `cpu` and `memory` values sum the leader and worker requests.
+When the group is ready, the annotations are as follows. The `replicas` value sums the group, the leader component, and the worker component. The CPU and memory annotations add the container requests from one leader template and one worker template. Their values stay the same if you add more groups with those templates.
 
 ```text
 karta/status: Running
@@ -108,7 +108,7 @@ karta/memory-request: 128Mi
 karta/gpu-request: 0
 ```
 
-The controller records the label injection as a single event:
+The controller emits this event when it prepares the label update. The template labels shown above confirm the write succeeded.
 
 ```text
 Normal  PodTemplateLabeled  Injected pod-template label app.kubernetes.io/managed-by=karta via Karta
@@ -120,7 +120,7 @@ The pod templates of a LeaderWorkerSet can be changed while it runs. An update t
 
 ## Trigger a Status Change
 
-The controller records the first observed status silently, so a new workload does not emit a `StatusChanged` event. To see one, cause a status transition. For example, start a rolling update, which the controller sees go back through `Initializing` and into `Running`:
+The controller emits `StatusRecorded` when it first saves a known status. Later, if the saved status changes, it emits `StatusChanged`. Start a rolling update and inspect the events as the group returns to `Running`.
 
 ```bash
 kubectl patch leaderworkerset karta-demo-lws --type=json \
@@ -148,6 +148,8 @@ For ready-made definitions for PyTorchJob, RayCluster, JobSet, and more, refer t
 ## Watch Another Workload Type
 
 To extend the running controller to JobSet, follow these steps before cleaning up the cluster.
+
+### How the Flag Works
 
 The `--watch-gvk` flag takes a comma-separated list of workload types. Write each type as `group/version/kind`. The core group is empty, so a Pod is `/v1/Pod`. The default value is `leaderworkerset.x-k8s.io/v1/LeaderWorkerSet`.
 

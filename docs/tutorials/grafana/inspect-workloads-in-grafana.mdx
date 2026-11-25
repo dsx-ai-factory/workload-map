@@ -1,5 +1,5 @@
 ---
-title: Inspect workloads in Grafana
+title: Inspect Workloads in Grafana
 description: Import the workload dashboards, select a workload and inspect its Pods, status and resource usage.
 ---
 
@@ -160,7 +160,7 @@ a separate mapping that can emit a row for each Pod. Verify device-level rows
 for every expected Pod UID, not just the GPU UUID. See the
 [device-plugin mapping](https://github.com/NVIDIA/dcgm-exporter/blob/fafd151148052628061a80450b4ee037a5fa0c3c/internal/pkg/transformation/kubernetes.go#L1280-L1308).
 
-The dashboard joins GPU readings by workload Pod UID, not by exporter Pod name.
+The dashboard joins each GPU reading to a workload by Pod UID.
 If the UID is missing, [configure Pod UID mapping in DCGM Exporter](./connect-cluster-metrics.mdx#gpu-measurements-from-dcgm).
 Changing the dashboard's job selector cannot supply a missing UID.
 

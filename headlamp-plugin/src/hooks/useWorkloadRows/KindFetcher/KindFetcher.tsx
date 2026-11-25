@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { K8s } from '@kinvolk/headlamp-plugin/lib';
 import { useThrottle } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
 import { useEffect, useMemo, useRef } from 'react';
 import { Definition } from '../../../lib/karta/definitions';
 import { gvkKey } from '../../../lib/karta/gvkKey';
 import { Workload } from '../../../lib/karta/karta.types';
 import { evaluatePhases } from '../../../lib/karta/kartaUtil';
+import { isRootWorkload, makeWorkloadClass } from '../../../lib/karta/workloads';
 import { buildWorkloadRow } from '../buildRow/buildRow';
 import { WorkloadRow } from '../workloadRow.types';
 
@@ -54,15 +54,15 @@ export function KindFetcher({
   // different kind, and both would write to the same entry.
   const key = gvkKey(kind);
 
+  // Keyed on the fields: the definition is rebuilt every render, so its kind
+  // object is a new identity each time.
   const ResourceClass = useMemo(
     () =>
-      K8s.crd.makeCustomResourceClass({
-        apiInfo: [{ group: kind.group, version: kind.version }],
-        kind: kind.kind,
-        pluralName: plural,
-        singularName: kind.kind.toLowerCase(),
-        isNamespaced: namespaced,
-      }),
+      makeWorkloadClass(
+        { group: kind.group, version: kind.version, kind: kind.kind },
+        plural,
+        namespaced
+      ),
     [kind.group, kind.version, kind.kind, plural, namespaced]
   );
 
@@ -127,16 +127,9 @@ export function KindFetcher({
     // Pinned per run, so a mid-flight change cannot mix the two definitions.
     const currentDefinition = definitionRef.current;
 
-    // A controller owns these, so the owner is the workload: a Deployment and
-    // its pods are one thing described at two levels, and listing both shows
-    // it twice. Filtered before the row is built, so a skipped one costs no
-    // status call either.
-    const roots = items.filter(
-      item =>
-        !((item.jsonData as Workload).metadata.ownerReferences ?? []).some(
-          reference => reference.controller
-        )
-    );
+    // Filtered before the row is built, so a skipped one costs no status call
+    // either.
+    const roots = items.filter(item => isRootWorkload(item.jsonData as Workload));
 
     // Otherwise a page left open through job churn holds every uid it saw.
     const live = new Set(roots.map(item => workloadCacheKey(item.jsonData as Workload)));

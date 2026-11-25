@@ -5,28 +5,17 @@ import { DateLabel, type TableColumn } from '@kinvolk/headlamp-plugin/lib/Common
 import { WorkloadRow } from '../../hooks/useWorkloadRows/workloadRow.types';
 import {
   KARTA_PHASES,
+  phaseItems,
   STATUS_UNAVAILABLE_LABEL,
-  StatusPhaseChips,
   worstPhaseSeverity,
-} from '../statusPhaseChips/StatusPhaseChips';
-import { SelectFilter } from './SelectFilter';
+} from '../../lib/karta/phases';
+import { StatusCell } from '../dataTable/cells/StatusCell';
+import { clusterColumn, matchesAnySelected } from '../dataTable/columns';
+import { SelectFilter } from '../dataTable/SelectFilter';
 import { WorkloadNameFilter } from './WorkloadNameFilter';
 
 // Hidden by default, toggleable through the column picker.
 export const OPTIONAL_COLUMN_IDS = ['components'] as const;
-
-// Matches a row whose value is exactly one of the selected ones. The table's
-// own multi-select match is a substring test, so picking "team" would also
-// keep "team-b", and picking "-" would keep every hyphenated namespace.
-function matchesAnySelected(
-  row: { getValue: (columnId: string) => unknown },
-  columnId: string,
-  selected: string[]
-) {
-  return selected.includes(row.getValue(columnId) as string);
-}
-// An emptied selection removes the filter, so the header stops showing one.
-matchesAnySelected.autoRemove = (selected?: string[]) => !selected?.length;
 
 // includeCluster is false for a single cluster, so the Cluster column is
 // absent rather than present and identical on every row.
@@ -80,11 +69,23 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       filterVariant: 'multi-select',
       // The accessor joins the phases, so default options would be
       // combinations such as "Running,Degraded".
-      filterSelectOptions: KARTA_PHASES,
+      filterSelectOptions: [...KARTA_PHASES],
       filterFn: (row, _columnId, filterValue: string[]) =>
         filterValue.length === 0 || filterValue.some(phase => row.original.phases.includes(phase)),
       Cell: ({ row }) => (
-        <StatusPhaseChips phases={row.original.phases} error={row.original.statusError} />
+        <StatusCell
+          items={
+            row.original.statusError === undefined
+              ? phaseItems(row.original.phases)
+              : [
+                  {
+                    label: STATUS_UNAVAILABLE_LABEL,
+                    status: 'error',
+                    tooltip: row.original.statusError,
+                  },
+                ]
+          }
+        />
       ),
       gridTemplate: 'auto',
     },
@@ -103,15 +104,7 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
   ];
 
   if (includeCluster) {
-    columns.push({
-      id: 'cluster',
-      header: 'Cluster',
-      accessorFn: row => row.cluster,
-      filterVariant: 'multi-select',
-      Filter: SelectFilter,
-      filterFn: matchesAnySelected,
-      gridTemplate: 'min-content',
-    });
+    columns.push(clusterColumn<WorkloadRow>());
   }
 
   columns.push({

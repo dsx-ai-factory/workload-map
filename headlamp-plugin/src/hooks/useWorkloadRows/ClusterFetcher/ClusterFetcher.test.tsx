@@ -19,6 +19,7 @@ vi.mock('@kinvolk/headlamp-plugin/lib', () => ({
 vi.mock('../../useKartaDefinitions/useKartaDefinitions', () => ({ useKartaDefinitions }));
 vi.mock('../../useServedKinds/useServedKinds', () => ({
   useServedKinds,
+  groupVersionOf: (group: string, version: string) => (group ? `${group}/${version}` : version),
   servedKindKey: (group: string, version: string, kind: string) =>
     `${group ? `${group}/${version}` : version}/${kind}`,
 }));

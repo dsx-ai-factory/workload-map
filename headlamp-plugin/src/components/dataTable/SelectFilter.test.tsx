@@ -21,7 +21,7 @@ vi.hoisted(() => {
   });
 });
 
-import { buildWorkloadColumns } from './columns';
+import { buildWorkloadColumns } from '../workloadsTable/columns';
 
 const row = (name: string, namespace: string) => ({
   name,

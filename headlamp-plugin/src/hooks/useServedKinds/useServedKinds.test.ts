@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@kinvolk/headlamp-plugin/lib', () => ({ ApiProxy: { request } }));
 
-import { servedKindKey, useServedKinds } from './useServedKinds';
+import { groupVersionOf, servedKindKey, useServedKinds } from './useServedKinds';
 
 const apps = { group: 'apps', version: 'v1', kind: 'Deployment' };
 const pod = { group: '', version: 'v1', kind: 'Pod' };
@@ -735,5 +735,17 @@ describe('useServedKinds', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.served).toBeNull();
     expect(result.current.error?.message).toBe('discovery unreachable');
+  });
+});
+
+describe('groupVersionOf', () => {
+  it('joins a group and a version, and leaves the core group as the bare version', () => {
+    expect(groupVersionOf('apps', 'v1')).toBe('apps/v1');
+    expect(groupVersionOf('', 'v1')).toBe('v1');
+  });
+
+  it('is the group/version of the key servedKindKey builds', () => {
+    expect(servedKindKey('apps', 'v1', 'Deployment')).toBe('apps/v1/Deployment');
+    expect(servedKindKey('', 'v1', 'Pod')).toBe('v1/Pod');
   });
 });

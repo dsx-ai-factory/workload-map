@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { buildWorkloadColumns, OPTIONAL_COLUMN_IDS } from './columns';
 
@@ -137,6 +138,21 @@ describe('buildWorkloadColumns', () => {
     expect(failed).toContain('engine unavailable');
     expect(pending).toBe('[]');
     expect(value({ phases: ['Running'] })).toBe('["Running"]');
+  });
+
+  it('shows the evaluation error in place of the phases, with the error as its tooltip', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    const cell = (original: Record<string, unknown>) =>
+      render((status.Cell as any)({ row: { original } }));
+
+    const { unmount } = cell({ phases: ['Running'], statusError: 'engine unavailable' });
+    expect(screen.getByLabelText('Unavailable: engine unavailable')).toBeTruthy();
+    expect(screen.queryByText('Running')).toBeNull();
+    unmount();
+
+    cell({ phases: ['Running'] });
+    expect(screen.getByText('Running')).toBeTruthy();
+    expect(screen.queryByText('Unavailable')).toBeNull();
   });
 
   it('sorts status by worst phase rather than alphabetically', () => {

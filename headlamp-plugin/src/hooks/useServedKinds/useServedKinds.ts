@@ -21,9 +21,15 @@ export interface UseServedKindsResult {
   error: Error | null;
 }
 
-// Group is empty for core kinds, matching discovery's groupVersion strings.
+// Group is empty for core kinds, matching discovery's groupVersion strings. The
+// failed and requested group/versions are matched against those strings, so
+// every caller builds them here rather than each writing the rule again.
+export function groupVersionOf(group: string, version: string): string {
+  return group ? `${group}/${version}` : version;
+}
+
 export function servedKindKey(group: string, version: string, kind: string): string {
-  return `${group ? `${group}/${version}` : version}/${kind}`;
+  return `${groupVersionOf(group, version)}/${kind}`;
 }
 
 interface ApiGroupList {

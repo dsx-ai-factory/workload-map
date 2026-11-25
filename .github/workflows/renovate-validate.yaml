@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+name: Validate Renovate Changes
+
+on:
+  pull_request:
+    paths:
+      - renovate.json
+      - .github/workflows/renovate.yaml
+      - .github/workflows/renovate-validate.yaml
+      - hack/renovate/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26"
+
+      - name: Install the workflow's Renovate version
+        run: |
+          set -euo pipefail
+          renovate_version=$(node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const workflow = readFileSync('.github/workflows/renovate.yaml', 'utf8');
+          const declarations = workflow.split('\n').filter((line) => /^\s*RENOVATE_VERSION:/.test(line));
+          const match = declarations[0]?.match(/^\s*RENOVATE_VERSION:\s*([0-9]+\.[0-9]+\.[0-9]+)\s*$/);
+          if (declarations.length !== 1 || !match) {
+            throw new Error('Expected one exact RENOVATE_VERSION in .github/workflows/renovate.yaml');
+          }
+          console.log(match[1]);
+          NODE
+          )
+          renovate_prefix="$RUNNER_TEMP/renovate-validation"
+          npm install --prefix "$renovate_prefix" --ignore-scripts --no-audit --no-fund \
+            --package-lock=false "renovate@$renovate_version"
+          echo "RENOVATE_PACKAGE_DIR=$renovate_prefix/node_modules/renovate" >> "$GITHUB_ENV"
+
+      - name: Validate the configuration
+        run: node "$RENOVATE_PACKAGE_DIR/dist/config-validator.js" --strict renovate.json
+
+      - name: Test the update policy
+        run: node --test hack/renovate/policy.test.mjs

@@ -210,3 +210,31 @@ jobs:
             "charts/karta-$PACKAGE_VERSION.tgz" \
             "dist/imagelock-karta-v$PACKAGE_VERSION-linux-amd64.yaml" \
             "dist/imagelock-karta-v$PACKAGE_VERSION-linux-arm64.yaml"
+
+      - name: Upload generated Krew manifest
+        if: github.event_name == 'release' && github.repository == 'dsx-ai-factory/workload-map'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: krew-manifest
+          path: dist/krew/kli.yaml
+          if-no-files-found: error
+          overwrite: true
+
+  update-krew-index:
+    name: Update Krew Index
+    if: github.event_name == 'release' && github.repository == 'dsx-ai-factory/workload-map'
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download generated Krew manifest
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: krew-manifest
+          path: dist/krew
+
+      - name: Propose Krew plugin update
+        uses: rajatjindal/krew-release-bot@a7e82ae57ca41a16fca2691ef00e8a8d35bc77d4 # v0.0.50
+        with:
+          krew_template_file: dist/krew/kli.yaml

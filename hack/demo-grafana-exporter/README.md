@@ -74,4 +74,4 @@ exporter. It scrapes kubelet through the API server with its service account and
 verified TLS. The node-proxy permission is confined to this disposable demo.
 Each dashboard has its own generated ConfigMap because the pair exceeds 1 MiB.
 
-For a real cluster, use the [collector setup](../../docs/tutorials/grafana/connect-cluster-metrics.mdx).
+For a real cluster, use the [collector setup](../../dsx-workload-exporter/examples/grafana/setup.md).

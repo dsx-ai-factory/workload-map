@@ -23,8 +23,6 @@ check:
 redirects:
   - source: /workload-map/getting-started/quickstarts/quickstart-go-library
     destination: /workload-map/tutorials/read-and-modify-workloads-offline
-  - source: /workload-map/getting-started/tutorial-write-your-first-workload-definition
-    destination: /workload-map/tutorials/write-your-first-workload-definition
   - source: /workload-map/building-on-workload-map/build-a-controller/tutorial-build-a-controller-on-kind
     destination: /workload-map/tutorials/build-a-controller-on-kind
   - source: /workload-map/building-on-workload-map/build-a-controller/watch-another-workload-type
@@ -70,27 +68,18 @@ navigation:
           - page: CLI
             path: ../docs/getting-started/quickstarts/quickstart-cli.mdx
             slug: quickstart-cli
+      - page: Tutorial - Write Your First Workload Definition
+        path: ../docs/getting-started/tutorial-write-your-first-workload-definition.mdx
+        slug: tutorial-write-your-first-workload-definition
   - section: Tutorials
     slug: tutorials
     contents:
       - page: Read and Modify Workloads Offline
         path: ../docs/tutorials/quickstart/index.mdx
         slug: read-and-modify-workloads-offline
-      - page: Write Your First Workload Definition
-        path: ../docs/tutorials/write-your-first-workload-definition/index.mdx
-        slug: write-your-first-workload-definition
       - page: Build a Controller on kind
         path: ../docs/tutorials/controller-runtime/index.mdx
         slug: build-a-controller-on-kind
-      - page: Connect Cluster Metrics to Prometheus
-        path: ../docs/tutorials/grafana/connect-cluster-metrics.mdx
-        slug: connect-cluster-metrics
-      - page: Inspect Workloads in Grafana
-        path: ../docs/tutorials/grafana/inspect-workloads-in-grafana.mdx
-        slug: inspect-workloads-in-grafana
-      - page: Act on Workload Changes with Kyverno
-        path: ../docs/tutorials/act-on-workload-change/index.mdx
-        slug: act-on-workload-changes-with-kyverno
   - section: Observability
     slug: observability
     contents:

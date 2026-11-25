@@ -1,41 +1,43 @@
----
-title: Inspect Workloads in Grafana
-description: Import the workload dashboards, select a workload and inspect its Pods, status and resource usage.
----
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright (c) 2026 NVIDIA Corporation -->
 
-{/* SPDX-License-Identifier: Apache-2.0 */}
-{/* Copyright (c) 2026 NVIDIA Corporation */}
+# Grafana dashboard examples
 
-Find a workload in [Workload Overview](https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/docs/tutorials/grafana/workload-overview.json), then select its
-name to open [Workload Structure](https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/docs/tutorials/grafana/workload-structure.json). For example, select a
-Deployment to see its Pods and their CPU, memory and GPU measurements. The
-dashboards query raw Prometheus metrics and refresh every 30 seconds. The DSX
-workload exporter supplies inventory and status. Resource measurements appear
-when the corresponding collectors are available.
+Find a workload in [Workload Overview](workload-overview.json), then select its
+name to inspect [Workload Structure](workload-structure.json). Both dashboards
+query raw metrics. They need no recording rules, GPU activity observer or
+kube-state-metrics. They can be used with or without the supplied recording rules.
 
-![Selecting a workload in Grafana opens its component and Pod structure.](./flow.png)
+The dashboards use native Grafana panels and refresh every 30 seconds. They are
+importable examples for an existing Grafana and Prometheus-compatible backend.
+They do not install a metrics collector or storage backend. DSX publishes
+workload identity and status. CPU, RAM and GPU measurements come from separate
+collectors. Their absence does not prevent workload inventory and structure.
 
 ## Set up and import
 
-To try the dashboards locally, run the [Kind demo](https://github.com/dsx-ai-factory/workload-map/blob/main/hack/demo-grafana-exporter/README.md)
-from a checkout. It provisions both dashboards with simulated GPU readings and
-kubelet CPU and memory metrics. After it starts, go to [Read the overview](#read-the-overview).
+For collector and Helm configuration examples, follow
+[Connect a real cluster](setup.md). For a local example, run
+[`hack/demo-grafana-exporter/up.sh`](../../../hack/demo-grafana-exporter/up.sh). The demo uses
+simulated full-GPU telemetry and kubelet CPU/RAM metrics; it needs no GPU hardware.
 
-For an existing cluster, follow [Connect cluster metrics](./connect-cluster-metrics.mdx)
-to configure Prometheus. Then import the dashboards into Grafana.
-
-1. In Grafana, open `Dashboards > New > Import`. Upload the Workload Overview
-   and Workload Structure JSON files linked above, one at a time. Keep their
+1. [Install the exporter](../../../docs/dsx-workload-exporter/installation.md)
+   and configure your metrics collector to scrape it. Confirm that
+   `dsx_workload_status` or `dsx_workload_pod_info` returns samples.
+2. Add a Prometheus datasource in Grafana. Set its HTTP method to POST and run
+   the connection test. The direct activity queries contain long expressions;
+   GET requests can exceed URL limits in proxies.
+3. Import `workload-overview.json` and `workload-structure.json`. Keep their
    dashboard UIDs so workload links open the matching structure dashboard.
-2. Select the datasource. Leave Cluster blank when metrics have no `cluster`
+4. Select the datasource. Leave Cluster blank when metrics have no `cluster`
    label. Otherwise enter one exact cluster value before choosing the jobs.
-3. Job dropdowns discover names from available metrics. Grafana can select the
+5. Job dropdowns discover names from available metrics. Grafana can select the
    first available value; confirm the exporter job is the intended one. Select
    the CPU/memory and DCGM jobs if those sources are collected.
-4. Set DCGM namespace label to the label containing the workload namespace.
+6. Set DCGM namespace label to the label containing the workload namespace.
    The default is `namespace`. Choose `exported_namespace` when scrape-label
    collisions put the workload namespace there instead.
-5. Select namespaces and a time range. Select a workload name in Overview to
+7. Select namespaces and a time range. Select a workload name in Overview to
    open its structure, or choose a workload UID directly in Structure.
 
 Cluster and job values must be single-line strings without backticks. Filter
@@ -44,7 +46,7 @@ values must not contain Grafana variable syntax such as `$__range` or
 affected labels before ingestion. A plain scrape `job_name`, such as `cadvisor`,
 works when it supplies the final `job` label. If `honor_labels` or another rule
 preserves a different value, change the source or rule that supplies that label.
-Verify the stored job labels with the [source discovery queries](./connect-cluster-metrics.mdx#grafana-and-verification)
+Verify the stored job labels with the [source discovery queries](#troubleshoot-missing-panels)
 in the dashboard datasource.
 
 Use one exporter job containing replicas of one exporter configuration. For a
@@ -61,14 +63,14 @@ keeps its root status and age, but shows only that namespace's Pods and resource
 measurements. All namespaces combines both Pod sets. Workload links preserve
 the selected namespace scope. Pod detail tables retain each Pod's namespace.
 
-[Metric Samples](https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/docs/tutorials/grafana/metric-samples.json) is an optional troubleshooting dashboard
+[Metric Samples](metric-samples.json) is an optional troubleshooting dashboard
 for the four raw DSX metrics. It also needs no recording rules. Use a datasource
 scoped to one cluster when inspecting it.
 
-![Raw Pod attribution labels and values](./screenshots/metric-samples.png)
+![Raw Pod attribution labels and values](screenshots/metric-samples.png)
 
-[recording-rules.yaml](https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/docs/tutorials/grafana/recording-rules.yaml) remains an optional set of reusable
-queries. [alerting-rules.yaml](https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/docs/tutorials/grafana/alerting-rules.yaml) is an optional example alert
+[recording-rules.yaml](recording-rules.yaml) remains an optional set of reusable
+queries. [alerting-rules.yaml](alerting-rules.yaml) is an optional example alert
 for an observation failure lasting five minutes. Neither file is needed by the
 two main dashboards. Both use native Prometheus rule syntax; for Prometheus
 Operator, put their `groups` under a selected `PrometheusRule`'s `spec.groups`.
@@ -88,9 +90,9 @@ component panels.
 These screenshots show an earlier dashboard version. Some labels and activity
 panels differ from the current direct-query version.
 
-![Workload overview with inventory, status and resource sections](./screenshots/workload-overview.png)
+![Workload overview with inventory, status and resource sections](screenshots/workload-overview.png)
 
-![Component CPU, memory and GPU details](./screenshots/workload-overview-details.png)
+![Component CPU, memory and GPU details](screenshots/workload-overview-details.png)
 
 The activity timeline defaults to workloads with GPU evidence in the selected
 time range. Active only and All workloads are also available. Filtering uses
@@ -120,9 +122,9 @@ a completed workload while it was running. GPU, VRAM, CPU and RAM history remain
 queryable while the backend retains its samples. The exact Pod attribution table
 is below the histories.
 
-![Workload structure with GPU and VRAM measurements](./screenshots/workload-structure.png)
+![Workload structure with GPU and VRAM measurements](screenshots/workload-structure.png)
 
-![Workload phase, GPU, VRAM, CPU and RAM histories](./screenshots/workload-resource-history.png)
+![Workload phase, GPU, VRAM, CPU and RAM histories](screenshots/workload-resource-history.png)
 
 ## Required resource metrics
 
@@ -143,7 +145,7 @@ Preserve the `cpu` label. A missing label is accepted only for a counter already
 known to be a container total. Removing `cpu` from per-core counters does not
 produce a total. Memory is working-set bytes. Both sources join Pod names to
 DSX attribution and retain the documented
-[Pod-name reuse and rate-window limits](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/queries.md#2-cpu-and-memory-by-component-instance-and-group).
+[Pod-name reuse and rate-window limits](../../../docs/dsx-workload-exporter/queries.md#2-cpu-and-memory-by-component-instance-and-group).
 
 GPU queries require device-level readings. Agreement is checked across all
 nonempty workload namespaces in the selected cluster and DCGM job. Namespace
@@ -160,9 +162,11 @@ a separate mapping that can emit a row for each Pod. Verify device-level rows
 for every expected Pod UID, not just the GPU UUID. See the
 [device-plugin mapping](https://github.com/NVIDIA/dcgm-exporter/blob/fafd151148052628061a80450b4ee037a5fa0c3c/internal/pkg/transformation/kubernetes.go#L1280-L1308).
 
-The dashboard joins each GPU reading to a workload by Pod UID.
-If the UID is missing, [configure Pod UID mapping in DCGM Exporter](./connect-cluster-metrics.mdx#gpu-measurements-from-dcgm).
-Changing the dashboard's job selector cannot supply a missing UID.
+Enable [DCGM Pod UID mapping](../../../docs/dsx-workload-exporter/queries.md#3-gpu-measurements-by-pod-uid).
+GPU joins use Pod UID, not the name of the DCGM exporter Pod. Missing Pod UIDs
+cannot be repaired by changing the dashboard's job selector. DCGM Exporter
+versions supporting this option need Kubernetes mapping and
+`DCGM_EXPORTER_KUBERNETES_ENABLE_POD_UID=true`, plus the required Pod-read RBAC.
 
 A compatible metric name is not enough. For example, fake GPU operator 0.0.72
 emits DCGM-shaped metrics without `pod_uid`. Its stock output cannot satisfy
@@ -182,7 +186,9 @@ count once within each workload or graph node, including MIG identity.
 Parent framebuffer rows are excluded when MIG framebuffer rows exist for the
 same Pod and physical GPU. Conflicting readings are excluded even when their
 GPU index labels differ. These measurements do not isolate a process's
-memory or GPU use. Dynamic Resource Allocation (DRA) uses the same Pod UID join.
+memory or GPU use. Dynamic Resource Allocation (DRA) requires DCGM Exporter
+4.8.4 or later with DRA and Pod UID mapping enabled; see the
+[DRA setup](setup.md#gpu-measurements-from-dcgm). It uses the same Pod UID join.
 Claim labels alone cannot identify the consuming Pod. The dashboards do not
 resolve ResourceClaims or verify allocated GPU counts.
 
@@ -219,10 +225,10 @@ Published Pod counts are accepted emitted mappings, not desired replicas or
 proof of complete discovery. Inventory can include retained-invalid observations.
 An empty failure table means no failure rows were returned, not that discovery
 was complete. A zero failure count requires available exporter scrape health.
-See the [metric validity limits](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/keps/0001-metrics-exporter/README.md#metrics).
+See the [metric validity limits](../../../docs/keps/0001-metrics-exporter/README.md#metrics).
 
 Attribution queries preserve built-in identity labels and optional `team`.
-For other [configured labels](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/configuration.md#configured-labels),
+For other [configured labels](../../../docs/dsx-workload-exporter/configuration.md#configured-labels),
 extend the relevant grouping lists and joins if conflicts in those labels must
 be detected. An absent `team` label works.
 
@@ -234,15 +240,19 @@ Check the datasource route and backend limits for errors. Direct history queries
 must be supported by the datasource; they can be more expensive than recording
 rules at larger workload counts or longer time ranges.
 
-For empty results, run the [source discovery queries](./connect-cluster-metrics.mdx#grafana-and-verification)
-in the dashboard datasource. To find GPU jobs even when the Pod UID is missing,
-also run:
+For empty results, first check each source in the same datasource. These queries
+list available jobs without assuming a job name. Add an exact `cluster` matcher
+when the datasource contains multiple clusters.
 
 ```promql
+count by (job) (dsx_workload_pod_info{observation_valid="true"})
 count by (job) (DCGM_FI_DEV_GPU_UTIL)
+count by (job) (DCGM_FI_DEV_GPU_UTIL{pod_uid!="", UUID!=""})
+count by (job) (container_cpu_usage_seconds_total{namespace!="", pod!="", container!=""})
+count by (job) (container_memory_working_set_bytes{namespace!="", pod!="", container!=""})
 ```
 
-GPU readings without any Pod-UID readings explain why
+Run each query separately. GPU readings without any Pod-UID readings explain why
 GPU attribution is unavailable. Inspect one raw sample to choose `namespace` or
 `exported_namespace`. Pod-UID readings still need matching DSX attribution.
 An empty Pod-info result can also be expected for roots with no Pods; check
@@ -299,7 +309,7 @@ queries against synthetic series for stale samples, label collisions, missing
 GPUs, parent/MIG overlap, identity conflicts, cluster-scoped roots spanning
 namespaces and the seven-point quiet boundary.
 The import suite runs in `make check`. CI runs the query suite only when the
-dashboards, tests, exporter module dependencies or test/build configuration
+dashboard examples, tests, exporter module dependencies or test/build configuration
 change. The query fixtures do not require a cluster.
 
 The earlier recording-rule dashboards were tested on Kind and with full-GPU and
@@ -313,6 +323,6 @@ repository root:
 
 ```sh
 promtool check rules --lint-fatal \
-  docs/tutorials/grafana/recording-rules.yaml \
-  docs/tutorials/grafana/alerting-rules.yaml
+  dsx-workload-exporter/examples/grafana/recording-rules.yaml \
+  dsx-workload-exporter/examples/grafana/alerting-rules.yaml
 ```

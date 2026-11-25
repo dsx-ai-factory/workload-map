@@ -245,6 +245,6 @@ can make the whole workload appear idle. Before acting, check:
 MIG may require a supported profiling metric such as
 `DCGM_FI_PROF_GR_ENGINE_ACTIVE` (0 to 1), with a correspondingly adjusted threshold.
 For native DRA, use DCGM exporter 4.8.4 or later with DRA and Pod UID mapping
-enabled. Follow the [DRA setup](../tutorials/grafana/connect-cluster-metrics.mdx#gpu-measurements-from-dcgm)
+enabled. Follow the [DRA setup](../../dsx-workload-exporter/examples/grafana/setup.md#gpu-measurements-from-dcgm)
 for the required socket and ResourceSlice permissions. The query above does not
 establish idleness for every GPU-sharing mode.

@@ -9,7 +9,7 @@ description: Learn how to write a Workload Map definition for a Kubernetes workl
 
 A `Karta` definition describes the structure of a workload type: its root resource, the child resources and pods that it owns, where each pod template is stored, how to read the replica count, and how its status maps to a normalized phase. The CLI, the Karta Operator, and schedulers read this description to handle any workload type through the same API.
 
-Write a definition when the catalog has none for your workload type, or when you need to change how the catalog reads one. In this guide, you copy a catalog definition, adapt it to your workload type, validate it, and apply it to a cluster. If you have never written a definition, start with the [tutorial](../tutorials/write-your-first-workload-definition/index.mdx), which builds one from scratch for a Kubernetes Job. For every field that a definition supports, refer to the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
+Write a definition when the catalog has none for your workload type, or when you need to change how the catalog reads one. In this guide, you copy a catalog definition, adapt it to your workload type, validate it, and apply it to a cluster. If you have never written a definition, start with the [tutorial](../getting-started/tutorial-write-your-first-workload-definition.mdx), which builds one from scratch for a Kubernetes Job. For every field that a definition supports, refer to the [Workload Definition Spec](../reference/workload-definition-spec.mdx).
 
 ## Prerequisites
 
@@ -73,7 +73,7 @@ Select the rule that matches the field in which the workload reports its state:
 | A single phase or state field | `phaseDefinition` and `byPhase` | [NIMCache](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/apps-nvidia-com-nimcache-v1alpha1.yaml) |
 | Counts or other status fields | `byExpression` | [JobSet](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml) |
 
-Map a status only if the workload reports it, and use the condition types and fields that appear in the API of the workload. A condition type that the controller never sets passes validation but never matches. For the matching rules, refer to [Step 2 of the tutorial](../tutorials/write-your-first-workload-definition/index.mdx#step-2-map-the-status).
+Map a status only if the workload reports it, and use the condition types and fields that appear in the API of the workload. A condition type that the controller never sets passes validation but never matches. For the matching rules, refer to [Step 2 of the tutorial](../getting-started/tutorial-write-your-first-workload-definition.mdx#step-2-map-the-status).
 
 ## Set the Pod Template and the Scale
 

@@ -1,17 +1,12 @@
----
-title: Connect Cluster Metrics to Prometheus
-description: Configure Prometheus to collect workload identity, CPU, memory and optional GPU measurements for the Grafana dashboards.
----
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright (c) 2026 NVIDIA Corporation -->
 
-{/* SPDX-License-Identifier: Apache-2.0 */}
-{/* Copyright (c) 2026 NVIDIA Corporation */}
+# Connect a real cluster
 
-Configure Prometheus to collect workload status and Pod identity from the DSX
-workload exporter. To see a workload's CPU and memory in Grafana, also scrape
-kubelet. For GPU measurements, collect DCGM Exporter metrics with a Pod UID.
-The dashboards query these raw metrics directly.
-
-![Prometheus scrapes workload identity, CPU, memory and GPU metrics for the Grafana dashboards.](./collectors.png)
+The dashboards join DSX workload identity to kubelet CPU/RAM and DCGM GPU
+measurements. Inventory and structure need only DSX. Resource panels need the
+corresponding collector. No recording rules, GPU activity observer or
+kube-state-metrics are required.
 
 Use an existing Prometheus and Grafana installation. The examples below use
 Prometheus Operator with a ServiceMonitor selector of `release: prometheus`.
@@ -20,7 +15,7 @@ select the namespaces containing the ServiceMonitors.
 
 ## Workload identity
 
-[Install DSX](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/installation.md) with these
+[Install DSX](../../../docs/dsx-workload-exporter/installation.md) with these
 additional Karta Helm values:
 
 ```yaml
@@ -40,7 +35,7 @@ Bundled and cluster definitions are enabled by default. Workloads still need a
 selected Karta definition and must match the exporter's observation scope.
 The chart excludes `kube-system`, `kube-public` and `kube-node-lease` by default.
 For custom workload kinds, add a definition and read permissions for the root
-and its intermediate owners. See [selection and permissions](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/configuration.md#selection).
+and its intermediate owners. See [selection and permissions](../../../docs/dsx-workload-exporter/configuration.md#selection).
 
 ## CPU and RAM from kubelet
 
@@ -241,5 +236,6 @@ For a backend containing multiple clusters, add an exact `cluster` matcher to
 each query and ensure every source carries that same label. For one unlabeled
 cluster, leave the dashboard's Cluster field blank.
 
-Next, [import the dashboards](./inspect-workloads-in-grafana.mdx#set-up-and-import)
-and select the job names returned by these queries.
+Return to [Set up and import](README.md#set-up-and-import) to import the JSON
+files and select the discovered job names. Keep the dashboard UIDs so links
+between Overview and Structure work.

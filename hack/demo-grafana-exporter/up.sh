@@ -136,7 +136,7 @@ bash "$repo_dir/hack/e2e/dsx-workload-exporter/install.sh" \
 
 for dashboard in workload-overview workload-structure; do
   kubectl -n dashboard-lab create configmap "dashboard-$dashboard" \
-    --from-file="$dashboard.json=$repo_dir/docs/tutorials/grafana/$dashboard.json" \
+    --from-file="$dashboard.json=$repo_dir/dsx-workload-exporter/examples/grafana/$dashboard.json" \
     --dry-run=client -o yaml | kubectl apply --server-side --field-manager=grafana-demo -f -
 done
 kubectl apply -f "$assets/monitoring.yaml"

@@ -117,7 +117,7 @@ Pick the path that matches what you want to do:
 | [Install the CLI](#install-the-cli) | List definitions and inspect workloads with `kli` | Homebrew, or a release archive. Inspecting live workloads also needs a cluster and `kubectl` context |
 | [Install the CRD](#install-the-crd) | Register Karta definitions in a cluster | A cluster and `kubectl` context |
 | [Use the Go library](#use-the-go-library) | Call Karta from your own controller or tool | Go 1.27.3 or later |
-| [Write your own definition](docs/tutorials/write-your-first-workload-definition/index.mdx) | Describe a workload type, starting with a batch Job, and validate it | `kli`, or Go 1.27.3 or later |
+| [Write your own definition](docs/getting-started/tutorial-write-your-first-workload-definition.mdx) | Describe a workload type, starting with a batch Job, and validate it | `kli`, or Go 1.27.3 or later |
 
 ### Install the CLI
 
@@ -186,7 +186,7 @@ The library lives in the `karta/sdk/` module. Releases up to v0.2.x published it
 ### Define a Karta
 
 For a step-by-step tutorial that writes and validates a definition for a batch
-Job, see [Tutorial - Write Your First Workload Definition](docs/tutorials/write-your-first-workload-definition/index.mdx).
+Job, see [Tutorial - Write Your First Workload Definition](docs/getting-started/tutorial-write-your-first-workload-definition.mdx).
 
 Here's a Karta for a JobSet - a distributed training workload with master and worker groups:
 

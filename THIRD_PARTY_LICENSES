@@ -243,62 +243,62 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### github.com/go-openapi/swag
 - Name: github.com/go-openapi/swag
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/cmdutils
 - Name: github.com/go-openapi/swag/cmdutils
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/conv
 - Name: github.com/go-openapi/swag/conv
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/fileutils
 - Name: github.com/go-openapi/swag/fileutils
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/jsonutils
 - Name: github.com/go-openapi/swag/jsonutils
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/loading
 - Name: github.com/go-openapi/swag/loading
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/mangling
 - Name: github.com/go-openapi/swag/mangling
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/netutils
 - Name: github.com/go-openapi/swag/netutils
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/pools
 - Name: github.com/go-openapi/swag/pools
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/stringutils
 - Name: github.com/go-openapi/swag/stringutils
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/typeutils
 - Name: github.com/go-openapi/swag/typeutils
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-openapi/swag/yamlutils
 - Name: github.com/go-openapi/swag/yamlutils
-- Version: v0.27.1
+- Version: v0.28.0
 - License: Apache-2.0
 
 ### github.com/go-viper/mapstructure/v2
@@ -456,6 +456,16 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v1.47.0
 - License: Apache-2.0
 
+### go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc
+- Name: go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc
+- Version: v1.47.0
+- License: Apache-2.0
+
+### go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp
+- Name: go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp
+- Version: v1.47.0
+- License: Apache-2.0
+
 ### go.opentelemetry.io/otel/exporters/prometheus
 - Name: go.opentelemetry.io/otel/exporters/prometheus
 - Version: v0.69.0
@@ -466,14 +476,29 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v1.47.0
 - License: Apache-2.0
 
+### go.opentelemetry.io/otel/sdk
+- Name: go.opentelemetry.io/otel/sdk
+- Version: v1.47.0
+- License: Apache-2.0
+
 ### go.opentelemetry.io/otel/sdk/metric
 - Name: go.opentelemetry.io/otel/sdk/metric
 - Version: v1.47.0
 - License: Apache-2.0
 
+### go.opentelemetry.io/proto/otlp
+- Name: go.opentelemetry.io/proto/otlp
+- Version: v1.11.0
+- License: Apache-2.0
+
+### google.golang.org/grpc
+- Name: google.golang.org/grpc
+- Version: v1.83.2
+- License: Apache-2.0
+
 ### cel.dev/expr
 - Name: cel.dev/expr
-- Version: v0.25.1
+- Version: v0.25.2
 - License: Apache-2.0
 
 ### github.com/antlr4-go/antlr/v4
@@ -486,6 +511,11 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v1.0.1
 - License: MIT
 
+### github.com/cenkalti/backoff/v5
+- Name: github.com/cenkalti/backoff/v5
+- Version: v5.0.3
+- License: MIT
+
 ### github.com/cespare/xxhash/v2
 - Name: github.com/cespare/xxhash/v2
 - Version: v2.3.0
@@ -495,6 +525,11 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Name: github.com/go-logr/stdr
 - Version: v1.2.2
 - License: Apache-2.0
+
+### github.com/grpc-ecosystem/grpc-gateway/v2
+- Name: github.com/grpc-ecosystem/grpc-gateway/v2
+- Version: v2.30.0
+- License: BSD-3-Clause
 
 ### github.com/kylelemons/godebug
 - Name: github.com/kylelemons/godebug
@@ -531,11 +566,6 @@ For complete license texts, please refer to the source repositories or the LICEN
 - Version: v1.47.0
 - License: Apache-2.0
 
-### go.opentelemetry.io/otel/sdk
-- Name: go.opentelemetry.io/otel/sdk
-- Version: v1.47.0
-- License: Apache-2.0
-
 ### go.opentelemetry.io/otel/trace
 - Name: go.opentelemetry.io/otel/trace
 - Version: v1.47.0
@@ -548,12 +578,12 @@ For complete license texts, please refer to the source repositories or the LICEN
 
 ### google.golang.org/genproto/googleapis/api
 - Name: google.golang.org/genproto/googleapis/api
-- Version: v0.0.0-20240826202546-f6391c0de4c7
+- Version: v0.0.0-20260928230214-8a89bd6388cc
 - License: Apache-2.0
 
 ### google.golang.org/genproto/googleapis/rpc
 - Name: google.golang.org/genproto/googleapis/rpc
-- Version: v0.0.0-20240826202546-f6391c0de4c7
+- Version: v0.0.0-20260928230214-8a89bd6388cc
 - License: Apache-2.0
 
 

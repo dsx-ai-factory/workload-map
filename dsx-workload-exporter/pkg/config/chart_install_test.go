@@ -364,3 +364,119 @@ var _ = ginkgo.Describe("chart exporter serving TLS", func() {
 			"--set", "exporter.metrics.delivery.prometheus.tls.certFile=/tls/tls.crt"),
 	)
 })
+
+var _ = ginkgo.Describe("chart exporter OTLP delivery", func() {
+	exporterPod := func(t chartTest, out []byte) corev1.PodSpec {
+		t.Helper()
+		for _, raw := range chartDocuments(t, out) {
+			var deployment appsv1.Deployment
+			Expect(sigsyaml.Unmarshal(raw, &deployment)).To(Succeed())
+			if deployment.Kind == "Deployment" && deployment.Name == "dsx-workload-exporter" {
+				return deployment.Spec.Template.Spec
+			}
+		}
+		t.Fatal("exporter Deployment not found")
+		return corev1.PodSpec{}
+	}
+
+	ginkgo.It("loads the example from the issue", func() {
+		t := ginkgo.GinkgoT()
+		out := renderExporterChart(t, `exporter:
+  metrics:
+    delivery:
+      mode: otlp
+      otlp:
+        protocol: http/protobuf
+        endpoint: https://collector.example.com:4318/v1/metrics
+        interval: 30s
+        timeout: 10s
+`)
+		cfg, err := loadConfig(exporterConfigFile(t, out), nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Metrics.Delivery.Mode).To(Equal(DeliveryOTLP))
+		Expect(cfg.Metrics.Delivery.OTLP).To(Equal(OTLPDeliveryConfig{
+			Protocol: ProtocolHTTPProtobuf, Endpoint: "https://collector.example.com:4318/v1/metrics", Interval: "30s", Timeout: "10s",
+		}))
+		pod := exporterPod(t, out)
+		Expect(pod.Volumes).To(HaveLen(1))
+		Expect(pod.Containers[0].ReadinessProbe.HTTPGet.Path).To(Equal("/readyz"))
+	})
+
+	ginkgo.It("reads headers from a Secret and mounts the CA and client certificate", func() {
+		t := ginkgo.GinkgoT()
+		out := renderExporterChart(t, `exporter:
+  metrics:
+    delivery:
+      mode: otlp
+      otlp:
+        protocol: grpc
+        endpoint: https://collector.observability.svc:4317
+        headers:
+          secretKeyRef: {name: otlp-auth, key: headers}
+        tls:
+          ca:
+            configMapKeyRef: {name: otlp-ca, key: bundle.pem}
+          clientSecret: otlp-client
+`)
+		pod := exporterPod(t, out)
+		container := pod.Containers[0]
+		Expect(container.Env).To(ContainElement(corev1.EnvVar{
+			Name: "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
+			ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "otlp-auth"}, Key: "headers",
+			}},
+		}))
+		Expect(pod.Volumes).To(ContainElements(
+			corev1.Volume{Name: "otlp-ca", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "otlp-ca"},
+				Items:                []corev1.KeyToPath{{Key: "bundle.pem", Path: "ca.crt"}},
+			}}},
+			corev1.Volume{Name: "otlp-client", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "otlp-client"}}},
+		))
+		Expect(container.VolumeMounts).To(ContainElements(
+			corev1.VolumeMount{Name: "otlp-ca", MountPath: "/etc/dsx-workload-exporter-otlp/ca", ReadOnly: true},
+			corev1.VolumeMount{Name: "otlp-client", MountPath: "/etc/dsx-workload-exporter-otlp/client", ReadOnly: true},
+		))
+
+		cfg, err := loadConfig(exporterConfigFile(t, out), nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Metrics.Delivery.OTLP.TLS).To(Equal(OTLPTLSConfig{
+			CAFile:   "/etc/dsx-workload-exporter-otlp/ca/ca.crt",
+			CertFile: "/etc/dsx-workload-exporter-otlp/client/tls.crt",
+			KeyFile:  "/etc/dsx-workload-exporter-otlp/client/tls.key",
+		}))
+	})
+
+	ginkgo.It("takes the CA from a Secret key", func() {
+		t := ginkgo.GinkgoT()
+		out := renderExporterChart(t, "", "--set", "exporter.metrics.delivery.mode=otlp",
+			"--set", "exporter.metrics.delivery.otlp.endpoint=https://collector:4318/v1/metrics",
+			"--set", "exporter.metrics.delivery.otlp.tls.ca.secretKeyRef.name=collector-ca",
+			"--set", "exporter.metrics.delivery.otlp.tls.ca.secretKeyRef.key=ca.crt")
+		Expect(exporterPod(t, out).Volumes).To(ContainElement(corev1.Volume{Name: "otlp-ca", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+			SecretName: "collector-ca", Items: []corev1.KeyToPath{{Key: "ca.crt", Path: "ca.crt"}},
+		}}}))
+	})
+
+	ginkgo.DescribeTable("rejects settings the exporter cannot push with",
+		func(message string, args ...string) {
+			out, err := runExporterChart(ginkgo.GinkgoT(), "", args...)
+			Expect(err).To(HaveOccurred())
+			Expect(string(out)).To(ContainSubstring(message))
+		},
+		ginkgo.Entry("no endpoint", "exporter.metrics.delivery.otlp.endpoint is required in otlp mode",
+			"--set", "exporter.metrics.delivery.mode=otlp"),
+		ginkgo.Entry("a serving certificate in otlp mode", "exporter.metrics.delivery.prometheus.tls.existingSecret applies only in prometheus mode",
+			"--set", "exporter.metrics.delivery.mode=otlp", "--set", "exporter.metrics.delivery.otlp.endpoint=https://c:4318/v1/metrics",
+			"--set", "exporter.metrics.delivery.prometheus.tls.existingSecret=dsx-exporter-tls"),
+		ginkgo.Entry("an unknown protocol", "exporter.metrics.delivery.otlp.protocol must be one of the following",
+			"--set", "exporter.metrics.delivery.otlp.protocol=http/json"),
+		ginkgo.Entry("an interval that is not a duration", "exporter.metrics.delivery.otlp.interval",
+			"--set", "exporter.metrics.delivery.otlp.interval=soon"),
+		ginkgo.Entry("a header Secret without its key", "exporter.metrics.delivery.otlp.headers.secretKeyRef: key is required",
+			"--set", "exporter.metrics.delivery.otlp.headers.secretKeyRef.name=otlp-auth"),
+		ginkgo.Entry("two CA sources", "exporter.metrics.delivery.otlp.tls.ca: Must have at most 1 properties",
+			"--set", "exporter.metrics.delivery.otlp.tls.ca.configMapKeyRef.name=a", "--set", "exporter.metrics.delivery.otlp.tls.ca.configMapKeyRef.key=b",
+			"--set", "exporter.metrics.delivery.otlp.tls.ca.secretKeyRef.name=c", "--set", "exporter.metrics.delivery.otlp.tls.ca.secretKeyRef.key=d"),
+	)
+})

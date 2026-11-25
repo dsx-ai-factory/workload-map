@@ -12,10 +12,12 @@ mkdir -p "$ARTIFACTS"
 }
 collect() {
   local rc=$?
-  for shard in a b tls; do
+  for shard in a b tls otlp-http otlp-grpc; do
     kubectl --request-timeout=10s -n "exporter-e2e-$shard" logs deploy/dsx-workload-exporter --all-containers \
       >"$ARTIFACTS/exporter-$shard.log" 2>&1 || true
   done
+  kubectl --request-timeout=10s -n exporter-otlp logs deploy/otel-receiver -c collector \
+    >"$ARTIFACTS/otel-receiver.log" 2>&1 || true
   kubectl --request-timeout=10s get events -A --sort-by=.lastTimestamp >"$ARTIFACTS/events.txt" 2>&1 || true
   if (( rc != 0 )); then
     kubectl --request-timeout=10s get pods,deployments,statefulsets,jobs,jobsets,leaderworkersets -A -o yaml >"$ARTIFACTS/workloads.yaml" 2>&1 || true

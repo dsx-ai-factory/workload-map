@@ -16,14 +16,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/otlptranslator"
+	"go.opentelemetry.io/otel"
 	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 
 	collector "github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/adapters/otel"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/controller"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/exportermetrics"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/store"
 	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/api/runai/v1alpha1"
+	"github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/version"
 )
 
 // Application owns the runtime and HTTP/OTel lifecycle. Serve it once.
@@ -43,6 +47,8 @@ type Components struct {
 	Store           store.PublicationStore
 	Definitions     DefinitionRunner
 	ExcludeStatuses []v1alpha1.ResourceStatus
+	// Push, when set, delivers the gauges through this reader instead of /metrics.
+	Push sdkmetric.Reader
 }
 
 const shutdownTimeout = 10 * time.Second
@@ -57,20 +63,26 @@ func New(components Components) (*Application, error) {
 	if components.Runtime == nil || components.Store == nil || components.Definitions == nil {
 		return nil, ErrIncompleteExporterComponents
 	}
-	registry := prometheus.NewRegistry()
-	if err := exportermetrics.Register(registry); err != nil {
-		return nil, fmt.Errorf("register exporter metrics: %w", err)
-	}
-	reader, err := otelprom.New(otelprom.WithRegisterer(registry), otelprom.WithTranslationStrategy(otlptranslator.NoTranslation), otelprom.WithoutScopeInfo(), otelprom.WithoutTargetInfo())
-	if err != nil {
-		return nil, fmt.Errorf("create Prometheus reader: %w", err)
+	mux := http.NewServeMux()
+	options := []sdkmetric.Option{sdkmetric.WithCardinalityLimit(0)}
+	if components.Push != nil {
+		options = append(options, sdkmetric.WithReader(components.Push), sdkmetric.WithResource(pushResource()))
+	} else {
+		registry := prometheus.NewRegistry()
+		if err := exportermetrics.Register(registry); err != nil {
+			return nil, fmt.Errorf("register exporter metrics: %w", err)
+		}
+		reader, err := otelprom.New(otelprom.WithRegisterer(registry), otelprom.WithTranslationStrategy(otlptranslator.NoTranslation), otelprom.WithoutScopeInfo(), otelprom.WithoutTargetInfo())
+		if err != nil {
+			return nil, fmt.Errorf("create Prometheus reader: %w", err)
+		}
+		options = append(options, sdkmetric.WithReader(reader))
+		mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	}
 	application := &Application{
 		components: components,
-		provider:   sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader), sdkmetric.WithCardinalityLimit(0)),
+		provider:   sdkmetric.NewMeterProvider(options...),
 	}
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		if !application.running.Load() || r.Context().Err() != nil || !components.Runtime.Ready() {
@@ -81,6 +93,21 @@ func New(components Components) (*Application, error) {
 	})
 	application.Handler = mux
 	return application, nil
+}
+
+// pushResource names the exporter to the receiver. OTEL_SERVICE_NAME and
+// OTEL_RESOURCE_ATTRIBUTES override or add attributes.
+func pushResource() *resource.Resource {
+	res, err := resource.New(context.Background(),
+		resource.WithAttributes(semconv.ServiceName("dsx-workload-exporter"), semconv.ServiceVersion(version.String())),
+		resource.WithFromEnv(), resource.WithTelemetrySDK())
+	if err != nil {
+		otel.Handle(err)
+	}
+	if res == nil {
+		return resource.Default()
+	}
+	return res
 }
 
 // Serve binds the metrics and health endpoint, then runs until cancellation or failure.

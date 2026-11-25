@@ -4,6 +4,13 @@
 {{- if and .Values.exporter .Values.exporter.enabled }}
 {{- $fipsMode := include "karta.fipsMode" . }}
 {{- $tlsSecret := include "karta.exporter.tlsSecret" . }}
+{{- $otlp := dict }}
+{{- if eq (include "karta.exporter.deliveryMode" .) "otlp" }}
+{{- $otlp = include "karta.exporter.otlp" . | fromYaml }}
+{{- end }}
+{{- $headers := dig "headers" "secretKeyRef" (dict) $otlp }}
+{{- $ca := dig "tls" "ca" (dict) $otlp }}
+{{- $clientSecret := dig "tls" "clientSecret" "" $otlp }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -84,7 +91,7 @@ spec:
             - {{ printf "--pprof-bind-address=127.0.0.1:%v" (dig "tuning" "pprof" "port" 6060 .Values.exporter) | quote }}
             {{- end }}
           {{- $goMemLimit := include "karta.exporter.goMemoryLimit" . }}
-          {{- if or (ne $fipsMode "off") $goMemLimit }}
+          {{- if or (ne $fipsMode "off") $goMemLimit $headers }}
           env:
             {{- if ne $fipsMode "off" }}
             - name: GODEBUG
@@ -93,6 +100,13 @@ spec:
             {{- with $goMemLimit }}
             - name: GOMEMLIMIT
               value: {{ . | quote }}
+            {{- end }}
+            {{- with $headers }}
+            - name: OTEL_EXPORTER_OTLP_METRICS_HEADERS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .name }}
+                  key: {{ .key }}
             {{- end }}
           {{- end }}
           resources:
@@ -104,6 +118,16 @@ spec:
             {{- if $tlsSecret }}
             - name: tls
               mountPath: {{ include "karta.exporter.tlsDir" . }}
+              readOnly: true
+            {{- end }}
+            {{- if $ca }}
+            - name: otlp-ca
+              mountPath: {{ include "karta.exporter.otlpDir" . }}/ca
+              readOnly: true
+            {{- end }}
+            {{- if $clientSecret }}
+            - name: otlp-client
+              mountPath: {{ include "karta.exporter.otlpDir" . }}/client
               readOnly: true
             {{- end }}
           securityContext:
@@ -118,6 +142,27 @@ spec:
             name: {{ include "karta.exporter.fullname" . }}
         {{- with $tlsSecret }}
         - name: tls
+          secret:
+            secretName: {{ . }}
+        {{- end }}
+        {{- with $ca.configMapKeyRef }}
+        - name: otlp-ca
+          configMap:
+            name: {{ .name }}
+            items:
+              - key: {{ .key }}
+                path: ca.crt
+        {{- end }}
+        {{- with $ca.secretKeyRef }}
+        - name: otlp-ca
+          secret:
+            secretName: {{ .name }}
+            items:
+              - key: {{ .key }}
+                path: ca.crt
+        {{- end }}
+        {{- with $clientSecret }}
+        - name: otlp-client
           secret:
             secretName: {{ . }}
         {{- end }}

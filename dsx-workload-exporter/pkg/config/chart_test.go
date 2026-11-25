@@ -360,6 +360,12 @@ var _ = Describe("chart exporter resources", func() {
 			args:  []string{"--set", "exporter.enabled=true"},
 			kinds: []string{"ServiceAccount", "ClusterRole", "ClusterRoleBinding", "ConfigMap", "Deployment", "Service"},
 		},
+		{
+			name: "OTLP push, which leaves nothing to scrape",
+			args: []string{"--set", "exporter.enabled=true", "--set", "exporter.serviceMonitor.enabled=true",
+				"--set", "exporter.metrics.delivery.mode=otlp", "--set", "exporter.metrics.delivery.otlp.endpoint=http://collector:4318/v1/metrics"},
+			kinds: []string{"ServiceAccount", "ClusterRole", "ClusterRoleBinding", "ConfigMap", "Deployment"},
+		},
 	} {
 		It("renders the expected resources with "+tc.name, func() {
 			helm, err := exec.LookPath("helm")

@@ -82,11 +82,37 @@ exporter:
       maxExpressionBytes: 4096
       maxResultBytes: 1024
     delivery:
+      # prometheus serves /metrics for scraping. otlp pushes the gauges to an
+      # OTLP receiver instead, serves only the health probes and renders no
+      # metrics Service or ServiceMonitor.
+      mode: prometheus
       prometheus:
         tls:
           # A kubernetes.io/tls Secret in the exporter namespace. When set, the
           # metrics and health endpoints serve HTTPS with its tls.crt and tls.key.
           existingSecret: ""
+      otlp:
+        # http/protobuf or grpc.
+        protocol: http/protobuf
+        # The receiver URL, used as given: https://collector.example.com:4318/v1/metrics
+        # for http/protobuf, https://collector.example.com:4317 for grpc. http://
+        # sends without TLS. Required in otlp mode.
+        endpoint: ""
+        interval: 30s
+        # Each export, retries included, is abandoned after this and tried again
+        # on the next interval. Must not exceed the interval.
+        timeout: 10s
+        # Headers sent with every export, from a Secret key in the
+        # OTEL_EXPORTER_OTLP_HEADERS format, such as Authorization=Bearer%20<token>:
+        #   secretKeyRef: {name: otlp-auth, key: headers}
+        headers: {}
+        tls:
+          # The CA that signed the receiver's certificate, from a ConfigMap or
+          # Secret key. Empty trusts the system roots. For example:
+          #   configMapKeyRef: {name: otlp-ca, key: ca.crt}
+          ca: {}
+          # A kubernetes.io/tls Secret with tls.crt and tls.key for mutual TLS.
+          clientSecret: ""
 
   # Shared listener, container and Service port for metrics and health endpoints.
   metricsPort: 8080

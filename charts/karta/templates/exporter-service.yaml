@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 NVIDIA Corporation
 
-{{- if and .Values.exporter .Values.exporter.enabled }}
+{{- if and .Values.exporter .Values.exporter.enabled (ne (include "karta.exporter.deliveryMode" .) "otlp") }}
 apiVersion: v1
 kind: Service
 metadata:

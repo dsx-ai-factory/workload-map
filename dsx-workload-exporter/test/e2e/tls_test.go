@@ -7,7 +7,6 @@ package e2e
 
 import (
 	"bufio"
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -22,7 +21,6 @@ import (
 	"math/big"
 	"net/http"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -68,16 +66,9 @@ data:
   tls.crt: %[2]s
   tls.key: %[3]s
 `, tlsRelease, base64.StdEncoding.EncodeToString(certPEM), base64.StdEncoding.EncodeToString(keyPEM)), "apply", "-f", "-")
-		harness := filepath.Join("..", "..", "..", "hack", "e2e", "dsx-workload-exporter")
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-		out, err := exec.CommandContext(ctx, "bash", filepath.Join(harness, "install.sh"),
-			tlsRelease, tlsRelease, filepath.Join(harness, "values.yaml"),
+		installExporter(tlsRelease,
 			"--set", "exporter.metrics.delivery.prometheus.tls.existingSecret=dsx-exporter-tls",
-			"--set", "exporter.selection.namespaceSelector.matchLabels.exporter-e2e-shard=tls",
-			"--set", "exporter.resources.requests.memory=128Mi",
-		).CombinedOutput()
-		Expect(err).NotTo(HaveOccurred(), string(out))
+			"--set", "exporter.selection.namespaceSelector.matchLabels.exporter-e2e-shard=tls")
 
 		By("forwarding a local port to the exporter Service")
 		address = portForward(tlsRelease)

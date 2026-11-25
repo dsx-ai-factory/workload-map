@@ -3,7 +3,7 @@
 
 {{- if and .Values.exporter .Values.exporter.enabled }}
 {{- $monitor := .Values.exporter.serviceMonitor | default dict }}
-{{- if $monitor.enabled }}
+{{- if and $monitor.enabled (ne (include "karta.exporter.deliveryMode" .) "otlp") }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

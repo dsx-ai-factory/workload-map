@@ -122,6 +122,26 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 /etc/dsx-workload-exporter-tls
 {{- end -}}
 
+{{/* prometheus serves /metrics; otlp pushes and serves only the health probes. */}}
+{{- define "karta.exporter.deliveryMode" -}}
+{{- if kindIs "map" .Values.exporter.metrics -}}
+{{- dig "delivery" "mode" "prometheus" .Values.exporter.metrics -}}
+{{- else -}}
+prometheus
+{{- end -}}
+{{- end -}}
+
+{{/* The OTLP settings, as a YAML map. */}}
+{{- define "karta.exporter.otlp" -}}
+{{- if kindIs "map" .Values.exporter.metrics -}}
+{{- dig "delivery" "otlp" (dict) .Values.exporter.metrics | toYaml -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "karta.exporter.otlpDir" -}}
+/etc/dsx-workload-exporter-otlp
+{{- end -}}
+
 {{/* Render GOMEMLIMIT in bytes. Auto reserves 10% of container memory outside Go. */}}
 {{- define "karta.exporter.goMemoryLimit" -}}
 {{- $setting := .Values.exporter.tuning.goMemoryLimit -}}

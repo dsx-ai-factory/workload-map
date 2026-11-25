@@ -22,6 +22,8 @@ The application registers the real collector with a Prometheus reader and an
 OTel MeterProvider. It disables the SDK cardinality limit so distinct Pod and
 workload identities are not merged into an overflow row. Translation, scope
 labels and target-info metrics are disabled to preserve the KEP names and labels.
+In OTLP push mode, a periodic reader from `pkg/adapters/otlp` takes the
+Prometheus reader's place and the command does not serve `/metrics`.
 
 The command serves `/metrics`, `/healthz` and `/readyz` on `:8080` by default.
 Use `--metrics-bind-address` to choose another address. Readiness requires healthy

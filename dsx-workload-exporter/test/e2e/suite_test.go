@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -104,6 +105,20 @@ func submitWorkload(name string) {
 	body, err := os.ReadFile("testdata/" + name + ".yaml")
 	Expect(err).NotTo(HaveOccurred())
 	command(string(body), "apply", "-f", "-")
+}
+
+// installExporter installs or upgrades a release of the harness values in a
+// namespace of the same name and waits for its rollout. The small requests leave
+// room on the single node for the shards and both operators.
+func installExporter(release string, args ...string) {
+	GinkgoHelper()
+	harness := filepath.Join("..", "..", "..", "hack", "e2e", "dsx-workload-exporter")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	args = append([]string{filepath.Join(harness, "install.sh"), release, release, filepath.Join(harness, "values.yaml"),
+		"--set", "exporter.resources.requests.cpu=25m", "--set", "exporter.resources.requests.memory=64Mi"}, args...)
+	out, err := exec.CommandContext(ctx, "bash", args...).CombinedOutput()
+	Expect(err).NotTo(HaveOccurred(), string(out))
 }
 
 func readObject(dst any, args ...string) bool {

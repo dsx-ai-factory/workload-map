@@ -227,6 +227,64 @@ var _ = Describe("Prometheus delivery TLS", func() {
 	})
 })
 
+var _ = Describe("OTLP delivery", func() {
+	otlp := func(settings string) string {
+		return "metrics:\n  delivery:\n    mode: otlp\n    otlp: {" + settings + "}\n"
+	}
+
+	It("keeps Prometheus pull by default", func() {
+		cfg, err := loadConfig("", nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Metrics.Delivery.Mode).To(Equal(DeliveryPrometheus))
+		Expect(cfg.Metrics.Delivery.OTLP).To(Equal(OTLPDeliveryConfig{Protocol: ProtocolHTTPProtobuf, Interval: "30s", Timeout: "10s"}))
+	})
+
+	It("treats an unset mode as Prometheus pull in a config built without defaults", func() {
+		cfg := DefaultConfig()
+		cfg.Metrics.Delivery = DeliveryConfig{}
+		Expect(cfg.Validate()).To(Succeed())
+	})
+
+	DescribeTable("loads a receiver for each protocol",
+		func(settings string, want OTLPDeliveryConfig) {
+			cfg, err := loadConfig(otlp(settings), nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.Metrics.Delivery.Mode).To(Equal(DeliveryOTLP))
+			Expect(cfg.Metrics.Delivery.OTLP).To(Equal(want))
+		},
+		Entry("http/protobuf with defaults", "endpoint: https://collector.example.com:4318/v1/metrics",
+			OTLPDeliveryConfig{Protocol: ProtocolHTTPProtobuf, Endpoint: "https://collector.example.com:4318/v1/metrics", Interval: "30s", Timeout: "10s"}),
+		Entry("grpc with mutual TLS", "protocol: grpc, endpoint: 'https://collector.example.com:4317', interval: 1m, timeout: 5s, tls: {caFile: /tls/ca.crt, certFile: /tls/tls.crt, keyFile: /tls/tls.key}",
+			OTLPDeliveryConfig{Protocol: ProtocolGRPC, Endpoint: "https://collector.example.com:4317", Interval: "1m", Timeout: "5s",
+				TLS: OTLPTLSConfig{CAFile: "/tls/ca.crt", CertFile: "/tls/tls.crt", KeyFile: "/tls/tls.key"}}),
+		Entry("grpc in plain text", "protocol: grpc, endpoint: 'http://collector:4317'",
+			OTLPDeliveryConfig{Protocol: ProtocolGRPC, Endpoint: "http://collector:4317", Interval: "30s", Timeout: "10s"}),
+	)
+
+	DescribeTable("rejects invalid settings",
+		func(content, message string) {
+			_, err := loadConfig(content, nil)
+			Expect(err).To(MatchError(ContainSubstring(message)))
+		},
+		Entry("an unknown mode", "metrics: {delivery: {mode: push}}", `metrics.delivery.mode must be prometheus or otlp, not "push"`),
+		Entry("an unknown protocol", otlp("protocol: http/json, endpoint: 'https://c:4318/v1/metrics'"), `metrics.delivery.otlp.protocol must be http/protobuf or grpc, not "http/json"`),
+		Entry("no endpoint", otlp(""), `metrics.delivery.otlp.endpoint must be an http or https URL, not ""`),
+		Entry("an endpoint without a scheme", otlp("endpoint: 'collector:4318'"), "metrics.delivery.otlp.endpoint must be an http or https URL"),
+		Entry("an endpoint with another scheme", otlp("endpoint: 'ftp://collector:4318/v1/metrics'"), "metrics.delivery.otlp.endpoint must be an http or https URL"),
+		Entry("an http/protobuf endpoint without its path", otlp("endpoint: 'https://collector:4318'"), "metrics.delivery.otlp.endpoint needs the receiver path for http/protobuf"),
+		Entry("a grpc endpoint with a path", otlp("protocol: grpc, endpoint: 'https://collector:4317/v1/metrics'"), "metrics.delivery.otlp.endpoint takes no path for grpc"),
+		Entry("an interval that is not a duration", otlp("endpoint: 'https://c:4318/v1/metrics', interval: soon"), `metrics.delivery.otlp.interval must be a positive duration, not "soon"`),
+		Entry("a zero interval", otlp("endpoint: 'https://c:4318/v1/metrics', interval: 0s"), "metrics.delivery.otlp.interval must be a positive duration"),
+		Entry("a negative timeout", otlp("endpoint: 'https://c:4318/v1/metrics', timeout: -1s"), "metrics.delivery.otlp.timeout must be a positive duration"),
+		Entry("a timeout longer than the interval", otlp("endpoint: 'https://c:4318/v1/metrics', interval: 5s, timeout: 10s"), "metrics.delivery.otlp.timeout 10s must not exceed interval 5s"),
+		Entry("a client certificate without its key", otlp("endpoint: 'https://c:4318/v1/metrics', tls: {certFile: /tls/tls.crt}"), "metrics.delivery.otlp.tls: certFile and keyFile must be set together"),
+		Entry("TLS files for a plain-text endpoint", otlp("endpoint: 'http://c:4318/v1/metrics', tls: {caFile: /tls/ca.crt}"), "metrics.delivery.otlp.tls needs an https endpoint"),
+		Entry("a serving certificate in otlp mode",
+			"metrics:\n  delivery:\n    mode: otlp\n    prometheus: {tls: {certFile: /tls/tls.crt, keyFile: /tls/tls.key}}\n    otlp: {endpoint: 'https://c:4318/v1/metrics'}\n",
+			"metrics.delivery.prometheus.tls does not apply in otlp mode"),
+	)
+})
+
 var _ = Describe("config precedence", func() {
 	for _, tc := range []struct {
 		name           string

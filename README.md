@@ -107,13 +107,13 @@ The structure in this view comes from Karta path expressions: the group, leader,
 
 ## Quick Start
 
-Run the [offline Go quickstart](docs/tutorials/quickstart/index.mdx) to inspect and update two workloads without a cluster.
+Run the [offline Go quickstart](docs/tutorials/quickstart/README.md) to inspect and update two workloads without a cluster.
 
 Pick the path that matches what you want to do:
 
 | Path | Use it to | You need |
 |---|---|---|
-| [Offline quickstart](docs/tutorials/quickstart/index.mdx) | See the uniform API read and mutate a JobSet and a LeaderWorkerSet | Go at the version in the tutorial's `go.mod` or later |
+| [Offline quickstart](docs/tutorials/quickstart/README.md) | See the uniform API read and mutate a JobSet and a LeaderWorkerSet | Go at the version in the tutorial's `go.mod` or later |
 | [Install the CLI](#install-the-cli) | List definitions and inspect workloads with `kli` | Homebrew, or a release archive. Inspecting live workloads also needs a cluster and `kubectl` context |
 | [Install the CRD](#install-the-crd) | Register Karta definitions in a cluster | A cluster and `kubectl` context |
 | [Use the Go library](#use-the-go-library) | Call Karta from your own controller or tool | Go 1.27.3 or later |
@@ -324,8 +324,8 @@ The [Dynamo Karta](docs/catalog/nvidia-com-dynamographdeployment-v1alpha1.yaml) 
 
 ## Go tutorials
 
-- [Read and change workloads with Go](docs/tutorials/quickstart/index.mdx). Set a scheduler on the pod templates of a JobSet and a LeaderWorkerSet offline.
-- [Build a controller on Kind](docs/tutorials/controller-runtime/index.mdx). Inspect and label a live LeaderWorkerSet, then extend the controller to JobSet.
+- [Read and change workloads with Go](docs/tutorials/quickstart/README.md). Set a scheduler on the pod templates of a JobSet and a LeaderWorkerSet offline.
+- [Build a controller on Kind](docs/tutorials/controller-runtime/README.md). Inspect and label a live LeaderWorkerSet, then extend the controller to JobSet.
 
 ## Who Uses Karta?
 

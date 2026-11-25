@@ -1,11 +1,10 @@
 ---
-title: Read and Modify Workloads Offline
-sidebar-title: Read and Modify Workloads Offline
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
 description: Run the same Go code against a JobSet and a LeaderWorkerSet to inspect resource requests and set the scheduler on every pod template.
 ---
 
-{/* SPDX-License-Identifier: Apache-2.0 */}
-{/* Copyright (c) 2026 NVIDIA Corporation */}
+# Read and Modify Workloads Offline
 
 A scheduler integration needs to set `schedulerName` on every pod template. A JobSet stores those templates in its replicated jobs. A LeaderWorkerSet has separate templates for its leaders and workers. In this tutorial you use one Go program to read both workloads, set their scheduler, and check which templates changed. Everything runs against local YAML files.
 
@@ -28,7 +27,8 @@ go run .
 
 The first run downloads the Go dependencies. For each workload, the program prints its status, replicas, and resource requests. It then sets `spec.schedulerName` to `kai-scheduler` and adds the label `app.kubernetes.io/managed-by=karta` on each pod template. The verification lines show the values read back from the modified workload. The order of JobSet instances in those lines can vary.
 
-<Accordion title="Expected output for both workloads">
+<details>
+<summary>Expected output for both workloads</summary>
 
 ```text
 ══════════════════════════════════════════
@@ -82,7 +82,7 @@ The first run downloads the Go dependencies. For each workload, the program prin
   → In a real controller: k8sClient.Update(ctx, updated)
 ```
 
-</Accordion>
+</details>
 
 To choose a different scheduler and print the updated YAML, run:
 
@@ -112,6 +112,6 @@ The program reads the templates of each pod-bearing component with `GetPodTempla
 
 ## Next steps
 
-- Run the [Kind controller tutorial](../controller-runtime/index.mdx) to see updates reach a cluster.
+- Run the [Kind controller tutorial](../controller-runtime/README.md) to see updates reach a cluster.
 - [Write your first workload definition](../../getting-started/tutorial-write-your-first-workload-definition.mdx) to describe another workload type.
 - See [Use the Go Library](../../building-on-workload-map/build-a-controller/use-the-go-library.mdx) for the component API and the [Workload Definition Spec](../../reference/workload-definition-spec.mdx) for the supported mappings.

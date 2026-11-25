@@ -75,10 +75,10 @@ navigation:
     slug: tutorials
     contents:
       - page: Read and Modify Workloads Offline
-        path: ../docs/tutorials/quickstart/index.mdx
+        path: ../docs/tutorials/quickstart/README.md
         slug: read-and-modify-workloads-offline
       - page: Build a Controller on kind
-        path: ../docs/tutorials/controller-runtime/index.mdx
+        path: ../docs/tutorials/controller-runtime/README.md
         slug: build-a-controller-on-kind
   - section: Observability
     slug: observability

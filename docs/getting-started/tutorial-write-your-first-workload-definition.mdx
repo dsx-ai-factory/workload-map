@@ -268,6 +268,6 @@ Every `componentName` must match a component that you defined. The older `podGro
 
 - Add child components for workloads that own other resources. Each child needs an `ownerRef`. For examples, refer to the [KServe InferenceService](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/serving-kserve-io-inferenceservice-v1beta1.yaml) and [PyTorchJob](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/kubeflow-org-pytorchjob-v1.yaml) definitions.
 - Handle workloads with repeated roles or instances, such as the replicated jobs of a JobSet, with `instanceIdPath` and a matching component instance selector. For an example, refer to the [JobSet](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml) definition.
-- Read a definition from a controller with the Go component API. Follow the [Go Library quickstart](../tutorials/quickstart/index.mdx) or the [controller-runtime example](../tutorials/controller-runtime/index.mdx).
+- Read a definition from a controller with the Go component API. Follow the [Go Library quickstart](../tutorials/quickstart/README.md) or the [controller-runtime example](../tutorials/controller-runtime/README.md).
 - To write a definition for your own workload type, refer to [Define a Workload Type](../building-on-workload-map/define-a-workload-type.mdx).
 - Read the full field reference in the [Workload Definition Spec](../reference/workload-definition-spec.mdx).

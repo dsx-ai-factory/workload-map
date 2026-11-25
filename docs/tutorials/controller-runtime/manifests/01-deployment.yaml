@@ -20,7 +20,7 @@ spec:
       serviceAccountName: generic-controller
       containers:
         - name: controller
-          # Built and side-loaded with `kind load docker-image` (see the tutorial in ../index.mdx).
+          # Built and side-loaded with `kind load docker-image` (see the tutorial in ../README.md).
           image: generic-controller-example:latest
           imagePullPolicy: IfNotPresent
           # Workload types to manage, as group/version/kind (core group empty).

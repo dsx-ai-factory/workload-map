@@ -1,17 +1,16 @@
 ---
-title: Build a Controller on kind
-sidebar-title: Build a Controller on kind
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
 description: Learn how to run a controller that uses Workload Map to inspect and change a LeaderWorkerSet on a local kind cluster, with no workload-specific code.
 ---
 
-{/* SPDX-License-Identifier: Apache-2.0 */}
-{/* Copyright (c) 2026 NVIDIA Corporation */}
+# Build a Controller on kind
 
 Deploy a controller that reads a LeaderWorkerSet, annotates it with its status and resource requests, and labels its leader and worker pod templates. On each reconcile, the controller reads the workload's structure from a `Karta` definition in the cluster. Editing that definition changes what the controller reads.
 
 ![The controller watches the workload and its definition, then writes workload annotations and labels on the leader and worker pod templates.](./flow.png)
 
-You can run the [Go library quickstart](../quickstart/index.mdx) offline first.
+You can run the [Go library quickstart](../quickstart/README.md) offline first.
 
 ## Prerequisites
 
@@ -114,9 +113,7 @@ The controller emits this event when it prepares the label update. The template 
 Normal  PodTemplateLabeled  Injected pod-template label app.kubernetes.io/managed-by=karta via Karta
 ```
 
-<Note title="Pod templates can be changed while the workload runs">
 The pod templates of a LeaderWorkerSet can be changed while it runs. An update triggers a normal rolling update, and the LeaderWorkerSet has no suspend field. For this reason, the controller injects the managed-by label directly into the leader and worker templates, and the library routes each update to the correct path in the workload.
-</Note>
 
 ## Trigger a Status Change
 

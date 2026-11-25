@@ -12,7 +12,7 @@
 // change: add its GVK to --watch-gvk and apply its Karta object (and grant RBAC
 // for the new resource).
 //
-// See index.mdx for the end-to-end kind walkthrough.
+// See README.md for the end-to-end kind walkthrough.
 package main
 
 import (

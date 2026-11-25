@@ -43,7 +43,9 @@ The same code in `main.go` runs over two completely different CRD types — **no
 
 ## Run it
 
-Prerequisite: Go 1.27.3 or later (the version in this example's `go.mod`). Check with `go version`; install from [go.dev/doc/install](https://go.dev/doc/install). No cluster, kubectl, or Homebrew is needed. With an older Go (1.21 or later), `go` downloads the 1.27.3 toolchain automatically. The first run also downloads modules, so expect a pause before any output appears.
+Prerequisite: Go, at the version in this example's `go.mod` (`go 1.x.y` line) or later. Run `go version` to check your install, or `go list -m -f '{{.GoVersion}}'` to print the required version. Install from [go.dev/doc/install](https://go.dev/doc/install). No cluster, kubectl, or Homebrew is needed. With an older Go (1.21 or later), `go` downloads the required toolchain automatically. The first run also downloads modules, so expect a pause before any output appears.
+
+Note: `go list -m -f '{{.GoVersion}}'` must be run from the example's directory (where `go.mod` lives).
 
 This example is a standalone module. Its local `replace` directive selects the
 repository library in `karta/sdk/`. Run it from its own directory, starting at

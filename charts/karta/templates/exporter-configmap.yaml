@@ -17,6 +17,13 @@
     {{- fail (printf "exporter.tuning.%s must be a map" $name) }}
   {{- end }}
 {{- end }}
+{{- /* The exporter reads file paths; the Secret name is chart-only. */}}
+{{- $metrics := omit $exporter.metrics "delivery" }}
+{{- if include "karta.exporter.tlsSecret" . }}
+  {{- $dir := include "karta.exporter.tlsDir" . }}
+  {{- $tls := dict "certFile" (printf "%s/tls.crt" $dir) "keyFile" (printf "%s/tls.key" $dir) }}
+  {{- $_ := set $metrics "delivery" (dict "prometheus" (dict "tls" $tls)) }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -31,7 +38,7 @@ data:
     kartaDefinitionSource:
       {{- toYaml $exporter.kartaDefinitionSource | nindent 6 }}
     metrics:
-      {{- toYaml $exporter.metrics | nindent 6 }}
+      {{- toYaml $metrics | nindent 6 }}
     tuning:
       {{- omit $exporter.tuning "goMemoryLimit" "pprof" | toYaml | nindent 6 }}
 {{- end }}

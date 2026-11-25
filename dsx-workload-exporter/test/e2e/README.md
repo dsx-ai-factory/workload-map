@@ -12,9 +12,11 @@ make exporter-e2e-down
 ```
 
 The harness creates `dsx-exporter-e2e`, builds and loads the exporter image,
-and installs two Helm releases with separate namespace selectors. It also installs
-JobSet and LeaderWorkerSet at the versions pinned in `hack/e2e/global.env`.
-The test exporters request 100m CPU each to fit alongside both operators. Their kubeconfig
+and installs two Helm releases with separate namespace selectors. The HTTPS spec
+installs a third, `exporter-e2e-tls`, with a certificate it generates. The harness
+also installs JobSet and LeaderWorkerSet at the versions pinned in `hack/e2e/global.env`.
+The test exporters request 100m CPU each, and the HTTPS release 128Mi of memory,
+to fit alongside both operators. Their kubeconfig
 and failure logs stay in `.artifacts/exporter-e2e/<cluster-name>`; the current kubectl context
 is not changed. Set `EXPORTER_E2E_CLUSTER` to choose another isolated cluster name.
 
@@ -32,16 +34,18 @@ log, including successful runs.
 | `jobset_test.go` | JobSet components, completion and metric cleanup. |
 | `leaderworkerset_test.go` | LeaderWorkerSet groups and scale-down. |
 | `multiple_exporters_test.go` | Moving a populated namespace between exporter shards. |
+| `tls_test.go` | Scraping over HTTPS with a generated CA, and rejecting an unrelated CA. |
 | `suite_test.go` | Suite entry point, setup, cleanup, Kubernetes commands and metric helpers. |
 | `testdata/*.yaml` | Workload, namespace and Karta fixtures loaded by `submitWorkload`. |
 
-All eight specs run serially because they share exporter installations. The two
+All nine specs run serially because they share exporter installations. The two
 Job specs run in order: permission coverage reuses the completed lifecycle Job.
 Pod lifecycle and failure also run in order. Workload groups can run in any order.
 Shared namespaces are retained if any spec fails.
 
 Tests fetch `/metrics` through the exporter Service proxy and parse it with
-`expfmt`. Checks compare metric names, labels and gauge values. Retries wait 250ms
+`expfmt`. The HTTPS spec port-forwards instead, because the proxy does not verify
+the exporter's certificate. Checks compare metric names, labels and gauge values. Retries wait 250ms
 between requests. Controlled workload stages remain in place until their metrics
 have been observed. CI runs the suite for changes to the exporter, SDK, catalog,
 chart, E2E harness or build configuration. The CI job has a 15-minute limit

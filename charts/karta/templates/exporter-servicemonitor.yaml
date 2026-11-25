@@ -28,5 +28,14 @@ spec:
       {{- with $monitor.scrapeTimeout }}
       scrapeTimeout: {{ . | quote }}
       {{- end }}
+      {{- if include "karta.exporter.tlsSecret" . }}
+      scheme: https
+      {{- with $monitor.tlsConfig }}
+      tlsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- else if $monitor.tlsConfig }}
+      {{- fail "exporter.serviceMonitor.tlsConfig requires exporter.metrics.delivery.prometheus.tls.existingSecret" }}
+      {{- end }}
 {{- end }}
 {{- end }}

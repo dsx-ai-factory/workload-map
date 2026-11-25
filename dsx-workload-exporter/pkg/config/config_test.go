@@ -199,6 +199,34 @@ var _ = Describe("status exclusions", func() {
 	})
 })
 
+var _ = Describe("Prometheus delivery TLS", func() {
+	It("serves plain HTTP by default", func() {
+		cfg, err := loadConfig("", nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Metrics.Delivery.Prometheus.TLS).To(BeZero())
+	})
+
+	It("loads the certificate and key paths", func() {
+		cfg, err := loadConfig("metrics: {delivery: {prometheus: {tls: {certFile: /tls/tls.crt, keyFile: /tls/tls.key}}}}", nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Metrics.Delivery.Prometheus.TLS).To(Equal(ServingTLSConfig{CertFile: "/tls/tls.crt", KeyFile: "/tls/tls.key"}))
+	})
+
+	DescribeTable("rejects a certificate without its key and the reverse",
+		func(content string) {
+			_, err := loadConfig(content, nil)
+			Expect(err).To(MatchError(ContainSubstring("certFile and keyFile must be set together")))
+		},
+		Entry("certificate only", "metrics: {delivery: {prometheus: {tls: {certFile: /tls/tls.crt}}}}"),
+		Entry("key only", "metrics: {delivery: {prometheus: {tls: {keyFile: /tls/tls.key}}}}"),
+	)
+
+	It("rejects an unknown key", func() {
+		_, err := loadConfig("metrics: {delivery: {prometheus: {tls: {existingSecret: dsx-exporter-tls}}}}", nil)
+		Expect(err).To(MatchError(ContainSubstring(`unknown field "existingSecret"`)))
+	})
+})
+
 var _ = Describe("config precedence", func() {
 	for _, tc := range []struct {
 		name           string

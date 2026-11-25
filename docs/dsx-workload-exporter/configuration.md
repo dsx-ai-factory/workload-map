@@ -138,14 +138,17 @@ the watch cache.
 | `serviceMonitor.enabled` | `false` | Creates a ServiceMonitor for an existing Prometheus Operator. |
 | `serviceMonitor.additionalLabels` | `{}` | Labels used by Prometheus to select the ServiceMonitor. |
 | `serviceMonitor.interval`, `serviceMonitor.scrapeTimeout` | `` | Empty values inherit Prometheus settings. Use durations such as `30s` and `10s`. |
+| `serviceMonitor.tlsConfig` | `{}` | Verifies the [HTTPS](#https) scrape, for example with `ca` and `serverName`. Requires `metrics.delivery.prometheus.tls.existingSecret`. |
 | `metricsPort` | `8080` | Shared listener, container, probe and Service port. |
+| `metrics.delivery.prometheus.tls.existingSecret` | `""` | Serves the shared listener over [HTTPS](#https) with `tls.crt` and `tls.key` from this Secret. Empty serves plain HTTP. |
 | `service.annotations` | `{}` | Adds annotations to the metrics Service. |
 
 Only Prometheus pull is wired into the current runtime. `/metrics`, `/healthz`
 and `/readyz` share the listener. Native OTLP push is unsupported. A separately
 configured OTel Collector can scrape `/metrics` and forward to an OTLP backend.
-The endpoint has no built-in authentication. The chart does not provide a
-NetworkPolicy; configure network access for your monitoring system.
+The endpoint has no client authentication. HTTPS lets Prometheus verify the
+exporter, not the reverse. The chart does not provide a NetworkPolicy; configure
+network access for your monitoring system.
 
 The Service publishes unready addresses so diagnostics remain reachable during
 watch failures. Readiness still requires healthy inventory and synchronized
@@ -184,6 +187,46 @@ exporter:
 Use the label required by your Prometheus installation. Creating a ServiceMonitor
 does not configure a standalone Prometheus server. See
 [Prometheus Operator discovery](https://prometheus-operator.dev/docs/platform/troubleshooting/#troubleshooting-servicemonitor-changes).
+
+#### HTTPS
+
+The listener serves plain HTTP by default. To serve HTTPS, create a
+`kubernetes.io/tls` Secret with `tls.crt` and `tls.key` in the exporter's
+namespace and set `exporter.metrics.delivery.prometheus.tls.existingSecret`.
+The certificate must be valid for the name Prometheus verifies. The chart
+mounts the Secret, switches the probes to HTTPS and sets `scheme: https` on the
+ServiceMonitor. Prometheus only needs the CA. For an exporter in `karta-system`,
+with the CA in the `dsx-exporter-ca` ConfigMap:
+
+```yaml
+exporter:
+  enabled: true
+  metrics:
+    delivery:
+      prometheus:
+        tls:
+          existingSecret: dsx-exporter-tls
+  serviceMonitor:
+    enabled: true
+    tlsConfig:
+      ca:
+        configMap: {name: dsx-exporter-ca, key: ca.crt}
+      serverName: dsx-workload-exporter.karta-system.svc
+```
+
+The exporter reads the certificate again for each new connection. A renewed
+Secret, for example from cert-manager, is served once the kubelet updates the
+mounted files, without restarting the Pod. A standalone exporter sets both file
+paths instead:
+
+```yaml
+metrics:
+  delivery:
+    prometheus:
+      tls:
+        certFile: /etc/dsx-workload-exporter/tls.crt
+        keyFile: /etc/dsx-workload-exporter/tls.key
+```
 
 ### Status phases
 

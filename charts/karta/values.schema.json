@@ -10,9 +10,35 @@
         "enabled": {},
         "selection": {},
         "kartaDefinitionSource": {},
-        "metrics": {},
+        "metrics": {
+          "properties": {
+            "delivery": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "prometheus": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "tls": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "existingSecret": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "metricsPort": {},
-        "serviceMonitor": {},
+        "serviceMonitor": {
+          "properties": {
+            "tlsConfig": {"type": ["object", "null"]}
+          }
+        },
         "rbac": {},
         "image": {},
         "resources": {},

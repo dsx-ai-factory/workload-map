@@ -5,6 +5,7 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -27,7 +28,9 @@ import (
 
 // Application owns the runtime and HTTP/OTel lifecycle. Serve it once.
 type Application struct {
-	Handler    http.Handler
+	Handler http.Handler
+	// TLSConfig, when set, serves the listener over HTTPS only.
+	TLSConfig  *tls.Config
 	components Components
 	provider   *sdkmetric.MeterProvider
 	started    atomic.Bool
@@ -114,6 +117,9 @@ func (a *Application) ServeListener(ctx context.Context, listener net.Listener) 
 func (a *Application) serveListener(ctx context.Context, listener net.Listener) (err error) {
 	if ctx.Err() != nil {
 		return listener.Close()
+	}
+	if a.TLSConfig != nil {
+		listener = tls.NewListener(listener, a.TLSConfig)
 	}
 	registration, err := collector.Register(a.provider.Meter("dsx-workload-exporter"), a.components.Store, a.components.ExcludeStatuses)
 	if err != nil {

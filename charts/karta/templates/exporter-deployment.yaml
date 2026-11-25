@@ -3,6 +3,7 @@
 
 {{- if and .Values.exporter .Values.exporter.enabled }}
 {{- $fipsMode := include "karta.fipsMode" . }}
+{{- $tlsSecret := include "karta.exporter.tlsSecret" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -62,10 +63,16 @@ spec:
             httpGet:
               path: /readyz
               port: metrics
+              {{- if $tlsSecret }}
+              scheme: HTTPS
+              {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
               port: metrics
+              {{- if $tlsSecret }}
+              scheme: HTTPS
+              {{- end }}
           args:
             - --config=/etc/dsx-workload-exporter/config.yaml
             - {{ printf "--metrics-bind-address=:%v" .Values.exporter.metricsPort | quote }}
@@ -94,6 +101,11 @@ spec:
             - name: config
               mountPath: /etc/dsx-workload-exporter
               readOnly: true
+            {{- if $tlsSecret }}
+            - name: tls
+              mountPath: {{ include "karta.exporter.tlsDir" . }}
+              readOnly: true
+            {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -104,4 +116,9 @@ spec:
         - name: config
           configMap:
             name: {{ include "karta.exporter.fullname" . }}
+        {{- with $tlsSecret }}
+        - name: tls
+          secret:
+            secretName: {{ . }}
+        {{- end }}
 {{- end }}

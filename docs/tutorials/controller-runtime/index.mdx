@@ -195,14 +195,14 @@ The controller creates one watch and one reconciler for each configured type at 
    kubectl apply -f docs/tutorials/controller-runtime/manifests/
    ```
 
-6. Wait for the controller to roll out with its new watch, then apply the sample JobSet. It is created suspended:
+6. Wait for the controller to roll out, then apply the sample JobSet. The sample sets `spec.suspend: true` so the controller can label its pod template before any pods are created:
 
    ```bash
    kubectl -n karta-system rollout status deploy/generic-controller
    kubectl apply -f docs/tutorials/controller-runtime/samples/jobset.yaml
    ```
 
-7. Wait for the controller to label the suspended JobSet's pod template. Then resume it and inspect its pods:
+7. Wait for the template label, resume the JobSet, and list its pods that inherited the label:
 
    ```bash
    kubectl wait jobset/karta-demo-jobset-suspended --timeout=90s \
@@ -210,8 +210,6 @@ The controller creates one watch and one reconciler for each configured type at 
    kubectl patch jobset karta-demo-jobset-suspended --type=merge -p '{"spec":{"suspend":false}}'
    kubectl get pods -l jobset.sigs.k8s.io/jobset-name=karta-demo-jobset-suspended,app.kubernetes.io/managed-by=karta
    ```
-
-The sample JobSet is created with `spec.suspend: true`. While the JobSet is suspended, its pod templates can be changed, so the controller injects the managed-by label. After you resume the JobSet, the label is in the pods that it creates.
 
 ## Clean Up
 

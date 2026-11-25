@@ -6,6 +6,7 @@ package workload
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -28,7 +29,7 @@ const (
 // owner further up is covered was never checked.
 var errChainTooLong = fmt.Errorf("owner chain longer than %d links", maxOwnerDepth)
 
-// OwnerWalker climbs controller owner chains for one metadata list per owner
+// OwnerWalker climbs owner chains for one metadata list per owner
 // kind and namespace. It is not safe for concurrent use.
 type OwnerWalker struct {
 	client metadata.Interface
@@ -68,54 +69,64 @@ func NewOwnerWalker(client metadata.Interface, mapper meta.RESTMapper) *OwnerWal
 	}
 }
 
-// TopLevel reports whether no object in obj's controller chain is of a covered
+// TopLevel reports whether no object in obj's owner chain is of a covered
 // kind. An error means the chain could not be walked to its end.
 func (w *OwnerWalker) TopLevel(
 	ctx context.Context, obj *unstructured.Unstructured, covered func(schema.GroupKind) bool,
 ) (bool, error) {
 	nested, err := w.climb(ctx, obj.GetOwnerReferences(), obj.GetNamespace(),
 		func(refs []metav1.OwnerReference) bool {
-			controller := controllerRef(refs)
-			return controller != nil &&
-				covered(schema.FromAPIVersionAndKind(controller.APIVersion, controller.Kind).GroupKind())
+			return slices.ContainsFunc(followed(refs), func(ref metav1.OwnerReference) bool {
+				return covered(schema.FromAPIVersionAndKind(ref.APIVersion, ref.Kind).GroupKind())
+			})
 		})
 	return !nested, err
 }
 
 // climb reports whether match accepts the owner references at any level of the
-// controller chain from refs up. A missing owner ends the chain.
+// owner chain from refs up. Each level follows the controller reference, or every
+// owner reference when there is no controller, so a path that any one of them
+// opens counts. A missing owner ends its path.
 func (w *OwnerWalker) climb(
 	ctx context.Context, refs []metav1.OwnerReference, namespace string,
 	match func([]metav1.OwnerReference) bool,
 ) (bool, error) {
-	for depth := 0; ; depth++ {
-		if match(refs) {
-			return true, nil
+	level := [][]metav1.OwnerReference{refs}
+	for depth := 0; len(level) > 0; depth++ {
+		var next [][]metav1.OwnerReference
+		for _, refs := range level {
+			if match(refs) {
+				return true, nil
+			}
+			for _, ref := range followed(refs) {
+				if depth == maxOwnerDepth {
+					return false, errChainTooLong
+				}
+				owner, err := w.get(ctx, ref, namespace)
+				if err != nil {
+					return false, err
+				}
+				if owner != nil {
+					next = append(next, owner.GetOwnerReferences())
+				}
+			}
 		}
-		controller := controllerRef(refs)
-		if controller == nil {
-			return false, nil
-		}
-		if depth == maxOwnerDepth {
-			return false, errChainTooLong
-		}
-		owner, err := w.get(ctx, *controller, namespace)
-		if err != nil || owner == nil {
-			return false, err
-		}
-		refs = owner.GetOwnerReferences()
+		level = next
 	}
+	return false, nil
 }
 
-// controllerRef returns the single owner reference with Controller set, the
-// only one an owner chain can be walked through unambiguously.
-func controllerRef(refs []metav1.OwnerReference) *metav1.OwnerReference {
+// followed returns the owner references a walk climbs through: the controller
+// alone when one is set, since it is the one that manages the object, and
+// otherwise every owner. Operators such as Strimzi and Flink tie a child to its
+// workload only through references that are not controllers.
+func followed(refs []metav1.OwnerReference) []metav1.OwnerReference {
 	for i := range refs {
 		if refs[i].Controller != nil && *refs[i].Controller {
-			return &refs[i]
+			return refs[i : i+1]
 		}
 	}
-	return nil
+	return refs
 }
 
 // get returns the owner ref points to, or nil when it is gone or was replaced

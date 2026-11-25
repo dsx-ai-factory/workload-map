@@ -160,11 +160,9 @@ a separate mapping that can emit a row for each Pod. Verify device-level rows
 for every expected Pod UID, not just the GPU UUID. See the
 [device-plugin mapping](https://github.com/NVIDIA/dcgm-exporter/blob/fafd151148052628061a80450b4ee037a5fa0c3c/internal/pkg/transformation/kubernetes.go#L1280-L1308).
 
-Enable [DCGM Pod UID mapping](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/queries.md#3-gpu-measurements-by-pod-uid).
-GPU joins use Pod UID, not the name of the DCGM exporter Pod. Missing Pod UIDs
-cannot be repaired by changing the dashboard's job selector. DCGM Exporter
-versions supporting this option need Kubernetes mapping and
-`DCGM_EXPORTER_KUBERNETES_ENABLE_POD_UID=true`, plus the required Pod-read RBAC.
+The dashboard joins GPU readings by workload Pod UID, not by exporter Pod name.
+If the UID is missing, [configure Pod UID mapping in DCGM Exporter](./connect-cluster-metrics.mdx#gpu-measurements-from-dcgm).
+Changing the dashboard's job selector cannot supply a missing UID.
 
 A compatible metric name is not enough. For example, fake GPU operator 0.0.72
 emits DCGM-shaped metrics without `pod_uid`. Its stock output cannot satisfy
@@ -184,9 +182,7 @@ count once within each workload or graph node, including MIG identity.
 Parent framebuffer rows are excluded when MIG framebuffer rows exist for the
 same Pod and physical GPU. Conflicting readings are excluded even when their
 GPU index labels differ. These measurements do not isolate a process's
-memory or GPU use. Dynamic Resource Allocation (DRA) requires DCGM Exporter
-4.8.4 or later with DRA and Pod UID mapping enabled; see the
-[DRA setup](./connect-cluster-metrics.mdx#gpu-measurements-from-dcgm). It uses the same Pod UID join.
+memory or GPU use. Dynamic Resource Allocation (DRA) uses the same Pod UID join.
 Claim labels alone cannot identify the consuming Pod. The dashboards do not
 resolve ResourceClaims or verify allocated GPU counts.
 

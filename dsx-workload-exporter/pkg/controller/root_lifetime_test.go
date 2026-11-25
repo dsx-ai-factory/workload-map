@@ -243,7 +243,9 @@ func TestRootLifetimeRetainsValuesDuringSourceFailure(t *testing.T) {
 			require.Equal(t, int64(100), result.Record.CreatedTimestamp)
 			require.Equal(t, failureReason(failure), result.Error)
 			r.state.setWatchHealth(w, nil)
-			drainRootLifetimeQueues(t, r)
+			require.Zero(t, r.state.workloadQueue.Len(), "a recovery must not requeue workloads")
+			// The workqueue retries the failed job.
+			require.NoError(t, r.reconcileWorkload(t.Context(), root.GetUID()))
 			require.Empty(t, r.state.deps.Publications.Workload(root.GetUID()).Error)
 		})
 	}

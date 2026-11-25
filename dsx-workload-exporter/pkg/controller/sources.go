@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -34,6 +35,14 @@ type reflectorStore struct {
 	controller *controllerState
 	watch      *resourceWatch
 }
+
+// shortWatch matches the reflector's VeryShortWatchError threshold.
+const shortWatch = time.Second
+
+var (
+	errShortWatch         = errors.New("watch closed before delivering any event")
+	errIncompleteSnapshot = errors.New("watch closed before its initial snapshot completed")
+)
 
 func (r *controllerState) syncWatches(ctx context.Context) error {
 	if r.config.NamespaceSelector != nil {
@@ -263,7 +272,6 @@ func (r *controllerState) updateWatchHealth(w *resourceWatch, err error) {
 	if !r.isTrackedWatch(w) {
 		return
 	}
-	recovered := w.err != nil && err == nil
 	w.err = err
 	if r.watches[w.key] == w {
 		r.sources[w.key] = cacheSource{gvk: w.gvk, hasFullObject: w.full, synced: w.ready, err: err}
@@ -271,12 +279,8 @@ func (r *controllerState) updateWatchHealth(w *resourceWatch, err error) {
 	if r.replacements[w.key] == nil || r.replacements[w.key] == w {
 		r.deps.Publications.SetSourceHealth(w.key, store.SourceHealth{GVK: w.gvk, Synced: w.ready, Error: failureReason(err)})
 	}
-	if recovered {
-		r.enqueueScopeRefresh(w.key.Namespace)
-		for uid := range r.roots {
-			r.workloadQueue.Add(workloadJobKey{RootUID: uid})
-		}
-	}
+	// A recovery queues no work. Saved results check source health when they are read,
+	// failed jobs retry through their workqueue, and a relist refreshes its scope in Replace.
 	if w.gvk == namespaceGVK {
 		r.watchSyncQueue.Add("sources")
 	} else if apierrors.IsNotFound(err) {
@@ -354,17 +358,40 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 	if needsDynamicWatch {
 		stream, err = r.reader.clients.Dynamic.Resource(w.key.Resource).Namespace(w.key.Namespace).Watch(ctx, options)
 	}
+	var first *watch.Event
+	if err == nil {
+		first, err = peekWatchStart(stream)
+	}
 	r.recordWatchStart(ctx, w, options, err)
 	if err != nil {
 		return nil, err
 	}
 	events := make(chan watch.Event)
 	monitored := watch.NewProxyWatcher(events)
+	started := time.Now()
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
 		defer close(events)
 		defer stream.Stop()
+		received := false
+		snapshotPending := options.SendInitialEvents != nil && *options.SendInitialEvents
+		// A streaming list ends its snapshot with the initial-events-end bookmark, and
+		// the reflector times its short-watch check from there. Snapshot events are not
+		// live activity, so the clock restarts at that bookmark.
+		observe := func(event watch.Event) {
+			if isInitialEventsEnd(event) {
+				started, received, snapshotPending = time.Now(), false, false
+				return
+			}
+			received = true
+		}
+		if first != nil {
+			if !r.forwardWatchEvent(ctx, w, *first, events, monitored.StopChan()) {
+				return
+			}
+			observe(*first)
+		}
 		for {
 			select {
 			case <-ctx.Done():
@@ -373,32 +400,79 @@ func (r *controllerState) watchResource(ctx context.Context, w *resourceWatch, o
 				return
 			case event, ok := <-stream.ResultChan():
 				if !ok {
-					if ctx.Err() == nil && !monitored.Stopping() {
-						r.setWatchHealth(w, errors.New("watch closed"))
-					}
-					return
-				}
-				if event.Type == watch.Error {
-					r.setWatchHealth(w, apierrors.FromObject(event.Object))
-				} else {
-					object, conversionErr := prepareWatchObject(event.Object, w.gvk, w.full)
-					if conversionErr != nil {
-						r.setWatchHealth(w, conversionErr)
+					if ctx.Err() != nil || monitored.Stopping() {
 						return
 					}
-					event.Object = object
-				}
-				select {
-				case <-ctx.Done():
+					// The reflector discards a streaming list that ends before its bookmark and
+					// keeps the old cache, whatever the stream delivered or how long it lasted.
+					if snapshotPending {
+						r.setWatchHealth(w, errIncompleteSnapshot)
+						return
+					}
+					// The server ends watches routinely after minutes, and the reflector resumes or
+					// relists. An end within shortWatch without events is a failed connection, as in
+					// client-go's VeryShortWatchError.
+					if !received && time.Since(started) < shortWatch {
+						r.setWatchHealth(w, errShortWatch)
+					}
 					return
-				case <-monitored.StopChan():
-					return
-				case events <- event:
 				}
+				if !r.forwardWatchEvent(ctx, w, event, events, monitored.StopChan()) {
+					return
+				}
+				observe(event)
 			}
 		}
 	}()
 	return monitored, nil
+}
+
+// peekWatchStart treats an already closed watch as a failed start: client-go returns
+// one, with no error, after some connection failures. A waiting event is consumed,
+// so the caller must forward it.
+func peekWatchStart(stream watch.Interface) (*watch.Event, error) {
+	select {
+	case event, ok := <-stream.ResultChan():
+		if !ok {
+			stream.Stop()
+			return nil, errShortWatch
+		}
+		return &event, nil
+	default:
+		return nil, nil
+	}
+}
+
+// isInitialEventsEnd reports the bookmark that ends the initial events of a streaming list.
+func isInitialEventsEnd(event watch.Event) bool {
+	if event.Type != watch.Bookmark {
+		return false
+	}
+	object, err := meta.Accessor(event.Object)
+	return err == nil && object.GetAnnotations()[metav1.InitialEventsAnnotationKey] == "true"
+}
+
+// forwardWatchEvent returns false when the stream must end. An error event is still
+// forwarded after it marks the source unhealthy: the reflector ends the watch on it.
+func (r *controllerState) forwardWatchEvent(ctx context.Context, w *resourceWatch, event watch.Event, events chan<- watch.Event, stop <-chan struct{}) bool {
+	if event.Type == watch.Error {
+		r.setWatchHealth(w, apierrors.FromObject(event.Object))
+	} else {
+		object, err := prepareWatchObject(event.Object, w.gvk, w.full)
+		if err != nil {
+			r.setWatchHealth(w, err)
+			return false
+		}
+		event.Object = object
+	}
+	select {
+	case <-ctx.Done():
+		return false
+	case <-stop:
+		return false
+	case events <- event:
+		return true
+	}
 }
 
 func (r *controllerState) recordWatchStart(ctx context.Context, w *resourceWatch, options metav1.ListOptions, err error) {
@@ -480,7 +554,14 @@ func (s *reflectorStore) Replace(values []any, _ string) error {
 		r.queueObjectChange(old, object)
 	}
 	w.ready = true
-	r.updateWatchHealth(w, nil)
+	// A streaming list delivers its snapshot on the watch stream, and the reflector
+	// applies it after that stream may already have failed. The snapshot keeps that
+	// failure; the next watch start reports the recovery.
+	var healthErr error
+	if errors.Is(w.err, errShortWatch) {
+		healthErr = w.err
+	}
+	r.updateWatchHealth(w, healthErr)
 	r.enqueueScopeRefresh(w.key.Namespace)
 	return nil
 }

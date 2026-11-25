@@ -224,13 +224,15 @@ var _ = Describe("Pod workload association", func() {
 		valid, reason := view.Valid(publications.Pod(pod.GetUID()).Sources, "")
 		Expect(valid).To(BeFalse(), "saved identity must become invalid before a Pod worker runs")
 		Expect(reason).To(Equal(store.ReasonPermissionDenied))
-		Expect(r.reconcilePod(ctx, objectJobFor(refOf(pod)))).To(Succeed())
+		Expect(apierrors.IsForbidden(r.reconcilePod(ctx, objectJobFor(refOf(pod))))).To(BeTrue(), "the failed Pod job must be retried")
 		result := publications.Pod(pod.GetUID())
 		Expect(result.HasValue).To(BeTrue())
 		Expect(result.Record.Workload.UID).To(Equal(pod.GetUID()))
 		Expect(result.Error).To(Equal(store.ReasonPermissionDenied))
 		r.state.setWatchHealth(targetWatch, nil)
-		drainRootLifetimeQueues(GinkgoTB(), r)
+		Expect(r.state.podQueue.Len()).To(BeZero(), "a recovery must not rescan Pods")
+		// The workqueue retries the failed Pod job.
+		Expect(r.reconcilePod(ctx, objectJobFor(refOf(pod)))).To(Succeed())
 		Expect(publications.Pod(pod.GetUID()).Record.Workload.UID).To(Equal(target.GetUID()))
 		Expect(publications.Pod(pod.GetUID()).Error).To(BeEmpty())
 

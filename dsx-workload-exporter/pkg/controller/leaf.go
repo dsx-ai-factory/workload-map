@@ -136,7 +136,15 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 		sources = append(sources, associationSource)
 	}
 	podResult := store.PodResult{Record: record, Input: storedRef(ref), HasValue: true, Sources: sources, Error: failureReason(errors.Join(associationErr, selectionErr))}
-	return r.state.publishPod(workload.Path, rootRef, selection, podResult, hasLabelErrors, association)
+	if err := r.state.publishPod(workload.Path, rootRef, selection, podResult, hasLabelErrors, association); err != nil {
+		return err
+	}
+	// The fallback identity stays published; a transient association failure returns
+	// its error so the workqueue retries the Pod after the source recovers.
+	if errors.Is(associationErr, ErrInvalidPodAssociation) {
+		return nil
+	}
+	return associationErr
 }
 
 func (r *Runtime) evaluatePodRecord(ctx context.Context, selection selectedDefinition, podObject, rootObject, metricWorkload *unstructured.Unstructured, record *store.PodRecord) (hasLabelErrors bool, err error) {

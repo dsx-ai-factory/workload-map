@@ -30,12 +30,13 @@ Low use alone does not prove the application is safe to stop; it may be waiting 
 
 | Response | What Kyverno changes |
 | --- | --- |
-| Suspend or resume training | Set Job `spec.suspend` to `true` or `false`. |
+| Suspend or resume a Job | Set Job `spec.suspend` to `true` or `false`. |
 | Scale or change configuration | Mutate a supported field, such as Deployment `spec.replicas`. Coordinate with autoscalers. |
 | Delete abandoned work | Delete the root object; Kubernetes garbage collection removes its owned resources. |
 
-The workload's controller acts on changed fields. Suspension does not checkpoint
-training. Choose workloads that can safely restart, and retain outputs before deletion.
+The Job controller stops active Pods when you suspend a Job. To resume from a
+checkpoint, the application must save its progress. Choose workloads that can
+safely restart, and retain outputs before deletion.
 
 ## Try two policies
 
@@ -46,11 +47,6 @@ built-in Jobs and Deployments. You need:
 - [Kyverno](https://kyverno.io/docs/installation/installation/), tested with 1.19.1 (chart 3.9.1).
 - Prometheus for metric history. The preparation below deploys it.
 - For the GPU policy: one dedicated NVIDIA GPU, drivers, device access and [DCGM Exporter](https://docs.nvidia.com/datacenter/dcgm/latest/installation/install-dcgm-exporter.html). Enable Kubernetes mapping and `DCGM_EXPORTER_KUBERNETES_ENABLE_POD_UID=true`.
-
-Prometheus scrapes every five seconds. Both policies require two minutes of fresh,
-valid observations for the same workload UID. A UID identifies one object's lifetime.
-The GPU rule also matches the Pod UID. Missing data does not count as zero.
-Actions are limited to opted-in workloads in `ai-lab`.
 
 The DCGM Service used below must have exactly one exporter endpoint for the demo
 GPU node. For multiple nodes, scrape each exporter Pod separately with Kubernetes
@@ -159,11 +155,13 @@ metadata:
   namespace: monitoring
 data:
   tutorial.yaml: |
-    # Scrape and evaluate every 5s. These rules assume one cluster and one exporter.
+    # These rules assume one cluster and one workload exporter.
     # GPU policy coverage is restricted to one Pod with one dedicated GPU.
     groups:
       - name: tutorial
-        interval: 5s
+        interval: 15s
+        # Let scrapes finish before reading each 15s interval.
+        query_offset: 15s
         rules:
           - record: tutorial:phase:observed
             expr: |
@@ -194,23 +192,18 @@ data:
                   )
                 ) < bool 5
               )
-              and on (namespace, workload_uid) tutorial:phase:observed{phase="Running",workload_kind="Job"}
+              and on (namespace, workload_uid) (timestamp(tutorial:phase:observed{phase="Running",workload_kind="Job"}) == time())
               and on () (up{job="dcgm"} == 1)
               and on () (time() - timestamp(up{job="dcgm"}) < 15)
+          # Nine observations 15s apart span two minutes. The range excludes its left endpoint.
           - record: tutorial:gpu_idle:eligible
             expr: |
-              (min_over_time(tutorial:gpu_idle:observed[2m]) == 1)
-              and (count_over_time(tutorial:gpu_idle:observed[2m]) == 24)
-              and (tutorial:gpu_idle:observed == 1)
-              and (tutorial:gpu_idle:observed offset 2m == 1)
-              and (time() - 120 - timestamp(tutorial:gpu_idle:observed offset 2m) < 6)
+              (min_over_time(tutorial:gpu_idle:observed[2m15s]) == 1)
+              and (count_over_time(tutorial:gpu_idle:observed[2m15s]) == 9)
           - record: tutorial:unhealthy:eligible
             expr: |
-              (min_over_time(tutorial:phase:observed{phase="Failed"}[2m]) == 1)
-              and (count_over_time(tutorial:phase:observed{phase="Failed"}[2m]) == 24)
-              and (tutorial:phase:observed{phase="Failed"} == 1)
-              and (tutorial:phase:observed{phase="Failed"} offset 2m == 1)
-              and (time() - 120 - timestamp(tutorial:phase:observed{phase="Failed"} offset 2m) < 6)
+              (min_over_time(tutorial:phase:observed{phase="Failed"}[2m15s]) == 1)
+              and (count_over_time(tutorial:phase:observed{phase="Failed"}[2m15s]) == 9)
 EOF
 ```
 
@@ -227,8 +220,8 @@ metadata:
 data:
   prometheus.yml: |
     global:
-      scrape_interval: 5s
-      evaluation_interval: 5s
+      scrape_interval: 15s
+      evaluation_interval: 15s
     rule_files:
       - /etc/prometheus/rules/*.yaml
     scrape_configs:
@@ -431,6 +424,12 @@ URLs below if using a different Prometheus service.
 
 </details>
 
+Prometheus scrapes every 15 seconds. The rules evaluate one interval behind so
+scrapes can finish. Both policies require two minutes of fresh, valid observations
+for the same workload UID. A UID identifies one object's lifetime.
+The GPU rule also matches the Pod UID. Missing data does not count as zero.
+Actions are limited to opted-in workloads in `ai-lab`.
+
 ### 1. Suspend an idle GPU Job
 
 Create a Job that requests one dedicated GPU and intentionally sleeps:
@@ -505,7 +504,7 @@ spec:
         string(object.spec.template.spec.containers[0].resources.limits['nvidia.com/gpu']) == '1'
     - name: two-minutes-of-low-gpu-use-for-this-object
       expression: >-
-        http.Get('http://prometheus.monitoring.svc:9090/api/v1/query?query=tutorial:gpu_idle:eligible%20and%20(time()-timestamp(tutorial:gpu_idle:eligible)%3C15)').data.result.exists(r,
+        http.Get('http://prometheus.monitoring.svc:9090/api/v1/query?query=tutorial:gpu_idle:eligible%20and%20(time()-timestamp(tutorial:gpu_idle:eligible)%3C30)').data.result.exists(r,
           r.metric.workload_uid == object.metadata.uid && r.metric.namespace == object.metadata.namespace)
   mutations:
     - patchType: JSONPatch
@@ -629,7 +628,7 @@ spec:
           string(object.status.observedGeneration) == string(object.metadata.generation))
     - name: two-minutes-in-that-phase-for-this-object
       expression: >-
-        http.Get('http://prometheus.monitoring.svc:9090/api/v1/query?query=tutorial:unhealthy:eligible%20and%20(time()-timestamp(tutorial:unhealthy:eligible)%3C15)').data.result.exists(r,
+        http.Get('http://prometheus.monitoring.svc:9090/api/v1/query?query=tutorial:unhealthy:eligible%20and%20(time()-timestamp(tutorial:unhealthy:eligible)%3C30)').data.result.exists(r,
           r.metric.workload_uid == object.metadata.uid && r.metric.namespace == object.metadata.namespace && r.metric.workload_kind == object.kind)
 
 EOF
@@ -645,7 +644,9 @@ kubectl -n ai-lab get jobs,deployments,pods
 Both waits should succeed. Kubernetes garbage collection removes the deleted
 objects' owned resources. The resumed `idle-training` Job remains.
 
-Remove the policies and remaining example Job when finished:
+## Clean up
+
+Remove the two demo policies and the remaining Job.
 
 ```sh
 kubectl delete mutatingpolicy tutorial-suspend-idle-training
@@ -655,9 +656,12 @@ kubectl -n ai-lab delete job idle-training
 
 ## Validation
 
-Tested on kind with Kubernetes 1.34.3, Kyverno 1.19.1 and Prometheus 3.14.0.
-Suspension, deletion, resume, object replacement, exporter-outage recovery and
-namespace permissions passed.
+Prometheus 3.14.0 rule tests verified that the 15-second configuration requires
+two minutes of observations and starts a new window after a missed scrape.
+
+The kind run used Kubernetes 1.34.3, Kyverno 1.19.1, Prometheus 3.14.0 and a
+five-second scrape interval. Suspension, deletion, resume, object replacement,
+exporter-outage recovery and namespace permission checks passed.
 
 The GPU capacity and DCGM readings were simulated; physical GPU attribution
 and cAdvisor-driven actions were not tested.

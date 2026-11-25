@@ -11,7 +11,7 @@ Deploy a controller that reads a LeaderWorkerSet, annotates it with its status a
 
 ![The controller watches the workload and its definition, then writes workload annotations and labels on the leader and worker pod templates.](./flow.png)
 
-You can run the [Go library quickstart](../quickstart/index.mdx) offline first. For the concepts behind the controller, see [How a Controller Uses Workload Map](../../building-on-workload-map/build-a-controller/how-a-controller-uses-workload-map.mdx).
+You can run the [Go library quickstart](../quickstart/index.mdx) offline first.
 
 ## Prerequisites
 
@@ -27,13 +27,7 @@ The example is a standalone Go module. Its local `replace` directive selects the
 
 ## What the Controller Does
 
-The reconcile loop in [controller.go](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/tutorials/controller-runtime/controller.go) does the same work for any workload that Workload Map can describe:
-
-1. Discovers the workload structure from the cluster by group, version, and kind. The controller lists the `Karta` objects and selects the one whose root component matches the watched workload. It never hard-codes a `Karta` name, so it resolves a definition in the same way that a real consumer does for an arbitrary workload type.
-2. Reads a unified status, such as `Initializing`, `Running`, or `Failed`, without parsing CRD-specific conditions.
-3. Aggregates replica counts and container resource requests across every component, root and children. The totals are correct even though the leader and worker pods live in separate child components.
-4. Writes the results back as `karta/*` annotations, and emits a `StatusChanged` Kubernetes event on each real status transition. It uses a single canonical phase, so the status does not change back and forth through transient or simultaneous states.
-5. Injects a pod-template label into every pod-bearing component, the leader and the worker, through the library function `UpdatePodTemplateSpec`.
+The [example controller](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/tutorials/controller-runtime/controller.go) selects the definition whose root component matches the workload's group, version, and kind. It reads status, scale, and resource requests from the workload and uses the definition to find the pod templates to label. For the sequence of reads and writes, see [How a Reconcile Loop Is Structured](../../building-on-workload-map/build-a-controller/how-a-controller-uses-workload-map.mdx#how-a-reconcile-loop-is-structured).
 
 ## Create a Cluster
 

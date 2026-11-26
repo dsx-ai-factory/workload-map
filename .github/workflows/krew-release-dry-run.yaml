@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+name: Krew release dry run
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/krew-release-dry-run.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  krew:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      VERSION: 0.4.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: |
+            cli/go.sum
+            karta/sdk/go.sum
+            hack/release/go.sum
+
+      - name: Build and verify the local release archives
+        run: |
+          curl -fsSL https://github.com/goreleaser/goreleaser/releases/download/v2.20.3/goreleaser_Linux_x86_64.tar.gz -o "$RUNNER_TEMP/goreleaser.tar.gz"
+          echo "a36d5d7d07a5e538e052cef2a9f93f1cd4af493cf5a3712b9177c1ebe360f0e7  $RUNNER_TEMP/goreleaser.tar.gz" | sha256sum -c
+          tar -xzf "$RUNNER_TEMP/goreleaser.tar.gz" -C "$RUNNER_TEMP" goreleaser
+          make release-snapshot release-verify GORELEASER="$RUNNER_TEMP/goreleaser" VERSION="$VERSION"
+
+      - name: Check each Krew download URL and checksum against the local archives
+        shell: ruby {0}
+        run: |
+          require "digest"
+          require "yaml"
+          spec = YAML.load_file("dist/krew/kli.yaml").fetch("spec")
+          version = ENV.fetch("VERSION")
+          abort "Wrong Krew version" unless spec.fetch("version") == "v#{version}"
+          archives = spec.fetch("platforms").map do |platform|
+            labels = platform.fetch("selector").fetch("matchLabels")
+            name = "karta_#{version}_#{labels.fetch("os")}_#{labels.fetch("arch")}.tar.gz"
+            url = "https://github.com/#{ENV.fetch("GITHUB_REPOSITORY")}/releases/download/v#{version}/#{name}"
+            abort "Wrong URL for #{name}" unless platform.fetch("uri") == url
+            abort "Wrong checksum for #{name}" unless platform.fetch("sha256") == Digest::SHA256.file("dist/#{name}").hexdigest
+            name
+          end
+          expected = Dir.children("dist").grep(/\.tar\.gz$/).sort
+          abort "Krew does not cover the release archives" unless archives.sort == expected
+
+      - name: Render the Krew manifest with the release action
+        uses: rajatjindal/krew-release-bot@a7e82ae57ca41a16fca2691ef00e8a8d35bc77d4 # v0.0.50
+        env:
+          KREW_RELEASE_BOT_WEBHOOK_URL: http://127.0.0.1:1
+        with:
+          entrypoint: /usr/local/bin/krew-release-bot
+          args: template --tag v${{ env.VERSION }} --template-file dist/krew/kli.yaml
+
+      - name: Install the Linux archive through Krew and check the CLI version
+        run: |
+          curl -fsSL https://github.com/kubernetes-sigs/krew/releases/download/v0.4.5/krew-linux_amd64.tar.gz -o "$RUNNER_TEMP/krew.tar.gz"
+          echo "bacc06800bda14ec063cd0b6f377a961fdf4661c00366bf9834723cd28bfabc7  $RUNNER_TEMP/krew.tar.gz" | sha256sum -c
+          tar -xzf "$RUNNER_TEMP/krew.tar.gz" -C "$RUNNER_TEMP" ./krew-linux_amd64
+          export KREW_ROOT="$RUNNER_TEMP/krew-root"
+          "$RUNNER_TEMP/krew-linux_amd64" install --no-update-index --manifest=dist/krew/kli.yaml --archive="dist/karta_${VERSION}_linux_amd64.tar.gz"
+          installed_version=$("$KREW_ROOT/bin/kubectl-kli" --version)
+          echo "Installed kli $installed_version"
+          test "$installed_version" = "$VERSION"

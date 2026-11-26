@@ -60,6 +60,22 @@ type MetricsConfig struct {
 	WorkloadSelector       *metav1.LabelSelector              `yaml:"workloadSelector" json:"workloadSelector"`
 	ExcludeStatuses        []v1alpha1.ResourceStatus          `yaml:"excludeStatuses" json:"excludeStatuses"`
 	PodWorkloadAssociation *controller.PodWorkloadAssociation `yaml:"podWorkloadAssociation" json:"podWorkloadAssociation"`
+	Delivery               DeliveryConfig                     `yaml:"delivery" json:"delivery"`
+}
+
+type DeliveryConfig struct {
+	Prometheus PrometheusDeliveryConfig `yaml:"prometheus" json:"prometheus"`
+}
+
+type PrometheusDeliveryConfig struct {
+	TLS ServingTLSConfig `yaml:"tls" json:"tls"`
+}
+
+// ServingTLSConfig names the certificate and key the metrics listener serves.
+// Leaving both empty keeps plain HTTP.
+type ServingTLSConfig struct {
+	CertFile string `yaml:"certFile" json:"certFile"`
+	KeyFile  string `yaml:"keyFile" json:"keyFile"`
 }
 
 type TuningConfig struct {
@@ -332,6 +348,9 @@ func (cfg Config) Validate() error {
 	}
 	if err := controller.ValidatePodWorkloadAssociation(cfg.Metrics.PodWorkloadAssociation); err != nil {
 		return err
+	}
+	if tls := cfg.Metrics.Delivery.Prometheus.TLS; (tls.CertFile == "") != (tls.KeyFile == "") {
+		return errors.New("metrics.delivery.prometheus.tls: certFile and keyFile must be set together")
 	}
 	for _, kinds := range [][]schema.GroupVersionKind{cfg.Selection.IgnoredOwnerKinds, cfg.Selection.RequiredWatchKinds} {
 		seen := map[schema.GroupVersionKind]bool{}

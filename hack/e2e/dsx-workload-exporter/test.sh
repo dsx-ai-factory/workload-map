@@ -12,7 +12,7 @@ mkdir -p "$ARTIFACTS"
 }
 collect() {
   local rc=$?
-  for shard in a b; do
+  for shard in a b tls; do
     kubectl --request-timeout=10s -n "exporter-e2e-$shard" logs deploy/dsx-workload-exporter --all-containers \
       >"$ARTIFACTS/exporter-$shard.log" 2>&1 || true
   done

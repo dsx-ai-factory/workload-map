@@ -60,7 +60,7 @@ var _ = BeforeSuite(func() {
 	Expect(current).To(Equal(expected), "refusing context %q, expected dedicated %q", current, expected)
 
 	By("removing stale exporter workload fixtures")
-	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "exporter-workloads-denied", "--ignore-not-found", "--wait=true", "--timeout=60s")
+	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "exporter-workloads-denied", "exporter-workloads-tls", "--ignore-not-found", "--wait=true", "--timeout=60s")
 	command("", "delete", "karta", "exporter-e2e-deployment", "--ignore-not-found")
 
 	By("creating the two shard-labeled workload namespaces")
@@ -72,7 +72,7 @@ var _ = ReportAfterSuite("clean up successful suite fixtures", func(report Repor
 	if !setupCompleted || !report.SuiteSucceeded {
 		return
 	}
-	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "--ignore-not-found", "--wait=false")
+	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "exporter-workloads-tls", "--ignore-not-found", "--wait=false")
 })
 
 func TestE2E(t *testing.T) {

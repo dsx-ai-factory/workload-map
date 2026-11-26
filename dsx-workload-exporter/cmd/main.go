@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -63,6 +64,12 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
+	var tlsConfig *tls.Config
+	if files := cfg.Metrics.Delivery.Prometheus.TLS; files.CertFile != "" {
+		if tlsConfig, err = app.ServerTLSConfig(files.CertFile, files.KeyFile); err != nil {
+			return fmt.Errorf("invalid exporter configuration: %w", err)
+		}
+	}
 
 	// Falls back to the in-cluster service account when no kubeconfig is found.
 	restConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -78,6 +85,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("construct exporter application: %w", err)
 	}
+	application.TLSConfig = tlsConfig
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -95,7 +103,7 @@ func run() error {
 	}
 	if ctx.Err() == nil {
 		slog.Info("DSX workload exporter starting",
-			"version", version.String(), "address", *address, "labelRules", len(cfg.Metrics.Rules),
+			"version", version.String(), "address", *address, "tls", tlsConfig != nil, "labelRules", len(cfg.Metrics.Rules),
 			"catalogDefinitions", cfg.KartaDefinitionSource.Catalog.Enabled, "clusterDefinitions", cfg.KartaDefinitionSource.Cluster.Enabled)
 	}
 	err = application.Serve(ctx, *address)

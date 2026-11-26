@@ -81,6 +81,12 @@ exporter:
       costLimit: 10000
       maxExpressionBytes: 4096
       maxResultBytes: 1024
+    delivery:
+      prometheus:
+        tls:
+          # A kubernetes.io/tls Secret in the exporter namespace. When set, the
+          # metrics and health endpoints serve HTTPS with its tls.crt and tls.key.
+          existingSecret: ""
 
   # Shared listener, container and Service port for metrics and health endpoints.
   metricsPort: 8080
@@ -93,6 +99,9 @@ exporter:
     # Empty values inherit the Prometheus scrape settings.
     interval: ""
     scrapeTimeout: ""
+    # Verification for the HTTPS scrape, such as ca and serverName. Requires
+    # metrics.delivery.prometheus.tls.existingSecret.
+    tlsConfig: {}
 
   rbac:
     # The default grants list/watch on all resources, including Secrets.

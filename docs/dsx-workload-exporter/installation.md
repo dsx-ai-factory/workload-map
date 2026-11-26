@@ -48,6 +48,15 @@ curl -fv http://127.0.0.1:8080/readyz
 curl -fsS http://127.0.0.1:8080/metrics | grep '^dsx_'
 ```
 
+With [HTTPS](configuration.md#https) enabled, verify against the CA and the
+Service name in the certificate:
+
+```sh
+curl -fsS --cacert ca.crt \
+  --resolve dsx-workload-exporter.karta-system.svc:8080:127.0.0.1 \
+  https://dsx-workload-exporter.karta-system.svc:8080/metrics | grep '^dsx_'
+```
+
 Readiness returns HTTP 200 with an empty body when the definition inventory and
 required watches are healthy. Inspect `dsx_exporter_observation_valid` for
 collection and workload errors; a successful scrape alone does not establish valid observations.

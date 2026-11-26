@@ -240,6 +240,30 @@ var _ = Describe("chart exporter ServiceMonitor", func() {
 			override: "custom-",
 			endpoint: map[string]any{"port": "metrics", "path": "/metrics", "honorLabels": true, "interval": "30s", "scrapeTimeout": "10s"},
 		},
+		{
+			name: "HTTPS with the configured CA and server name",
+			values: `exporter:
+  metrics:
+    delivery:
+      prometheus:
+        tls:
+          existingSecret: dsx-exporter-tls
+  serviceMonitor:
+    enabled: true
+    tlsConfig:
+      ca:
+        configMap: {name: dsx-exporter-ca, key: ca.crt}
+      serverName: dsx-workload-exporter.observability.svc
+`,
+			enabled: true,
+			endpoint: map[string]any{
+				"port": "metrics", "path": "/metrics", "honorLabels": true, "scheme": "https",
+				"tlsConfig": map[string]any{
+					"ca":         map[string]any{"configMap": map[string]any{"name": "dsx-exporter-ca", "key": "ca.crt"}},
+					"serverName": "dsx-workload-exporter.observability.svc",
+				},
+			},
+		},
 	} {
 		It(tc.name, func() {
 			args := append([]string{"--namespace", "observability"}, tc.args...)

@@ -305,3 +305,62 @@ var _ = ginkgo.Describe("chart runtime configuration", func() {
 		ginkgo.Entry("unknown API client setting", "exporter.tuning.apiClient.qsp=12", "qsp"),
 	)
 })
+
+var _ = ginkgo.Describe("chart exporter serving TLS", func() {
+	exporterDeployment := func(t chartTest, out []byte) appsv1.Deployment {
+		t.Helper()
+		for _, raw := range chartDocuments(t, out) {
+			var deployment appsv1.Deployment
+			Expect(sigsyaml.Unmarshal(raw, &deployment)).To(Succeed())
+			if deployment.Kind == "Deployment" && deployment.Name == "dsx-workload-exporter" {
+				return deployment
+			}
+		}
+		t.Fatal("exporter Deployment not found")
+		return appsv1.Deployment{}
+	}
+
+	ginkgo.It("mounts the Secret, probes over HTTPS and loads the mounted pair", func() {
+		t := ginkgo.GinkgoT()
+		out := renderExporterChart(t, "", "--set", "exporter.metrics.delivery.prometheus.tls.existingSecret=dsx-exporter-tls")
+		pod := exporterDeployment(t, out).Spec.Template.Spec
+		Expect(pod.Volumes).To(ContainElement(corev1.Volume{
+			Name:         "tls",
+			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "dsx-exporter-tls"}},
+		}))
+		container := pod.Containers[0]
+		Expect(container.VolumeMounts).To(ContainElement(corev1.VolumeMount{Name: "tls", MountPath: "/etc/dsx-workload-exporter-tls", ReadOnly: true}))
+		Expect(container.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+		Expect(container.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+
+		cfg, err := loadConfig(exporterConfigFile(t, out), nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Metrics.Delivery.Prometheus.TLS).To(Equal(ServingTLSConfig{
+			CertFile: "/etc/dsx-workload-exporter-tls/tls.crt",
+			KeyFile:  "/etc/dsx-workload-exporter-tls/tls.key",
+		}))
+	})
+
+	ginkgo.It("keeps plain HTTP by default", func() {
+		t := ginkgo.GinkgoT()
+		out := renderExporterChart(t, "")
+		pod := exporterDeployment(t, out).Spec.Template.Spec
+		Expect(pod.Volumes).To(HaveLen(1))
+		Expect(pod.Containers[0].ReadinessProbe.HTTPGet.Scheme).To(BeEmpty())
+		Expect(pod.Containers[0].LivenessProbe.HTTPGet.Scheme).To(BeEmpty())
+		Expect(exporterConfigFile(t, out)).NotTo(ContainSubstring("delivery"))
+	})
+
+	ginkgo.DescribeTable("rejects TLS settings the chart cannot apply",
+		func(message string, args ...string) {
+			out, err := runExporterChart(ginkgo.GinkgoT(), "", args...)
+			Expect(err).To(HaveOccurred())
+			Expect(string(out)).To(ContainSubstring(message))
+		},
+		ginkgo.Entry("ServiceMonitor TLS without a serving certificate",
+			"exporter.serviceMonitor.tlsConfig requires exporter.metrics.delivery.prometheus.tls.existingSecret",
+			"--set", "exporter.serviceMonitor.enabled=true", "--set", "exporter.serviceMonitor.tlsConfig.serverName=exporter"),
+		ginkgo.Entry("file paths in place of a Secret", "certFile",
+			"--set", "exporter.metrics.delivery.prometheus.tls.certFile=/tls/tls.crt"),
+	)
+})

@@ -57,3 +57,4 @@ updates, open a new issue if the original is closed.
 ## Index
 
 - [KEP-0001: DSX workload exporter](0001-metrics-exporter/README.md)
+- [KEP-0002: Workload front door for SDK consumers](0002-sdk-workload-front-door/README.md)

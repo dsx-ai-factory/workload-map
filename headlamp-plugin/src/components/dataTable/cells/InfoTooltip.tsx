@@ -15,7 +15,9 @@ export interface InfoTooltipProps {
 // element that cannot take focus never opens from the keyboard, and the lint
 // rules accept a tab stop only on an interactive role, so the button role is
 // the one that works here. Escape closes the tooltip while focus stays on the
-// trigger, so activating the trigger opens it again, as a button should.
+// trigger, so activating the trigger, by key or by click, opens it again, as a
+// button should. A click matters when the pointer is still over the trigger and
+// no new hover arrives.
 export function InfoTooltip({ label, tooltip, style, children }: InfoTooltipProps) {
   const [open, setOpen] = useState(false);
   const show = () => setOpen(true);
@@ -26,6 +28,7 @@ export function InfoTooltip({ label, tooltip, style, children }: InfoTooltipProp
         tabIndex={0}
         aria-label={`${label}: ${tooltip}`}
         style={style}
+        onClick={show}
         onKeyDown={event => {
           if (event.key === 'Enter' || event.key === ' ') {
             // Space would otherwise scroll the page.

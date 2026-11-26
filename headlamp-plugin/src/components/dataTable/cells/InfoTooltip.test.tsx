@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { InfoTooltip } from './InfoTooltip';
@@ -63,17 +63,21 @@ describe('InfoTooltip', () => {
     expect(document.activeElement).toBe(screen.getByRole('button'));
   });
 
-  it('opens the tooltip again for the pointer after Escape closed it', async () => {
+  // The pointer never leaves the trigger, so a click is the only event left to
+  // open the tooltip: no new hover arrives. userEvent's click moves the pointer
+  // again, which would hide that, so the click is dispatched on its own.
+  it('opens the tooltip again on a click while the pointer stays over the trigger', async () => {
     const user = userEvent.setup();
     render(badge());
+    const trigger = screen.getByRole('button');
 
-    await user.tab();
+    await user.hover(trigger);
     await screen.findByRole('tooltip');
     await user.keyboard('{Escape}');
     await tooltipClosed();
 
-    await user.click(screen.getByRole('button'));
-    expect(await screen.findByRole('tooltip')).toBeTruthy();
+    fireEvent.click(trigger);
+    expect((await screen.findByRole('tooltip')).textContent).toBe('engine down');
   });
 
   it('does not scroll the page when Space is pressed', async () => {

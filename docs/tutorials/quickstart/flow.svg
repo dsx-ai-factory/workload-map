@@ -1,0 +1,33 @@
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright (c) 2026 NVIDIA Corporation -->
+<svg xmlns="http://www.w3.org/2000/svg" width="988" height="348" viewBox="0 0 988 348" role="img">
+<title>One Go program updates two workload types</title>
+<rect x="0" y="0" width="988" height="348" rx="0" fill="white" stroke="white" stroke-width="1.5"/>
+<text x="28" y="44" fill="#192c42" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="700" text-anchor="start">One Go program updates two workload types</text>
+<rect x="28" y="76" width="228" height="95" rx="11" fill="#f4f8fd" stroke="#c8d5e1" stroke-width="1.5"/>
+<text x="46" y="113" fill="#192c42" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" text-anchor="start">JobSet</text>
+<text x="46" y="152" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">jobset.yaml</text>
+<rect x="28" y="191" width="228" height="95" rx="11" fill="#f4f8fd" stroke="#c8d5e1" stroke-width="1.5"/>
+<text x="46" y="228" fill="#192c42" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" text-anchor="start">LeaderWorkerSet</text>
+<text x="46" y="267" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">lws.yaml</text>
+<rect x="330" y="76" width="270" height="210" rx="11" fill="white" stroke="#c8d5e1" stroke-width="1.5"/>
+<text x="350" y="115" fill="#192c42" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" text-anchor="start">Workload Map SDK</text>
+<text x="350" y="157" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">Read the matching</text>
+<text x="350" y="185" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">catalog definition.</text>
+<text x="350" y="213" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">Update each pod</text>
+<text x="350" y="241" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">template in memory.</text>
+<polyline points="257,124 294,124 294,182 329,182" fill="none" stroke="#245ab1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="321,186 329,182 321,178" fill="none" stroke="#245ab1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="257,239 294,239 294,182" fill="none" stroke="#245ab1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="685" y="76" width="275" height="210" rx="11" fill="#eff8f3" stroke="#c8d5e1" stroke-width="1.5"/>
+<text x="703" y="113" fill="#192c42" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" text-anchor="start">Updated templates</text>
+<text x="703" y="152" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">JobSet leaders and workers</text>
+<text x="703" y="178" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">LeaderWorkerSet leader</text>
+<text x="703" y="204" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">and workers</text>
+<polyline points="601,182 684,182" fill="none" stroke="#245ab1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="676,186 684,182 676,178" fill="none" stroke="#245ab1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="642.5" y="170" fill="#245ab1" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="500" text-anchor="middle">writes</text>
+<text x="28" y="326" fill="#176648" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" text-anchor="start">Default change</text>
+<text x="180" y="326" fill="#192c42" font-family="Menlo, monospace" font-size="18" font-weight="400" text-anchor="start">schedulerName = kai-scheduler</text>
+<text x="544" y="326" fill="#455d73" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" text-anchor="start">plus the managed-by label</text>
+</svg>

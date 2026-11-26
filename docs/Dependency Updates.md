@@ -12,7 +12,7 @@ A maintainer can start it from the Actions tab
 ## What it updates
 
 - Go modules in every `go.mod`, including `karta/sdk`, `cli`, `operator`,
-  `test/e2e`, `hack/*` and `docs/examples`. Renovate tidies each updated module.
+  `test/e2e`, `hack/*` and `docs/tutorials`. Renovate tidies each updated module.
   The license target then tidies every module, including local consumers.
   Renovate also regenerates SDK code, CRDs, SDK and exporter mocks, catalog files, and licenses
   in the same commit. Indirect dependencies join the same Go update group

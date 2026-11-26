@@ -198,7 +198,7 @@ From the `karta/sdk` directory of the clone, run the tool with the definition an
 ```bash
 go run ./hack/karta-verify \
   --karta ../../docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml \
-  --workload ../../docs/examples/quickstart/lws.yaml
+  --workload ../../docs/tutorials/quickstart/lws.yaml
 ```
 
 The output has a validation result and the values that the definition extracted from the manifest:
@@ -207,7 +207,7 @@ The output has a validation result and the values that the definition extracted 
 === Validation ===
   ../../docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml is structurally valid
 
-=== Extracted from ../../docs/examples/quickstart/lws.yaml ===
+=== Extracted from ../../docs/tutorials/quickstart/lws.yaml ===
   status: Initializing
   group                              replicas=4        min=<none> max=<none> podSpec=n/a       containers=<none>
   group/leader                       replicas=3        min=<none> max=<none> podSpec=yes       containers=nginx2

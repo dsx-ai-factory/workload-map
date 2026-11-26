@@ -7,7 +7,7 @@
 // The same operations run over two completely different CRD types — JobSet and
 // LeaderWorkerSet — without any per-type branching.
 //
-// Usage (from the docs/examples/quickstart directory):
+// Usage (from the docs/tutorials/quickstart directory):
 //
 //	go run . [flags]
 //
@@ -91,12 +91,12 @@ func main() {
 	flag.BoolVar(&o.printMutated, "print-mutated", false,
 		"print the full mutated CRD YAML after injection")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: go run ./docs/examples/quickstart [flags]\n\nFlags:\n")
+		fmt.Fprintf(os.Stderr, "Usage: go run . [flags]\n\nFlags:\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  go run ./docs/examples/quickstart\n")
-		fmt.Fprintf(os.Stderr, "  go run ./docs/examples/quickstart --scheduler volcano\n")
-		fmt.Fprintf(os.Stderr, "  go run ./docs/examples/quickstart --scheduler kai-scheduler --print-mutated\n")
+		fmt.Fprintf(os.Stderr, "  go run .\n")
+		fmt.Fprintf(os.Stderr, "  go run . --scheduler volcano\n")
+		fmt.Fprintf(os.Stderr, "  go run . --scheduler kai-scheduler --print-mutated\n")
 	}
 	flag.Parse()
 

@@ -26,7 +26,7 @@ config/crd/_.yaml
 *~
 .vscode/
 .idea
-/docs/examples/quickstart/quickstart
+/docs/tutorials/quickstart/quickstart
 
 # Generated air-gap image locks (make image-lock)
 /dist/
@@ -38,7 +38,7 @@ config/crd/_.yaml
 /hack/imagelock/imagelock
 /hack/release/release
 /hack/operator-updates/operator-updates
-/docs/examples/controller-runtime/controller-runtime
+/docs/tutorials/controller-runtime/controller-runtime
 
 # Generated WASM engine build artifacts (make headlamp-plugin-wasm)
 /karta-wasm/karta.wasm

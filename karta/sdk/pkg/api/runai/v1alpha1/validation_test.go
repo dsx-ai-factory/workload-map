@@ -90,6 +90,15 @@ var _ = Describe("KartaValidator", func() {
 			})
 		})
 
+		Context("with metadataPath but no podSpecPath", func() {
+			It("should reject the invalid spec definition", func() {
+				baseKarta.Spec.StructureDefinition.RootComponent.SpecDefinition.MetadataPath = ptr.To(".metadata")
+
+				err := validator.Validate()
+				Expect(err).To(MatchError(ContainSubstring("metadataPath requires podSpecPath")))
+			})
+		})
+
 		Context("with multiple validation errors", func() {
 			It("should aggregate all errors", func() {
 				// Create Karta with multiple issues

@@ -218,12 +218,13 @@ The `podSelector` field defines how to identify the pods of a component, or of a
 
 ### componentTypeSelector
 
-A key and a value selector that associates a pod with the component. If you omit `value`, the selector checks only that the key exists.
+A selector that associates a pod with the component. Use a key and a value, a set of labels, or both. If you omit `value`, the key selector checks only that the key exists.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `keyPath` | string | Yes | The JQ path to the identifying key/label on the pod. The JQ path is evaluated against individual pod objects, not the root resource spec. |
-| `value` | string | No | The expected value for the key (optional). If it is not set, only the existence of the key is checked. |
+| `keyPath` | string | No | The JQ path to the identifying key/label on the pod. The JQ path is evaluated against individual pod objects, not the root resource spec. |
+| `value` | string | No | The expected value for the key (optional). If it is not set, only the existence of the key is checked. Requires `keyPath`. |
+| `matchLabels` | map of string to string | No | Pod labels that must all match. Each entry is an equality requirement on one label. |
 
 ```yaml
 podSelector:
@@ -231,6 +232,20 @@ podSelector:
     keyPath: '.metadata.labels["training.kubeflow.org/replica-type"]'
     value: "master"
 ```
+
+When one label is not enough to identify the pods, use `matchLabels`:
+
+```yaml
+podSelector:
+  componentTypeSelector:
+    matchLabels:
+      app: "pulsar"
+      component: "proxy"
+```
+
+`keyPath` and `matchLabels` can be combined, and the pod must then satisfy both. At least one of them must be set.
+
+Give every `matchLabels` entry a value. The API server drops an entry with no value (`component:`), and the selector then matches more pods. To match an empty label value, write `component: ""`.
 
 ### componentInstanceSelector
 

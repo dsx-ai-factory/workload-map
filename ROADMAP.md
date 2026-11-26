@@ -39,7 +39,7 @@ of the roadmap is itself public and reviewable.
 
 ## Now
 
-**Theme: complete workload visibility and land the metrics exporter.**
+**Theme: complete workload visibility and release the metrics exporter.**
 
 - Workload visibility: The CLI (`kli`) and the Headlamp plugin shipped in
   v0.3.0. What remains is the first-class workload tree: traversal of a
@@ -51,9 +51,13 @@ of the roadmap is itself public and reviewable.
   pod-to-workload attribution derived from Karta descriptions, making any
   cluster's existing metrics addressable at workload and role scope, without
   hand-authored queries per workload type. The design is merged as
-  [KEP-0001](docs/keps/0001-metrics-exporter/); implementation is tracked by
-  [#336](https://github.com/dsx-ai-factory/workload-map/issues/336) and its
-  sub-issues.
+  [KEP-0001](docs/keps/0001-metrics-exporter/), and the implementation
+  ([#336](https://github.com/dsx-ai-factory/workload-map/issues/336)) is merged
+  on `main`. It is not in a tagged release yet. Open follow-up work includes
+  OTLP push
+  ([#479](https://github.com/dsx-ai-factory/workload-map/issues/479)) and
+  fractional GPU allocations
+  ([#714](https://github.com/dsx-ai-factory/workload-map/issues/714)).
 - Cross-resource expressions: Let a Karta reference values from related
   resources in its path expressions
   ([#80](https://github.com/dsx-ai-factory/workload-map/issues/80)).
@@ -63,7 +67,9 @@ of the roadmap is itself public and reviewable.
 Theme: broader coverage.
 
 - Broader, tested workload coverage: Keep pace with upstream APIs of the
-  workloads Karta describes and grow the tested catalog.
+  workloads Karta describes and grow the tested catalog. Since v0.3.0, the
+  catalog added Argo Rollouts, OpenKruise CloneSet, Volcano Job, and
+  experimental Kueue Workload support.
 - Kubeflow Trainer v2: Add a tested Karta definition for Kubeflow Trainer v2.
 
 ## Later

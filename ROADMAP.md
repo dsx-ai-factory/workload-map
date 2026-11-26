@@ -39,7 +39,7 @@ of the roadmap is itself public and reviewable.
 
 ## Now
 
-**Theme: complete workload visibility and land the metrics exporter.**
+**Theme: complete workload visibility and release the metrics exporter.**
 
 - Workload visibility: The CLI (`kli`) and the Headlamp plugin shipped in
   v0.3.0. What remains is the first-class workload tree: traversal of a
@@ -51,20 +51,32 @@ of the roadmap is itself public and reviewable.
   pod-to-workload attribution derived from Karta descriptions, making any
   cluster's existing metrics addressable at workload and role scope, without
   hand-authored queries per workload type. The design is merged as
-  [KEP-0001](docs/keps/0001-metrics-exporter/); implementation is tracked by
-  [#336](https://github.com/dsx-ai-factory/workload-map/issues/336) and its
-  sub-issues.
+  [KEP-0001](docs/keps/0001-metrics-exporter/), and the implementation
+  ([#336](https://github.com/dsx-ai-factory/workload-map/issues/336)) is merged
+  on `main`. It is not in a tagged release yet. Open follow-up work includes
+  OTLP push
+  ([#479](https://github.com/dsx-ai-factory/workload-map/issues/479)) and
+  fractional GPU allocations
+  ([#714](https://github.com/dsx-ai-factory/workload-map/issues/714)).
 - Cross-resource expressions: Let a Karta reference values from related
   resources in its path expressions
   ([#80](https://github.com/dsx-ai-factory/workload-map/issues/80)).
+  KEP-0002 ([#689](https://github.com/dsx-ai-factory/workload-map/pull/689),
+  under review) proposes this together with CEL expressions and separate read
+  and write locations.
 
 ## Next
 
 Theme: broader coverage.
 
 - Broader, tested workload coverage: Keep pace with upstream APIs of the
-  workloads Karta describes and grow the tested catalog.
+  workloads Karta describes and grow the tested catalog. Since v0.3.0, the
+  catalog added Argo Rollouts, OpenKruise CloneSet, Volcano Job, and
+  experimental Kueue Workload support.
 - Kubeflow Trainer v2: Add a tested Karta definition for Kubeflow Trainer v2.
+  A `TrainJob` reads values from the `ClusterTrainingRuntime` it references,
+  so this item depends on cross-resource expressions
+  ([#80](https://github.com/dsx-ai-factory/workload-map/issues/80)).
 
 ## Later
 
@@ -83,7 +95,8 @@ Theme: broader coverage.
     descheduling and rebalancing.
 
   Clear integration patterns will be documented so anyone can build their own
-  Karta-aware tool.
+  Karta-aware tool. One pattern is documented:
+  [act on workload changes with the metrics exporter and Kyverno](docs/tutorials/act-on-workload-change/act-on-workload-changes.md).
 - Shared Karta registry: Beyond the built-in catalog, a discoverable,
   versioned registry where the community can publish, find, and reuse Karta
   definitions for common workload types, instead of every consumer re-bundling

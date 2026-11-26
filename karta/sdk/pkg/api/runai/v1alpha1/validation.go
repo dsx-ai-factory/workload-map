@@ -156,6 +156,10 @@ func (v *KartaValidator) validateComponent(component ComponentDefinition) []erro
 		if counter > 1 {
 			errs = append(errs, fmt.Errorf("component '%s' has multiple pod spec definitions", component.Name))
 		}
+
+		if component.SpecDefinition.MetadataPath != nil && component.SpecDefinition.PodSpecPath == nil {
+			errs = append(errs, fmt.Errorf("component '%s' metadataPath requires podSpecPath", component.Name))
+		}
 	}
 
 	// Component's PodSelector has instance selector if has the component has instance id path defined or the opposite

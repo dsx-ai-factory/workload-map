@@ -35,8 +35,19 @@
     "gomodTidy",
     "gomodUpdateImportPaths"
   ],
+  "postUpgradeTasks": {
+    "commands": [
+      "make generate-licenses"
+    ],
+    "fileFilters": [
+      "**/go.mod",
+      "**/go.sum",
+      "NOTICE",
+      "THIRD_PARTY_LICENSES"
+    ],
+    "executionMode": "branch"
+  },
   "vulnerabilityAlerts": {
-    "enabled": true,
     "labels": [
       "renovate",
       "security"
@@ -70,6 +81,39 @@
   ],
   "packageRules": [
     {
+      "description": "Keep patch candidates available on release branches when a newer minor release also exists.",
+      "matchBaseBranches": [
+        "/^(v|release-)\\d+\\.\\d+$/"
+      ],
+      "separateMinorPatch": true
+    },
+    {
+      "description": "Filter Go module releases against the Go minor declared by each module.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDatasources": [
+        "go"
+      ],
+      "constraintsFiltering": "strict"
+    },
+    {
+      "description": "Wait two days before routine tagged Go module upgrades. Security alerts bypass this wait.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDatasources": [
+        "go"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch"
+      ],
+      "minimumReleaseAge": "2 days",
+      "minimumReleaseAgeBuffer": null
+    },
+    {
       "description": "Bump the go directive itself; the default range strategy treats it as a floor and never moves it.",
       "matchDatasources": [
         "golang-version"
@@ -94,6 +138,16 @@
       "enabled": false
     },
     {
+      "description": "Include indirect Go dependencies in grouped updates so shared versions can advance together.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "enabled": true
+    },
+    {
       "description": "Group non-major Go module updates.",
       "matchManagers": [
         "gomod"
@@ -107,6 +161,46 @@
         "digest"
       ],
       "groupName": "Go modules"
+    },
+    {
+      "description": "Kubernetes libraries require matching versions of each other, so they move in one PR.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "k8s.io/**",
+        "sigs.k8s.io/**"
+      ],
+      "groupName": "Kubernetes"
+    },
+    {
+      "description": "Skip kustomize, kube-openapi and structured-merge-diff updates. Their new releases often require the next Kubernetes minor before it is stable. Kubernetes libraries require them, so go mod tidy raises them when the Kubernetes group moves to a new minor. Security fixes still pass.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "k8s.io/kube-openapi",
+        "sigs.k8s.io/structured-merge-diff/**",
+        "sigs.k8s.io/kustomize/**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Do not move indirect Go dependencies that have no release tag to their newest commit. That commit can require newer versions of other modules than this repository uses. go mod tidy still raises them when a direct dependency needs it. The Kubernetes rules above handle Kubernetes modules.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "matchPackageNames": [
+        "!k8s.io/**",
+        "!sigs.k8s.io/**"
+      ],
+      "enabled": false
     },
     {
       "description": "Group non-major GitHub Actions updates and digest pins.",
@@ -183,20 +277,22 @@
       "enabled": false
     },
     {
-      "description": "After a Go module, Go version or build tool update, tidy every module and regenerate what is generated from the dependencies and tools (DeepCopy, CRDs, mocks, NOTICE and THIRD_PARTY_LICENSES) in the same commit.",
+      "description": "Regenerate SDK code, CRDs, SDK and exporter mocks, catalog files, and licenses after Go module or build tool updates.",
       "matchManagers": [
         "gomod",
         "custom.regex"
       ],
       "postUpgradeTasks": {
         "commands": [
-          "make lib-generate lib-manifests lib-generate-mocks generate-licenses"
+          "make tidy lib-generate lib-manifests lib-generate-mocks exporter-generate-mocks generate-samples generate-licenses"
         ],
         "fileFilters": [
           "**/go.mod",
           "**/go.sum",
           "karta/sdk/**",
+          "dsx-workload-exporter/**/*_mock.go",
           "charts/karta/crds/**",
+          "docs/catalog/**",
           "NOTICE",
           "THIRD_PARTY_LICENSES"
         ],
@@ -204,7 +300,32 @@
       }
     },
     {
-      "description": "Release branches up to 0.2 predate the move of the library to karta/sdk and keep the older make target names and layout, so their regeneration runs those. From 0.3 on a release branch carries the same targets as main and falls through to the rule above. Drop this rule once 0.2 ages out of the base branches renovate.yaml selects.",
+      "description": "Release branch 0.3 has the karta/sdk layout but predates the exporter module, so its regeneration skips the exporter mocks target it does not have. From 0.4 on a release branch carries the same targets as main and falls through to the rule above. Drop this rule once 0.3 ages out of the base branches renovate.yaml selects.",
+      "matchManagers": [
+        "gomod",
+        "custom.regex"
+      ],
+      "matchBaseBranches": [
+        "/^(v|release-)0\\.3$/"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "make tidy lib-generate lib-manifests lib-generate-mocks generate-samples generate-licenses"
+        ],
+        "fileFilters": [
+          "**/go.mod",
+          "**/go.sum",
+          "karta/sdk/**",
+          "charts/karta/crds/**",
+          "docs/catalog/**",
+          "NOTICE",
+          "THIRD_PARTY_LICENSES"
+        ],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Release branches up to 0.2 predate the move of the library to karta/sdk and keep the older make target names and layout, so their regeneration runs those. Drop this rule once 0.2 ages out of the base branches renovate.yaml selects.",
       "matchManagers": [
         "gomod",
         "custom.regex"
@@ -226,6 +347,44 @@
         ],
         "executionMode": "branch"
       }
+    },
+    {
+      "description": "Keep non-major security fixes enabled on release branches without overriding the major update restriction.",
+      "matchJsonata": [
+        "isVulnerabilityAlert = true"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Keep major updates disabled unless the quarterly main-branch rule enables them.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Run routine major updates on main on the first day of each calendar quarter. The golang base image stays disabled because the Go toolchain group owns it. The modules that follow Kubernetes stay disabled because go mod tidy moves them.",
+      "matchBaseBranches": [
+        "main"
+      ],
+      "matchPackageNames": [
+        "!golang",
+        "!k8s.io/kube-openapi",
+        "!sigs.k8s.io/structured-merge-diff/**",
+        "!sigs.k8s.io/kustomize/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "matchJsonata": [
+        "$not(isVulnerabilityAlert = true)"
+      ],
+      "enabled": true,
+      "schedule": [
+        "* * 1 1,4,7,10 *"
+      ],
+      "timezone": "UTC",
+      "updateNotScheduled": false
     }
   ]
 }

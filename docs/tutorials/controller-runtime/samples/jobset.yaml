@@ -8,7 +8,7 @@
 #
 # While suspended the pod templates are mutable, so the controller injects the
 # managed-by label. Resume with:
-#   kubectl patch jobset karta-demo-jobset --type=merge -p '{"spec":{"suspend":false}}'
+#   kubectl patch jobset karta-demo-jobset-suspended --type=merge -p '{"spec":{"suspend":false}}'
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:

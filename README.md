@@ -107,13 +107,13 @@ The structure in this view comes from Karta path expressions: the group, leader,
 
 ## Quick Start
 
-Start here, no cluster needed: run the [offline quickstart](docs/examples/quickstart/). It needs only Go, and its README shows the full expected output.
+Run the [offline Go quickstart](docs/tutorials/quickstart/README.md) to inspect and update two workloads without a cluster.
 
 Pick the path that matches what you want to do:
 
 | Path | Use it to | You need |
 |---|---|---|
-| [Offline quickstart](docs/examples/quickstart/) | See the uniform API read and mutate a JobSet and a LeaderWorkerSet | Go 1.27.3 or later |
+| [Offline quickstart](docs/tutorials/quickstart/README.md) | See the uniform API read and mutate a JobSet and a LeaderWorkerSet | Go at the version in the tutorial's `go.mod` or later |
 | [Install the CLI](#install-the-cli) | List definitions and inspect workloads with `kli` | Homebrew, or a release archive. Inspecting live workloads also needs a cluster and `kubectl` context |
 | [Install the CRD](#install-the-crd) | Register Karta definitions in a cluster | A cluster and `kubectl` context |
 | [Use the Go library](#use-the-go-library) | Call Karta from your own controller or tool | Go 1.27.3 or later |
@@ -322,12 +322,10 @@ experimental ones such as Kueue.
 
 The [Dynamo Karta](docs/catalog/nvidia-com-dynamographdeployment-v1alpha1.yaml) shows Karta handling a real-world multi-service inference graph - fragmented pod specs across services, autoscaling with min/max replicas, replica selectors for multi-node workers, gang scheduling, and 6 additional child resource types (DynamoComponentDeployment, LeaderWorkerSet, PodGang, PodClique, PodCliqueSet, PodCliqueScalingGroup). A single Karta definition replaces what would otherwise require hundreds of lines of per-type controller logic.
 
-## Runnable examples
+## Go tutorials
 
-Two runnable examples live under [`docs/examples/`](docs/examples/):
-
-- [quickstart](docs/examples/quickstart/) - reads and mutates a JobSet and a LeaderWorkerSet offline, no cluster required. The fastest way to see the uniform API in action.
-- [controller-runtime](docs/examples/controller-runtime/) - a controller-runtime manager you install into a Kind cluster. It watches live LeaderWorkerSet workloads, then inspects and mutates them through Karta with no per-CRD code. Adding more workload types is a flag change, not a rebuild.
+- [Read and change workloads with Go](docs/tutorials/quickstart/README.md). Set a scheduler on the pod templates of a JobSet and a LeaderWorkerSet offline.
+- [Build a controller on Kind](docs/tutorials/controller-runtime/README.md). Inspect and label a live LeaderWorkerSet, then extend the controller to JobSet.
 
 ## Who Uses Karta?
 
@@ -347,7 +345,7 @@ See [ADOPTERS.md](ADOPTERS.md) for the full list of adopters. If you use Karta, 
 - [Run in FIPS Mode](docs/configuration/karta-operator/run-in-fips-mode.mdx) - Running the operator with Go's FIPS 140-3 crypto module
 - [Dependency Updates](docs/Dependency%20Updates.md) - How Renovate keeps dependencies current and how to test a configuration change
 - [Karta definitions](docs/catalog/) - Real-world Karta definitions for common workload types
-- [Runnable examples](docs/examples/) - Offline quickstart and an installable controller-runtime example
+- [Tutorials](docs/tutorials/) - Runnable tasks for working with Workload Map
 - [API Reference](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk) - Go package documentation
 - [CONTRIBUTING.md](CONTRIBUTING.md) - How to contribute (DCO required)
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) - Community standards and expectations

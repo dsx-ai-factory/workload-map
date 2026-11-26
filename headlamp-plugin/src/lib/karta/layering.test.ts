@@ -4,9 +4,48 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
+import * as ts from 'typescript';
 import { afterEach, describe, expect, it } from 'vitest';
 
-const IMPORT_SPECIFIER = /(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g;
+// Every module a source imports or re-exports from, found by parsing it, so
+// that a comment or a string that looks like an import is not one, and an
+// import with a comment inside it still is.
+function moduleSpecifiers(file: string, source: string): string[] {
+  const found: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      found.push(node.moduleSpecifier.text);
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      ts.isExternalModuleReference(node.moduleReference) &&
+      ts.isStringLiteral(node.moduleReference.expression)
+    ) {
+      found.push(node.moduleReference.expression.text);
+    } else if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument) &&
+      ts.isStringLiteral(node.argument.literal)
+    ) {
+      found.push(node.argument.literal.text);
+    } else if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === 'require')) &&
+      node.arguments[0] &&
+      ts.isStringLiteralLike(node.arguments[0])
+    ) {
+      found.push(node.arguments[0].text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  const kind = file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  visit(ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind));
+  return found;
+}
 
 // The sources under libDir, in any subfolder, that import something inside
 // componentsDir. Relative paths are resolved, so a nested file is judged by
@@ -16,8 +55,8 @@ function importsOfComponents(libDir: string, componentsDir: string): string[] {
     .filter(name => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name))
     .filter(name => {
       const file = join(libDir, name);
-      return [...readFileSync(file, 'utf8').matchAll(IMPORT_SPECIFIER)].some(
-        ([, specifier]) =>
+      return moduleSpecifiers(file, readFileSync(file, 'utf8')).some(
+        specifier =>
           specifier.startsWith('.') &&
           resolve(dirname(file), specifier).startsWith(componentsDir + sep)
       );
@@ -62,6 +101,43 @@ describe('the layering check', () => {
       'lib/karta/nested/fine.ts': "import { x } from '../direct';\n",
     });
     expect(importsOfComponents(lib, components)).toEqual([join('nested', 'deeper', 'inner.ts')]);
+  });
+
+  it('finds an import with a comment inside it, which a pattern on the text misses', () => {
+    const { lib, components } = project({
+      'lib/karta/lazy.ts': "const load = () => import(/* lazy */ '../../components/Cell');\n",
+    });
+    expect(importsOfComponents(lib, components)).toEqual(['lazy.ts']);
+  });
+
+  it('finds every kind of import and re-export', () => {
+    const { lib, components } = project({
+      'lib/karta/star.ts': "export * from '../../components/Cell';\n",
+      'lib/karta/type.ts': "import type { Cell } from '../../components/Cell';\n",
+      'lib/karta/equals.ts': "import cell = require('../../components/Cell');\n",
+      'lib/karta/call.ts': "const cell = require('../../components/Cell');\n",
+      'lib/karta/typeof.ts': "export type Cell = typeof import('../../components/Cell');\n",
+      'lib/karta/jsx.tsx':
+        "import { Cell } from '../../components/Cell';\nexport const a = <Cell />;\n",
+    });
+    expect(importsOfComponents(lib, components).sort()).toEqual([
+      'call.ts',
+      'equals.ts',
+      'jsx.tsx',
+      'star.ts',
+      'type.ts',
+      'typeof.ts',
+    ]);
+  });
+
+  it('does not take a comment or a string for an import', () => {
+    const { lib, components } = project({
+      'lib/karta/line.ts': "// import '../../components/Cell';\nexport const a = 1;\n",
+      'lib/karta/block.ts':
+        "/* import { Cell } from '../../components/Cell'; */\nexport const a = 1;\n",
+      'lib/karta/text.ts': 'export const note = "import \'../../components/Cell\'";\n',
+    });
+    expect(importsOfComponents(lib, components)).toEqual([]);
   });
 
   it('finds a dynamic import, and leaves test files and look-alike folders alone', () => {

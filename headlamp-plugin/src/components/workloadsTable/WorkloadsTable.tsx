@@ -25,6 +25,7 @@ export function WorkloadsTable({ rows, loading, errorMessage }: WorkloadsTablePr
       id="karta-workloads"
       data={rows}
       columns={columns}
+      getRowId={row => row.id}
       initialSortColumnId="age"
       // The age accessor is negated so that ascending is newest first, which
       // is how Headlamp's own resource tables sort it.

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# kube-prometheus-stack values for the scale test cluster.
+alertmanager:
+  enabled: false
+nodeExporter:
+  enabled: false        # its DaemonSet would also land on every KWOK node
+kubeProxy:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeEtcd:
+  enabled: true
+  service:
+    port: 2381
+    targetPort: 2381
+kubelet:
+  serviceMonitor:
+    # KWOK nodes have no kubelet. Keep the scrape on the real kind nodes only.
+    relabelings:
+      - sourceLabels: [__meta_kubernetes_endpoint_address_target_name]
+        regex: kwok-node-.*
+        action: drop
+      - sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+    cAdvisorRelabelings:
+      - sourceLabels: [__meta_kubernetes_endpoint_address_target_name]
+        regex: kwok-node-.*
+        action: drop
+      - sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+    probes: false
+    resource: false
+kube-state-metrics:
+  # Only the Pod and Namespace collectors feed the sync check and the report.
+  collectors: [pods, namespaces, nodes]
+prometheusOperator:
+  enabled: true   # up.sh turns it off when the cluster already runs one
+crds:
+  enabled: true   # likewise
+prometheus:
+  prometheusSpec:
+    # The default selector takes only ServiceMonitors labeled release=<this release>,
+    # so a monitoring stack already in the cluster is not scraped twice.
+    retention: 12h
+    scrapeInterval: 30s
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+grafana:
+  enabled: false

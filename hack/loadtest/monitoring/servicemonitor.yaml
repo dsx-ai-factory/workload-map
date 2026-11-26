@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# The chart's ServiceMonitor is off by default, so the scale test applies its own. The job label is the
+# Service name, so queries use job="dsx-workload-exporter". The Service publishes
+# unready addresses, so Prometheus scrapes the exporter before /readyz is 200.
+# up.sh replaces the placeholders: the release label is how the scale test Prometheus
+# selects it, and the interval and timeout come from EXPORTER_SCRAPE_INTERVAL/TIMEOUT.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: dsx-workload-exporter
+  namespace: karta-system
+  labels:
+    release: MONITORING_RELEASE
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dsx-workload-exporter
+  endpoints:
+    - port: metrics
+      # The exporter's own namespace label names the workload namespace. Without this,
+      # Prometheus renames it to exported_namespace and sets namespace=karta-system.
+      honorLabels: true
+      interval: SCRAPE_INTERVAL
+      scrapeTimeout: SCRAPE_TIMEOUT

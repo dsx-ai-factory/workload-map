@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+#
+# Exporter values shared by every tier. up.sh adds the image, workers, apiQPS,
+# apiBurst and memory limit of the selected tier with --set.
+operator:
+  enabled: false
+crdUpgrader:
+  enabled: false   # the CRD comes from crds/ on install; no upgrade on a fresh cluster
+exporter:
+  enabled: true
+  image:
+    pullPolicy: Never   # loaded into kind by up.sh
+  kartaDefinitionSource:
+    catalog:
+      enabled: true
+      include:
+        - apps-deployment-v1
+        - batch-job-v1
+        - core-pod-v1
+        - jobset-x-k8s-io-jobset-v1alpha2
+        - leaderworkerset-x-k8s-io-leaderworkerset-v1
+    cluster:
+      enabled: false
+  namespaceSelector:
+    matchLabels:
+      loadtest.karta/target: "true"
+    matchExpressions: []
+  # Small requests so the 10k tier fits Docker Desktop defaults (4 CPU); the chart
+  # limit (2 CPU) still lets the exporter burst.
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi

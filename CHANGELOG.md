@@ -22,7 +22,7 @@ Scope: this file covers releases tagged from `main`. Patch releases on a minor l
 
 #### Helm chart
 
-To upgrade an existing release, substitute its release name and namespace below. Helm applies the v0.4.0 chart defaults, carries over your saved overrides (including earlier `--set` values), then enables the exporter. Omit `--set exporter.enabled=true` to leave the new exporter disabled on a v0.3.0 upgrade.
+Use Helm 3.14.0 or later for this upgrade. That version added `--reset-then-reuse-values`, which applies the new chart defaults and preserves your saved overrides. Use the existing release name and namespace. Omit `--set exporter.enabled=true` to keep the exporter disabled.
 
 ```sh
 helm upgrade karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
@@ -30,13 +30,15 @@ helm upgrade karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
   --reset-then-reuse-values --set exporter.enabled=true
 ```
 
-To install the chart and exporter in a new namespace, run the following command.
+For the first Karta installation in a cluster, install the operator and exporter together.
 
 ```sh
 helm install karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
   --namespace karta-system --create-namespace --version 0.4.0 \
   --set exporter.enabled=true
 ```
+
+To add only the exporter alongside an existing Karta operator, use a separate release and namespace. Disable the second operator and webhook, and leave the shared CRD under the existing release's control. The [standalone exporter guide](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/installation.md#install) gives the Helm flags for this setup.
 
 #### CLI
 

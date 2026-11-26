@@ -6,25 +6,25 @@ cask "kli" do
     end
   end
 
-  version "0.3.0"
+  version "0.4.0"
 
   on_macos do
     on_arm do
-      sha256 "74c53d986c0c3986ba22be561bc0e6c231e9fc87a564aefae0ce1c55d05d5779"
+      sha256 "81780a5062da5e8206ed922875de7dfac7251552a15cb34c75be70351962c57f"
       url "https://github.com/dsx-ai-factory/workload-map/releases/download/v#{version}/karta_#{version}_darwin_arm64.tar.gz"
     end
     on_intel do
-      sha256 "b13597730b1af537f2a1e0ab19297180af38b9c96000e21459a79244a0fc8a77"
+      sha256 "776c3a014daf5f87f2d8c87ae008e7e9a7d652d9390ffeed7c1b85cc510453c6"
       url "https://github.com/dsx-ai-factory/workload-map/releases/download/v#{version}/karta_#{version}_darwin_amd64.tar.gz"
     end
   end
   on_linux do
     on_arm do
-      sha256 "6785bf4593b79aaa53d721486240d81896d9f69b8d2557d961980ca6787fea5e"
+      sha256 "6a9edffa69338f32cc25ac5359898befa1aa8379ed77a661750b08c782c5c480"
       url "https://github.com/dsx-ai-factory/workload-map/releases/download/v#{version}/karta_#{version}_linux_arm64.tar.gz"
     end
     on_intel do
-      sha256 "3a420250b9e955b4e4174cf08dee5d9d170060c2f64331688cef51ce32f7cef7"
+      sha256 "3283182479f32b4f12374be6ff37bf84ba25b62d628c0741390f3111c5ce2569"
       url "https://github.com/dsx-ai-factory/workload-map/releases/download/v#{version}/karta_#{version}_linux_amd64.tar.gz"
     end
   end
@@ -39,5 +39,5 @@ cask "kli" do
 
   binary "kli"
 
-  # No zap stanza required
+  zap :not_required
 end

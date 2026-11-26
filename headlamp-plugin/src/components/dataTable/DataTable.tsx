@@ -13,6 +13,10 @@ export interface DataTableProps<RowItem extends Record<string, any>> {
   initialSortDesc?: boolean;
   // Start hidden but stay toggleable, unlike Table's own hideColumns.
   hiddenColumnIds?: string[];
+  // Keeps a row's cells with the item they show when rows come and go. The
+  // default is the position, so a cell, its focus and an open tooltip would
+  // stay in place while another item moved into it.
+  getRowId?: (row: RowItem) => string;
   loading?: boolean;
   errorMessage?: string | null;
   emptyMessage?: ReactNode;
@@ -27,6 +31,7 @@ export function DataTable<RowItem extends Record<string, any>>({
   initialSortColumnId,
   initialSortDesc = true,
   hiddenColumnIds,
+  getRowId,
   loading,
   errorMessage,
   emptyMessage,
@@ -51,6 +56,7 @@ export function DataTable<RowItem extends Record<string, any>>({
     <Table
       data={data ?? []}
       columns={columns}
+      getRowId={getRowId}
       loading={showLoader}
       errorMessage={errorMessage ?? undefined}
       emptyMessage={emptyMessage}

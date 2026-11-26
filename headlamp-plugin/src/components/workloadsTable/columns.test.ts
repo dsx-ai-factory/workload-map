@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { KARTA_PHASES, STATUS_UNAVAILABLE_LABEL } from '../../lib/karta/phases';
 import { buildWorkloadColumns, OPTIONAL_COLUMN_IDS } from './columns';
 
 // Node 24 exposes its own localStorage, which shadows jsdom's and throws
@@ -137,6 +139,69 @@ describe('buildWorkloadColumns', () => {
     expect(failed).toContain('engine unavailable');
     expect(pending).toBe('[]');
     expect(value({ phases: ['Running'] })).toBe('["Running"]');
+  });
+
+  it('shows the evaluation error in place of the phases, with the error as its tooltip', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    const cell = (original: Record<string, unknown>) =>
+      render((status.Cell as any)({ row: { original } }));
+
+    const { unmount } = cell({ phases: ['Running'], statusError: 'engine unavailable' });
+    expect(screen.getByRole('button', { name: 'Unavailable' })).toBeTruthy();
+    expect(screen.queryByText('Running')).toBeNull();
+    unmount();
+
+    cell({ phases: ['Running'] });
+    expect(screen.getByText('Running')).toBeTruthy();
+    expect(screen.queryByText('Unavailable')).toBeNull();
+  });
+
+  it('gives the Unavailable pill the error status and the error as its explanation', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    const element = (status.Cell as any)({
+      row: { original: { phases: [], statusError: 'engine unavailable' } },
+    });
+
+    expect(element.props.items).toEqual([
+      { label: STATUS_UNAVAILABLE_LABEL, status: 'error', tooltip: 'engine unavailable' },
+    ]);
+  });
+
+  it('offers Unavailable as a status filter and matches the rows whose status failed', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    expect(status.filterSelectOptions).toEqual([...KARTA_PHASES, STATUS_UNAVAILABLE_LABEL]);
+
+    const match = (original: Record<string, unknown>, selected: string[]) =>
+      (status.filterFn as any)({ original }, 'status', selected);
+    const failed = { phases: [], statusError: 'engine unavailable' };
+    const running = { phases: ['Running'] };
+
+    expect(match(failed, [STATUS_UNAVAILABLE_LABEL])).toBe(true);
+    expect(match(running, [STATUS_UNAVAILABLE_LABEL])).toBe(false);
+    expect(match(running, ['Running'])).toBe(true);
+    expect(match(running, ['Running', STATUS_UNAVAILABLE_LABEL])).toBe(true);
+    // Shown as Unavailable, so not found by a phase it may still carry.
+    expect(match({ phases: ['Running'], statusError: 'x' }, ['Running'])).toBe(false);
+    expect(match(failed, ['Running'])).toBe(false);
+    expect(match(failed, [])).toBe(true);
+  });
+
+  // The pill of a failed status is the red one, so it sorts where the worst
+  // pills do, ahead of Failed, and not after Completed.
+  it('sorts a workload whose status failed ahead of every phase', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    const compare = (a: Record<string, unknown>, b: Record<string, unknown>) =>
+      (status.sortingFn as any)({ original: a }, { original: b });
+    const failedStatus = { phases: [], statusError: 'engine unavailable' };
+
+    expect(compare(failedStatus, { phases: ['Failed'] })).toBeLessThan(0);
+    expect(compare({ phases: ['Running'] }, failedStatus)).toBeGreaterThan(0);
+    expect(compare(failedStatus, { phases: [] })).toBeLessThan(0);
+    // Shown as Unavailable, so a phase it may still carry does not count.
+    expect(compare({ phases: ['Running'], statusError: 'x' }, { phases: ['Failed'] })).toBeLessThan(
+      0
+    );
+    expect(compare(failedStatus, { phases: [], statusError: 'other' })).toBe(0);
   });
 
   it('sorts status by worst phase rather than alphabetically', () => {

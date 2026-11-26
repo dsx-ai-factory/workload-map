@@ -4,15 +4,19 @@
 import { render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { useListMock, evaluatePhases, useThrottleMock } = vi.hoisted(() => ({
-  useListMock: vi.fn(),
-  evaluatePhases: vi.fn(),
-  // Identity here: the throttle's own behaviour is Headlamp's, and delaying
-  // every rerender by a second would only make these tests slow.
-  useThrottleMock: vi.fn((value: unknown) => value),
-}));
+const { useListMock, makeClassMock, evaluatePhases, useThrottleMock } = vi.hoisted(() => {
+  const useListMock = vi.fn();
+  return {
+    useListMock,
+    makeClassMock: vi.fn(() => ({ useList: useListMock })),
+    evaluatePhases: vi.fn(),
+    // Identity here: the throttle's own behaviour is Headlamp's, and delaying
+    // every rerender by a second would only make these tests slow.
+    useThrottleMock: vi.fn((value: unknown) => value),
+  };
+});
 vi.mock('@kinvolk/headlamp-plugin/lib', () => ({
-  K8s: { crd: { makeCustomResourceClass: vi.fn(() => ({ useList: useListMock })) } },
+  K8s: { crd: { makeCustomResourceClass: makeClassMock } },
 }));
 vi.mock('../../../lib/karta/kartaUtil', () => ({ evaluatePhases }));
 vi.mock('@kinvolk/headlamp-plugin/lib/CommonComponents', () => ({
@@ -83,6 +87,31 @@ describe('KindFetcher', () => {
     );
 
     expect(useListMock).toHaveBeenCalledWith({ cluster: 'cluster-a' });
+  });
+
+  // The plural and the scope come from discovery, in that order at the call.
+  it('builds the list class from the plural and the scope it was given', () => {
+    useListMock.mockReturnValue([[], null]);
+    makeClassMock.mockClear();
+
+    render(
+      <KindFetcher
+        definition={definition()}
+        cluster="cluster-a"
+        plural="reactors"
+        namespaced={false}
+        onRows={vi.fn()}
+        onError={vi.fn()}
+      />
+    );
+
+    expect(makeClassMock).toHaveBeenCalledWith({
+      apiInfo: [{ group: 'apps', version: 'v1' }],
+      kind: 'Deployment',
+      pluralName: 'reactors',
+      singularName: 'deployment',
+      isNamespaced: false,
+    });
   });
 
   // Narrowing the request, not the rendered rows, is the point: an unselected

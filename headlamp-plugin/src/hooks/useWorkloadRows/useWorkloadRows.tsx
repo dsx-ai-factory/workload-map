@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { K8s } from '@kinvolk/headlamp-plugin/lib';
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { useClusters } from '../useClusters/useClusters';
 import { useKartaWasm } from '../useKartaWasm/useKartaWasm';
 import { useSelectedNamespaces } from '../useSelectedNamespaces/useSelectedNamespaces';
 import { ClusterFetcher, ClusterState } from './ClusterFetcher/ClusterFetcher';
@@ -40,20 +40,8 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
   const [attempt, setAttempt] = useState(0);
   const retryEngine = useCallback(() => setAttempt(previous => previous + 1), []);
   const { error: engineError, loading: engineLoading } = useKartaWasm(attempt);
-  // useSelectedClusters returns an empty list when nothing is explicitly
-  // selected, which is the ordinary single-cluster case, so fall back to the
-  // current one. Same shape as knative's useClusters.
-  const selectedClusters = K8s.useSelectedClusters();
-  const currentCluster = K8s.useCluster();
-  const selectedKey = selectedClusters.join(',');
+  const clusters = useClusters();
   const namespaces = useSelectedNamespaces();
-  const clusters = useMemo(
-    () =>
-      selectedClusters.length > 0 ? selectedClusters : currentCluster ? [currentCluster] : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedKey, currentCluster]
-  );
-
   // Entries are scoped by namespace selection as well as cluster. Wiping them
   // on change instead would race the fetchers, whose effects run first.
   const namespaceKey = (namespaces ?? []).join(',');
@@ -238,7 +226,6 @@ export function useWorkloadRows(): UseWorkloadRowsResult {
           name => rowsByKey[scopedKey(cluster, name)] ?? []
         )
       );
-
 
   return {
     rows,

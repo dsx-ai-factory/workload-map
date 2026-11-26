@@ -249,6 +249,21 @@ describe('useWorkloadRows', () => {
     expect(harness.current.error).toBeNull();
   });
 
+  // A context name can hold a newline (the URL carries it as %0A). Splitting
+  // the selection on one started a fetcher for each half, for clusters that do
+  // not exist.
+  it('starts one fetcher for a context whose name contains a newline', async () => {
+    clustersRef.current = ['west\nblue'];
+    plans['west\nblue'] = { kinds: ['deployment'] };
+
+    const harness = renderHarness();
+
+    await waitFor(() => expect(harness.current.loading).toBe(false));
+    const fetchers = harness.current.fetchers as { props: { cluster: string } }[];
+    expect(fetchers.map(fetcher => fetcher.props.cluster)).toEqual(['west\nblue']);
+    expect(harness.current.rows).toEqual([{ id: 'west\nblue/deployment', name: 'deployment' }]);
+  });
+
   // useSelectedClusters is empty unless clusters are explicitly selected,
   // which is the ordinary single-cluster case.
   it('falls back to the current cluster when none are explicitly selected', async () => {

@@ -7,6 +7,57 @@ Notable changes per release. This file is the in-repo source of record: a releas
 
 Scope: this file covers releases tagged from `main`. Patch releases on a minor line are tagged from that line's release branch and are documented in the changelog there. The v0.0.x releases predate that scheme and are summarized at the end.
 
+## v0.4.0 - 2026-11-26
+
+### Highlights
+
+- The new DSX workload exporter exposes workload status and maps Pods to their workload, component, instance and group. Join those labels with CPU, memory or GPU metrics in Prometheus, or use the included Grafana dashboards. The exporter is opt-in. [Exporter](https://github.com/dsx-ai-factory/workload-map/pull/588), [Grafana dashboards and kind demo](https://github.com/dsx-ai-factory/workload-map/pull/688)
+- The built-in catalog adds Volcano Job, Argo Rollout, OpenKruise CloneSet and experimental Kueue Workload (`kueue.x-k8s.io/v1beta2`). Run `kli definitions --catalog-only` to inspect the catalog offline. Add `--catalog-experimental-definitions` to include Kueue. [Volcano](https://github.com/dsx-ai-factory/workload-map/pull/652), [Argo](https://github.com/dsx-ai-factory/workload-map/pull/649), [OpenKruise](https://github.com/dsx-ai-factory/workload-map/pull/651), [Kueue](https://github.com/dsx-ai-factory/workload-map/pull/636), [offline catalog](https://github.com/dsx-ai-factory/workload-map/pull/659)
+
+### Upgrading from v0.3.0
+
+- `kli validate` now rejects unknown fields and duplicate YAML keys. Correct the reported field or remove the duplicate, then rerun `kli validate <file>`. [Validation change](https://github.com/dsx-ai-factory/workload-map/pull/655)
+- The `kli definitions` table gains a `STATUS` column and lists catalog definitions overridden by the cluster. Scripts that need the previous list of definitions can use `kli definitions -o json` and read `.items`. [CLI output change](https://github.com/dsx-ai-factory/workload-map/pull/675)
+- Go SDK consumers need Go 1.27.4 or later. Upgrade with `go get github.com/dsx-ai-factory/workload-map/karta/sdk@v0.4.0`. The SDK builds against Kubernetes API v0.37.2.
+
+#### Helm chart
+
+Use Helm 3.14.0 or later for this upgrade. That version added `--reset-then-reuse-values`, which applies the new chart defaults and preserves your saved overrides. Use the existing release name and namespace. Omit `--set exporter.enabled=true` to keep the exporter disabled.
+
+```sh
+helm upgrade karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
+  --namespace karta-system --version 0.4.0 \
+  --reset-then-reuse-values --set exporter.enabled=true
+```
+
+For the first Karta installation in a cluster, install the operator and exporter together.
+
+```sh
+helm install karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
+  --namespace karta-system --create-namespace --version 0.4.0 \
+  --set exporter.enabled=true
+```
+
+To add only the exporter alongside an existing Karta operator, use a separate release and namespace. Disable the second operator and webhook, and leave the shared CRD under the existing release's control. The [standalone exporter guide](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/dsx-workload-exporter/installation.md#install) gives the Helm flags for this setup.
+
+#### CLI
+
+- Homebrew users can run `brew upgrade --cask dsx-ai-factory/kli/kli` once the v0.4.0 cask update merges.
+- For a manual upgrade, download `checksums.txt` and the Linux or macOS archive for your architecture (amd64 or arm64) from the [v0.4.0 release](https://github.com/dsx-ai-factory/workload-map/releases/tag/v0.4.0). For example, on Linux amd64, run `shasum -a 256 karta_0.4.0_linux_amd64.tar.gz` (or `sha256sum karta_0.4.0_linux_amd64.tar.gz`). When the digest matches that filename's entry in `checksums.txt`, extract `kli` and replace your existing binary at the path printed by `command -v kli`. Run `kli --version` to confirm `0.4.0`.
+- Releases now generate a Krew plugin manifest. Public installation through Krew depends on the [initial index registration](https://github.com/kubernetes-sigs/krew-index/pull/6671) and the v0.4.0 index update.
+
+### Other changes
+
+- `kli get --sort-by` supports `name` and `age`. Both `kli get` and `kli definitions` accept `--no-headers`. [Sorting](https://github.com/dsx-ai-factory/workload-map/pull/668), [table headers](https://github.com/dsx-ai-factory/workload-map/pull/658)
+- CLI resource totals now include already-running sidecars when calculating init container requests. The SDK's jq evaluator accepts expressions that return exactly the configured result limit. [Pod resource requests](https://github.com/dsx-ai-factory/workload-map/pull/657), [jq result limit](https://github.com/dsx-ai-factory/workload-map/pull/610)
+- Exporter settings cover ServiceMonitor discovery, workload selection, standalone Pod association and experimental definitions. [Exporter configuration](https://github.com/dsx-ai-factory/workload-map/blob/v0.4.0/docs/dsx-workload-exporter/configuration.md)
+
+### Contributors
+
+[@Aaqibhafeezkhan](https://github.com/Aaqibhafeezkhan), [@Abhayrkhot](https://github.com/Abhayrkhot), [@ankitgala007](https://github.com/ankitgala007), [@atishay-kasliwal](https://github.com/atishay-kasliwal), [@AviadHayumi](https://github.com/AviadHayumi), [@besdollma](https://github.com/besdollma), [@bfs2021](https://github.com/bfs2021), [@lavianalon](https://github.com/lavianalon), [@ManasBhole](https://github.com/ManasBhole), [@moshe-runai](https://github.com/moshe-runai), [@nadavox](https://github.com/nadavox), [@noahkhomer18](https://github.com/noahkhomer18), [@rogirun](https://github.com/rogirun), [@sarankumar1325](https://github.com/sarankumar1325), [@shaked-bouktus](https://github.com/shaked-bouktus), [@SherinDaher-Runai](https://github.com/SherinDaher-Runai), [@yuval-gr](https://github.com/yuval-gr)
+
+[Full changelog from v0.3.0 to v0.4.0](https://github.com/dsx-ai-factory/workload-map/compare/v0.3.0...v0.4.0)
+
 ## v0.3.0 - 2026-10-21
 
 This release turns Karta into a full toolchain around the CRD and the library. It lands the `kli` CLI with its release pipeline and Homebrew cask, the Headlamp plugin backed by a WebAssembly build of the engine, a generated built-in catalog of 23 workload definitions, an admission webhook and a CRD upgrade hook in the chart, FIPS 140-3 runtime support for the operator, and a recorded end-to-end conformance suite that replays offline.

@@ -53,6 +53,17 @@ describe('WorkloadsTable', () => {
     expect(dataTableProps.slice(-1)[0]?.initialSortDesc).toBe(false);
   });
 
+  // Cells are keyed by row id, and the default id is the position: when a row
+  // above one with an open tooltip disappears, the tooltip would move to the
+  // row that took its place.
+  it('identifies each row by the workload it shows, not by its position', () => {
+    render(<WorkloadsTable rows={[]} loading={false} />);
+
+    const getRowId = dataTableProps.slice(-1)[0]?.getRowId;
+    expect(getRowId({ id: 'cluster-a/team/build', name: 'build' })).toBe('cluster-a/team/build');
+    expect(getRowId({ id: 'cluster-a/team/serve', name: 'serve' })).toBe('cluster-a/team/serve');
+  });
+
   it('shows the cluster column only when more than one cluster is selected', () => {
     render(<WorkloadsTable rows={[]} loading={false} />);
     expect(dataTableProps.slice(-1)[0]?.columns.some((c: any) => c.id === 'cluster')).toBe(false);

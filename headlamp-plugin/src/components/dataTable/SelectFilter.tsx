@@ -12,7 +12,6 @@ import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import type { MRT_Column, MRT_TableInstance } from 'material-react-table';
 import { useState } from 'react';
-import { WorkloadRow } from '../../hooks/useWorkloadRows/workloadRow.types';
 
 // Replaces the table's own multi-select filter, which lists the faceted
 // values of the rows. The host turns those off above 500 rows, and the menu
@@ -24,12 +23,12 @@ import { WorkloadRow } from '../../hooks/useWorkloadRows/workloadRow.types';
 // so a selection whose rows are gone, for example after switching the
 // namespace selector, would leave an empty table and a blank chip with
 // nothing to uncheck. The selected values are kept in the options.
-export function SelectFilter({
+export function SelectFilter<RowItem extends Record<string, any>>({
   column,
   table,
 }: {
-  column: MRT_Column<WorkloadRow>;
-  table: MRT_TableInstance<WorkloadRow>;
+  column: MRT_Column<RowItem>;
+  table: MRT_TableInstance<RowItem>;
 }) {
   const [open, setOpen] = useState(false);
   const selected = (column.getFilterValue() as string[] | undefined) ?? [];

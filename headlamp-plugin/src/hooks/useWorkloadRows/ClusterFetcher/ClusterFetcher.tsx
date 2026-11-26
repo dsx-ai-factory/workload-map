@@ -5,7 +5,7 @@ import { K8s } from '@kinvolk/headlamp-plugin/lib';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { gvkKey } from '../../../lib/karta/gvkKey';
 import { useKartaDefinitions } from '../../useKartaDefinitions/useKartaDefinitions';
-import { servedKindKey, useServedKinds } from '../../useServedKinds/useServedKinds';
+import { groupVersionOf, servedKindKey, useServedKinds } from '../../useServedKinds/useServedKinds';
 import { KindFetcher } from '../KindFetcher/KindFetcher';
 import { WorkloadRow } from '../workloadRow.types';
 
@@ -105,7 +105,7 @@ export function ClusterFetcher({
     const failures: Record<string, Error> = {};
     for (const definition of definitions) {
       const kind = definition.rootKind;
-      const groupVersion = kind.group ? `${kind.group}/${kind.version}` : kind.version;
+      const groupVersion = groupVersionOf(kind.group, kind.version);
       if (failedGroupVersions.has(groupVersion)) {
         failures[gvkKey(definition.rootKind)] = new Error(
           `discovery failed for ${groupVersion}`

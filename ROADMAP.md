@@ -61,6 +61,9 @@ of the roadmap is itself public and reviewable.
 - Cross-resource expressions: Let a Karta reference values from related
   resources in its path expressions
   ([#80](https://github.com/dsx-ai-factory/workload-map/issues/80)).
+  KEP-0002 ([#689](https://github.com/dsx-ai-factory/workload-map/pull/689),
+  under review) proposes this together with CEL expressions and separate read
+  and write locations.
 
 ## Next
 
@@ -71,6 +74,9 @@ Theme: broader coverage.
   catalog added Argo Rollouts, OpenKruise CloneSet, Volcano Job, and
   experimental Kueue Workload support.
 - Kubeflow Trainer v2: Add a tested Karta definition for Kubeflow Trainer v2.
+  A `TrainJob` reads values from the `ClusterTrainingRuntime` it references,
+  so this item depends on cross-resource expressions
+  ([#80](https://github.com/dsx-ai-factory/workload-map/issues/80)).
 
 ## Later
 
@@ -89,7 +95,8 @@ Theme: broader coverage.
     descheduling and rebalancing.
 
   Clear integration patterns will be documented so anyone can build their own
-  Karta-aware tool.
+  Karta-aware tool. One pattern is documented:
+  [act on workload changes with the metrics exporter and Kyverno](docs/tutorials/act-on-workload-change/act-on-workload-changes.md).
 - Shared Karta registry: Beyond the built-in catalog, a discoverable,
   versioned registry where the community can publish, find, and reuse Karta
   definitions for common workload types, instead of every consumer re-bundling

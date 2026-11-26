@@ -5,8 +5,8 @@ import { DateLabel, type TableColumn } from '@kinvolk/headlamp-plugin/lib/Common
 import { WorkloadRow } from '../../hooks/useWorkloadRows/workloadRow.types';
 import {
   KARTA_PHASES,
-  phaseItems,
   STATUS_UNAVAILABLE_LABEL,
+  statusItems,
   worstPhaseSeverity,
 } from '../../lib/karta/phases';
 import { StatusCell } from '../dataTable/cells/StatusCell';
@@ -73,24 +73,13 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       // place of its phases, so that is what it can be found by.
       filterSelectOptions: [...KARTA_PHASES, STATUS_UNAVAILABLE_LABEL],
       filterFn: (row, _columnId, filterValue: string[]) => {
-        const shown =
-          row.original.statusError === undefined ? row.original.phases : [STATUS_UNAVAILABLE_LABEL];
+        const shown = statusItems(row.original.phases, row.original.statusError).map(
+          item => item.label
+        );
         return filterValue.length === 0 || filterValue.some(option => shown.includes(option));
       },
       Cell: ({ row }) => (
-        <StatusCell
-          items={
-            row.original.statusError === undefined
-              ? phaseItems(row.original.phases)
-              : [
-                  {
-                    label: STATUS_UNAVAILABLE_LABEL,
-                    status: 'error',
-                    tooltip: row.original.statusError,
-                  },
-                ]
-          }
-        />
+        <StatusCell items={statusItems(row.original.phases, row.original.statusError)} />
       ),
       gridTemplate: 'auto',
     },

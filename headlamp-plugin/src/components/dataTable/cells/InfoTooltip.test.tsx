@@ -80,6 +80,25 @@ describe('InfoTooltip', () => {
     expect((await screen.findByRole('tooltip')).textContent).toBe('engine down');
   });
 
+  // A handler that took every key would swallow Tab, and the keyboard user
+  // could not leave the badge.
+  it('leaves every other key alone: no tooltip, and the default is not prevented', async () => {
+    const user = userEvent.setup();
+    render(badge());
+
+    await user.tab();
+    await screen.findByRole('tooltip');
+    await user.keyboard('{Escape}');
+    await tooltipClosed();
+
+    const trigger = screen.getByRole('button');
+    for (const key of ['Tab', 'ArrowDown', 'a', 'Escape']) {
+      const notPrevented = fireEvent.keyDown(trigger, { key });
+      expect(notPrevented).toBe(true);
+    }
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
   it('does not scroll the page when Space is pressed', async () => {
     const user = userEvent.setup();
     render(badge());

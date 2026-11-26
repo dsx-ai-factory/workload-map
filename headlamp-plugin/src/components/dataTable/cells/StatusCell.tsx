@@ -18,7 +18,7 @@ export function StatusCell({ items }: StatusCellProps) {
     <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
       {items.map(({ label, status, tooltip }) => {
         const pill = (
-          <StatusLabel status={status}>
+          <StatusLabel key={label} status={status}>
             {(status === 'warning' || status === 'error') && (
               <Icon aria-hidden icon="mdi:alert-outline" width="1.2rem" height="1.2rem" />
             )}
@@ -30,7 +30,7 @@ export function StatusCell({ items }: StatusCellProps) {
             {pill}
           </InfoTooltip>
         ) : (
-          <span key={label}>{pill}</span>
+          pill
         );
       })}
     </Stack>

@@ -2,7 +2,13 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import { describe, expect, it } from 'vitest';
-import { KARTA_PHASES, phaseItems, worstPhaseSeverity } from './phases';
+import {
+  KARTA_PHASES,
+  phaseItems,
+  STATUS_UNAVAILABLE_LABEL,
+  statusItems,
+  worstPhaseSeverity,
+} from './phases';
 
 describe('the phase table', () => {
   it('lists the nine phases worst first, each in its status bucket', () => {
@@ -33,6 +39,19 @@ describe('the phase table', () => {
       'Undefined',
       'SomeFuturePhase',
     ]);
+  });
+});
+
+describe('statusItems', () => {
+  it('is the phases of a workload whose status was evaluated', () => {
+    expect(statusItems(['Running', 'Degraded'])).toEqual(phaseItems(['Running', 'Degraded']));
+  });
+
+  it('is Unavailable alone, as an error with the reason, when it could not be', () => {
+    expect(statusItems(['Running'], 'engine unavailable')).toEqual([
+      { label: STATUS_UNAVAILABLE_LABEL, status: 'error', tooltip: 'engine unavailable' },
+    ]);
+    expect(statusItems([], 'engine unavailable')).toHaveLength(1);
   });
 });
 

@@ -4,6 +4,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('@iconify/react', () => ({ Icon: ({ icon }: any) => <i data-icon={icon} /> }));
 vi.mock('@kinvolk/headlamp-plugin/lib/CommonComponents', () => ({
   StatusLabel: ({ status, children }: any) => <span data-status={status}>{children}</span>,
 }));
@@ -51,6 +52,34 @@ describe('StatusCell', () => {
     const explained = screen.getByLabelText('Not Ready: CRDMissing: no CRD');
     expect(explained.getAttribute('tabindex')).toBe('0');
     expect(screen.getByText('Running').closest('[tabindex]')).toBeNull();
+  });
+
+  it('marks a warning and an error pill with the alert icon, and no other', () => {
+    const { container } = render(
+      <StatusCell
+        items={[
+          { label: 'Failed', status: 'error' },
+          { label: 'Degraded', status: 'warning' },
+          { label: 'Running', status: 'success' },
+          { label: 'Completed', status: '' },
+        ]}
+      />
+    );
+    const iconIn = (label: string) =>
+      screen.getByText(label).querySelector('[data-icon="mdi:alert-outline"]');
+
+    expect(iconIn('Failed')).not.toBeNull();
+    expect(iconIn('Degraded')).not.toBeNull();
+    expect(iconIn('Running')).toBeNull();
+    expect(iconIn('Completed')).toBeNull();
+    expect(container.querySelectorAll('[data-icon]')).toHaveLength(2);
+  });
+
+  it('adds no wrapper around a pill that has no tooltip', () => {
+    render(<StatusCell items={[{ label: 'Running', status: 'success' }]} />);
+    const pill = screen.getByText('Running');
+    expect(pill.parentElement?.tagName).toBe('DIV');
+    expect(pill.hasAttribute('tabindex')).toBe(false);
   });
 
   it('renders an item with an unknown status without crashing', () => {

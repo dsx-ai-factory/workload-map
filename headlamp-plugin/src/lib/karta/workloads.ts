@@ -18,7 +18,6 @@ export function makeWorkloadClass(kind: GroupVersionKind, plural: string, namesp
 
 // A controller owns these, so the owner is the workload: a Deployment and its
 // pods are one thing described at two levels, and listing both shows it twice.
-// The Workloads table and the Instances column share this rule so they agree.
 export function isRootWorkload(workload: Workload): boolean {
   return !(workload.metadata.ownerReferences ?? []).some(reference => reference.controller);
 }

@@ -37,6 +37,15 @@ export function worstPhaseSeverity(phases: string[]): number {
   return Math.min(...phases.map(phaseSeverity), Number.MAX_SAFE_INTEGER);
 }
 
+// What a workload's status shows: its phases, or Unavailable alone when they
+// could not be evaluated. The cell and the filter both read this, so what a
+// filter matches is what the cell displays.
+export function statusItems(phases: readonly string[], statusError?: string): StatusItem[] {
+  return statusError === undefined
+    ? phaseItems(phases)
+    : [{ label: STATUS_UNAVAILABLE_LABEL, status: 'error', tooltip: statusError }];
+}
+
 // A workload can match several phases at once, such as Running and Degraded.
 // Each shows once, however often the engine repeats it.
 export function phaseItems(phases: readonly string[]): StatusItem[] {

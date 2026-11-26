@@ -156,6 +156,17 @@ describe('buildWorkloadColumns', () => {
     expect(screen.queryByText('Unavailable')).toBeNull();
   });
 
+  it('gives the Unavailable pill the error status and the error as its explanation', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    const element = (status.Cell as any)({
+      row: { original: { phases: [], statusError: 'engine unavailable' } },
+    });
+
+    expect(element.props.items).toEqual([
+      { label: STATUS_UNAVAILABLE_LABEL, status: 'error', tooltip: 'engine unavailable' },
+    ]);
+  });
+
   it('offers Unavailable as a status filter and matches the rows whose status failed', () => {
     const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
     expect(status.filterSelectOptions).toEqual([...KARTA_PHASES, STATUS_UNAVAILABLE_LABEL]);

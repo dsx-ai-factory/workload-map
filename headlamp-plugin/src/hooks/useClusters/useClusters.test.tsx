@@ -36,6 +36,29 @@ describe('useClusters', () => {
     expect(renderHook(() => useClusters()).result.current).toEqual([]);
   });
 
+  it('follows the current cluster when nothing is selected', () => {
+    currentRef.current = 'a';
+    const { result, rerender } = renderHook(() => useClusters());
+    expect(result.current).toEqual(['a']);
+
+    currentRef.current = 'b';
+    rerender();
+    expect(result.current).toEqual(['b']);
+  });
+
+  it('switches between the selection and the current cluster as the selection comes and goes', () => {
+    currentRef.current = 'a';
+    const { result, rerender } = renderHook(() => useClusters());
+
+    selectedRef.current = ['x', 'y'];
+    rerender();
+    expect(result.current).toEqual(['x', 'y']);
+
+    selectedRef.current = [];
+    rerender();
+    expect(result.current).toEqual(['a']);
+  });
+
   it('keeps a cluster name that contains a comma whole', () => {
     selectedRef.current = ['a,b', 'c'];
     expect(renderHook(() => useClusters()).result.current).toEqual(['a,b', 'c']);

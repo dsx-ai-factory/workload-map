@@ -59,9 +59,22 @@ describe('useClusters', () => {
     expect(result.current).toEqual(['a']);
   });
 
-  it('keeps a cluster name that contains a comma whole', () => {
-    selectedRef.current = ['a,b', 'c'];
-    expect(renderHook(() => useClusters()).result.current).toEqual(['a,b', 'c']);
+  // Headlamp takes the context from the URL, where %0A is a newline, so a name
+  // can hold any character that a separator might be.
+  it.each([
+    ['a comma', 'a,b'],
+    ['a newline', 'west\nblue'],
+    ['a tab', 'west\tblue'],
+    ['a quote', 'west"blue'],
+    ['a bracket pair', '["west","blue"]'],
+  ])('keeps a cluster name that contains %s whole', (_what, name) => {
+    selectedRef.current = [name, 'c'];
+    expect(renderHook(() => useClusters()).result.current).toEqual([name, 'c']);
+  });
+
+  it('keeps the current cluster whole too when its name contains a newline', () => {
+    currentRef.current = 'west\nblue';
+    expect(renderHook(() => useClusters()).result.current).toEqual(['west\nblue']);
   });
 
   it('keeps the same array while the selection is unchanged', () => {

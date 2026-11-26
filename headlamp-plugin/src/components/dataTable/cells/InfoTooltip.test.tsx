@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 NVIDIA Corporation
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { InfoTooltip } from './InfoTooltip';
@@ -116,6 +116,80 @@ describe('InfoTooltip', () => {
       expect(notPrevented).toBe(true);
     }
     expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  describe('after Escape dismissed it with the pointer over the badge', () => {
+    const iconBadge = () => (
+      <InfoTooltip label="Unavailable" tooltip="engine down">
+        <i data-testid="icon" />
+        <span data-testid="text">Unavailable</span>
+      </InfoTooltip>
+    );
+    // The tooltip opens after a short delay, so a tooltip that should stay
+    // closed has to be given that long.
+    const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 300)));
+
+    const dismissed = async () => {
+      const user = userEvent.setup();
+      render(iconBadge());
+      await user.hover(screen.getByTestId('text'));
+      await screen.findByRole('tooltip');
+      await user.keyboard('{Escape}');
+      await tooltipClosed();
+      return user;
+    };
+
+    it('stays closed while the pointer moves between the text and the icon', async () => {
+      await dismissed();
+
+      fireEvent.mouseOver(screen.getByTestId('icon'), {
+        relatedTarget: screen.getByTestId('text'),
+      });
+      await settle();
+      expect(screen.queryByRole('tooltip')).toBeNull();
+
+      fireEvent.mouseOver(screen.getByTestId('text'), {
+        relatedTarget: screen.getByTestId('icon'),
+      });
+      await settle();
+      expect(screen.queryByRole('tooltip')).toBeNull();
+
+      // Onto the badge itself from one of its parts.
+      fireEvent.mouseOver(screen.getByRole('button'), {
+        relatedTarget: screen.getByTestId('icon'),
+      });
+      await settle();
+      expect(screen.queryByRole('tooltip')).toBeNull();
+    });
+
+    it('opens again on a fresh hover from outside the badge', async () => {
+      await dismissed();
+
+      fireEvent.mouseOver(screen.getByTestId('icon'), { relatedTarget: document.body });
+      expect(await screen.findByRole('tooltip')).toBeTruthy();
+    });
+
+    it('opens again on a click, Enter and Space while the pointer stays inside', async () => {
+      const user = await dismissed();
+      const trigger = screen.getByRole('button');
+
+      fireEvent.click(trigger);
+      await screen.findByRole('tooltip');
+
+      for (const key of ['{Enter}', ' ']) {
+        await user.keyboard('{Escape}');
+        await tooltipClosed();
+        fireEvent.mouseOver(screen.getByTestId('icon'), {
+          relatedTarget: screen.getByTestId('text'),
+        });
+        await settle();
+        expect(screen.queryByRole('tooltip')).toBeNull();
+
+        trigger.focus();
+        await user.keyboard(key);
+        expect(await screen.findByRole('tooltip')).toBeTruthy();
+      }
+    });
   });
 
   it('does not scroll the page when Space is pressed', async () => {

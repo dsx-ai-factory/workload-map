@@ -9,43 +9,46 @@ Scope: this file covers releases tagged from `main`. Patch releases on a minor l
 
 ## v0.4.0 - 2026-11-26
 
-Workload Map can now report which workload owns a Pod and how that workload is doing through Prometheus. The built-in catalog adds four workload types. The `kli` CLI can list the catalog offline and show which definition takes effect in a cluster.
+### Highlights
 
-### Workload metrics
+- The new DSX workload exporter exposes workload status and maps Pods to their workload, component, instance and group. Join those labels with CPU, memory or GPU metrics in Prometheus, or use the included Grafana dashboards. The exporter is opt-in. [Exporter](https://github.com/dsx-ai-factory/workload-map/pull/588), [Grafana dashboards and kind demo](https://github.com/dsx-ai-factory/workload-map/pull/688)
+- The built-in catalog adds Volcano Job, Argo Rollout, OpenKruise CloneSet and experimental Kueue Workload (`kueue.x-k8s.io/v1beta2`). Run `kli definitions --catalog-only` to inspect the catalog offline. Add `--catalog-experimental-definitions` to include Kueue. [Volcano](https://github.com/dsx-ai-factory/workload-map/pull/652), [Argo](https://github.com/dsx-ai-factory/workload-map/pull/649), [OpenKruise](https://github.com/dsx-ai-factory/workload-map/pull/651), [Kueue](https://github.com/dsx-ai-factory/workload-map/pull/636), [offline catalog](https://github.com/dsx-ai-factory/workload-map/pull/659)
 
-- The optional DSX workload exporter attributes Pods to their workload, component, instance and group. It exposes workload status and creation time. Join those labels with existing CPU, memory or GPU metrics in Prometheus. Enable the exporter in the Helm chart with `exporter.enabled=true`. To have Prometheus Operator discover it, also set `exporter.serviceMonitor.enabled=true`. [Exporter](https://github.com/dsx-ai-factory/workload-map/pull/588), [Helm and monitoring](https://github.com/dsx-ai-factory/workload-map/pull/590)
-- Grafana dashboards show workload health, structure and resource usage. The kind demo runs Prometheus and Grafana with sample CPU and GPU workloads. [Dashboards and demo](https://github.com/dsx-ai-factory/workload-map/pull/688)
-- The exporter can associate a standalone Pod with a workload through a configured resource reference. Operators can also select which workload roots to watch and which workload status series to publish. [Pod association](https://github.com/dsx-ai-factory/workload-map/pull/646), [selection and metrics](https://github.com/dsx-ai-factory/workload-map/pull/699)
+### Upgrading from v0.3.0
 
-### Workload definitions
+- `kli validate` now rejects unknown fields and duplicate YAML keys. Correct the reported field or remove the duplicate, then rerun `kli validate <file>`. [Validation change](https://github.com/dsx-ai-factory/workload-map/pull/655)
+- The `kli definitions` table gains a `STATUS` column and lists catalog definitions overridden by the cluster. Scripts that need the previous list of definitions can use `kli definitions -o json` and read `.items`. [CLI output change](https://github.com/dsx-ai-factory/workload-map/pull/675)
+- Go SDK consumers need Go 1.27.4 or later. Upgrade with `go get github.com/dsx-ai-factory/workload-map/karta/sdk@v0.4.0`. The SDK builds against Kubernetes API v0.37.2.
 
-- The catalog now includes [Volcano Job](https://github.com/dsx-ai-factory/workload-map/pull/652), [Argo Rollout](https://github.com/dsx-ai-factory/workload-map/pull/649) and [OpenKruise CloneSet](https://github.com/dsx-ai-factory/workload-map/pull/651).
-- Kueue `Workload` (`kueue.x-k8s.io/v1beta2`) is the first definition marked with the optional CRD field `spec.experimental`. To try it in the CLI, run `kli definitions --catalog-only --catalog-experimental-definitions`. To enable experimental definitions in the exporter, set `exporter.kartaDefinitionSource.enableExperimental=true`. [Experimental definitions and Kueue](https://github.com/dsx-ai-factory/workload-map/pull/636)
+#### Helm chart
 
-### CLI and SDK changes
-
-- Use `kli definitions --catalog-only` to inspect built-in definitions without a kubeconfig. The default table shows cluster and catalog definitions together. Its new `STATUS` column identifies active, inactive and ambiguous definitions. Scripts that parse the table can use `kli definitions -o json` to omit overridden entries. [Offline catalog](https://github.com/dsx-ai-factory/workload-map/pull/659), [definition status](https://github.com/dsx-ai-factory/workload-map/pull/675)
-- Sort `kli get` by `name` or `age` with `--sort-by`. Use `--no-headers` on `kli get` and `kli definitions` for table output without the header row. [Sorting](https://github.com/dsx-ai-factory/workload-map/pull/668), [table headers](https://github.com/dsx-ai-factory/workload-map/pull/658)
-- `kli validate` now rejects unknown fields and duplicate YAML keys. If a previously accepted definition fails, correct the reported field or remove the duplicate key, then rerun `kli validate <file>`. [Strict validation](https://github.com/dsx-ai-factory/workload-map/pull/655)
-- CLI resource totals now include sidecars that are already running when a later init container starts. The SDK's jq evaluator now accepts an expression that returns exactly the configured result limit. [Pod resource requests](https://github.com/dsx-ai-factory/workload-map/pull/657), [jq result limit](https://github.com/dsx-ai-factory/workload-map/pull/610)
-
-### Install or upgrade
-
-Install the chart with the exporter enabled. On an existing installation, use the same Helm release name and values file you use for upgrades.
+To upgrade an existing release, substitute its release name and namespace below. Helm applies the v0.4.0 chart defaults, carries over your saved overrides (including earlier `--set` values), then enables the exporter. Omit `--set exporter.enabled=true` to leave the new exporter disabled on a v0.3.0 upgrade.
 
 ```sh
-helm upgrade --install karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
-  --version 0.4.0 --namespace karta-system --create-namespace \
+helm upgrade karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
+  --namespace karta-system --version 0.4.0 \
+  --reset-then-reuse-values --set exporter.enabled=true
+```
+
+To install the chart and exporter in a new namespace, run the following command.
+
+```sh
+helm install karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
+  --namespace karta-system --create-namespace --version 0.4.0 \
   --set exporter.enabled=true
 ```
 
-The GitHub release provides CLI archives and checksums for Linux and macOS on amd64 and arm64. This release also generates the `kli` plugin manifest for Krew. Installation from Krew's public index becomes available when the plugin entry merges. [Krew integration](https://github.com/dsx-ai-factory/workload-map/pull/690)
+#### CLI
 
-The SDK requires Go 1.27.4 and builds against Kubernetes API v0.37.2.
+- Homebrew users can run `brew upgrade --cask dsx-ai-factory/kli/kli` once the v0.4.0 cask update merges.
+- For a manual upgrade, download `checksums.txt` and the Linux or macOS archive for your architecture (amd64 or arm64) from the [v0.4.0 release](https://github.com/dsx-ai-factory/workload-map/releases/tag/v0.4.0). For example, on Linux amd64, run `shasum -a 256 karta_0.4.0_linux_amd64.tar.gz` (or `sha256sum karta_0.4.0_linux_amd64.tar.gz`). When the digest matches that filename's entry in `checksums.txt`, extract `kli` and replace your existing binary at the path printed by `command -v kli`. Run `kli --version` to confirm `0.4.0`.
+- Releases now generate a Krew plugin manifest. Public installation through Krew depends on the [initial index registration](https://github.com/kubernetes-sigs/krew-index/pull/6671) and the v0.4.0 index update.
 
-```sh
-go get github.com/dsx-ai-factory/workload-map/karta/sdk@v0.4.0
-```
+### Other changes
+
+- `kli get --sort-by` supports `name` and `age`. Both `kli get` and `kli definitions` accept `--no-headers`. [Sorting](https://github.com/dsx-ai-factory/workload-map/pull/668), [table headers](https://github.com/dsx-ai-factory/workload-map/pull/658)
+- CLI resource totals now include already-running sidecars when calculating init container requests. The SDK's jq evaluator accepts expressions that return exactly the configured result limit. [Pod resource requests](https://github.com/dsx-ai-factory/workload-map/pull/657), [jq result limit](https://github.com/dsx-ai-factory/workload-map/pull/610)
+- Exporter settings cover ServiceMonitor discovery, workload selection, standalone Pod association and experimental definitions. [Exporter configuration](https://github.com/dsx-ai-factory/workload-map/blob/v0.4.0/docs/dsx-workload-exporter/configuration.md)
 
 ### Contributors
 

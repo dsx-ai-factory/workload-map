@@ -82,7 +82,7 @@
       "id": 3,
       "purpose": "Over-triggering guard. Both configurations answer this correctly by construction, so it cannot show a delta. It fails loudly if the skill starts driving non-authoring requests.",
       "prompt": "What does the Karta offline quickstart print when I run it, and where is its source?",
-      "expected_output": "A direct answer describing the quickstart output and pointing at docs/examples/quickstart/, with no Karta definition authored.",
+      "expected_output": "A direct answer describing the quickstart output and pointing at docs/tutorials/quickstart/, with no Karta definition authored.",
       "expectations": [
         {
           "text": "The response does not author or scaffold a Karta definition",
@@ -90,7 +90,7 @@
           "kind": "guard"
         },
         {
-          "text": "The answer points at docs/examples/quickstart/ and describes its output",
+          "text": "The answer points at docs/tutorials/quickstart/ and describes its output",
           "measured": "3/3 vs 3/3",
           "kind": "guard"
         },

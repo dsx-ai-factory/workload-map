@@ -95,7 +95,7 @@ Run against a definition and a manifest already in the repository:
 ```bash
 go run ./hack/karta-verify \
   --karta ../../docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml \
-  --workload ../../docs/examples/quickstart/lws.yaml
+  --workload ../../docs/tutorials/quickstart/lws.yaml
 ```
 
 The manifest declares `replicas: 3` and `size: 4`. The `group` component reports

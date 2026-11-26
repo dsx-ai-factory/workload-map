@@ -4,8 +4,9 @@
 # Publishes the Fern documentation site.
 #
 # - On a version tag (vX.Y.Z), it publishes the docs as they are at that tag.
-# - From the Actions tab, it publishes any branch or tag that you name. Use this
-#   for the first publish, or to re-publish between releases.
+# - From the Actions tab, it publishes main or a version tag (vX.Y.Z) that you
+#   name. Use this for the first publish, or to re-publish between releases. A
+#   tag must be on the newest release branch (vX.Y). Anything else is refused.
 #
 # The site has one version, so each publish replaces what is live.
 #
@@ -21,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Branch or tag to publish (for example main or v0.4.0)"
+        description: "main or a version tag to publish (for example main or v0.4.0)"
         required: true
         type: string
         default: main
@@ -36,11 +37,50 @@ concurrency:
 jobs:
   publish:
     name: Publish docs
-    # Never run from a fork of this repository.
-    if: github.repository == 'dsx-ai-factory/workload-map'
+    # Never run from a fork of this repository. The workflow itself must also
+    # come from main or a version tag, because a manual run uses the workflow
+    # file from the branch chosen in the Actions tab, and that file gets the
+    # Fern token.
+    if: >-
+      github.event.repository.fork == false &&
+      (github.ref == 'refs/heads/main' ||
+      (github.ref_type == 'tag' && startsWith(github.ref_name, 'v')))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Only main or a version tag (vX.Y.Z) can be published. A tag must be on
+      # the newest release branch (vX.Y), so an older release line cannot
+      # replace the live docs.
+      - name: Check the ref to publish
+        env:
+          REF: ${{ inputs.ref || github.ref_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ "$REF" == "main" ]]; then
+            echo "Publishing main."
+            exit 0
+          fi
+          if ! [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Only main or a version tag (vX.Y.Z) can be published. Got '$REF'."
+            exit 1
+          fi
+          # Listed outside the pipeline so an API error fails the step.
+          branches=$(gh api --paginate "repos/$REPO/branches" --jq '.[].name')
+          newest=$(printf '%s\n' "$branches" | { grep -E '^v[0-9]+\.[0-9]+$' || true; } | sort -V | tail -n 1)
+          if [[ -z "$newest" ]]; then
+            echo "::error::No release branch (vX.Y) found."
+            exit 1
+          fi
+          # The tag must be part of the newest release branch.
+          status=$(gh api "repos/$REPO/compare/${newest}...${REF}" --jq .status)
+          if [[ "$status" != "identical" && "$status" != "behind" ]]; then
+            echo "::error::Tag '$REF' is not on the newest release branch ($newest)."
+            exit 1
+          fi
+          echo "Publishing $REF (newest release branch: $newest)."
+
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -63,6 +103,11 @@ jobs:
             exit 1
           fi
           npm install -g --ignore-scripts "fern-api@${VERSION}"
+
+      # A broken config or link must not go live.
+      - name: Fern check
+        working-directory: ./fern
+        run: fern check
 
       - name: Publish docs
         env:

@@ -3,8 +3,6 @@
 
 # yaml-language-server: $schema=https://schema.buildwithfern.dev/docs-yml.json
 
-# TODO: the instance URL and custom domain are placeholders. Replace them with
-# the values registered for this site before publishing.
 instances:
   - url: nvidia-workload-map.docs.buildwithfern.com/workload-map
     custom-domain: docs.nvidia.com/workload-map

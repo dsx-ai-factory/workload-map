@@ -94,19 +94,20 @@ A page has five names. Each one has a different job, and only the slug sets the 
 Follow these conventions so that the names stay consistent:
 
 - Name the file after the page, in lowercase with hyphens, and use the same text as the slug. For example, the page "Run in FIPS Mode" is in `run-in-fips-mode.md` and has the slug `run-in-fips-mode`.
+- Use `.md` for every page. Do not add `.mdx`, `.tsx`, or `.jsx` files under `docs/`, and do not use JSX or components in a page. The preview workflow builds PR content with the Fern token, so it rejects these files.
 - Put the file in the folder that matches its section, for example `docs/configuration/` for Configuration. The exception is Overview, which uses `docs/about/`.
 - Set `slug:` on every page and every section in `fern/docs.yml`. Without it, Fern builds the slug from the label, not from the file name. For example, without a slug the page labeled "CLI" gets a URL that ends in `/cli`, not in `/quickstart-cli`, and a later rename of the label changes the URL.
 - When you rename a page, rename the title, sidebar title, navigation label, file, and slug together, as described in Navigation and Links. A changed slug changes the URL, and every link to the old URL breaks.
 
 ## Choose the Page Type
 
-- **Reference** pages list facts to look up: commands, flags, fields, and values. A new flag or column is a reference entry. It is not a guide.
-- **Guides** help a reader finish a task that they could not finish before, in steps. Write a guide when your change gives users a new task to do. Examples are Define a Workload Type and Configure Webhook Certificates.
-- **Tutorials** teach by building one working result from scratch. Write one when all of the following are true:
+- Reference pages list facts to look up: commands, flags, fields, and values. A new flag or column is a reference entry. It is not a guide.
+- Guides help a reader finish a task that they could not finish before, in steps. Write a guide when your change gives users a new task to do. Examples are Define a Workload Type and Configure Webhook Certificates.
+- Tutorials teach by building one working result from scratch. Write one when all of the following are true:
   1. The reader ends with one complete, working result.
   2. The reader can follow it on a local setup, such as a kind cluster, with nothing existing in place.
   3. The task needs more than one concept at once, so a single guide cannot teach it. Examples are Write Your First Workload Definition and Build a Controller on Kind.
-- **Troubleshooting** pages list an error, its cause, and its fix.
+- Troubleshooting pages list an error, its cause, and its fix.
 - Add the change to the page that already covers the task before you create a page. A new page needs a place in `fern/docs.yml`.
 
 ## Write the Intro

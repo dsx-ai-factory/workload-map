@@ -59,16 +59,16 @@ Workload Map provides the following:
 - The `kli` command-line tool, which inspects workloads through their definitions.
 
 ```
-┌──────────────────────────────────────────────────┐
-│                   Your Platform                  │
-│  (scheduler, controller, dashboard, CLI, etc.)   │
-├──────────────────────────────────────────────────┤
-│            Workload Map Component API            │
-│    Extract pods · Update specs · Read status     │
-├────────────┬────────────┬────────────┬───────────┤
-│ Definition │ Definition │ Definition │ Definition│
-│ JobSet     │ RayCluster │ PyTorchJob │ YourCRD   │
-└────────────┴────────────┴────────────┴───────────┘
++--------------------------------------------------+
+|                   Your Platform                  |
+|  (scheduler, controller, dashboard, CLI, etc.)   |
++--------------------------------------------------+
+|            Workload Map Component API            |
+|    Extract pods / Update specs / Read status     |
++------------+------------+------------+-----------+
+| Definition | Definition | Definition | Definition|
+| JobSet     | RayCluster | PyTorchJob | YourCRD   |
++------------+------------+------------+-----------+
 ```
 
 ![Workload tree derived from the LeaderWorkerSet: demo (Running, 4 pods, 32 GPUs, gang scheduled per group) with two groups, each 2/2 ready with a leader pod and a worker pod at 8 GPUs each, resolved to their nodes](docs/assets/lws-workload-tree.svg)

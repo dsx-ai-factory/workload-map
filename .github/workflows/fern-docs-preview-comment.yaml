@@ -28,14 +28,15 @@ permissions:
   actions: read
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name || github.repository }}-${{ github.event.workflow_run.head_branch || github.event.workflow_run.id }}
-  cancel-in-progress: true
+# There is no concurrency group on purpose. The run does not know its PR number
+# until it reads the artifact, and a group built from the head repository and
+# branch can be shared by two fork PRs. A build that a newer push has replaced
+# is skipped by the stale-SHA check in the first step.
 
 jobs:
   preview:
     name: Build preview and comment
-    if: github.repository == 'dsx-ai-factory/workload-map' && github.event.workflow_run.conclusion == 'success'
+    if: github.event.repository.fork == false && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -79,6 +80,19 @@ jobs:
             exit 1
           fi
 
+      # Pages are plain Markdown. A JSX or MDX file would run code from the PR
+      # while the Fern token is available.
+      - name: Reject MDX and JSX files in the docs folder
+        if: steps.metadata.outputs.stale == 'false'
+        run: |
+          set -euo pipefail
+          FILES=$(find docs -type f \( -name '*.mdx' -o -name '*.tsx' -o -name '*.jsx' \))
+          if [ -n "$FILES" ]; then
+            echo "::error::The docs folder must contain only Markdown pages. Remove these files:"
+            echo "$FILES"
+            exit 1
+          fi
+
       # The docs link to files across the repository, so the preview builds from
       # the whole trusted tree.
       - name: Checkout the trusted tree from the default branch
@@ -96,7 +110,7 @@ jobs:
           cp -R docs trusted/docs
 
       # The trusted tree lacks files that the PR adds outside docs/, so links to
-      # them read as broken here. The Fern Docs CI check on the PR is the gate.
+      # them read as broken here. The Fern Check job in the build workflow is the gate.
       - name: Let the preview warn about broken links
         if: steps.metadata.outputs.stale == 'false'
         working-directory: ./trusted/fern
@@ -180,8 +194,10 @@ jobs:
             echo "page_links=" >> "$GITHUB_OUTPUT"; exit 0
           }
 
+          # The page links are an optional extra. An unexpected response must not
+          # stop the main preview link, so a jq failure gives an empty list.
           PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$BASE_URL" \
-            '.mappings[] | select(.slug != null) | "- [\(.slug)](\($url)/\(.slug))"')
+            '.mappings[]? | select(.slug != null) | "- [\(.slug)](\($url)/\(.slug))"' 2>/dev/null) || PAGE_LINKS=""
 
           if [ -n "$PAGE_LINKS" ]; then
             { echo "page_links<<EOF"; echo "$PAGE_LINKS"; echo "EOF"; } >> "$GITHUB_OUTPUT"
@@ -206,8 +222,9 @@ jobs:
           BODY="${BODY}"$'\n\n'"${MARKER}"
 
           # Search every page of comments, so that an existing preview comment is found on a busy PR.
+          # Only the workflow's own comments count, so another user cannot post the marker first.
           COMMENT_ID=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-            --jq ".[] | select(.body | contains(\"${MARKER}\")) | .id" | head -1)
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"${MARKER}\"))) | .id" | head -1)
 
           if [ -n "$COMMENT_ID" ]; then
             gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" -X PATCH -f body="$BODY"

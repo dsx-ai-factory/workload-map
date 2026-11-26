@@ -1,0 +1,78 @@
+---
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+title: Watch Another Workload Type
+sidebar-title: Watch Another Workload Type
+description: Learn how to make the example controller manage another workload type, such as a JobSet, with no change to its code.
+---
+
+The example controller configures the workload types that it watches at runtime, with the `--watch-gvk` flag. Adding a type never touches the Go code. Workload Map absorbs the structure of the new workload type, so the reconcile code stays the same.
+
+This guide adds JobSet to the controller from the [tutorial](tutorial-build-a-controller-on-kind.md). The same steps apply to any workload type that has a definition.
+
+## Prerequisites
+
+- The controller from the [tutorial](tutorial-build-a-controller-on-kind.md), running in a kind cluster.
+- The commands run from the root of your clone of the repository.
+
+## How the Flag Works
+
+The `--watch-gvk` flag takes a comma-separated list of workload types. Write each type as `group/version/kind`. The core group is empty, so a Pod is `/v1/Pod`. The default value is `leaderworkerset.x-k8s.io/v1/LeaderWorkerSet`.
+
+The controller creates one watch and one reconciler for each configured type at startup. A change to the flag therefore takes effect on the next rollout.
+
+## Add JobSet
+
+1. Install the JobSet operator. The controller can watch only the types that the API server knows:
+
+   ```bash
+   VERSION=v0.12.0
+   kubectl apply --server-side -f https://github.com/kubernetes-sigs/jobset/releases/download/$VERSION/manifests.yaml
+   ```
+
+2. Apply the definition of JobSet:
+
+   ```bash
+   kubectl apply -f docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml
+   ```
+
+3. Add the type to the flag in `docs/examples/controller-runtime/manifests/01-deployment.yaml`. The format is `group/version/kind`, and the core group is empty:
+
+   ```yaml
+   args:
+     - --watch-gvk=leaderworkerset.x-k8s.io/v1/LeaderWorkerSet,jobset.x-k8s.io/v1alpha2/JobSet
+   ```
+
+4. Grant RBAC for the new resource in `docs/examples/controller-runtime/manifests/00-rbac.yaml`:
+
+   ```yaml
+   - apiGroups: ["jobset.x-k8s.io"]
+     resources: ["jobsets"]
+     verbs: ["get", "list", "watch", "update", "patch"]
+   ```
+
+5. Apply the manifests again:
+
+   ```bash
+   kubectl apply -f docs/examples/controller-runtime/manifests/
+   ```
+
+6. Apply the sample JobSet. It is created suspended:
+
+   ```bash
+   kubectl apply -f docs/examples/controller-runtime/samples/jobset.yaml
+   ```
+
+7. Resume the JobSet, and watch the injected label reach the pods:
+
+   ```bash
+   kubectl patch jobset karta-demo-jobset-suspended --type=merge -p '{"spec":{"suspend":false}}'
+   kubectl get pods -l app.kubernetes.io/managed-by=karta
+   ```
+
+The sample JobSet is created with `spec.suspend: true`. While the JobSet is suspended, its pod templates can be changed, so the controller injects the managed-by label. After you resume the JobSet, the label is in the pods that it creates.
+
+## Next Steps
+
+- To define a workload type that is not in the catalog, refer to [Define a Workload Type](../define-a-workload-type.md).
+- To write your own code against the library, refer to [Use the Go Library](use-the-go-library.md).

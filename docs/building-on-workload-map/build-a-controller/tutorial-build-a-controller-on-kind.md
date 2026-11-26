@@ -1,0 +1,186 @@
+---
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+title: Tutorial - Build a Controller on Kind
+sidebar-title: Tutorial - Build a Controller on Kind
+description: Learn how to run a controller that uses Workload Map to inspect and change a LeaderWorkerSet on a local kind cluster, with no workload-specific code.
+---
+
+In this tutorial, you install a real controller into a Kubernetes cluster and watch it react to live changes. The controller watches a `leaderworkerset.x-k8s.io` LeaderWorkerSet. On every change, it uses Workload Map to inspect and change the workload through a generic reconcile loop, with no CRD-specific branching.
+
+A LeaderWorkerSet is a good example because its structure is not simple. It has no single pod template on the root. Its pods live in two child components, a leader and a worker, and each has its own template under `spec.leaderWorkerTemplate`. The worker replica count is a computed expression. The reconciler does not need to know any of this, because Workload Map resolves where everything lives from the definition of the LeaderWorkerSet.
+
+The tutorial complements the [Go library quickstart](../../getting-started/quickstarts/quickstart-go-library.md), which runs offline against embedded YAML. Here, the workload structure is not embedded in the binary. It lives in the cluster as a `Karta` custom resource, and the controller reads it at runtime. The controller is also not tied to LeaderWorkerSet. The `--watch-gvk` flag sets the watched types, so managing another workload type needs no code change. For more information, refer to [Watch Another Workload Type](watch-another-workload-type.md).
+
+For the concepts behind the controller, refer to [How a Controller Uses Workload Map](how-a-controller-uses-workload-map.md).
+
+## Prerequisites
+
+- [kind](https://kind.sigs.k8s.io/), `kubectl`, and `docker`.
+- Go, only to build the image.
+- A clone of the repository. The commands run from the repository root:
+
+  ```bash
+  git clone https://github.com/dsx-ai-factory/workload-map.git
+  cd workload-map
+  ```
+
+The example is a standalone Go module. Its local `replace` directive selects the repository library in `karta/sdk/`, so the image is built from the repository root.
+
+## What the Controller Does
+
+The reconcile loop in `docs/examples/controller-runtime/controller.go` does the same work for any workload that Workload Map can describe:
+
+1. Discovers the workload structure from the cluster by group, version, and kind. The controller lists the `Karta` objects and selects the one whose root component matches the watched workload. It never hard-codes a `Karta` name, so it resolves a definition in the same way that a real consumer does for an arbitrary workload type.
+2. Reads a unified status, such as `Initializing`, `Running`, or `Failed`, without parsing CRD-specific conditions.
+3. Aggregates replica counts and container resource requests across every component, root and children. The totals are correct even though the leader and worker pods live in separate child components.
+4. Writes the results back as `karta/*` annotations, and emits a `StatusChanged` Kubernetes event on each real status transition. It uses a single canonical phase, so the status does not change back and forth through transient or simultaneous states.
+5. Injects a pod-template label into every pod-bearing component, the leader and the worker, through the library function `UpdatePodTemplateSpec`.
+
+There is no `switch` on the workload kind anywhere in the reconciler.
+
+## Create a Cluster
+
+Create a kind cluster:
+
+```bash
+kind create cluster
+```
+
+## Install the LeaderWorkerSet Operator
+
+The CRD and the controller of LeaderWorkerSet are not built into Kubernetes. Install them:
+
+```bash
+VERSION=v0.8.0
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/lws/releases/download/$VERSION/manifests.yaml
+kubectl -n lws-system rollout status deploy/lws-controller-manager
+```
+
+## Install the Karta CRD and the Definition
+
+Install the `Karta` CRD, then apply the LeaderWorkerSet definition. The order matters. The CRD must exist before the object that uses it.
+
+```bash
+kubectl apply -f charts/karta/crds/run.ai_kartas.yaml
+kubectl apply -f docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml
+```
+
+The [LeaderWorkerSet definition](https://github.com/dsx-ai-factory/workload-map/blob/main/docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml) maps the leader and worker templates and the computed worker replica count. The controller therefore reads and writes them with plain `GetPodTemplateSpec` and `UpdatePodTemplateSpec` calls.
+
+## Build and Deploy the Controller
+
+Build the controller image and side-load it into the cluster:
+
+```bash
+# Derive the Go version from go.mod so the build image stays aligned with it.
+GO_VERSION=$(awk '/^go /{print $2}' docs/examples/controller-runtime/go.mod)
+docker build --build-arg GO_VERSION=$GO_VERSION \
+  -f docs/examples/controller-runtime/Dockerfile -t generic-controller-example:latest .
+kind load docker-image generic-controller-example:latest
+```
+
+Deploy the controller:
+
+```bash
+kubectl apply -f docs/examples/controller-runtime/manifests/
+kubectl -n karta-system rollout status deploy/generic-controller
+```
+
+## Apply a LeaderWorkerSet and See the Result
+
+Apply the LeaderWorkerSet and inspect what the controller wrote:
+
+```bash
+kubectl apply -f docs/examples/controller-runtime/samples/leaderworkerset.yaml
+
+# Karta-derived annotations on the LeaderWorkerSet metadata
+kubectl get leaderworkerset karta-demo-lws -o jsonpath='{.metadata.annotations}' | tr ',' '\n'
+
+# The label is injected into both the leader and worker templates
+kubectl get leaderworkerset karta-demo-lws \
+  -o jsonpath='leader={.spec.leaderWorkerTemplate.leaderTemplate.metadata.labels}{"\n"}worker={.spec.leaderWorkerTemplate.workerTemplate.metadata.labels}{"\n"}'
+
+# The injected label also reaches the running pods
+kubectl get pods -l app.kubernetes.io/managed-by=karta
+
+# Events recorded by the controller
+kubectl describe leaderworkerset karta-demo-lws | sed -n '/Events:/,$p'
+```
+
+When the group is ready, the annotations are as follows. The `replicas` value sums the group, the leader component, and the worker component. The `cpu` and `memory` values sum the leader and worker requests.
+
+```text
+karta/status: Running
+karta/replicas: 4
+karta/cpu-request: 200m
+karta/memory-request: 128Mi
+karta/gpu-request: 0
+```
+
+The controller records the label injection as a single event:
+
+```text
+Normal  PodTemplateLabeled  Injected pod-template label app.kubernetes.io/managed-by=karta via Karta
+```
+
+<Note title="Pod templates can be changed while the workload runs">
+The pod templates of a LeaderWorkerSet can be changed while it runs. An update triggers a normal rolling update, and the LeaderWorkerSet has no suspend field. For this reason, the controller injects the managed-by label directly into the leader and worker templates, and the library routes each update to the correct path in the workload.
+</Note>
+
+## Trigger a Status Change
+
+The controller records the first observed status silently, so a new workload does not emit a `StatusChanged` event. To see one, cause a status transition. For example, start a rolling update, which the controller sees go back through `Initializing` and into `Running`:
+
+```bash
+kubectl patch leaderworkerset karta-demo-lws --type=json \
+  -p '[{"op":"replace","path":"/spec/leaderWorkerTemplate/workerTemplate/spec/containers/0/image","value":"busybox:1.38"}]'
+kubectl describe leaderworkerset karta-demo-lws | sed -n '/Events:/,$p'
+```
+
+The event looks like the following:
+
+```text
+Normal  StatusChanged  Workload status changed: Running -> Initializing (replicas=4 cpu=200m memory=128Mi gpu=0)
+```
+
+## Change the Definition Live
+
+The controller also watches `Karta` objects. When you edit the object whose root component is `leaderworkerset.x-k8s.io/v1 LeaderWorkerSet`, the controller reconciles every governed LeaderWorkerSet again with the new structure, with no redeploy:
+
+```bash
+kubectl edit karta leaderworkerset-x-k8s-io-leaderworkerset-v1
+# change something the controller reports, then save
+```
+
+The workload structure is cluster data, not code. For ready-made definitions for PyTorchJob, RayCluster, JobSet, and more, refer to the [Catalog of Definitions](../../reference/catalog-of-definitions.md).
+
+## Clean Up
+
+Delete the sample, the controller, and the cluster:
+
+```bash
+kubectl delete -f docs/examples/controller-runtime/samples/ --ignore-not-found
+kubectl delete -f docs/examples/controller-runtime/manifests/ --ignore-not-found
+kind delete cluster
+```
+
+## What You Learned
+
+- A controller can read, aggregate, and change any workload that has a definition, with no code for a specific workload type.
+- The controller finds the definition in the cluster, so a change to the definition changes the behavior of the controller without a redeploy.
+- The files of the example and their purpose:
+
+  | File | Purpose |
+  | --- | --- |
+  | `main.go` | Manager setup: scheme, one reconciler per watched type, start. |
+  | `controller.go` | The `WorkloadReconciler` inspect and change loop, with no per-CRD branching. |
+  | `Dockerfile` | Builds the controller image from the repository root. |
+  | `manifests/00-rbac.yaml` | Namespace, ServiceAccount, ClusterRole, and ClusterRoleBinding. Applied first. |
+  | `manifests/01-deployment.yaml` | The controller Deployment in the `karta-system` namespace. |
+  | `samples/leaderworkerset.yaml` | A LeaderWorkerSet with leader and worker child templates and a computed worker count. |
+
+## Next Steps
+
+- To make this controller manage JobSets too, refer to [Watch Another Workload Type](watch-another-workload-type.md).
+- To write your own code against the library, refer to [Use the Go Library](use-the-go-library.md).

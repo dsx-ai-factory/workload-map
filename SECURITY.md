@@ -67,7 +67,7 @@ Repository exposure classification: Public. The project is Apache-2.0 licensed w
 
 1. Kubernetes API server to operator. The operator authenticates with its service account and acts within the RBAC granted by the Helm chart. Karta definitions and the workload objects they describe are read through the API server.
 
-2. API server to admission webhooks. The API server calls the operator's validating and mutating webhooks over TLS. Certificates are managed through one of the documented certificate modes (see `docs/configuration/karta-operator/configure-webhook-certificates.mdx`). The webhook is a trust boundary for every Karta create and update.
+2. API server to admission webhooks. The API server calls the operator's validating and mutating webhooks over TLS. Certificates are managed through one of the documented certificate modes (see `docs/configuration/karta-operator/configure-webhook-certificates.md`). The webhook is a trust boundary for every Karta create and update.
 
 3. Author to Karta definition. Anyone allowed to create or update a Karta resource controls the jq paths and queries the operator and any consuming controller will evaluate. Definitions are configuration, but the data they are evaluated against comes from other tenants' workloads.
 

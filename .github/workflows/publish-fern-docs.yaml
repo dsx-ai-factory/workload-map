@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# Publishes the Fern documentation site.
+#
+# - On a version tag (vX.Y.Z), it publishes the docs as they are at that tag.
+# - From the Actions tab, it publishes main or a version tag (vX.Y.Z) that you
+#   name. Use this for the first publish, or to re-publish between releases. A
+#   tag must be on the newest release branch (vX.Y). Anything else is refused.
+#
+# The site has one version, so each publish replaces what is live.
+#
+# Required configuration:
+# - Organization secret FERN_TOKEN (the Fern token for the nvidia Fern org)
+
+name: Publish Fern Docs
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "main or a version tag to publish (for example main or v0.4.0)"
+        required: true
+        type: string
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fern-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish docs
+    # Never run from a fork of this repository. The workflow itself must also
+    # come from main or a version tag, because a manual run uses the workflow
+    # file from the branch chosen in the Actions tab, and that file gets the
+    # Fern token.
+    if: >-
+      github.event.repository.fork == false &&
+      (github.ref == 'refs/heads/main' ||
+      (github.ref_type == 'tag' && startsWith(github.ref_name, 'v')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Only main or a version tag (vX.Y.Z) can be published. A tag must be on
+      # the newest release branch (vX.Y), so an older release line cannot
+      # replace the live docs.
+      - name: Check the ref to publish
+        env:
+          REF: ${{ inputs.ref || github.ref_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ "$REF" == "main" ]]; then
+            echo "Publishing main."
+            exit 0
+          fi
+          if ! [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Only main or a version tag (vX.Y.Z) can be published. Got '$REF'."
+            exit 1
+          fi
+          # Listed outside the pipeline so an API error fails the step.
+          branches=$(gh api --paginate "repos/$REPO/branches" --jq '.[].name')
+          newest=$(printf '%s\n' "$branches" | { grep -E '^v[0-9]+\.[0-9]+$' || true; } | sort -V | tail -n 1)
+          if [[ -z "$newest" ]]; then
+            echo "::error::No release branch (vX.Y) found."
+            exit 1
+          fi
+          # The tag must be part of the newest release branch.
+          status=$(gh api "repos/$REPO/compare/${newest}...${REF}" --jq .status)
+          if [[ "$status" != "identical" && "$status" != "behind" ]]; then
+            echo "::error::Tag '$REF' is not on the newest release branch ($newest)."
+            exit 1
+          fi
+          echo "Publishing $REF (newest release branch: $newest)."
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 'lts/*'
+
+      # The version comes from the committed config. It is validated as semver
+      # first, because `npm install <pkg>@<spec>` also accepts URL specs.
+      - name: Install Fern CLI
+        run: |
+          set -euo pipefail
+          VERSION=$(jq -r .version fern/fern.config.json)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::fern/fern.config.json .version '$VERSION' is not a valid semver"
+            exit 1
+          fi
+          npm install -g --ignore-scripts "fern-api@${VERSION}"
+
+      # A broken config or link must not go live.
+      - name: Fern check
+        working-directory: ./fern
+        run: fern check
+
+      - name: Publish docs
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          PUBLISHED_REF: ${{ inputs.ref || github.ref_name }}
+        working-directory: ./fern
+        run: |
+          set -euo pipefail
+          OUTPUT=$(fern generate --docs 2>&1) || { echo "$OUTPUT"; exit 1; }
+          echo "$OUTPUT"
+          URL=$(echo "$OUTPUT" | grep -oE 'Published docs to https?://[^[:space:]()]+' | head -1 | sed 's/^Published docs to //') || true
+          {
+            echo "### Published docs from \`${PUBLISHED_REF}\`"
+            if [ -n "$URL" ]; then echo "[$URL]($URL)"; fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+
+# Workflow 1 of 2 for Fern docs previews (see fern-docs-preview-comment.yaml).
+#
+# Runs `fern check` on the PR's Fern configuration, then collects the docs folder
+# and the PR metadata and uploads them as an artifact.
+# It holds no secrets, so it is safe to run on pull requests from forks. The
+# companion workflow runs after this one, from the default branch, builds the
+# preview with the Fern token, and posts the link on the PR.
+
+name: "Preview Fern Docs: Build"
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'docs/**'
+      - 'fern/**'
+      - '.github/workflows/fern-docs-preview-build.yaml'
+      - '.github/workflows/fern-docs-preview-comment.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  fern-check:
+    name: Fern Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 'lts/*'
+
+      # The version comes from the committed config. It is validated as semver
+      # first, because `npm install <pkg>@<spec>` also accepts URL specs.
+      - name: Install Fern CLI
+        run: |
+          set -euo pipefail
+          VERSION=$(jq -r .version fern/fern.config.json)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::fern/fern.config.json .version '$VERSION' is not a valid semver"
+            exit 1
+          fi
+          npm install -g --ignore-scripts "fern-api@${VERSION}"
+
+      - name: Fern check
+        working-directory: ./fern
+        run: fern check
+
+  collect:
+    name: Collect Fern docs inputs
+    # Run for pull requests from forks too, but not in a fork's own Actions.
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Save PR metadata
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p preview-metadata
+          printf '%s\n' "$PR_NUMBER" > preview-metadata/pr_number
+          printf '%s\n' "$HEAD_REF" > preview-metadata/head_ref
+          git diff --name-only "origin/${BASE_REF}...HEAD" -- '*.md' > preview-metadata/changed_md_files || true
+
+      # Only the docs folder is uploaded. The companion workflow builds the
+      # preview with the Fern configuration from the default branch, so a PR
+      # cannot change how the preview is built.
+      - name: Upload docs and metadata
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fern-preview
+          path: |
+            docs/
+            preview-metadata/
+          retention-days: 1

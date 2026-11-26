@@ -1,24 +1,4 @@
-# Workload-Map (formerly Karta)
-
-| Name | What it is |
-|---|---|
-| Workload-Map | The project and this repository, formerly called Karta |
-| `Karta` | The CRD kind and the name of its definitions |
-| `kli` | The CLI |
-| `github.com/dsx-ai-factory/workload-map/karta/sdk` | The Go library module |
-
-> **Repository move and rename notice:** On September 10, 2026, this repository
-> moved from the run-ai GitHub organization to
-> `dsx-ai-factory/karta`. On September 15, 2026, the project was renamed from
-> Karta to Workload-Map to align with DSX OS naming conventions, and the
-> repository moved again to
-> [`dsx-ai-factory/workload-map`](https://github.com/dsx-ai-factory/workload-map).
-> Existing repository URLs and standard Git operations continue to work through
-> GitHub redirects. The Go module path has also moved to
-> `github.com/dsx-ai-factory/workload-map`; update any pinned `go get` or import
-> paths, GitHub Actions, webhooks, or other automation that reference
-> `run-ai/karta` or `dsx-ai-factory/karta`. After v0.2.x the library moves again,
-> into the nested module `github.com/dsx-ai-factory/workload-map/karta/sdk`.
+# Workload Map (formerly Karta)
 
 **A standard way to describe the structure of any Kubernetes workload type.**
 
@@ -28,167 +8,122 @@
 [![Latest release](https://img.shields.io/github/v/release/dsx-ai-factory/workload-map)](https://github.com/dsx-ai-factory/workload-map/releases)
 [![License](https://img.shields.io/github/license/dsx-ai-factory/workload-map)](LICENSE)
 
-Karta lets you define a portable, declarative blueprint for any Kubernetes workload - whether it's a simple Deployment, a distributed PyTorchJob, or a custom CRD. Controllers and platforms can then use that blueprint to inspect, modify, and manage workloads without hard-coding knowledge of each type.
+Workload Map lets you define a portable, declarative blueprint for any Kubernetes workload - whether it's a simple Deployment, a distributed PyTorchJob, or a custom CRD. Controllers and platforms can then use that blueprint to inspect, modify, and manage workloads without hard-coding knowledge of each type.
 
-## The Problem
+> **Repository move and rename notice:** On September 10, 2026, this repository
+> moved from the run-ai GitHub organization to
+> `dsx-ai-factory/karta`. On September 15, 2026, the project was renamed from
+> Karta to Workload Map to align with DSX OS naming conventions, and the
+> repository moved again to
+> [`dsx-ai-factory/workload-map`](https://github.com/dsx-ai-factory/workload-map).
+> Existing repository URLs and standard Git operations continue to work through
+> GitHub redirects. The Go module path has also moved to
+> `github.com/dsx-ai-factory/workload-map`; update any pinned `go get` or import
+> paths, GitHub Actions, webhooks, or other automation that reference
+> `run-ai/karta` or `dsx-ai-factory/karta`. After v0.2.x the library moves again,
+> into the nested module `github.com/dsx-ai-factory/workload-map/karta/sdk`.
 
-In Kubernetes, and especially in AI systems, a workload is not a standalone execution unit such as a single Pod. Instead, it is composed of multiple components organized in a complex hierarchy of resources, often exposed via custom resource definitions (CRDs) - for example: PyTorchJob, RayCluster, and MPIJob. Each of these CRDs structures the workload configuration differently, but they all share the same conceptual building blocks: pod specifications, scaling parameters, and status definitions.
+| Name | What it is |
+|---|---|
+| Workload Map | The project, formerly called Karta. The repository is `workload-map` |
+| `Karta` | The CRD kind and the name of its definitions |
+| `kli` | The CLI |
+| `github.com/dsx-ai-factory/workload-map/karta/sdk` | The Go library module |
 
-If you're building a controller, scheduler, or platform that needs to work with multiple workload types, you end up writing bespoke logic for each one:
+## Why Workload Map Exists
+
+In Kubernetes, and especially in AI systems, a workload is not a standalone execution unit such as a single pod. A workload is composed of multiple components organized in a hierarchy of resources. These resources are often exposed through custom resource definitions (CRDs) such as PyTorchJob, RayCluster, and MPIJob. Each CRD structures the workload configuration differently, but all of them share the same building blocks: pod specifications, scaling parameters, and status definitions.
+
+If you build a controller, scheduler, or platform that works with more than one workload type, you write custom logic for each type to answer the same questions:
 
 - Where is the pod template?
 - How do I find the replica count?
-- Which status conditions mean "running" vs "failed"?
+- Which status conditions mean running and which mean failed?
 - How do I modify the pod spec without breaking the workload?
 
-This doesn't scale. Every new workload type means new integration code - schedulers, controllers, and platforms all end up maintaining per-CRD adapters that implement the same patterns over and over.
+This approach does not scale. Every new workload type needs new integration code. Each scheduler, controller, and platform maintains its own adapters that implement the same patterns.
 
-## The Solution
+## What Workload Map Does
 
-Karta (*a map to navigate resources*) introduces a CRD that maps the structure of any workload type into a standard schema. Using JQ-based path expressions, a Karta declaratively defines how to locate pod specifications, scaling parameters, and status fields within any workload hierarchy. Define it once, and any controller can use it to:
+Workload Map maps the structure of any workload type into a standard schema. A definition uses JQ-based path expressions to declare where to find the pod specifications, scaling parameters, and status fields in a workload hierarchy. After you define a workload type once, any controller can use the definition to:
 
-- **Extract** pod templates, replica counts, status, and metadata
-- **Update** pod specs, labels, and annotations across all instances
-- **Understand** workload hierarchy (e.g., a JobSet with master + worker groups)
+- Extract pod templates, replica counts, status, and metadata.
+- Update pod specs, labels, and annotations across all instances.
+- Understand the workload hierarchy, such as a JobSet with leader and worker groups.
 
-In addition to the CRD, Karta provides a **Go package** that performs the core processing logic: query evaluation to dynamically interpret custom resource schemas, resource extraction that traverses workload hierarchies to identify and group pods, and optimization instruction processors that apply strategies such as gang scheduling (admitting all the pods of a distributed workload together, or none of them) to ensure coordinated placement of pods for distributed workloads.
+Workload Map provides the following:
+
+- The `Karta` CRD, which defines the structure of a workload type.
+- A Go library that evaluates the path expressions to interpret custom resource schemas. The library traverses the workload hierarchy to identify and group pods. It also applies optimization instructions such as gang scheduling, which places the pods of a distributed workload together.
+- A [catalog](docs/catalog/) of pre-built and tested definitions for common workload types, including JobSet, PyTorchJob, RayCluster, MPIJob, LeaderWorkerSet, KServe InferenceService, NVIDIA NIM, NVIDIA Dynamo, and Grove PodCliqueSet.
+- The `kli` command-line tool, which inspects workloads through their definitions.
 
 ```
-┌──────────────────────────────────────────────────┐
-│                   Your Platform                  │
-│  (scheduler, controller, dashboard, CLI, etc.)   │
-├──────────────────────────────────────────────────┤
-│              Karta Component API                 │
-│    Extract pods · Update specs · Read status     │
-├────────────┬────────────┬────────────┬───────────┤
-│ Karta:     │ Karta:     │ Karta:     │ Karta:    │
-│ JobSet     │ RayCluster │ PyTorchJob │ YourCRD   │
-└────────────┴────────────┴────────────┴───────────┘
++--------------------------------------------------+
+|                   Your Platform                  |
+|  (scheduler, controller, dashboard, CLI, etc.)   |
++--------------------------------------------------+
+|            Workload Map Component API            |
+|    Extract pods / Update specs / Read status     |
++------------+------------+------------+-----------+
+| Definition | Definition | Definition | Definition|
+| JobSet     | RayCluster | PyTorchJob | YourCRD   |
++------------+------------+------------+-----------+
 ```
-
-## From YAML to Workload Tree
-
-Here is a distributed inference workload the way a user submits it - a LeaderWorkerSet serving two model replicas, each a group of one leader pod and one worker pod:
-
-```yaml
-apiVersion: leaderworkerset.x-k8s.io/v1
-kind: LeaderWorkerSet
-metadata:
-  name: demo
-spec:
-  replicas: 2        # two groups, one per model replica
-  leaderWorkerTemplate:
-    size: 2          # pods per group: 1 leader + 1 worker
-    leaderTemplate:
-      spec:
-        containers:
-        - name: inference-leader
-          image: ghcr.io/example/inference:latest
-          resources:
-            limits:
-              nvidia.com/gpu: 8
-    workerTemplate:
-      spec:
-        containers:
-        - name: inference-worker
-          image: ghcr.io/example/inference:latest
-          resources:
-            limits:
-              nvidia.com/gpu: 8
-```
-
-The groups, roles, replica counts, GPU requests, and status conditions are all in there, but nested in fields that only LeaderWorkerSet-aware code knows how to find. RayCluster, JobSet, and every other workload type nests the same information differently.
-
-With the pre-built [LeaderWorkerSet Karta definition](docs/catalog/leaderworkerset-x-k8s-io-leaderworkerset-v1.yaml), any tool can resolve that object and its live pods into a uniform structural view:
 
 ![Workload tree derived from the LeaderWorkerSet: demo (Running, 4 pods, 32 GPUs, gang scheduled per group) with two groups, each 2/2 ready with a leader pod and a worker pod at 8 GPUs each, resolved to their nodes](docs/assets/lws-workload-tree.svg)
 
-The structure in this view comes from Karta path expressions: the group, leader, and worker components, their replica counts, the per-pod GPU counts, and the workload status mapped from LeaderWorkerSet conditions to a common vocabulary. The gang semantics come from the same definition's gang-scheduling instructions, which declare each group's pods as one gang. None of it is LeaderWorkerSet-specific code. Point the same code at a RayCluster or a JobSet with their Karta definitions and the view keeps working. [KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler) consumes the gang instructions today through its Karta-based pod grouper (the KAI component that groups a workload's pods for scheduling) to admit each gang all-or-nothing, and any scheduler with a gang primitive can translate them the same way.
+A LeaderWorkerSet resolved into a uniform tree: groups, roles, GPU counts, and status, all read from its definition.
 
-## Quick Start
+## Usage
 
-Start here, no cluster needed: run the [offline quickstart](docs/examples/quickstart/). It needs only Go, and its README shows the full expected output.
+### Try the offline quickstart
 
-Pick the path that matches what you want to do:
+See the uniform API read and mutate a JobSet and a LeaderWorkerSet. You need Go 1.27.3 or later and no cluster. Follow [Quickstart - Go Library](docs/getting-started/quickstarts/quickstart-go-library.md). The example code is in [`docs/examples/quickstart/`](docs/examples/quickstart/), and its README shows the full expected output.
 
-| Path | Use it to | You need |
-|---|---|---|
-| [Offline quickstart](docs/examples/quickstart/) | See the uniform API read and mutate a JobSet and a LeaderWorkerSet | Go 1.27.3 or later |
-| [Install the CLI](#install-the-cli) | List definitions and inspect workloads with `kli` | Homebrew, or a release archive. Inspecting live workloads also needs a cluster and `kubectl` context |
-| [Install the CRD](#install-the-crd) | Register Karta definitions in a cluster | A cluster and `kubectl` context |
-| [Use the Go library](#use-the-go-library) | Call Karta from your own controller or tool | Go 1.27.3 or later |
-| [Write your own definition](docs/getting-started/tutorial-write-your-first-workload-definition.mdx) | Describe a workload type, starting with a batch Job, and validate it | `kli`, or Go 1.27.3 or later |
+### Use the Go library
+
+Call Workload Map from your own controller or tool. You need Go 1.27.3 or later.
+
+```bash
+go get github.com/dsx-ai-factory/workload-map/karta/sdk@latest
+```
+
+Read the pods, the scale, and the status of a workload through its definition:
+
+```go
+import "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
+
+// Create a factory from your definition and workload object
+factory := resource.NewComponentFactoryFromObject(karta, jobSetObject)
+
+// Get the child component which has the per-instance data
+component, _ := factory.GetComponent("replicatedjob")
+summaries, _ := component.GetExtractedInstances(ctx)
+
+// Get status from the root component
+rootComponent, _ := factory.GetRootComponent()
+status, _ := rootComponent.GetStatus(ctx)
+```
+
+For the module path change and the import paths, refer to [Installation](docs/getting-started/installation.md#install-the-go-library). To write code against the library, refer to [Use the Go Library](docs/building-on-workload-map/build-a-controller/use-the-go-library.md).
 
 ### Install the CLI
 
-Install `kli` with Homebrew on macOS or Linux. This repository is its own tap,
-so add it by URL once, then install by full name:
+Inspect workloads with `kli`. You need Homebrew or a release archive. Inspecting live workloads also needs a cluster and a `kubectl` context.
 
 ```bash
 brew tap dsx-ai-factory/kli https://github.com/dsx-ai-factory/workload-map
 brew install dsx-ai-factory/kli/kli
 ```
 
-The URL is required because the short form of `brew tap` only resolves
-repositories named `homebrew-<name>`. Installing by full name also makes
-Homebrew trust this one cask, which it requires for any tap it does not
-maintain. `brew upgrade kli` installs later releases.
+Installing by full name makes Homebrew trust this one cask, which it requires for any tap it does not maintain. To install without Homebrew, download the archive for your platform from the [GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases).
 
-To install without Homebrew, download the archive for your platform from the
-[GitHub Releases page](https://github.com/dsx-ai-factory/workload-map/releases)
-and extract it. Then move `kli` to a directory on your `PATH`.
+For all the options, refer to [Installation](docs/getting-started/installation.md#install-the-kli-cli). To start using the CLI, refer to [Quickstart - CLI](docs/getting-started/quickstarts/quickstart-cli.md) and [Inspect Workloads with the CLI](docs/observability/inspect-workloads-with-the-cli.md).
 
-Run `kli --version` to print the release version. `go install` is not a
-supported way to install the CLI.
+### Write your own definition
 
-Then list the definitions the CLI ships with. This works without a cluster:
-
-```bash
-kli definitions
-```
-
-```text
-NAME                                            KIND                   ORIGIN   STATUS  COMPONENTS
-agents-x-k8s-io-sandbox-v1beta1                 Sandbox                catalog  active  sandbox, agent, companion
-apps-deployment-v1                              Deployment             catalog  active  deployment, replicaset
-apps-nvidia-com-nimcache-v1alpha1               NIMCache               catalog  active  nimcache
-apps-nvidia-com-nimservice-v1alpha1             NIMService             catalog  active  nimservice
-apps-statefulset-v1                             StatefulSet            catalog  active  statefulset
-...
-```
-
-Only the first rows are shown. Without a reachable cluster, `kli` may also print a
-warning that it could not read definitions from the cluster and shows the
-built-in ones only. This is expected. `kli get` and `kli describe` inspect live
-workloads and need a cluster.
-
-See the [Inspect Workloads with the CLI](docs/observability/inspect-workloads-with-the-cli.mdx) for shell completion and for installing
-from a clone with make.
-
-### Install the CRD
-
-```bash
-kubectl apply -f https://raw.githubusercontent.com/dsx-ai-factory/workload-map/main/charts/karta/crds/run.ai_kartas.yaml
-```
-
-### Use the Go library
-
-```bash
-go get github.com/dsx-ai-factory/workload-map/karta/sdk@latest
-```
-
-The library lives in the `karta/sdk/` module. Releases up to v0.2.x published it as
-`github.com/dsx-ai-factory/workload-map`. To move to the new path, require
-`github.com/dsx-ai-factory/workload-map/karta/sdk` and rewrite imports from
-`github.com/dsx-ai-factory/workload-map/pkg/...` to
-`github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/...`.
-
-### Define a Karta
-
-For a step-by-step tutorial that writes and validates a definition for a batch
-Job, see [Tutorial - Write Your First Workload Definition](docs/getting-started/tutorial-write-your-first-workload-definition.mdx).
-
-Here's a Karta for a JobSet - a distributed training workload with master and worker groups:
+Describe a workload type, starting with a batch Job, and validate it. You need `kli`, or Go 1.27.3 or later. A definition maps where a workload keeps its status, its pod template, and its replica count. This is the shape of the JobSet definition, shortened:
 
 ```yaml
 apiVersion: run.ai/v1alpha1
@@ -202,24 +137,7 @@ spec:
         version: v1alpha2
         kind: JobSet
       statusDefinition:
-        conditionsDefinition:
-          path: .status.conditions
-          typeFieldName: type
-          statusFieldName: status
-        statusMappings:
-          running:
-          - byExpression:
-              expression: "(.status.replicatedJobsStatus // []) | any(.ready > 0 and .active > 0) and all(.failed == 0)"
-              expectedResult: "true"
-          completed:
-          - byConditions:
-            - type: Completed
-              status: "True"
-          failed:
-          - byConditions:
-            - type: Failed
-              status: "True"
-
+        ...
     childComponents:
     - name: replicatedjob
       kind:
@@ -234,133 +152,50 @@ spec:
       instanceIdPath: .spec.replicatedJobs[].name  # Instances: "master", "worker"
 ```
 
-### Extract workload information
+The full JobSet definition is in [`docs/catalog/`](docs/catalog/jobset-x-k8s-io-jobset-v1alpha2.yaml). Follow [Tutorial - Write Your First Workload Definition](docs/getting-started/tutorial-write-your-first-workload-definition.md). For the full syntax, refer to the [Workload Definition Spec](docs/reference/workload-definition-spec.md).
 
-```go
-import "github.com/dsx-ai-factory/workload-map/karta/sdk/pkg/resource"
+### Build a controller
 
-// Create a factory from your Karta and workload object
-factory := resource.NewComponentFactoryFromObject(karta, jobSetObject)
+Watch live LeaderWorkerSet workloads, then inspect and mutate them through their definitions with no per-CRD code. Adding more workload types is a flag change, not a rebuild. You need `kind`, `kubectl`, and `docker`, and Go to build the image. Follow [Tutorial - Build a Controller on Kind](docs/building-on-workload-map/build-a-controller/tutorial-build-a-controller-on-kind.md). The controller code is in [`docs/examples/controller-runtime/`](docs/examples/controller-runtime/).
 
-// Get the child component which has the per-instance data
-component, _ := factory.GetComponent("replicatedjob")
-summaries, _ := component.GetExtractedInstances(ctx)
+## Pre-built Definitions
 
-// Access pod template specs, metadata, and scale info for each instance
-for instanceID, summary := range summaries {
-    // instanceID will be "master" or "worker"
-    if summary.PodTemplateSpec != nil {
-        fmt.Printf("Instance %s image: %s\n", instanceID, summary.PodTemplateSpec.Spec.Containers[0].Image)
-    }
-}
-
-// Get status from the root component
-rootComponent, _ := factory.GetRootComponent()
-status, _ := rootComponent.GetStatus(ctx)
-// status.MatchedStatuses: matched statuses based on conditions (e.g., ["running"])
-// status.Phase: raw phase string from the workload
-// status.Conditions: []Condition with Type, Status, Message fields
-```
-
-### Update workload specs
-
-The same paths defined in `specDefinition` are used for both extraction and updates:
-
-```go
-// Prepare updates per instance
-updates := map[string]resource.FragmentedPodSpec{
-    "master": {
-        SchedulerName: "my-custom-scheduler",
-        Labels: map[string]string{"my-label": "true"},
-    },
-    "worker": {
-        SchedulerName: "my-custom-scheduler",
-    },
-}
-
-// Apply updates - modifies the underlying unstructured object
-err := component.UpdateFragmentedPodSpec(ctx, updates)
-
-// Get the updated object to apply back to the cluster
-updatedObject, _ := factory.GetObject()
-```
-
-## Pre-built Karta Definitions
-
-Karta supports any workload type. The following are pre-built and tested Karta definitions that ship with the project:
+Workload Map supports a wide range of workload types. The following are examples of the pre-built and tested definitions that ship with the project:
 
 | Workload Type | Framework |
 |---|---|
 | JobSet | Kubernetes |
-| PyTorchJob | Kubeflow |
-| RayCluster | Ray |
-| RayJob | Ray |
-| RayService | Ray |
-| InferenceService | KServe |
-| LLMInferenceService | KServe |
-| Knative Service | Knative |
-| MPIJob | Kubeflow |
-| NIM Service | NVIDIA |
-| NIM Cache | NVIDIA |
 | LeaderWorkerSet | Kubernetes |
-| Milvus | Milvus |
+| PyTorchJob | Kubeflow |
+| MPIJob | Kubeflow |
+| RayCluster | Ray |
+| InferenceService | KServe |
+| NIM Service | NVIDIA |
 | DynamoGraphDeployment | NVIDIA Dynamo |
-| PodCliqueSet | Grove |
-| Sandbox | Kubernetes Agent Sandbox |
-| Rollout | Argo Rollouts |
-| CloneSet | OpenKruise |
-| Volcano Job | Volcano |
-| [Workload](docs/catalog/kueue-x-k8s-io-workload-v1beta2.yaml) | Kueue (v1beta2, experimental; requires opt-in) |
 
-See [`docs/catalog/`](docs/catalog/) for the full Karta definitions. The catalog
-also covers core Kubernetes types such as Deployment, StatefulSet, Job, CronJob
-and Pod. Run `kli definitions` to list the definitions the CLI ships with. CLI
-builds after v0.3.0 also accept `--catalog-experimental-definitions` to include
-experimental ones such as Kueue.
+For the full list, refer to the [Catalog of Definitions](docs/reference/catalog-of-definitions.md). The definitions themselves are in the [`docs/catalog/`](docs/catalog/) folder. Run `kli definitions` to list the definitions the CLI ships with.
 
 ### Complex example: NVIDIA Dynamo
 
-The [Dynamo Karta](docs/catalog/nvidia-com-dynamographdeployment-v1alpha1.yaml) shows Karta handling a real-world multi-service inference graph - fragmented pod specs across services, autoscaling with min/max replicas, replica selectors for multi-node workers, gang scheduling, and 6 additional child resource types (DynamoComponentDeployment, LeaderWorkerSet, PodGang, PodClique, PodCliqueSet, PodCliqueScalingGroup). A single Karta definition replaces what would otherwise require hundreds of lines of per-type controller logic.
+The [Dynamo definition](docs/catalog/nvidia-com-dynamographdeployment-v1alpha1.yaml) shows Workload Map handling a real-world multi-service inference graph - fragmented pod specs across services, autoscaling with min/max replicas, replica selectors for multi-node workers, gang scheduling, and 6 additional child resource types (DynamoComponentDeployment, LeaderWorkerSet, PodGang, PodClique, PodCliqueSet, PodCliqueScalingGroup). A single definition replaces what would otherwise require hundreds of lines of per-type controller logic.
 
-## Runnable examples
+## Who Uses Workload Map?
 
-Two runnable examples live under [`docs/examples/`](docs/examples/):
+Workload Map was created at [Run:ai](https://run.ai) (NVIDIA) to power workload management across diverse Kubernetes workload types. It is used internally by multiple services including the workload controllers, scheduler integrations, and platform components.
 
-- [quickstart](docs/examples/quickstart/) - reads and mutates a JobSet and a LeaderWorkerSet offline, no cluster required. The fastest way to see the uniform API in action.
-- [controller-runtime](docs/examples/controller-runtime/) - a controller-runtime manager you install into a Kind cluster. It watches live LeaderWorkerSet workloads, then inspects and mutates them through Karta with no per-CRD code. Adding more workload types is a flag change, not a rebuild.
+[KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler), a CNCF sandbox open-source Kubernetes scheduler for AI and GPU workloads, uses Workload Map as the generic fallback plugin in its pod grouper ([kai-scheduler/KAI-Scheduler#1527](https://github.com/kai-scheduler/KAI-Scheduler/issues/1527)). A Workload Map definition gives any CRD correct pod grouping and gang scheduling in KAI, with no scheduler plugin to write and no KAI release to wait for. The gang instructions in a definition declare a group's pods as one gang, which KAI admits all-or-nothing. Any scheduler with a gang primitive can translate the same instructions. Native in-tree plugins keep precedence; Workload Map handles the long tail.
 
-## Who Uses Karta?
-
-Karta was created at [Run:ai](https://run.ai) (NVIDIA) to power workload management across diverse Kubernetes workload types. It is used internally by multiple services including the workload controllers, scheduler integrations, and platform components.
-
-[KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler), a CNCF sandbox open-source Kubernetes scheduler for AI and GPU workloads, uses Karta as the generic fallback plugin in its pod grouper ([kai-scheduler/KAI-Scheduler#1527](https://github.com/kai-scheduler/KAI-Scheduler/issues/1527)). A Karta definition gives any CRD correct pod grouping and gang scheduling in KAI, with no scheduler plugin to write and no KAI release to wait for. Native in-tree plugins keep precedence; Karta handles the long tail.
-
-See [ADOPTERS.md](ADOPTERS.md) for the full list of adopters. If you use Karta, add yourself with a pull request.
-
-## Documentation
-
-- [Roadmap](ROADMAP.md) - Where Karta is headed, in Now / Next / Later horizons
-- [Changelog](CHANGELOG.md) - Notable changes per release
-- [Inspect Workloads with the CLI](docs/observability/inspect-workloads-with-the-cli.mdx) - Installing `kli`, shell completion, and the install make targets
-- [Workload Definition Spec](docs/reference/workload-definition-spec.mdx) - Full Karta spec, path syntax (jq), validation rules
-- [Configure Webhook Certificates](docs/configuration/karta-operator/configure-webhook-certificates.mdx) - Webhook cert modes (auto self-signed or manual) and how to wire cert-manager
-- [Run in FIPS Mode](docs/configuration/karta-operator/run-in-fips-mode.mdx) - Running the operator with Go's FIPS 140-3 crypto module
-- [Dependency Updates](docs/Dependency%20Updates.md) - How Renovate keeps dependencies current and how to test a configuration change
-- [Karta definitions](docs/catalog/) - Real-world Karta definitions for common workload types
-- [Runnable examples](docs/examples/) - Offline quickstart and an installable controller-runtime example
-- [API Reference](https://pkg.go.dev/github.com/dsx-ai-factory/workload-map/karta/sdk) - Go package documentation
-- [CONTRIBUTING.md](CONTRIBUTING.md) - How to contribute (DCO required)
-- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) - Community standards and expectations
+See [ADOPTERS.md](ADOPTERS.md) for the full list of adopters. If you use Workload Map, add yourself with a pull request.
 
 ## Community
 
-Have a question, an idea, or want to show what you built with Karta? Join the conversation in [GitHub Discussions](https://github.com/dsx-ai-factory/workload-map/discussions). For bugs and feature requests, [open an issue](https://github.com/dsx-ai-factory/workload-map/issues). Discussions and issues are the channels maintainers monitor; expect an initial response within 5 business days, usually sooner.
+Have a question, an idea, or want to show what you built with Workload Map? Join the conversation in [GitHub Discussions](https://github.com/dsx-ai-factory/workload-map/discussions). For bugs and feature requests, [open an issue](https://github.com/dsx-ai-factory/workload-map/issues). Discussions and issues are the channels maintainers monitor; expect an initial response within 5 business days, usually sooner.
 
 New to the project? Introduce yourself in Discussions - what you are building and which workload types you care about. Good entry points are issues labeled [good first issue](https://github.com/dsx-ai-factory/workload-map/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) and [help wanted](https://github.com/dsx-ai-factory/workload-map/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22), and [CONTRIBUTING.md](CONTRIBUTING.md) covers the development workflow end to end.
 
 ## Status
 
-Karta is in active development (pre-1.0). The API may change between minor versions. We welcome feedback and contributions - please [open an issue](https://github.com/dsx-ai-factory/workload-map/issues) or [start a discussion](https://github.com/dsx-ai-factory/workload-map/discussions).
+Workload Map is in active development (pre-1.0). The API may change between minor versions. See the [Roadmap](ROADMAP.md) for where the project is headed. We welcome feedback and contributions - please [open an issue](https://github.com/dsx-ai-factory/workload-map/issues) or [start a discussion](https://github.com/dsx-ai-factory/workload-map/discussions).
 
 ## Third-Party Software
 

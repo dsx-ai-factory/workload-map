@@ -429,7 +429,7 @@ existing cluster-wide grant.
 
 The exporter uses one replica and its own ServiceAccount. Global
 `imagePullSecrets` applies to it. `global.fipsMode` also controls the exporter;
-see [FIPS modes](../configuration/karta-operator/run-in-fips-mode.mdx#set-the-mode). Operator settings such as `replicaCount`,
+see [FIPS modes](../configuration/karta-operator/run-in-fips-mode.md#set-the-mode). Operator settings such as `replicaCount`,
 `resources`, `ports`, `serviceAccount`, `extraArgs` and `podAnnotations` do not
 configure the exporter. `fullnameOverride` changes its resource-name prefix.
 

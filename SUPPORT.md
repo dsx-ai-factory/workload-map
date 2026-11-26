@@ -30,4 +30,4 @@ When a new minor version ships, this table is updated and the oldest line stops 
 
 Maintainers monitor Discussions and Issues. Expect an initial response within 5 business days, usually sooner.
 
-Before opening an issue, check [Troubleshoot Definitions](docs/troubleshooting/troubleshoot-definitions.mdx) and search existing issues. Include the Karta version, the Kubernetes version, and the Karta definition involved.
+Before opening an issue, check [Troubleshoot Definitions](docs/troubleshooting/troubleshoot-definitions.md) and search existing issues. Include the Karta version, the Kubernetes version, and the Karta definition involved.

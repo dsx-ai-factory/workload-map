@@ -20,7 +20,7 @@ ARG GO_LDFLAGS=""
 WORKDIR /src
 COPY . .
 WORKDIR /src/operator
-# See docs/configuration/karta-operator/run-in-fips-mode.mdx for FIPS 140-3 support.
+# See docs/configuration/karta-operator/run-in-fips-mode.md for FIPS 140-3 support.
 RUN CGO_ENABLED=0 GO111MODULE=on GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOFIPS140=v1.0.0 \
 	go build -trimpath \
 	-ldflags "${GO_LDFLAGS}" \

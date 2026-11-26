@@ -167,7 +167,7 @@ Your Go code never references these paths directly — Karta handles the navigat
 
 ## Next steps
 
-- [Workload Definition Spec](../../reference/workload-definition-spec.mdx) — full Karta specification
+- [Workload Definition Spec](../../reference/workload-definition-spec.md) — full Karta specification
 - [catalog](../../catalog/) — ready-made definitions for PyTorchJob, RayCluster, MPIJob, KServe, and more
 - [resource](../../../karta/sdk/pkg/resource/) — full Component API (suspend/resume, fragmented pod specs, pod querier)
 - [tree](../../../karta/sdk/pkg/tree/) — WorkloadTree for inspecting the component hierarchy of live workloads

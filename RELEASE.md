@@ -87,10 +87,11 @@ itself. A local snapshot renders the upstream values.
 
 ## How a release is cut
 
-Before releasing, add the version entry to [CHANGELOG.md](CHANGELOG.md) and run
-the checks above. After that preparation change is merged, publish the GitHub
-Release from the merged commit, with a new `v1.2.3` tag and the version's
-CHANGELOG.md entry as its notes. Use the Releases page, or:
+Before releasing, add the version entry to [CHANGELOG.md](CHANGELOG.md) and a
+matching entry in `fern/changelog/`, then run the checks above. After that
+preparation change is merged, publish the GitHub Release from the merged commit,
+with a new `v1.2.3` tag and the version's CHANGELOG.md entry as its notes. Use
+the Releases page, or:
 
 ```bash
 gh release create v1.2.3 --target <commit> --title v1.2.3 --notes-file notes.md
@@ -190,7 +191,9 @@ merged.
 
 The GitHub Release body is written from the version's CHANGELOG.md entry when
 the release is published, and GoReleaser keeps it; the changelog is the source,
-the release body is the copy. Every breaking change
+the release body is the copy. The entry in `fern/changelog/` is a second copy,
+named with the release date, that feeds the Release Notes page on the docs site.
+Every breaking change
 (API field changes, removed or renamed library surface, behavioral changes that
 require consumer action) must be documented in the release notes with migration
 guidance so that downstream consumers can upgrade predictably.

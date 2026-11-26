@@ -6,9 +6,9 @@
 A condensed field reference for authoring a Karta definition. It matches the API
 types in `karta/sdk/pkg/api/runai/v1alpha1/` and the validator in
 `karta/sdk/pkg/api/runai/v1alpha1/validation.go`. The prose reference is
-`docs/Technical Guide.md`. It also carries the why and the operator examples
-behind steps 3 to 7 of `SKILL.md`: Status mapping patterns for step 5 and
-karta-verify runs for steps 6 and 7.
+`docs/reference/workload-definition-spec.md`. For the karta-verify runs behind
+steps 6 and 7 of `SKILL.md`, see
+`docs/building-on-workload-map/define-a-workload-type.md`.
 
 ## Top-level shape
 

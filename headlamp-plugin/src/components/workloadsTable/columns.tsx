@@ -69,9 +69,14 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       filterVariant: 'multi-select',
       // The accessor joins the phases, so default options would be
       // combinations such as "Running,Degraded".
-      filterSelectOptions: [...KARTA_PHASES],
-      filterFn: (row, _columnId, filterValue: string[]) =>
-        filterValue.length === 0 || filterValue.some(phase => row.original.phases.includes(phase)),
+      // A workload whose status could not be evaluated shows Unavailable in
+      // place of its phases, so that is what it can be found by.
+      filterSelectOptions: [...KARTA_PHASES, STATUS_UNAVAILABLE_LABEL],
+      filterFn: (row, _columnId, filterValue: string[]) => {
+        const shown =
+          row.original.statusError === undefined ? row.original.phases : [STATUS_UNAVAILABLE_LABEL];
+        return filterValue.length === 0 || filterValue.some(option => shown.includes(option));
+      },
       Cell: ({ row }) => (
         <StatusCell
           items={

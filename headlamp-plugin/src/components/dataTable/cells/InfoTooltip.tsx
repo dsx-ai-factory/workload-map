@@ -2,7 +2,7 @@
 // Copyright (c) 2026 NVIDIA Corporation
 
 import Tooltip from '@mui/material/Tooltip';
-import type { CSSProperties, ReactNode } from 'react';
+import { type CSSProperties, type ReactNode, useState } from 'react';
 
 export interface InfoTooltipProps {
   label: string;
@@ -14,11 +14,26 @@ export interface InfoTooltipProps {
 // Content explained by a tooltip that the keyboard can reach. A tooltip on an
 // element that cannot take focus never opens from the keyboard, and the lint
 // rules accept a tab stop only on an interactive role, so the button role is
-// the one that works here although the element does nothing when activated.
+// the one that works here. Escape closes the tooltip while focus stays on the
+// trigger, so activating the trigger opens it again, as a button should.
 export function InfoTooltip({ label, tooltip, style, children }: InfoTooltipProps) {
+  const [open, setOpen] = useState(false);
+  const show = () => setOpen(true);
   return (
-    <Tooltip title={tooltip}>
-      <span role="button" tabIndex={0} aria-label={`${label}: ${tooltip}`} style={style}>
+    <Tooltip title={tooltip} open={open} onOpen={show} onClose={() => setOpen(false)}>
+      <span
+        role="button"
+        tabIndex={0}
+        aria-label={`${label}: ${tooltip}`}
+        style={style}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            // Space would otherwise scroll the page.
+            event.preventDefault();
+            show();
+          }
+        }}
+      >
         {children}
       </span>
     </Tooltip>

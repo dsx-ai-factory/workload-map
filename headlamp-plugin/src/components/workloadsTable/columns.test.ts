@@ -3,6 +3,7 @@
 
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { KARTA_PHASES, STATUS_UNAVAILABLE_LABEL } from '../../lib/karta/phases';
 import { buildWorkloadColumns, OPTIONAL_COLUMN_IDS } from './columns';
 
 // Node 24 exposes its own localStorage, which shadows jsdom's and throws
@@ -153,6 +154,25 @@ describe('buildWorkloadColumns', () => {
     cell({ phases: ['Running'] });
     expect(screen.getByText('Running')).toBeTruthy();
     expect(screen.queryByText('Unavailable')).toBeNull();
+  });
+
+  it('offers Unavailable as a status filter and matches the rows whose status failed', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    expect(status.filterSelectOptions).toEqual([...KARTA_PHASES, STATUS_UNAVAILABLE_LABEL]);
+
+    const match = (original: Record<string, unknown>, selected: string[]) =>
+      (status.filterFn as any)({ original }, 'status', selected);
+    const failed = { phases: [], statusError: 'engine unavailable' };
+    const running = { phases: ['Running'] };
+
+    expect(match(failed, [STATUS_UNAVAILABLE_LABEL])).toBe(true);
+    expect(match(running, [STATUS_UNAVAILABLE_LABEL])).toBe(false);
+    expect(match(running, ['Running'])).toBe(true);
+    expect(match(running, ['Running', STATUS_UNAVAILABLE_LABEL])).toBe(true);
+    // Shown as Unavailable, so not found by a phase it may still carry.
+    expect(match({ phases: ['Running'], statusError: 'x' }, ['Running'])).toBe(false);
+    expect(match(failed, ['Running'])).toBe(false);
+    expect(match(failed, [])).toBe(true);
   });
 
   it('sorts status by worst phase rather than alphabetically', () => {

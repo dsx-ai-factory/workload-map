@@ -21,8 +21,12 @@ check:
     broken-links: error
 
 redirects:
+  - source: /workload-map/getting-started/quickstarts/quickstart-cli
+    destination: /workload-map/getting-started/quickstart-cli
   - source: /workload-map/getting-started/quickstarts/quickstart-go-library
     destination: /workload-map/tutorials/read-and-modify-workloads-offline
+  - source: /workload-map/getting-started/tutorial-write-your-first-workload-definition
+    destination: /workload-map/tutorials/write-your-first-workload-definition
   - source: /workload-map/building-on-workload-map/build-a-controller/tutorial-build-a-controller-on-kind
     destination: /workload-map/tutorials/build-a-controller-on-kind
   - source: /workload-map/building-on-workload-map/build-a-controller/watch-another-workload-type
@@ -62,18 +66,15 @@ navigation:
       - page: Installation
         path: ../docs/getting-started/installation.mdx
         slug: installation
-      - section: Quickstarts
-        slug: quickstarts
-        contents:
-          - page: CLI
-            path: ../docs/getting-started/quickstarts/quickstart-cli.mdx
-            slug: quickstart-cli
-      - page: Tutorial - Write Your First Workload Definition
-        path: ../docs/getting-started/tutorial-write-your-first-workload-definition.mdx
-        slug: tutorial-write-your-first-workload-definition
+      - page: Quickstart - CLI
+        path: ../docs/getting-started/quickstarts/quickstart-cli.mdx
+        slug: quickstart-cli
   - section: Tutorials
     slug: tutorials
     contents:
+      - page: Write Your First Workload Definition
+        path: ../docs/getting-started/tutorial-write-your-first-workload-definition.mdx
+        slug: write-your-first-workload-definition
       - page: Read and Modify Workloads Offline
         path: ../docs/tutorials/quickstart/README.md
         slug: read-and-modify-workloads-offline

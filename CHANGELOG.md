@@ -7,6 +7,52 @@ Notable changes per release. This file is the in-repo source of record: a releas
 
 Scope: this file covers releases tagged from `main`. Patch releases on a minor line are tagged from that line's release branch and are documented in the changelog there. The v0.0.x releases predate that scheme and are summarized at the end.
 
+## v0.4.0 - 2026-11-26
+
+Workload Map can now report which workload owns a Pod and how that workload is doing through Prometheus. The built-in catalog adds four workload types. The `kli` CLI can list the catalog offline and show which definition takes effect in a cluster.
+
+### Workload metrics
+
+- The optional DSX workload exporter attributes Pods to their workload, component, instance and group. It exposes workload status and creation time. Join those labels with existing CPU, memory or GPU metrics in Prometheus. Enable the exporter in the Helm chart with `exporter.enabled=true`. To have Prometheus Operator discover it, also set `exporter.serviceMonitor.enabled=true`. [Exporter](https://github.com/dsx-ai-factory/workload-map/pull/588), [Helm and monitoring](https://github.com/dsx-ai-factory/workload-map/pull/590)
+- Grafana dashboards show workload health, structure and resource usage. The kind demo runs Prometheus and Grafana with sample CPU and GPU workloads. [Dashboards and demo](https://github.com/dsx-ai-factory/workload-map/pull/688)
+- The exporter can associate a standalone Pod with a workload through a configured resource reference. Operators can also select which workload roots to watch and which workload status series to publish. [Pod association](https://github.com/dsx-ai-factory/workload-map/pull/646), [selection and metrics](https://github.com/dsx-ai-factory/workload-map/pull/699)
+
+### Workload definitions
+
+- The catalog now includes [Volcano Job](https://github.com/dsx-ai-factory/workload-map/pull/652), [Argo Rollout](https://github.com/dsx-ai-factory/workload-map/pull/649) and [OpenKruise CloneSet](https://github.com/dsx-ai-factory/workload-map/pull/651).
+- Kueue `Workload` (`kueue.x-k8s.io/v1beta2`) is the first definition marked with the optional CRD field `spec.experimental`. To try it in the CLI, run `kli definitions --catalog-only --catalog-experimental-definitions`. To enable experimental definitions in the exporter, set `exporter.kartaDefinitionSource.enableExperimental=true`. [Experimental definitions and Kueue](https://github.com/dsx-ai-factory/workload-map/pull/636)
+
+### CLI and SDK changes
+
+- Use `kli definitions --catalog-only` to inspect built-in definitions without a kubeconfig. The default table shows cluster and catalog definitions together. Its new `STATUS` column identifies active, inactive and ambiguous definitions. Scripts that parse the table can use `kli definitions -o json` to omit overridden entries. [Offline catalog](https://github.com/dsx-ai-factory/workload-map/pull/659), [definition status](https://github.com/dsx-ai-factory/workload-map/pull/675)
+- Sort `kli get` by `name` or `age` with `--sort-by`. Use `--no-headers` on `kli get` and `kli definitions` for table output without the header row. [Sorting](https://github.com/dsx-ai-factory/workload-map/pull/668), [table headers](https://github.com/dsx-ai-factory/workload-map/pull/658)
+- `kli validate` now rejects unknown fields and duplicate YAML keys. If a previously accepted definition fails, correct the reported field or remove the duplicate key, then rerun `kli validate <file>`. [Strict validation](https://github.com/dsx-ai-factory/workload-map/pull/655)
+- CLI resource totals now include sidecars that are already running when a later init container starts. The SDK's jq evaluator now accepts an expression that returns exactly the configured result limit. [Pod resource requests](https://github.com/dsx-ai-factory/workload-map/pull/657), [jq result limit](https://github.com/dsx-ai-factory/workload-map/pull/610)
+
+### Install or upgrade
+
+Install the chart with the exporter enabled. On an existing installation, use the same Helm release name and values file you use for upgrades.
+
+```sh
+helm upgrade --install karta oci://ghcr.io/dsx-ai-factory/workload-map/karta \
+  --version 0.4.0 --namespace karta-system --create-namespace \
+  --set exporter.enabled=true
+```
+
+The GitHub release provides CLI archives and checksums for Linux and macOS on amd64 and arm64. This release also generates the `kli` plugin manifest for Krew. Installation from Krew's public index becomes available when the plugin entry merges. [Krew integration](https://github.com/dsx-ai-factory/workload-map/pull/690)
+
+The SDK requires Go 1.27.4 and builds against Kubernetes API v0.37.2.
+
+```sh
+go get github.com/dsx-ai-factory/workload-map/karta/sdk@v0.4.0
+```
+
+### Contributors
+
+[@Aaqibhafeezkhan](https://github.com/Aaqibhafeezkhan), [@Abhayrkhot](https://github.com/Abhayrkhot), [@ankitgala007](https://github.com/ankitgala007), [@atishay-kasliwal](https://github.com/atishay-kasliwal), [@AviadHayumi](https://github.com/AviadHayumi), [@besdollma](https://github.com/besdollma), [@bfs2021](https://github.com/bfs2021), [@lavianalon](https://github.com/lavianalon), [@ManasBhole](https://github.com/ManasBhole), [@moshe-runai](https://github.com/moshe-runai), [@nadavox](https://github.com/nadavox), [@noahkhomer18](https://github.com/noahkhomer18), [@rogirun](https://github.com/rogirun), [@sarankumar1325](https://github.com/sarankumar1325), [@shaked-bouktus](https://github.com/shaked-bouktus), [@SherinDaher-Runai](https://github.com/SherinDaher-Runai), [@yuval-gr](https://github.com/yuval-gr)
+
+[Full changelog from v0.3.0 to v0.4.0](https://github.com/dsx-ai-factory/workload-map/compare/v0.3.0...v0.4.0)
+
 ## v0.3.0 - 2026-10-21
 
 This release turns Karta into a full toolchain around the CRD and the library. It lands the `kli` CLI with its release pipeline and Homebrew cask, the Headlamp plugin backed by a WebAssembly build of the engine, a generated built-in catalog of 23 workload definitions, an admission webhook and a CRD upgrade hook in the chart, FIPS 140-3 runtime support for the operator, and a recorded end-to-end conformance suite that replays offline.

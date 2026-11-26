@@ -54,6 +54,16 @@ const (
 	UnknownOwner OwnerResolution = "unknown"
 )
 
+// MissingOwnerError reports that an owner chain stops at an owner that does not
+// exist. It wraps ErrUnresolvedOwner; Owner carries the UID from the owner reference.
+type MissingOwnerError struct {
+	Owner ObjectRef
+	err   error
+}
+
+func (e *MissingOwnerError) Error() string { return e.err.Error() }
+func (e *MissingOwnerError) Unwrap() error { return e.err }
+
 // ObjectReader reads cached objects and fetches metadata on a cache miss.
 type ObjectReader interface {
 	Cached(ObjectRef) (*unstructured.Unstructured, bool)

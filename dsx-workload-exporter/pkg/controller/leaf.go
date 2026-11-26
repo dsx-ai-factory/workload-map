@@ -51,6 +51,7 @@ func (r *Runtime) reconcilePod(ctx context.Context, key objectJobKey) error {
 	}
 	ref = refOf(podObject)
 	discoveryResult, err := r.state.deps.Discovery.Get(ctx, ref)
+	r.state.setOwnerWait(ownerWaiter{key: key}, err)
 	if err != nil {
 		return r.state.failPod(key, []discovery.ObjectRef{ref}, err)
 	}

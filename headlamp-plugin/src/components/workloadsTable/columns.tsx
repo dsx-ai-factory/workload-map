@@ -7,7 +7,7 @@ import {
   KARTA_PHASES,
   STATUS_UNAVAILABLE_LABEL,
   statusItems,
-  worstPhaseSeverity,
+  statusSeverity,
 } from '../../lib/karta/phases';
 import { StatusCell } from '../dataTable/cells/StatusCell';
 import { clusterColumn, matchesAnySelected } from '../dataTable/columns';
@@ -65,7 +65,8 @@ export function buildWorkloadColumns(includeCluster: boolean): TableColumn<Workl
       // Sorted by the worst phase, so the order matches what the chips show.
       // The accessor joins them, which would otherwise sort alphabetically.
       sortingFn: (a, b) =>
-        worstPhaseSeverity(a.original.phases) - worstPhaseSeverity(b.original.phases),
+        statusSeverity(a.original.phases, a.original.statusError) -
+        statusSeverity(b.original.phases, b.original.statusError),
       filterVariant: 'multi-select',
       // The accessor joins the phases, so default options would be
       // combinations such as "Running,Degraded".

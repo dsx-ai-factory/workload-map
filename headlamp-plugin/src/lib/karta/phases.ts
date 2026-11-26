@@ -33,8 +33,15 @@ function phaseSeverity(phase: string): number {
 
 // The severity of a workload's worst phase, which is the one its pills lead
 // with.
-export function worstPhaseSeverity(phases: string[]): number {
+export function worstPhaseSeverity(phases: readonly string[]): number {
   return Math.min(...phases.map(phaseSeverity), Number.MAX_SAFE_INTEGER);
+}
+
+// Where a workload's status sorts, worst first. Unavailable shows as an error,
+// so a workload whose status could not be evaluated is placed ahead of every
+// phase, as its pill is.
+export function statusSeverity(phases: readonly string[], statusError?: string): number {
+  return statusError === undefined ? worstPhaseSeverity(phases) : 0;
 }
 
 // What a workload's status shows: its phases, or Unavailable alone when they

@@ -7,6 +7,7 @@ import {
   phaseItems,
   STATUS_UNAVAILABLE_LABEL,
   statusItems,
+  statusSeverity,
   worstPhaseSeverity,
 } from './phases';
 
@@ -39,6 +40,17 @@ describe('the phase table', () => {
       'Undefined',
       'SomeFuturePhase',
     ]);
+  });
+});
+
+describe('statusSeverity', () => {
+  it('is the worst phase, and ahead of every phase when the status failed', () => {
+    expect(statusSeverity(['Running', 'Degraded'])).toBe(worstPhaseSeverity(['Degraded']));
+    expect(statusSeverity([])).toBe(worstPhaseSeverity([]));
+    expect(statusSeverity([], 'engine unavailable')).toBeLessThan(worstPhaseSeverity(['Failed']));
+    expect(statusSeverity(['Running'], 'engine unavailable')).toBe(
+      statusSeverity([], 'engine unavailable')
+    );
   });
 });
 

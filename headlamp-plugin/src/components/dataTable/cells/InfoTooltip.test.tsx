@@ -13,9 +13,28 @@ describe('InfoTooltip', () => {
         content
       </InfoTooltip>
     );
-    const stop = screen.getByRole('button', { name: 'Error: boom' });
+    const stop = screen.getByRole('button', { name: 'Error' });
     expect(stop.getAttribute('tabindex')).toBe('0');
     expect(stop.textContent).toBe('content');
+  });
+
+  // A long evaluation error as part of the name would be read in full on
+  // every focus. As the description it comes with the tooltip that focus opens.
+  it('names the trigger by its label and describes it with the open tooltip', async () => {
+    const user = userEvent.setup();
+    render(
+      <InfoTooltip label="Unavailable" tooltip="engine down: a long multi-line message">
+        badge
+      </InfoTooltip>
+    );
+    const trigger = screen.getByRole('button', { name: 'Unavailable' });
+    expect(trigger.getAttribute('aria-label')).toBe('Unavailable');
+    expect(trigger.hasAttribute('aria-describedby')).toBe(false);
+
+    await user.tab();
+    const tooltip = await screen.findByRole('tooltip');
+    expect(trigger.getAttribute('aria-describedby')).toBe(tooltip.id);
+    expect(tooltip.textContent).toBe('engine down: a long multi-line message');
   });
 
   it('passes the style on to the tab stop', () => {

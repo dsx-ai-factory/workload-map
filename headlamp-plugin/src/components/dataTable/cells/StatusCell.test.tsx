@@ -35,9 +35,9 @@ describe('StatusCell', () => {
         ]}
       />
     );
-    expect(screen.getByLabelText('Not Ready: CRDMissing: no CRD')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Not Ready' })).toBeTruthy();
     expect(screen.queryAllByRole('tooltip')).toHaveLength(0);
-    expect(screen.getAllByLabelText(/.+/)).toHaveLength(1);
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
   it('lets the keyboard reach an explained pill, and only that one', () => {
@@ -49,7 +49,7 @@ describe('StatusCell', () => {
         ]}
       />
     );
-    const explained = screen.getByLabelText('Not Ready: CRDMissing: no CRD');
+    const explained = screen.getByRole('button', { name: 'Not Ready' });
     expect(explained.getAttribute('tabindex')).toBe('0');
     expect(screen.getByText('Running').closest('[tabindex]')).toBeNull();
   });

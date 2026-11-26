@@ -147,7 +147,7 @@ describe('buildWorkloadColumns', () => {
       render((status.Cell as any)({ row: { original } }));
 
     const { unmount } = cell({ phases: ['Running'], statusError: 'engine unavailable' });
-    expect(screen.getByLabelText('Unavailable: engine unavailable')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Unavailable' })).toBeTruthy();
     expect(screen.queryByText('Running')).toBeNull();
     unmount();
 
@@ -184,6 +184,24 @@ describe('buildWorkloadColumns', () => {
     expect(match({ phases: ['Running'], statusError: 'x' }, ['Running'])).toBe(false);
     expect(match(failed, ['Running'])).toBe(false);
     expect(match(failed, [])).toBe(true);
+  });
+
+  // The pill of a failed status is the red one, so it sorts where the worst
+  // pills do, ahead of Failed, and not after Completed.
+  it('sorts a workload whose status failed ahead of every phase', () => {
+    const status = buildWorkloadColumns(false).find(column => column.id === 'status')!;
+    const compare = (a: Record<string, unknown>, b: Record<string, unknown>) =>
+      (status.sortingFn as any)({ original: a }, { original: b });
+    const failedStatus = { phases: [], statusError: 'engine unavailable' };
+
+    expect(compare(failedStatus, { phases: ['Failed'] })).toBeLessThan(0);
+    expect(compare({ phases: ['Running'] }, failedStatus)).toBeGreaterThan(0);
+    expect(compare(failedStatus, { phases: [] })).toBeLessThan(0);
+    // Shown as Unavailable, so a phase it may still carry does not count.
+    expect(compare({ phases: ['Running'], statusError: 'x' }, { phases: ['Failed'] })).toBeLessThan(
+      0
+    );
+    expect(compare(failedStatus, { phases: [], statusError: 'other' })).toBe(0);
   });
 
   it('sorts status by worst phase rather than alphabetically', () => {

@@ -17,16 +17,18 @@ export interface InfoTooltipProps {
 // the one that works here. Escape closes the tooltip while focus stays on the
 // trigger, so activating the trigger, by key or by click, opens it again, as a
 // button should. A click matters when the pointer is still over the trigger and
-// no new hover arrives.
+// no new hover arrives. The name is the label alone, and the tooltip is its
+// description: it opens on focus, so a long explanation is read once as a
+// description and not repeated as part of the name.
 export function InfoTooltip({ label, tooltip, style, children }: InfoTooltipProps) {
   const [open, setOpen] = useState(false);
   const show = () => setOpen(true);
   return (
-    <Tooltip title={tooltip} open={open} onOpen={show} onClose={() => setOpen(false)}>
+    <Tooltip title={tooltip} describeChild open={open} onOpen={show} onClose={() => setOpen(false)}>
       <span
         role="button"
         tabIndex={0}
-        aria-label={`${label}: ${tooltip}`}
+        aria-label={label}
         style={style}
         onClick={show}
         onKeyDown={event => {

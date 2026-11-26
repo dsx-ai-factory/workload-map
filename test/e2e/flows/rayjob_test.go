@@ -69,6 +69,19 @@ var _ = Describe("RayJob", Ordered, Label("kuberay", "rayjob"), func() {
 		Expect(err).To(Succeed())
 	})
 
+	It("suspended-from-running", func(ctx SpecContext) {
+		// KubeRay keeps jobStatus RUNNING while jobDeploymentStatus is Suspending and it deletes the
+		// RayCluster and the submitter Job, so those frames read Running. It then clears jobStatus
+		// and reports jobDeploymentStatus Suspended, which the last step waits for.
+		out, err := recorder.NewFlow(rec, "suspended-from-running", "testdata/rayjob/suspended-from-running.yaml").Through(
+			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),
+			recorder.Reaches(kartav1alpha1.RunningStatus).Do(Suspend()),
+			recorder.Reaches(kartav1alpha1.SuspendedStatus),
+		).Run(ctx)
+		Expect(rec.Save(fx, out)).Error().NotTo(HaveOccurred())
+		Expect(err).To(Succeed())
+	})
+
 	It("resumed", func(ctx SpecContext) {
 		out, err := recorder.NewFlow(rec, "resumed", "testdata/rayjob/resumed.yaml").Through(
 			recorder.Reaches(kartav1alpha1.InitializingStatus).Optional(),

@@ -2,6 +2,18 @@
   "$comment": "SPDX-License-Identifier: Apache-2.0\nCopyright (c) 2026 NVIDIA Corporation",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
+  "definitions": {
+    "duration": {"type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+$"},
+    "keyRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "key"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "key": {"type": "string", "minLength": 1}
+      }
+    }
+  },
   "properties": {
     "exporter": {
       "type": ["object", "null"],
@@ -10,9 +22,69 @@
         "enabled": {},
         "selection": {},
         "kartaDefinitionSource": {},
-        "metrics": {},
+        "metrics": {
+          "properties": {
+            "delivery": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "mode": {"enum": ["prometheus", "otlp"]},
+                "prometheus": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "tls": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "existingSecret": {"type": "string"}
+                      }
+                    }
+                  }
+                },
+                "otlp": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "protocol": {"enum": ["http/protobuf", "grpc"]},
+                    "endpoint": {"type": "string", "pattern": "^(https?://.+)?$"},
+                    "interval": {"$ref": "#/definitions/duration"},
+                    "timeout": {"$ref": "#/definitions/duration"},
+                    "headers": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "secretKeyRef": {"$ref": "#/definitions/keyRef"}
+                      }
+                    },
+                    "tls": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "ca": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "maxProperties": 1,
+                          "properties": {
+                            "configMapKeyRef": {"$ref": "#/definitions/keyRef"},
+                            "secretKeyRef": {"$ref": "#/definitions/keyRef"}
+                          }
+                        },
+                        "clientSecret": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "metricsPort": {},
-        "serviceMonitor": {},
+        "serviceMonitor": {
+          "properties": {
+            "tlsConfig": {"type": ["object", "null"]}
+          }
+        },
         "rbac": {},
         "image": {},
         "resources": {},

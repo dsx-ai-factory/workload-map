@@ -21,10 +21,14 @@ GOARCH="$arch" make -C "$ROOT" exporter-image \
   BUILD_ARGS="--platform $platform"
 kind load docker-image dsx-workload-exporter:e2e --name "$CLUSTER_NAME"
 # Export one platform: Docker's containerd store can retain an incomplete index.
-docker image inspect --platform "$platform" busybox:1.37.0 >/dev/null 2>&1 ||
-  docker pull --platform "$platform" busybox:1.37.0
-docker image save --platform "$platform" busybox:1.37.0 -o "$ARTIFACTS/busybox.tar"
-kind load image-archive "$ARTIFACTS/busybox.tar" --name "$CLUSTER_NAME"
+# The test fixtures pin the same tags.
+for image in busybox:1.37.0 otel/opentelemetry-collector:0.166.0; do
+  archive="$ARTIFACTS/$(basename "${image%%:*}").tar"
+  docker image inspect --platform "$platform" "$image" >/dev/null 2>&1 ||
+    docker pull --platform "$platform" "$image"
+  docker image save --platform "$platform" "$image" -o "$archive"
+  kind load image-archive "$archive" --name "$CLUSTER_NAME"
+done
 # Reuse the recorder's pinned installers, without its full operator stack.
 for operator in jobset lws; do
   bash "$ROOT/hack/e2e/operators/$operator/install.sh"

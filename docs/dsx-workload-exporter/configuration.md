@@ -138,13 +138,23 @@ the watch cache.
 | `serviceMonitor.enabled` | `false` | Creates a ServiceMonitor for an existing Prometheus Operator. |
 | `serviceMonitor.additionalLabels` | `{}` | Labels used by Prometheus to select the ServiceMonitor. |
 | `serviceMonitor.interval`, `serviceMonitor.scrapeTimeout` | `` | Empty values inherit Prometheus settings. Use durations such as `30s` and `10s`. |
+| `serviceMonitor.tlsConfig` | `{}` | Verifies the [HTTPS](#https) scrape, for example with `ca` and `serverName`. Requires `metrics.delivery.prometheus.tls.existingSecret`. |
 | `metricsPort` | `8080` | Shared listener, container, probe and Service port. |
+| `metrics.delivery.prometheus.tls.existingSecret` | `""` | Serves the shared listener over [HTTPS](#https) with `tls.crt` and `tls.key` from this Secret. Empty serves plain HTTP. |
+| `metrics.delivery.mode` | `prometheus` | `prometheus` serves `/metrics`. `otlp` pushes to a receiver instead; see [OTLP push](#otlp-push). |
+| `metrics.delivery.otlp.protocol` | `http/protobuf` | `http/protobuf` or `grpc`. |
+| `metrics.delivery.otlp.endpoint` | `""` | Receiver URL, used as given. Required in `otlp` mode. |
+| `metrics.delivery.otlp.interval`, `metrics.delivery.otlp.timeout` | `30s`, `10s` | How often to push, and when to give up on one export, retries included. The timeout must not exceed the interval. |
+| `metrics.delivery.otlp.headers.secretKeyRef` | unset | Secret key with headers sent on every export. |
+| `metrics.delivery.otlp.tls.ca`, `metrics.delivery.otlp.tls.clientSecret` | `{}`, `""` | CA for the receiver, and a client certificate for mutual TLS. |
 | `service.annotations` | `{}` | Adds annotations to the metrics Service. |
 
-Only Prometheus pull is wired into the current runtime. `/metrics`, `/healthz`
-and `/readyz` share the listener. Native OTLP push is unsupported. A separately
-configured OTel Collector can scrape `/metrics` and forward to an OTLP backend.
-The endpoint has no built-in authentication. The chart does not provide a
+By default the exporter serves `/metrics` for Prometheus to scrape, and
+`/metrics`, `/healthz` and `/readyz` share the listener. In
+[OTLP push](#otlp-push) mode it sends the gauges to a receiver instead. A
+separately configured OTel Collector can also scrape `/metrics` and forward to
+an OTLP backend. The endpoint has no client authentication. HTTPS lets
+Prometheus verify the exporter, not the reverse. The chart does not provide a
 NetworkPolicy; configure network access for your monitoring system.
 
 The Service publishes unready addresses so diagnostics remain reachable during
@@ -184,6 +194,132 @@ exporter:
 Use the label required by your Prometheus installation. Creating a ServiceMonitor
 does not configure a standalone Prometheus server. See
 [Prometheus Operator discovery](https://prometheus-operator.dev/docs/platform/troubleshooting/#troubleshooting-servicemonitor-changes).
+
+#### HTTPS
+
+The listener serves plain HTTP by default. To serve HTTPS, create a
+`kubernetes.io/tls` Secret with `tls.crt` and `tls.key` in the exporter's
+namespace and set `exporter.metrics.delivery.prometheus.tls.existingSecret`.
+The certificate must be valid for the name Prometheus verifies. The chart
+mounts the Secret, switches the probes to HTTPS and sets `scheme: https` on the
+ServiceMonitor. Prometheus only needs the CA. For an exporter in `karta-system`,
+with the CA in the `dsx-exporter-ca` ConfigMap:
+
+```yaml
+exporter:
+  enabled: true
+  metrics:
+    delivery:
+      prometheus:
+        tls:
+          existingSecret: dsx-exporter-tls
+  serviceMonitor:
+    enabled: true
+    tlsConfig:
+      ca:
+        configMap: {name: dsx-exporter-ca, key: ca.crt}
+      serverName: dsx-workload-exporter.karta-system.svc
+```
+
+The exporter reads the certificate again for each new connection. A renewed
+Secret, for example from cert-manager, is served once the kubelet updates the
+mounted files, without restarting the Pod. A standalone exporter sets both file
+paths instead:
+
+```yaml
+metrics:
+  delivery:
+    prometheus:
+      tls:
+        certFile: /etc/dsx-workload-exporter/tls.crt
+        keyFile: /etc/dsx-workload-exporter/tls.key
+```
+
+#### OTLP push
+
+Set `mode: otlp` to send the four gauges to an OTLP receiver, such as an
+OpenTelemetry Collector, every `interval`. They keep the names, attributes and
+values that `/metrics` serves. This example pushes over OTLP/HTTP:
+
+```yaml
+exporter:
+  enabled: true
+  metrics:
+    delivery:
+      mode: otlp
+      otlp:
+        protocol: http/protobuf
+        endpoint: https://collector.example.com:4318/v1/metrics
+        interval: 30s
+        timeout: 10s
+```
+
+For gRPC, set `protocol: grpc` and `endpoint: https://collector.example.com:4317`.
+The endpoint is used as given: OTLP/HTTP needs the receiver's path, usually
+`/v1/metrics`, and gRPC takes none. An `http://` endpoint sends without TLS.
+
+In push mode the listener serves only `/healthz` and `/readyz`, so the probes
+work as before. There is no `/metrics`, and the chart renders no metrics
+Service or ServiceMonitor, even with `serviceMonitor.enabled`. The exporter's
+own process and client metrics are only available through `/metrics`.
+
+Receivers that need credentials read them from headers. Store the headers in a
+Secret key, in the `OTEL_EXPORTER_OTLP_HEADERS` format, and reference it:
+
+```yaml
+exporter:
+  metrics:
+    delivery:
+      otlp:
+        headers:
+          secretKeyRef: {name: otlp-auth, key: headers}
+```
+
+```sh
+kubectl -n karta-system create secret generic otlp-auth \
+  --from-literal=headers='Authorization=Bearer%20<token>'
+```
+
+To verify a receiver signed by a private CA, set `tls.ca` to a `configMapKeyRef`
+or `secretKeyRef`. For mutual TLS, set `tls.clientSecret` to a
+`kubernetes.io/tls` Secret; the client certificate is read again for each new
+connection, so a renewed Secret is used without a restart.
+
+An export that has not finished within `timeout`, retries included, is
+abandoned and logged as `OTLP metric delivery failed`. The next interval sends
+a new snapshot, so delivery recovers once the receiver answers. On shutdown the
+exporter makes one last push, bounded by `timeout`.
+
+A successful push does not refresh
+[observation validity](../keps/0001-metrics-exporter/README.md#reading-observation-validity).
+Each export carries the same `observation_valid` labels and
+`dsx_exporter_observation_valid` rows as a scrape of the same moment.
+
+Push has no stale markers. When a workload or Pod is deleted, new exports stop
+including its series, and the receiver decides how long the last sample stays
+visible. Prometheus keeps answering queries with it for the query lookback
+delta, five minutes by default. A Collector `prometheus` exporter keeps it
+until `metric_expiration`, also five minutes by default. Keep those windows to
+a few intervals, so one failed export does not drop live series and deleted
+workloads still disappear.
+
+Receivers see `service.name="dsx-workload-exporter"` and `service.version`.
+Add attributes, such as the Pod name, with `OTEL_RESOURCE_ATTRIBUTES`. A
+standalone exporter uses the same block, and reads the headers from
+`OTEL_EXPORTER_OTLP_METRICS_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`:
+
+```yaml
+metrics:
+  delivery:
+    mode: otlp
+    otlp:
+      protocol: grpc
+      endpoint: https://collector.example.com:4317
+      tls:
+        caFile: /etc/exporter/ca.crt
+        certFile: /etc/exporter/tls.crt
+        keyFile: /etc/exporter/tls.key
+```
 
 ### Status phases
 

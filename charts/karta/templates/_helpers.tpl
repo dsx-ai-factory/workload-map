@@ -110,6 +110,38 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{ printf "%s-%s" (include "karta.exporter.fullname" .) .Release.Namespace }}
 {{- end -}}
 
+{{/* Secret with the exporter's serving certificate. Empty serves plain HTTP. */}}
+{{- define "karta.exporter.tlsSecret" -}}
+{{- if kindIs "map" .Values.exporter.metrics -}}
+{{- dig "delivery" "prometheus" "tls" "existingSecret" "" .Values.exporter.metrics -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Kept out of the config directory: a mount point cannot be created inside its read-only ConfigMap volume. */}}
+{{- define "karta.exporter.tlsDir" -}}
+/etc/dsx-workload-exporter-tls
+{{- end -}}
+
+{{/* prometheus serves /metrics; otlp pushes and serves only the health probes. */}}
+{{- define "karta.exporter.deliveryMode" -}}
+{{- if kindIs "map" .Values.exporter.metrics -}}
+{{- dig "delivery" "mode" "prometheus" .Values.exporter.metrics -}}
+{{- else -}}
+prometheus
+{{- end -}}
+{{- end -}}
+
+{{/* The OTLP settings, as a YAML map. */}}
+{{- define "karta.exporter.otlp" -}}
+{{- if kindIs "map" .Values.exporter.metrics -}}
+{{- dig "delivery" "otlp" (dict) .Values.exporter.metrics | toYaml -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "karta.exporter.otlpDir" -}}
+/etc/dsx-workload-exporter-otlp
+{{- end -}}
+
 {{/* Render GOMEMLIMIT in bytes. Auto reserves 10% of container memory outside Go. */}}
 {{- define "karta.exporter.goMemoryLimit" -}}
 {{- $setting := .Values.exporter.tuning.goMemoryLimit -}}

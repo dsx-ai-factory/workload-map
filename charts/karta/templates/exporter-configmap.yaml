@@ -17,6 +17,33 @@
     {{- fail (printf "exporter.tuning.%s must be a map" $name) }}
   {{- end }}
 {{- end }}
+{{- /* The exporter reads file paths; Secret and ConfigMap names are chart-only. */}}
+{{- $metrics := omit $exporter.metrics "delivery" }}
+{{- if eq (include "karta.exporter.deliveryMode" .) "otlp" }}
+  {{- if include "karta.exporter.tlsSecret" . }}
+    {{- fail "exporter.metrics.delivery.prometheus.tls.existingSecret applies only in prometheus mode" }}
+  {{- end }}
+  {{- $otlp := include "karta.exporter.otlp" . | fromYaml }}
+  {{- if not $otlp.endpoint }}
+    {{- fail "exporter.metrics.delivery.otlp.endpoint is required in otlp mode" }}
+  {{- end }}
+  {{- $dir := include "karta.exporter.otlpDir" . }}
+  {{- $tls := dict }}
+  {{- if dig "tls" "ca" (dict) $otlp }}
+    {{- $_ := set $tls "caFile" (printf "%s/ca/ca.crt" $dir) }}
+  {{- end }}
+  {{- if dig "tls" "clientSecret" "" $otlp }}
+    {{- $_ := set $tls "certFile" (printf "%s/client/tls.crt" $dir) }}
+    {{- $_ := set $tls "keyFile" (printf "%s/client/tls.key" $dir) }}
+  {{- end }}
+  {{- $settings := pick $otlp "protocol" "endpoint" "interval" "timeout" }}
+  {{- $_ := set $settings "tls" $tls }}
+  {{- $_ := set $metrics "delivery" (dict "mode" "otlp" "otlp" $settings) }}
+{{- else if include "karta.exporter.tlsSecret" . }}
+  {{- $dir := include "karta.exporter.tlsDir" . }}
+  {{- $tls := dict "certFile" (printf "%s/tls.crt" $dir) "keyFile" (printf "%s/tls.key" $dir) }}
+  {{- $_ := set $metrics "delivery" (dict "prometheus" (dict "tls" $tls)) }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -31,7 +58,7 @@ data:
     kartaDefinitionSource:
       {{- toYaml $exporter.kartaDefinitionSource | nindent 6 }}
     metrics:
-      {{- toYaml $exporter.metrics | nindent 6 }}
+      {{- toYaml $metrics | nindent 6 }}
     tuning:
       {{- omit $exporter.tuning "goMemoryLimit" "pprof" | toYaml | nindent 6 }}
 {{- end }}

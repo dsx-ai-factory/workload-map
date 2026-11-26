@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -60,7 +61,7 @@ var _ = BeforeSuite(func() {
 	Expect(current).To(Equal(expected), "refusing context %q, expected dedicated %q", current, expected)
 
 	By("removing stale exporter workload fixtures")
-	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "exporter-workloads-denied", "--ignore-not-found", "--wait=true", "--timeout=60s")
+	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "exporter-workloads-denied", "exporter-workloads-tls", "--ignore-not-found", "--wait=true", "--timeout=60s")
 	command("", "delete", "karta", "exporter-e2e-deployment", "--ignore-not-found")
 
 	By("creating the two shard-labeled workload namespaces")
@@ -72,7 +73,7 @@ var _ = ReportAfterSuite("clean up successful suite fixtures", func(report Repor
 	if !setupCompleted || !report.SuiteSucceeded {
 		return
 	}
-	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "--ignore-not-found", "--wait=false")
+	command("", "delete", "namespace", "exporter-workloads-a", "exporter-workloads-b", "exporter-workloads-tls", "--ignore-not-found", "--wait=false")
 })
 
 func TestE2E(t *testing.T) {
@@ -104,6 +105,20 @@ func submitWorkload(name string) {
 	body, err := os.ReadFile("testdata/" + name + ".yaml")
 	Expect(err).NotTo(HaveOccurred())
 	command(string(body), "apply", "-f", "-")
+}
+
+// installExporter installs or upgrades a release of the harness values in a
+// namespace of the same name and waits for its rollout. The small requests leave
+// room on the single node for the shards and both operators.
+func installExporter(release string, args ...string) {
+	GinkgoHelper()
+	harness := filepath.Join("..", "..", "..", "hack", "e2e", "dsx-workload-exporter")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	args = append([]string{filepath.Join(harness, "install.sh"), release, release, filepath.Join(harness, "values.yaml"),
+		"--set", "exporter.resources.requests.cpu=25m", "--set", "exporter.resources.requests.memory=64Mi"}, args...)
+	out, err := exec.CommandContext(ctx, "bash", args...).CombinedOutput()
+	Expect(err).NotTo(HaveOccurred(), string(out))
 }
 
 func readObject(dst any, args ...string) bool {

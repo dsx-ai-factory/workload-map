@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation
+# An OpenTelemetry Collector that writes every batch it receives to a file per
+# pipeline. push-* takes the exporters' native pushes. scrape reads shard a's
+# /metrics and forwards it over each protocol to the loopback forward-* receivers.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: exporter-otlp
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-receiver
+  namespace: exporter-otlp
+data:
+  config.yaml: |
+    receivers:
+      otlp/push-http:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:4318
+      otlp/push-grpc:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+      otlp/forward-http:
+        protocols:
+          http:
+            endpoint: 127.0.0.1:14318
+      otlp/forward-grpc:
+        protocols:
+          grpc:
+            endpoint: 127.0.0.1:14317
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: dsx-workload-exporter
+              scrape_interval: 2s
+              honor_labels: true
+              static_configs:
+                - targets: [dsx-workload-exporter.exporter-e2e-a.svc:8080]
+    exporters:
+      file/push-http:
+        path: /data/push-http.jsonl
+      file/push-grpc:
+        path: /data/push-grpc.jsonl
+      file/forward-http:
+        path: /data/forward-http.jsonl
+      file/forward-grpc:
+        path: /data/forward-grpc.jsonl
+      otlp_http/forward:
+        endpoint: http://127.0.0.1:14318
+      otlp_grpc/forward:
+        endpoint: 127.0.0.1:14317
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        metrics/push-http:
+          receivers: [otlp/push-http]
+          exporters: [file/push-http]
+        metrics/push-grpc:
+          receivers: [otlp/push-grpc]
+          exporters: [file/push-grpc]
+        metrics/scrape:
+          receivers: [prometheus]
+          exporters: [otlp_http/forward, otlp_grpc/forward]
+        metrics/forward-http:
+          receivers: [otlp/forward-http]
+          exporters: [file/forward-http]
+        metrics/forward-grpc:
+          receivers: [otlp/forward-grpc]
+          exporters: [file/forward-grpc]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-receiver
+  namespace: exporter-otlp
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: otel-receiver}
+  template:
+    metadata:
+      labels: {app: otel-receiver}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 5
+      volumes:
+        - name: config
+          configMap: {name: otel-receiver}
+        - name: data
+          emptyDir: {}
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector:0.166.0
+          imagePullPolicy: IfNotPresent
+          args: [--config=/etc/otelcol/config.yaml]
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+          volumeMounts:
+            - {name: config, mountPath: /etc/otelcol}
+            - {name: data, mountPath: /data}
+        # The collector image has no shell; the test reads the batches here.
+        - name: reader
+          image: busybox:1.37.0
+          command: [sleep, "86400"]
+          resources:
+            requests: {cpu: 1m, memory: 4Mi}
+          volumeMounts:
+            - {name: data, mountPath: /data, readOnly: true}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-receiver
+  namespace: exporter-otlp
+spec:
+  selector: {app: otel-receiver}
+  ports:
+    - {name: otlp-grpc, port: 4317}
+    - {name: otlp-http, port: 4318}

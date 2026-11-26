@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -60,6 +61,58 @@ type MetricsConfig struct {
 	WorkloadSelector       *metav1.LabelSelector              `yaml:"workloadSelector" json:"workloadSelector"`
 	ExcludeStatuses        []v1alpha1.ResourceStatus          `yaml:"excludeStatuses" json:"excludeStatuses"`
 	PodWorkloadAssociation *controller.PodWorkloadAssociation `yaml:"podWorkloadAssociation" json:"podWorkloadAssociation"`
+	Delivery               DeliveryConfig                     `yaml:"delivery" json:"delivery"`
+}
+
+type DeliveryConfig struct {
+	Mode       DeliveryMode             `yaml:"mode" json:"mode"`
+	Prometheus PrometheusDeliveryConfig `yaml:"prometheus" json:"prometheus"`
+	OTLP       OTLPDeliveryConfig       `yaml:"otlp" json:"otlp"`
+}
+
+// DeliveryMode selects how the gauges leave the exporter.
+type DeliveryMode string
+
+const (
+	// DeliveryPrometheus serves /metrics for scraping.
+	DeliveryPrometheus DeliveryMode = "prometheus"
+	// DeliveryOTLP pushes to an OTLP receiver and serves only the health probes.
+	DeliveryOTLP DeliveryMode = "otlp"
+)
+
+const (
+	ProtocolHTTPProtobuf = "http/protobuf"
+	ProtocolGRPC         = "grpc"
+)
+
+type PrometheusDeliveryConfig struct {
+	TLS ServingTLSConfig `yaml:"tls" json:"tls"`
+}
+
+// ServingTLSConfig names the certificate and key the metrics listener serves.
+// Leaving both empty keeps plain HTTP.
+type ServingTLSConfig struct {
+	CertFile string `yaml:"certFile" json:"certFile"`
+	KeyFile  string `yaml:"keyFile" json:"keyFile"`
+}
+
+// OTLPDeliveryConfig pushes the gauges every Interval. Endpoint is the full
+// receiver URL; http:// sends without TLS. Headers come from the standard
+// OTEL_EXPORTER_OTLP_METRICS_HEADERS or OTEL_EXPORTER_OTLP_HEADERS variable.
+type OTLPDeliveryConfig struct {
+	Protocol string        `yaml:"protocol" json:"protocol"`
+	Endpoint string        `yaml:"endpoint" json:"endpoint"`
+	Interval string        `yaml:"interval" json:"interval"`
+	Timeout  string        `yaml:"timeout" json:"timeout"`
+	TLS      OTLPTLSConfig `yaml:"tls" json:"tls"`
+}
+
+// OTLPTLSConfig verifies the receiver with CAFile instead of the system roots,
+// and presents CertFile and KeyFile for mutual TLS.
+type OTLPTLSConfig struct {
+	CAFile   string `yaml:"caFile" json:"caFile"`
+	CertFile string `yaml:"certFile" json:"certFile"`
+	KeyFile  string `yaml:"keyFile" json:"keyFile"`
 }
 
 type TuningConfig struct {
@@ -278,6 +331,10 @@ func DefaultConfig() Config {
 		Metrics: MetricsConfig{
 			Config:          labelresolver.Config{Limits: defaultLabelEvaluationLimits},
 			ExcludeStatuses: []v1alpha1.ResourceStatus{v1alpha1.SuspendingStatus, v1alpha1.ResumingStatus},
+			Delivery: DeliveryConfig{
+				Mode: DeliveryPrometheus,
+				OTLP: OTLPDeliveryConfig{Protocol: ProtocolHTTPProtobuf, Interval: "30s", Timeout: "10s"},
+			},
 		},
 		KartaDefinitionSource: KartaDefinitionSourceConfig{
 			Catalog: DefinitionSourceConfig{Enabled: true},
@@ -333,6 +390,21 @@ func (cfg Config) Validate() error {
 	if err := controller.ValidatePodWorkloadAssociation(cfg.Metrics.PodWorkloadAssociation); err != nil {
 		return err
 	}
+	if tls := cfg.Metrics.Delivery.Prometheus.TLS; (tls.CertFile == "") != (tls.KeyFile == "") {
+		return errors.New("metrics.delivery.prometheus.tls: certFile and keyFile must be set together")
+	}
+	switch delivery := cfg.Metrics.Delivery; delivery.Mode {
+	case "", DeliveryPrometheus:
+	case DeliveryOTLP:
+		if delivery.Prometheus.TLS != (ServingTLSConfig{}) {
+			return errors.New("metrics.delivery.prometheus.tls does not apply in otlp mode")
+		}
+		if err := delivery.OTLP.validate(); err != nil {
+			return fmt.Errorf("metrics.delivery.otlp.%w", err)
+		}
+	default:
+		return fmt.Errorf("metrics.delivery.mode must be %s or %s, not %q", DeliveryPrometheus, DeliveryOTLP, delivery.Mode)
+	}
 	for _, kinds := range [][]schema.GroupVersionKind{cfg.Selection.IgnoredOwnerKinds, cfg.Selection.RequiredWatchKinds} {
 		seen := map[schema.GroupVersionKind]bool{}
 		for _, kind := range kinds {
@@ -363,6 +435,42 @@ func (cfg Config) Validate() error {
 	}
 	if cfg.Tuning.Workers.Workloads < 0 {
 		return errors.New("tuning.workers.workloads must not be negative")
+	}
+	return nil
+}
+
+func (c OTLPDeliveryConfig) validate() error {
+	if c.Protocol != ProtocolHTTPProtobuf && c.Protocol != ProtocolGRPC {
+		return fmt.Errorf("protocol must be %s or %s, not %q", ProtocolHTTPProtobuf, ProtocolGRPC, c.Protocol)
+	}
+	endpoint, err := url.Parse(c.Endpoint)
+	if err != nil || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.Host == "" {
+		return fmt.Errorf("endpoint must be an http or https URL, not %q", c.Endpoint)
+	}
+	// The URL is used as given, so an http/protobuf receiver without its path would get a 404.
+	hasPath := endpoint.Path != "" && endpoint.Path != "/"
+	if c.Protocol == ProtocolHTTPProtobuf && !hasPath {
+		return errors.New("endpoint needs the receiver path for http/protobuf, such as /v1/metrics")
+	}
+	if c.Protocol == ProtocolGRPC && hasPath {
+		return errors.New("endpoint takes no path for grpc")
+	}
+	interval, err := time.ParseDuration(c.Interval)
+	if err != nil || interval <= 0 {
+		return fmt.Errorf("interval must be a positive duration, not %q", c.Interval)
+	}
+	timeout, err := time.ParseDuration(c.Timeout)
+	if err != nil || timeout <= 0 {
+		return fmt.Errorf("timeout must be a positive duration, not %q", c.Timeout)
+	}
+	if timeout > interval {
+		return fmt.Errorf("timeout %s must not exceed interval %s", timeout, interval)
+	}
+	if (c.TLS.CertFile == "") != (c.TLS.KeyFile == "") {
+		return errors.New("tls: certFile and keyFile must be set together")
+	}
+	if c.TLS != (OTLPTLSConfig{}) && endpoint.Scheme != "https" {
+		return errors.New("tls needs an https endpoint")
 	}
 	return nil
 }

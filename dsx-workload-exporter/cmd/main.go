@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,8 +18,11 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/adapters/otlp"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/app"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/bootstrap"
 	"github.com/dsx-ai-factory/workload-map/dsx-workload-exporter/pkg/config"
@@ -63,6 +67,22 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("invalid exporter configuration: %w", err)
 	}
+	var tlsConfig *tls.Config
+	if files := cfg.Metrics.Delivery.Prometheus.TLS; files.CertFile != "" {
+		if tlsConfig, err = app.ServerTLSConfig(files.CertFile, files.KeyFile); err != nil {
+			return fmt.Errorf("invalid exporter configuration: %w", err)
+		}
+	}
+	var push sdkmetric.Reader
+	if delivery := cfg.Metrics.Delivery; delivery.Mode == config.DeliveryOTLP {
+		if push, err = otlp.NewReader(context.Background(), delivery.OTLP); err != nil {
+			return fmt.Errorf("invalid exporter configuration: %w", err)
+		}
+		// Failed exports are reported here and retried on the next interval.
+		otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+			slog.Error("OTLP metric delivery failed", "endpoint", delivery.OTLP.Endpoint, "error", err)
+		}))
+	}
 
 	// Falls back to the in-cluster service account when no kubeconfig is found.
 	restConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -74,10 +94,12 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("construct exporter: %w", err)
 	}
+	components.Push = push
 	application, err := app.New(components)
 	if err != nil {
 		return fmt.Errorf("construct exporter application: %w", err)
 	}
+	application.TLSConfig = tlsConfig
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -95,7 +117,7 @@ func run() error {
 	}
 	if ctx.Err() == nil {
 		slog.Info("DSX workload exporter starting",
-			"version", version.String(), "address", *address, "labelRules", len(cfg.Metrics.Rules),
+			"version", version.String(), "address", *address, "delivery", cfg.Metrics.Delivery.Mode, "tls", tlsConfig != nil, "labelRules", len(cfg.Metrics.Rules),
 			"catalogDefinitions", cfg.KartaDefinitionSource.Catalog.Enabled, "clusterDefinitions", cfg.KartaDefinitionSource.Cluster.Enabled)
 	}
 	err = application.Serve(ctx, *address)

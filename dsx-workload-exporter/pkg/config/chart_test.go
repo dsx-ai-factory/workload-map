@@ -240,6 +240,30 @@ var _ = Describe("chart exporter ServiceMonitor", func() {
 			override: "custom-",
 			endpoint: map[string]any{"port": "metrics", "path": "/metrics", "honorLabels": true, "interval": "30s", "scrapeTimeout": "10s"},
 		},
+		{
+			name: "HTTPS with the configured CA and server name",
+			values: `exporter:
+  metrics:
+    delivery:
+      prometheus:
+        tls:
+          existingSecret: dsx-exporter-tls
+  serviceMonitor:
+    enabled: true
+    tlsConfig:
+      ca:
+        configMap: {name: dsx-exporter-ca, key: ca.crt}
+      serverName: dsx-workload-exporter.observability.svc
+`,
+			enabled: true,
+			endpoint: map[string]any{
+				"port": "metrics", "path": "/metrics", "honorLabels": true, "scheme": "https",
+				"tlsConfig": map[string]any{
+					"ca":         map[string]any{"configMap": map[string]any{"name": "dsx-exporter-ca", "key": "ca.crt"}},
+					"serverName": "dsx-workload-exporter.observability.svc",
+				},
+			},
+		},
 	} {
 		It(tc.name, func() {
 			args := append([]string{"--namespace", "observability"}, tc.args...)
@@ -335,6 +359,12 @@ var _ = Describe("chart exporter resources", func() {
 			name:  "enabled",
 			args:  []string{"--set", "exporter.enabled=true"},
 			kinds: []string{"ServiceAccount", "ClusterRole", "ClusterRoleBinding", "ConfigMap", "Deployment", "Service"},
+		},
+		{
+			name: "OTLP push, which leaves nothing to scrape",
+			args: []string{"--set", "exporter.enabled=true", "--set", "exporter.serviceMonitor.enabled=true",
+				"--set", "exporter.metrics.delivery.mode=otlp", "--set", "exporter.metrics.delivery.otlp.endpoint=http://collector:4318/v1/metrics"},
+			kinds: []string{"ServiceAccount", "ClusterRole", "ClusterRoleBinding", "ConfigMap", "Deployment"},
 		},
 	} {
 		It("renders the expected resources with "+tc.name, func() {

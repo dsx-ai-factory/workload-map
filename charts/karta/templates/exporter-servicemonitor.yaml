@@ -3,7 +3,7 @@
 
 {{- if and .Values.exporter .Values.exporter.enabled }}
 {{- $monitor := .Values.exporter.serviceMonitor | default dict }}
-{{- if $monitor.enabled }}
+{{- if and $monitor.enabled (ne (include "karta.exporter.deliveryMode" .) "otlp") }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -27,6 +27,15 @@ spec:
       {{- end }}
       {{- with $monitor.scrapeTimeout }}
       scrapeTimeout: {{ . | quote }}
+      {{- end }}
+      {{- if include "karta.exporter.tlsSecret" . }}
+      scheme: https
+      {{- with $monitor.tlsConfig }}
+      tlsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- else if $monitor.tlsConfig }}
+      {{- fail "exporter.serviceMonitor.tlsConfig requires exporter.metrics.delivery.prometheus.tls.existingSecret" }}
       {{- end }}
 {{- end }}
 {{- end }}

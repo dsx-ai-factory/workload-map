@@ -191,6 +191,154 @@ from the CPU query. Deduplicate physical measurements first; averages can hide a
 busy device. Use valid utilization samples in the range 0 to 100 and treat missing
 or invalid values as missing telemetry, not zero activity.
 
+## 3a. GPUs shared through a scheduler reservation Pod
+
+Some GPU-sharing schedulers give a Pod part of a GPU without an `nvidia.com/gpu`
+request. The scheduler creates a reservation Pod that requests `nvidia.com/gpu`,
+while the consumer Pods carry no device request. The kubelet records the
+allocation on the reservation Pod, so DCGM's `pod`, `namespace` and `pod_uid`
+labels name the reservation Pod. The query in section 3 then attributes the
+device to the reservation Pod or drops it, and the consumer Pods show no GPU
+measurements. Excluding reservation Pods from observation, as section 4 suggests
+for idleness decisions, hides that GPU time instead of attributing it.
+
+KAI Scheduler's binder links the Pods of one sharing group and the reservation
+Pod records the device:
+
+- Every consumer Pod and the reservation Pod carry the label `runai-gpu-group`
+  with the same value. The binder keeps one reservation Pod per node and group,
+  and a group value can appear on more than one node.
+- The reservation Pod carries the annotation `run.ai/reserve_for_gpu_index`,
+  written by its container shortly after start, whose value is the GPU UUID that
+  DCGM reports in `UUID`.
+- Reservation Pods live in one namespace, `kai-resource-reservation` by default.
+
+Expose the group, the device and the node as configured labels under
+`exporter.metrics.labelRules` so the exporter emits them on
+`dsx_workload_pod_info`. Keep the reservation namespace inside
+`exporter.selection.namespaceSelector` and keep the bundled `core-pod-v1`
+definition enabled under `exporter.kartaDefinitionSource.catalog` (both are on
+by default), so each reservation Pod gets its own row:
+
+```yaml
+exporter:
+  metrics:
+    labelRules:
+      - name: gpu_group
+        metrics: [dsx_workload_pod_info]
+        sources: [pod]
+        expression: |
+          has(object.metadata.labels) && "runai-gpu-group" in object.metadata.labels
+            ? object.metadata.labels["runai-gpu-group"] : ""
+      - name: gpu_uuid
+        metrics: [dsx_workload_pod_info]
+        sources: [pod]
+        expression: |
+          has(object.metadata.annotations) && "run.ai/reserve_for_gpu_index" in object.metadata.annotations
+            ? object.metadata.annotations["run.ai/reserve_for_gpu_index"] : ""
+      - name: node
+        metrics: [dsx_workload_pod_info]
+        sources: [pod]
+        expression: |
+          has(object.spec.nodeName) ? object.spec.nodeName : ""
+```
+
+These examples expect `DCGM_FI_DEV_GPU_UTIL` in percent, from 0 to 100.
+[DCGM Exporter 4.9.0](https://github.com/NVIDIA/dcgm-exporter/releases/tag/4.9.0)
+changes its default to `DCGM_FI_DEV_GPU_UTIL_RATIO`, from 0 to 1. To use that
+default, replace the device input with `100 * DCGM_FI_DEV_GPU_UTIL_RATIO` before
+applying the joins. The remaining percentage thresholds and GPU-hour conversion
+then keep the same units.
+
+Extend the `dsx:pod_attribution:unique` rule in section 1 with `gpu_group`,
+`gpu_uuid` and `node` in both label lists. Reservation rows then carry all three
+and consumer rows carry `gpu_group` and `node`. The complete rule set, setup
+walkthrough and `promtool` unit tests live in
+[`examples/grafana/kai`](../../dsx-workload-exporter/examples/grafana/kai/README.md).
+Its `dsx:pod_attribution:unique` rule also preserves `job` and `team` and keys
+the conflict check on `(job, namespace, pod_name)` to match
+[`examples/grafana/recording-rules.yaml`](../../dsx-workload-exporter/examples/grafana/recording-rules.yaml).
+A sharing group is keyed by `(gpu_group, node)`. The core is one join on `UUID`
+followed by a fan-out on the group:
+
+```promql
+# dsx:shared_gpu_util:device
+max by (UUID) (DCGM_FI_DEV_GPU_UTIL)
+* on (UUID) group_left (gpu_group, node)
+  dsx:shared_gpu_device:group
+
+# dsx:shared_gpu_util:by_consumer
+dsx:shared_gpu_util:device
+* on (gpu_group, node) group_right (UUID)
+  dsx:pod_attribution:unique{observation_valid="true",namespace!="kai-resource-reservation",gpu_group!="",gpu_uuid=""}
+
+# dsx:shared_gpu_util:equal_share
+dsx:shared_gpu_util:by_consumer
+/ on (gpu_group, node) group_left
+  dsx:shared_gpu_group:consumers
+```
+
+`namespace!="kai-resource-reservation"` keeps an unannotated reservation Pod
+from being counted as a consumer during a swap. Replace it with the configured
+reservation namespace when it differs from the default. The rules file also adds
+`pod_phase!~"Succeeded|Failed"` to both consumer selectors, which is harmless
+when the `pod_phase` label is not configured.
+
+`dsx:shared_gpu_device:group` holds one row per shared device, taken from
+reservation rows whose annotation has the `GPU-` UUID form and kept only while
+device and group map one to one. Pairs that do not map one to one are reported
+in `dsx:shared_gpu_device:ambiguous` instead of failing the join for every
+group. `dsx:shared_gpu_util:by_consumer` repeats the whole-device value on every
+consumer to show shared-device activity alongside each consumer's workload
+identity. Do not sum it across consumers. `dsx:shared_gpu_util:equal_share`
+splits the device value evenly across the consumers present, and its selector
+must match `dsx:shared_gpu_group:consumers` so device time does not leak.
+Neither series measures the compute each consumer actually used, and a requested
+GPU fraction is a scheduler grant rather than a measured share, so prefer
+per-process measurements as weights when the sharing stack provides them.
+
+Three series report coverage and belong on any dashboard that uses these rules:
+`dsx:shared_gpu_device:unattributed` (a mapped device whose group has no
+consumer), `dsx:shared_gpu_group:unmapped_consumers` (consumers whose
+reservation row is missing, not yet annotated, invalid or ambiguous, usually a
+selection or definition problem) and `dsx:shared_gpu_device:unmeasured` (a
+mapped device with no DCGM series).
+
+Utilized GPU-hours per workload over an hour, from the equal share:
+
+```promql
+sum by (namespace, workload_name, workload_uid) (
+  sum_over_time(dsx:shared_gpu_util:equal_share[1h])
+) / 12000
+```
+
+The divisor is 100 (percent) times 120 (30-second evaluations per hour). Adjust
+it when changing the group interval. This is device busy time apportioned
+equally, not allocated time or measured per-consumer compute.
+
+While these rules are in use, add `gpu_uuid=""` to the selectors in sections 3
+and 4, and exclude the reservation namespace by name as well. A reservation Pod
+carries no UUID until its annotation appears, so the namespace term keeps it
+from being attributed as a tenant workload in the meantime.
+
+A consumer Pod that has terminated but still exists keeps its group label and
+would otherwise receive a share. An optional fourth label rule excludes
+`Succeeded` and `Failed` Pods: `name: pod_phase`,
+`metrics: [dsx_workload_pod_info]`, `sources: [pod]` and the expression
+`has(object.status) && has(object.status.phase) ? object.status.phase : ""`.
+
+For several clusters in one backend, use the cluster-aware variant in
+[`examples/grafana/kai`](../../dsx-workload-exporter/examples/grafana/kai/shared-gpu-rules.cluster.yaml).
+It carries `cluster` in every matching key.
+
+Two shapes are out of scope here. Multi-device fractional Pods carry one
+`runai-gpu-group/<id>` label per device, and MIG devices have their own
+identity.
+
+A sharing stack that exposes its own Pod-to-device series, keyed by Pod UID and
+GPU UUID, can replace the reservation Pod step by joining on `UUID` and then on
+`pod_uid`.
+
 ## 4. Low observed GPU activity over five minutes
 
 Find each observed device's maximum utilization, attach its current verified
@@ -199,10 +347,26 @@ whose workload has verified Running status now. Reject current invalid status
 replicas and workload failures observed in the window.
 
 Reservation Pods may hold GPUs at low activity by design. Exclude them from tenant
-idleness decisions through the [selection settings](configuration.md#selection).
-Excluding a reservation Pod hides its measurements. It does not attribute them to
-the Pods that consume its GPUs. A direct Pod UID join cannot infer that relationship.
-Filtering Pods also limits how much of the workload the query observes.
+idleness decisions through the [selection settings](configuration.md#selection),
+or, once the section 3a rules are in use, add `gpu_uuid=""` to the selector
+below together with a namespace exclusion for the reservation namespace
+(`kai-resource-reservation` by default). The namespace term matters because a
+reservation Pod carries no UUID until its annotation appears.
+
+Either way, the Pod UID query below does not see the consumers of a shared
+device, because their DCGM series carry the reservation Pod's identity. To test
+shared consumers, replace the `DCGM_FI_DEV_GPU_UTIL` join inside the first
+`max by` with
+`max_over_time(dsx:shared_gpu_util:by_consumer[5m]) and dsx:shared_gpu_util:by_consumer`,
+and keep the status guards. Intersecting with the current `by_consumer` series
+keeps only consumers whose mapping is current, so a stale sample cannot outlive
+its mapping. That series repeats the physical device value on every consumer and
+carries the consumer's attribution labels, so a low value means the whole shared
+device was quiet. This result covers shared Pods only. For a mixed workload,
+check dedicated GPU activity separately before making a workload-level idleness
+decision. Do not use `dsx:shared_gpu_util:equal_share` for idleness, because the
+split understates activity. Filtering Pods also limits how much of the workload
+the query observes.
 
 ```promql
 (

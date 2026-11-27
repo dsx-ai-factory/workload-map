@@ -528,24 +528,23 @@ exporter-version-smoke: build-exporter ## Verify the exporter reports the stampe
 	[ "$$out" = "$(VERSION)" ] || { \
 		echo "version mismatch: got '$$out', want '$(VERSION)'" >&2; exit 1; }
 
+EXPORTER_EXAMPLES_DIR := dsx-workload-exporter/examples
+
 .PHONY: promtool-check
 promtool-check: promtool ## Validate and unit-test example Prometheus rules with promtool
 	@set -eu; \
-	rules=0; \
-	for f in dsx-workload-exporter/examples/*/*rules*.yaml dsx-workload-exporter/examples/*/*/*rules*.yaml; do \
-		[ -e "$$f" ] || continue; \
-		rules=$$((rules + 1)); \
+	EXAMPLES_DIR="$(EXPORTER_EXAMPLES_DIR)"; \
+	rule_files="$$(find "$$EXAMPLES_DIR" -type f -name '*rules*.yaml' | sort)"; \
+	[ -n "$$rule_files" ] || { echo "no Prometheus rule files matched under $$EXAMPLES_DIR" >&2; exit 1; }; \
+	printf '%s\n' "$$rule_files" | while IFS= read -r f; do \
 		$(PROMTOOL) check rules --lint-fatal "$$f"; \
 	done; \
-	[ "$$rules" -gt 0 ] || { echo "no Prometheus rule files matched under dsx-workload-exporter/examples" >&2; exit 1; }; \
-	tests=0; \
-	for t in dsx-workload-exporter/examples/*/tests/*.test.yaml dsx-workload-exporter/examples/*/*/tests/*.test.yaml; do \
-		[ -e "$$t" ] || continue; \
-		tests=$$((tests + 1)); \
+	test_files="$$(find "$$EXAMPLES_DIR" -type f -name '*test*.yaml' | sort)"; \
+	[ -n "$$test_files" ] || { echo "no Prometheus rule test files matched under $$EXAMPLES_DIR" >&2; exit 1; }; \
+	printf '%s\n' "$$test_files" | while IFS= read -r t; do \
 		echo "Testing $$t"; \
 		$(PROMTOOL) test rules "$$t"; \
-	done; \
-	[ "$$tests" -gt 0 ] || { echo "no Prometheus rule test files matched under dsx-workload-exporter/examples" >&2; exit 1; }
+	done
 
 .PHONY: check-exporter
 check-exporter: build-exporter-e2e fmt-check-exporter vet-exporter lint-exporter modules-check-exporter promtool-check test-exporter exporter-version-smoke ## Full exporter presubmit
